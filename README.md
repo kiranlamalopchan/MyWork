@@ -45,3 +45,4 @@ plu_no,description,sales_mode,price,tare
 A sample is included:
 - sample_data/plu_sample.csv
 # PLU-Management
+# PLU-Management
