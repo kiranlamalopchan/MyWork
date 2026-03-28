@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2 style="margin-top: 0;">Import PLUs from CSV</h2>
+    <p class="muted">CSV headers must be: <code>plu_no,description,sales_mode,price,tare</code></p>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="btn" type="submit">Import</button>
+    </form>
+
+    <hr style="border:0; border-top:1px solid #e5e7eb; margin: 16px 0;">
+
+    <p><strong>Tip:</strong> If you want, paste your PLUs into Excel first, export as CSV, then import here.</p>
+    <p class="muted">A sample CSV is included in the project: <code>sample_data/plu_sample.csv</code></p>
+  </div>
+{% endblock %}

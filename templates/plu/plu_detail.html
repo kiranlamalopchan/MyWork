@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2 style="margin: 0 0 6px 0;">PLU {{ item.plu_no }}</h2>
+    <div class="muted" style="margin-bottom: 12px;">Last updated: {{ item.updated_at }}</div>
+
+    <p><strong>Description:</strong> {{ item.description }}</p>
+    <p><strong>Sales mode:</strong> {{ item.sales_mode }}</p>
+    <p><strong>Price:</strong> ${{ item.price }}</p>
+    <p><strong>Tare:</strong> {{ item.tare }}</p>
+
+    <a class="btn secondary" href="{% url 'plu:list' %}">Back</a>
+  </div>
+{% endblock %}

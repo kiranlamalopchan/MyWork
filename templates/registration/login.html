@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  .auth-shell{
+    min-height: calc(100vh - 90px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px 0;
+  }
+  .auth-card{
+    width: min(520px, 100%);
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.08);
+    padding: 22px;
+    border: 1px solid #eef0f5;
+  }
+  .auth-title{
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 6px 0;
+    color:#0f172a;
+  }
+  .auth-subtitle{
+    margin: 0 0 18px 0;
+    color:#64748b;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .field{
+    margin-bottom: 14px;
+  }
+  .label{
+    display:block;
+    font-size: 14px;
+    font-weight: 700;
+    color:#111827;
+    margin-bottom: 6px;
+  }
+  .help{
+    font-size: 12px;
+    color:#64748b;
+    margin-top: 6px;
+  }
+  .errors{
+    margin: 10px 0 16px 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid #ef444433;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 14px;
+  }
+  .errors ul{ margin: 8px 0 0 16px; }
+  .actions{
+    display:flex;
+    gap: 10px;
+    align-items:center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .btn-full{
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #111827;
+    color: white;
+    border: 0;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .btn-full:hover{ opacity: .95; }
+  .links{
+    display:flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 14px;
+    font-size: 14px;
+    color:#475569;
+  }
+  .links a{
+    color:#4f46e5;
+    text-decoration: none;
+    font-weight: 700;
+  }
+  .hero{
+    background: linear-gradient(135deg, #0f172a 0%, #111827 60%, #1f2937 100%);
+    border-radius: 16px;
+    padding: 14px 14px;
+    color: #e5e7eb;
+    margin-bottom: 14px;
+  }
+  .hero strong{ color:#fff; }
+  .grid-2{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Fix input overflow on iOS */
+  input[type="text"], input[type="password"]{
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 480px){
+    .auth-card{ padding: 16px; border-radius: 16px; }
+    .auth-title{ font-size: 22px; }
+  }
+</style>
+
+<div class="auth-shell">
+  <div class="auth-card">
+
+    <div class="hero">
+      <div style="font-size:13px; opacity:.9;">Welcome to</div>
+      <div style="font-size:18px; font-weight:800;"><strong>Butcher PLU</strong> Search</div>
+      <div style="font-size:13px; opacity:.9; margin-top:4px;">
+        Find PLU codes fast by number or description.
+      </div>
+    </div>
+
+    <h1 class="auth-title">Login</h1>
+    <p class="auth-subtitle">Use your username and password to access the PLU search.</p>
+
+    {% if form.errors %}
+      <div class="errors">
+        <strong>Please correct the errors below.</strong>
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="field">
+        <label class="label" for="id_username">Username</label>
+        {{ form.username }}
+      </div>
+
+      <div class="field">
+        <label class="label" for="id_password">Password</label>
+        {{ form.password }}
+      </div>
+
+      <button type="submit" class="btn-full">Login</button>
+
+      <div class="links">
+        <span>New here?</span>
+        <a href="{% url 'plu:register' %}">Create an account</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
