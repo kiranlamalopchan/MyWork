@@ -4,7 +4,7 @@ import io
 import re
 
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageOps
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -110,56 +110,100 @@ def plu_detail(request, plu_no: int):
     return render(request, "plu/plu_detail.html", {"item": item})
 
 
+def _preprocess_photo(image: Image.Image) -> Image.Image:
+    """
+    Clean up a phone photo of a picking list before OCR: fix camera-reported
+    rotation, auto-correct sideways/upside-down pages, boost contrast, and
+    upscale small images. Dense small print reads far better after this than
+    fed to Tesseract raw.
+    """
+    image = ImageOps.exif_transpose(image)
+    image = image.convert("L")
+
+    try:
+        osd = pytesseract.image_to_osd(image)
+        angle_match = re.search(r"Rotate:\s*(\d+)", osd)
+        confidence_match = re.search(r"Orientation confidence:\s*([\d.]+)", osd)
+        angle = int(angle_match.group(1)) if angle_match else 0
+        confidence = float(confidence_match.group(1)) if confidence_match else 0.0
+        # Low-confidence OSD readings are a coin flip and can rotate an
+        # already-correct image into an unreadable one, so only act on
+        # confident readings.
+        if angle and confidence >= 2.0:
+            image = image.rotate(-angle, expand=True, fillcolor=255)
+    except Exception:
+        pass
+
+    image = ImageOps.autocontrast(image)
+
+    if image.width < 1800:
+        scale = 1800 / image.width
+        image = image.resize((int(image.width * scale), int(image.height * scale)), Image.LANCZOS)
+
+    return image
+
+
+def _match_line(line: str):
+    """
+    Best-effort match of a single picking-list line to a PluItem.
+    Exact plu_no found in the line wins outright; otherwise the PluItem whose
+    description shares the most words with the line is used. Returns None if
+    nothing scores at least one shared word.
+    """
+    digit_candidates = {int(d) for d in re.findall(r"\d{3,6}", line)}
+    if digit_candidates:
+        exact = PluItem.objects.filter(plu_no__in=digit_candidates).order_by("plu_no").first()
+        if exact:
+            return exact
+
+    words = [w.upper() for w in re.sub(r"[^A-Za-z\s]", " ", line).split() if len(w) > 2]
+    words = list(dict.fromkeys(words))[:8]
+    if not words:
+        return None
+
+    q = Q()
+    for w in words:
+        q |= Q(description__icontains=w)
+    candidates = PluItem.objects.filter(q)[:200]
+
+    # On a tied score, prefer the shorter description: it's the tighter,
+    # more literal match rather than a longer one that happens to contain
+    # all the same words as a subset (e.g. "LAMB MINCE" over "LAMB
+    # BONELESS LAMB YIROS MINCE" when both match "LAMB" and "MINCE").
+    best_item, best_score, best_len = None, 0, None
+    for item in candidates:
+        desc_upper = item.description.upper()
+        score = sum(1 for w in words if w in desc_upper)
+        if score == 0:
+            continue
+        desc_len = len(desc_upper)
+        if score > best_score or (score == best_score and desc_len < best_len):
+            best_item, best_score, best_len = item, score, desc_len
+
+    return best_item
+
+
 def _find_plu_matches(ocr_text: str):
     """
-    Match OCR'd label text against PluItem records.
-    Digit runs are checked as exact plu_no matches first (highest confidence).
-    Remaining words are matched against the description and ranked by how many
-    of the detected words each item contains, so a single generic word (e.g.
-    "BEEF") doesn't drown out items that match on multiple words.
+    Match each line of an OCR'd picking list to a PLU. Returns a list of
+    {"line": str, "item": PluItem or None} dicts, one per non-empty line, so
+    the picking list can be reviewed line-by-line and blanks are obvious.
     """
-    text = ocr_text or ""
-
-    digit_candidates = {int(d) for d in re.findall(r"\d{3,6}", text)}
-    exact_matches = list(PluItem.objects.filter(plu_no__in=digit_candidates).order_by("plu_no"))
-
-    words = [w.upper() for w in re.sub(r"[^A-Za-z\s]", " ", text).split() if len(w) > 2]
-    words = list(dict.fromkeys(words))[:8]
-
-    desc_matches = []
-    if words:
-        q = Q()
-        for w in words:
-            q |= Q(description__icontains=w)
-        candidates = PluItem.objects.filter(q)[:500]
-
-        scored = []
-        for item in candidates:
-            desc_upper = item.description.upper()
-            score = sum(1 for w in words if w in desc_upper)
-            scored.append((score, item))
-        scored.sort(key=lambda t: (-t[0], t[1].plu_no))
-
-        # Require at least 2 matching words when more than one word was
-        # detected, so a single generic word (e.g. "BEEF") doesn't flood
-        # the results with unrelated items.
-        min_score = 2 if len(words) >= 2 else 1
-        desc_matches = [item for score, item in scored[:10] if score >= min_score]
-
-    seen = set()
     results = []
-    for item in exact_matches + desc_matches:
-        if item.plu_no not in seen:
-            seen.add(item.plu_no)
-            results.append(item)
+    for raw_line in (ocr_text or "").splitlines():
+        line = raw_line.strip()
+        if len(line) < 3:
+            continue
+        results.append({"line": line, "item": _match_line(line)})
     return results
 
 
 @login_required
 def photo_search(request):
     """
-    Upload/capture a photo of a PLU label, OCR it, and show matching PLU records.
-    Results are cached in the session so they can be re-downloaded as a PDF.
+    Upload/capture a photo of a picking list, OCR it line by line, and show
+    the best PLU match for each line. Results are cached in the session so
+    they can be re-downloaded as a PDF without re-uploading the photo.
     """
     results = None
     ocr_text = ""
@@ -169,7 +213,8 @@ def photo_search(request):
         if form.is_valid():
             try:
                 image = Image.open(form.cleaned_data["photo"])
-                ocr_text = pytesseract.image_to_string(image)
+                image = _preprocess_photo(image)
+                ocr_text = pytesseract.image_to_string(image, config="--psm 6")
             except Exception:
                 messages.error(request, "Could not read that photo. Please try a clearer image.")
                 return render(request, "plu/photo_search.html", {"form": form, "results": None, "ocr_text": ""})
@@ -177,10 +222,12 @@ def photo_search(request):
             results = _find_plu_matches(ocr_text)
 
             request.session["photo_search_ocr_text"] = ocr_text
-            request.session["photo_search_plu_nos"] = [item.plu_no for item in results]
+            request.session["photo_search_lines"] = [
+                {"line": r["line"], "plu_no": r["item"].plu_no if r["item"] else None} for r in results
+            ]
 
             if not results:
-                messages.warning(request, "No PLU match found for the text detected in the photo.")
+                messages.warning(request, "No text could be matched to a PLU in that photo.")
         else:
             messages.error(request, "Please upload a valid image.")
     else:
@@ -196,11 +243,12 @@ def photo_search(request):
 @login_required
 def photo_search_pdf(request):
     """
-    Render the last photo-search result (from session) as a downloadable PDF.
+    Render the last photo-search result (from session) as a downloadable PDF:
+    one row per picking-list line, with its matched PLU or blank if none.
     """
-    plu_nos = request.session.get("photo_search_plu_nos") or []
-    ocr_text = request.session.get("photo_search_ocr_text") or ""
-    items = list(PluItem.objects.filter(plu_no__in=plu_nos).order_by("plu_no"))
+    lines = request.session.get("photo_search_lines") or []
+    plu_nos = {row["plu_no"] for row in lines if row["plu_no"] is not None}
+    items_by_plu = {item.plu_no: item for item in PluItem.objects.filter(plu_no__in=plu_nos)}
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -213,18 +261,17 @@ def photo_search_pdf(request):
     )
 
     styles = getSampleStyleSheet()
-    elements = [Paragraph("PLU Photo Search Result", styles["Title"]), Spacer(1, 12)]
+    elements = [Paragraph("PLU Picking List Result", styles["Title"]), Spacer(1, 12)]
 
-    if ocr_text.strip():
-        elements.append(Paragraph(f"<b>Text detected in photo:</b> {ocr_text.strip()}", styles["Normal"]))
-        elements.append(Spacer(1, 12))
+    if lines:
+        data = [["PLU No", "Line detected / Description"]]
+        for row in lines:
+            item = items_by_plu.get(row["plu_no"])
+            plu_display = str(item.plu_no) if item else ""
+            desc_display = item.description if item else row["line"]
+            data.append([plu_display, desc_display])
 
-    if items:
-        data = [["PLU No", "Description"]]
-        for item in items:
-            data.append([str(item.plu_no), item.description])
-
-        table = Table(data, colWidths=[1.2 * inch, 5.6 * inch], repeatRows=1)
+        table = Table(data, colWidths=[1.0 * inch, 5.8 * inch], repeatRows=1)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2b2b2b")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),

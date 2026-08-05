@@ -4,7 +4,8 @@
 <div class="card hero-left" style="padding:20px;">
   <h1 class="title">Photo search</h1>
   <p class="subtitle">
-    Take a photo of a PLU label or tag and it'll read the text off it and match it against the PLU list.
+    Take a photo of a picking list (one item per line) and it'll read each line and match it to a PLU.
+    For best results, keep the page flat, well lit, and fill the frame.
   </p>
 </div>
 
@@ -28,7 +29,7 @@
     <div class="card-pad">
       <div class="row" style="justify-content:space-between; margin-bottom:8px;">
         <div class="muted">
-          {% if ocr_text %}Text detected: “<strong>{{ ocr_text|striptags|truncatechars:120 }}</strong>”{% endif %}
+          {% if results %}{{ results|length }} line{{ results|length|pluralize }} detected{% endif %}
         </div>
         {% if results %}
           <a class="btn primary" href="{% url 'plu:photo_search_pdf' %}">Download PDF</a>
@@ -40,16 +41,22 @@
           <table>
             <thead>
               <tr>
-                <th style="width:140px;">PLU</th>
-                <th>Description</th>
+                <th style="width:110px;">PLU</th>
+                <th>Line detected / Description</th>
               </tr>
             </thead>
             <tbody>
-              {% for item in results %}
+              {% for row in results %}
                 <tr>
-                  <td><strong>{{ item.plu_no }}</strong></td>
                   <td>
-                    <a href="{% url 'plu:detail' item.plu_no %}">{{ item.description }}</a>
+                    {% if row.item %}<strong>{{ row.item.plu_no }}</strong>{% else %}<span class="muted">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if row.item %}
+                      <a href="{% url 'plu:detail' row.item.plu_no %}">{{ row.item.description }}</a>
+                    {% else %}
+                      <span class="muted">{{ row.line }}</span>
+                    {% endif %}
                   </td>
                 </tr>
               {% endfor %}
@@ -57,7 +64,7 @@
           </table>
         </div>
       {% else %}
-        <div class="muted">No matching PLU found for that photo.</div>
+        <div class="muted">No readable text found in that photo.</div>
       {% endif %}
     </div>
   </div>
