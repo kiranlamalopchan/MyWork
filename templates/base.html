@@ -227,6 +227,7 @@
       background: rgba(2,6,23,.35);
       color:var(--text);
       outline:none;
+      font-size:16px; /* prevents iOS Safari auto-zoom on focus */
     }
     .input:focus, input[type="text"]:focus, input[type="password"]:focus{
       border-color: rgba(96,165,250,.55);
@@ -280,6 +281,41 @@
       margin-top:16px;
       color:var(--muted);
       font-size:13px;
+    }
+
+    /* ---------- Mobile ---------- */
+    @media (max-width: 640px){
+      .nav{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:10px;
+        padding:12px 14px;
+      }
+      .navlinks{
+        width:100%;
+        justify-content:flex-start;
+      }
+      .pill{
+        padding:10px 12px;
+        font-size:13px;
+      }
+      .wrap{ padding:14px 12px 32px; }
+      .title{ font-size:24px; }
+      .subtitle{ font-size:14px; }
+      .card-pad, .hero-left, .hero-right{ padding:14px; }
+      .search-card{ padding:14px; }
+      .search-card .row > .btn,
+      .search-card .row > a.btn{
+        width:100%;
+      }
+      .btn{
+        min-height:44px;
+        font-size:15px;
+      }
+      th, td{
+        padding:10px 8px;
+        font-size:13px;
+      }
     }
   </style>
 </head>

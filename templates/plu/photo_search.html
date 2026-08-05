@@ -10,19 +10,89 @@
 </div>
 
 <div class="card search-card" style="margin-top:16px;">
-  <form method="post" enctype="multipart/form-data">
+  <form method="post" enctype="multipart/form-data" id="photo-search-form">
     {% csrf_token %}
     <div class="row">
-      <div style="flex:1; min-width:240px;">
+      <div class="file-field">
         <input class="input" type="file" name="photo" accept="image/*" capture="environment" required>
       </div>
-      <button class="btn primary" type="submit">Search</button>
+      <button class="btn primary" type="submit" id="photo-search-submit">Search</button>
     </div>
     {% if form.photo.errors %}
       <div class="msg error" style="margin-top:10px;">{{ form.photo.errors|striptags }}</div>
     {% endif %}
   </form>
 </div>
+
+<div id="photo-search-loading" class="loading-overlay" hidden>
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-title">Reading your photo…</div>
+    <div class="loading-sub muted">Running OCR and matching each line to a PLU. This can take a few seconds.</div>
+  </div>
+</div>
+
+<style>
+  .file-field{
+    flex: 1 1 240px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .file-field .input{
+    max-width: 100%;
+  }
+  .loading-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(5,8,22,.72);
+    backdrop-filter: blur(3px);
+    box-sizing: border-box;
+  }
+  .loading-overlay[hidden]{ display: none; }
+  .loading-overlay:not([hidden]){ display: flex; }
+  .loading-box{
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+    padding: 28px 22px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(15,23,42,.95), rgba(11,19,38,.95));
+    box-shadow: var(--shadow);
+    box-sizing: border-box;
+  }
+  .spinner{
+    width: 42px;
+    height: 42px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    border: 4px solid rgba(148,163,184,.25);
+    border-top-color: var(--accent2);
+    animation: spin .8s linear infinite;
+  }
+  .loading-title{ font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+  .loading-sub{ font-size: 13px; line-height: 1.5; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+</style>
+
+<script>
+  (function(){
+    var form = document.getElementById("photo-search-form");
+    var overlay = document.getElementById("photo-search-loading");
+    var submitBtn = document.getElementById("photo-search-submit");
+    if (!form) return;
+    form.addEventListener("submit", function(){
+      if (!form.checkValidity()) return;
+      overlay.hidden = false;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Searching…";
+    });
+  })();
+</script>
 
 {% if results is not None %}
   <div class="card" style="margin-top:14px;">
