@@ -1,5 +1,6 @@
 # plu/views.py
 import csv
+import difflib
 import io
 import re
 
@@ -143,30 +144,29 @@ def _preprocess_photo(image: Image.Image) -> Image.Image:
     return image
 
 
-def _match_line(line: str):
+def _match_line(line: str, all_items: list):
     """
     Best-effort match of a single picking-list line to a PluItem, purely by
     item name/description. Numbers in the line (weights, quantities, PLU
-    codes printed on the sheet) are ignored entirely; the PluItem whose
-    description shares the most words with the line wins. Returns None if
-    nothing scores at least one shared word.
+    codes printed on the sheet) are ignored entirely.
+
+    First tries to find the item sharing the most whole words with the line.
+    If nothing shares even one word, falls back to the closest fuzzy string
+    match across every item so a line always surfaces a best-effort PLU
+    instead of coming back blank. Only returns None when the line has no
+    recognizable words at all.
     """
     words = [w.upper() for w in re.sub(r"[^A-Za-z\s]", " ", line).split() if len(w) > 2]
     words = list(dict.fromkeys(words))[:8]
     if not words:
         return None
 
-    q = Q()
-    for w in words:
-        q |= Q(description__icontains=w)
-    candidates = PluItem.objects.filter(q)[:200]
-
     # On a tied score, prefer the shorter description: it's the tighter,
     # more literal match rather than a longer one that happens to contain
     # all the same words as a subset (e.g. "LAMB MINCE" over "LAMB
     # BONELESS LAMB YIROS MINCE" when both match "LAMB" and "MINCE").
     best_item, best_score, best_len = None, 0, None
-    for item in candidates:
+    for item in all_items:
         desc_upper = item.description.upper()
         score = sum(1 for w in words if w in desc_upper)
         if score == 0:
@@ -175,21 +175,34 @@ def _match_line(line: str):
         if score > best_score or (score == best_score and desc_len < best_len):
             best_item, best_score, best_len = item, score, desc_len
 
-    return best_item
+    if best_item:
+        return best_item
+
+    # No shared words at all - fall back to whichever description reads
+    # closest to the line, so we always write "the one you get" rather
+    # than leaving the line blank.
+    line_text = " ".join(words)
+    best_fuzzy, best_ratio = None, -1.0
+    for item in all_items:
+        ratio = difflib.SequenceMatcher(None, line_text, item.description.upper()).ratio()
+        if ratio > best_ratio:
+            best_fuzzy, best_ratio = item, ratio
+    return best_fuzzy
 
 
 def _find_plu_matches(ocr_text: str):
     """
     Match each line of an OCR'd picking list to a PLU. Returns a list of
-    {"line": str, "item": PluItem or None} dicts, one per non-empty line, so
-    the picking list can be reviewed line-by-line and blanks are obvious.
+    {"line": str, "item": PluItem or None} dicts, one per non-empty line.
+    item is only None when the line has no readable words to match on.
     """
+    all_items = list(PluItem.objects.all())
     results = []
     for raw_line in (ocr_text or "").splitlines():
         line = raw_line.strip()
         if len(line) < 3:
             continue
-        results.append({"line": line, "item": _match_line(line)})
+        results.append({"line": line, "item": _match_line(line, all_items)})
     return results
 
 
