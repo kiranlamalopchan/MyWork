@@ -145,17 +145,12 @@ def _preprocess_photo(image: Image.Image) -> Image.Image:
 
 def _match_line(line: str):
     """
-    Best-effort match of a single picking-list line to a PluItem.
-    Exact plu_no found in the line wins outright; otherwise the PluItem whose
-    description shares the most words with the line is used. Returns None if
+    Best-effort match of a single picking-list line to a PluItem, purely by
+    item name/description. Numbers in the line (weights, quantities, PLU
+    codes printed on the sheet) are ignored entirely; the PluItem whose
+    description shares the most words with the line wins. Returns None if
     nothing scores at least one shared word.
     """
-    digit_candidates = {int(d) for d in re.findall(r"\d{3,6}", line)}
-    if digit_candidates:
-        exact = PluItem.objects.filter(plu_no__in=digit_candidates).order_by("plu_no").first()
-        if exact:
-            return exact
-
     words = [w.upper() for w in re.sub(r"[^A-Za-z\s]", " ", line).split() if len(w) > 2]
     words = list(dict.fromkeys(words))[:8]
     if not words:
