@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card hero-left" style="padding:20px;">
+  <h1 class="title">Photo search</h1>
+  <p class="subtitle">
+    Take a photo of a PLU label or tag and it'll read the text off it and match it against the PLU list.
+  </p>
+</div>
+
+<div class="card search-card" style="margin-top:16px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="row">
+      <div style="flex:1; min-width:240px;">
+        <input class="input" type="file" name="photo" accept="image/*" capture="environment" required>
+      </div>
+      <button class="btn primary" type="submit">Search</button>
+    </div>
+    {% if form.photo.errors %}
+      <div class="msg error" style="margin-top:10px;">{{ form.photo.errors|striptags }}</div>
+    {% endif %}
+  </form>
+</div>
+
+{% if results is not None %}
+  <div class="card" style="margin-top:14px;">
+    <div class="card-pad">
+      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+        <div class="muted">
+          {% if ocr_text %}Text detected: “<strong>{{ ocr_text|striptags|truncatechars:120 }}</strong>”{% endif %}
+        </div>
+        {% if results %}
+          <a class="btn primary" href="{% url 'plu:photo_search_pdf' %}">Download PDF</a>
+        {% endif %}
+      </div>
+
+      {% if results %}
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:140px;">PLU</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in results %}
+                <tr>
+                  <td><strong>{{ item.plu_no }}</strong></td>
+                  <td>
+                    <a href="{% url 'plu:detail' item.plu_no %}">{{ item.description }}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="muted">No matching PLU found for that photo.</div>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

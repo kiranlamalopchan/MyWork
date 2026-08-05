@@ -15,5 +15,7 @@ urlpatterns = [
     # PLU app
     path("", views.plu_list, name="list"),
     path("import/", views.import_csv, name="import"),
+    path("photo-search/", views.photo_search, name="photo_search"),
+    path("photo-search/pdf/", views.photo_search_pdf, name="photo_search_pdf"),
     path("<int:plu_no>/", views.plu_detail, name="detail"),
 ]

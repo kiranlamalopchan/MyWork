@@ -13,6 +13,10 @@ class CsvImportForm(forms.Form):
         return f
 
 
+class PhotoSearchForm(forms.Form):
+    photo = forms.ImageField()
+
+
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(required=False)
 
