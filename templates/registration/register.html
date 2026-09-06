@@ -1,132 +1,17 @@
 {% extends "base.html" %}
+{% block title %}Create account · Butcher PLU{% endblock %}
+
 {% block content %}
 
-<style>
-  .auth-shell{
-    min-height: calc(100vh - 90px);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding: 24px 0;
-  }
-  .auth-card{
-    width: min(560px, 100%);
-    background: white;
-    border-radius: 18px;
-    box-shadow: 0 12px 30px rgba(0,0,0,.08);
-    padding: 22px;
-    border: 1px solid #eef0f5;
-  }
-  .auth-title{
-    font-size: 26px;
-    font-weight: 800;
-    margin: 0 0 6px 0;
-    color:#0f172a;
-  }
-  .auth-subtitle{
-    margin: 0 0 18px 0;
-    color:#64748b;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-  .field{
-    margin-bottom: 14px;
-  }
-  .label{
-    display:block;
-    font-size: 14px;
-    font-weight: 700;
-    color:#111827;
-    margin-bottom: 6px;
-  }
-  .help{
-    font-size: 12px;
-    color:#64748b;
-    margin-top: 6px;
-    line-height: 1.35;
-  }
-  .errors{
-    margin: 10px 0 16px 0;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid #ef444433;
-    background: #fef2f2;
-    color: #991b1b;
-    font-size: 14px;
-  }
-  .errors ul{ margin: 8px 0 0 16px; }
-  .btn-full{
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: #111827;
-    color: white;
-    border: 0;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 14px;
-  }
-  .btn-full:hover{ opacity: .95; }
-  .links{
-    display:flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 14px;
-    font-size: 14px;
-    color:#475569;
-  }
-  .links a{
-    color:#4f46e5;
-    text-decoration: none;
-    font-weight: 700;
-  }
-  .note{
-    background:#f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 12px;
-    margin-bottom: 14px;
-    color:#334155;
-    font-size: 13px;
-    line-height: 1.4;
-  }
+<div class="auth">
+  <div class="auth__logo" aria-hidden="true">PLU</div>
+  <h1 class="auth__title">Create account</h1>
+  <p class="auth__sub">Register to search the PLU list.</p>
 
-  /* Fix input overflow on iOS */
-  input[type="text"], input[type="password"]{
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  @media (max-width: 480px){
-    .auth-card{ padding: 16px; border-radius: 16px; }
-    .auth-title{ font-size: 22px; }
-  }
-
-  @media (max-width: 640px){
-    .auth-shell{
-      min-height: auto;
-      align-items: flex-start;
-      padding: 12px 0 24px;
-    }
-  }
-</style>
-
-<div class="auth-shell">
-  <div class="auth-card">
-
-    <h1 class="auth-title">Create account</h1>
-    <p class="auth-subtitle">Register to use the PLU search. (Only staff/superuser can import CSV.)</p>
-
-    <div class="note">
-      Tip: Use a simple username like <strong>wayne</strong> or <strong>staff1</strong>.  
-      Password must be strong (Django rules).
-    </div>
-
-    {% if form.errors %}
-      <div class="errors">
-        <strong>Please correct the errors below.</strong>
-        {{ form.non_field_errors }}
+  <div class="card card__pad">
+    {% if form.non_field_errors %}
+      <div class="alert alert--error" style="margin-bottom:var(--sp-4);">
+        {{ form.non_field_errors|striptags }}
       </div>
     {% endif %}
 
@@ -134,41 +19,47 @@
       {% csrf_token %}
 
       <div class="field">
-        <label class="label" for="id_username">Username</label>
-        {{ form.username }}
+        <label class="label" for="{{ form.username.id_for_label }}">Username</label>
+        <input class="input" type="text" name="{{ form.username.html_name }}"
+               id="{{ form.username.id_for_label }}"
+               value="{{ form.username.value|default:'' }}"
+               autocomplete="username" autocapitalize="none" autocorrect="off"
+               enterkeyhint="next" required>
         {% if form.username.errors %}
-          <div class="help" style="color:#991b1b;">{{ form.username.errors }}</div>
+          <div class="help help--error">{{ form.username.errors|striptags }}</div>
         {% endif %}
       </div>
 
       <div class="field">
-        <label class="label" for="id_password1">Password</label>
-        {{ form.password1 }}
-        {% if form.password1.help_text %}
-          <div class="help">{{ form.password1.help_text|safe }}</div>
-        {% endif %}
+        <label class="label" for="{{ form.password1.id_for_label }}">Password</label>
+        <input class="input" type="password" name="{{ form.password1.html_name }}"
+               id="{{ form.password1.id_for_label }}"
+               autocomplete="new-password" enterkeyhint="next" required>
         {% if form.password1.errors %}
-          <div class="help" style="color:#991b1b;">{{ form.password1.errors }}</div>
+          <div class="help help--error">{{ form.password1.errors|striptags }}</div>
+        {% else %}
+          <div class="help">At least 8 characters, and not all numbers.</div>
         {% endif %}
       </div>
 
       <div class="field">
-        <label class="label" for="id_password2">Confirm password</label>
-        {{ form.password2 }}
+        <label class="label" for="{{ form.password2.id_for_label }}">Confirm password</label>
+        <input class="input" type="password" name="{{ form.password2.html_name }}"
+               id="{{ form.password2.id_for_label }}"
+               autocomplete="new-password" enterkeyhint="go" required>
         {% if form.password2.errors %}
-          <div class="help" style="color:#991b1b;">{{ form.password2.errors }}</div>
+          <div class="help help--error">{{ form.password2.errors|striptags }}</div>
         {% endif %}
       </div>
 
-      <button type="submit" class="btn-full">Register</button>
-
-      <div class="links">
-        <span>Already have an account?</span>
-        <a href="{% url 'plu:login' %}">Login</a>
-      </div>
+      <button class="btn btn--primary btn--block" type="submit"
+              style="margin-top:var(--sp-5);">Create account</button>
     </form>
-
   </div>
+
+  <p class="auth__footer">
+    Already have an account? <a href="{% url 'plu:login' %}">Sign in</a>
+  </p>
 </div>
 
 {% endblock %}

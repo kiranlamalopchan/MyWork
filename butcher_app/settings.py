@@ -5,7 +5,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-change-me-20260305051257'
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+# In development the app is opened from a phone on the same Wi-Fi, which means
+# the request arrives with the laptop's LAN IP as its Host header. Locking this
+# to localhost would reject those with a 400, so allow any host while DEBUG.
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 
 INSTALLED_APPS = [

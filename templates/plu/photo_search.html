@@ -1,281 +1,112 @@
 {% extends "base.html" %}
+{% block title %}Photo search · Butcher PLU{% endblock %}
+
 {% block content %}
 
-<div class="ps-hero">
-  <div class="ps-hero-icon">📋</div>
-  <div>
-    <h1 class="title" style="margin-bottom:4px;">Photo search</h1>
-    <p class="subtitle" style="margin:0;">
-      Photograph a picking list — one item per line — and each line gets matched to a PLU automatically.
-    </p>
-  </div>
+<div class="page-head">
+  <h1 class="page-title">Photo search</h1>
+  <p class="page-sub">
+    Photograph a picking list &mdash; one item per line &mdash; and every line gets matched to a PLU.
+  </p>
 </div>
 
-<div class="card ps-upload-card">
-  <form method="post" enctype="multipart/form-data" id="photo-search-form">
+<div class="card card__pad">
+  <form method="post" enctype="multipart/form-data" id="photo-form">
     {% csrf_token %}
 
-    <label class="ps-dropzone" for="photo-input" id="ps-dropzone">
-      <img id="ps-preview-img" class="ps-preview-img" hidden alt="Selected photo preview">
-      <div id="ps-dropzone-empty" class="ps-dropzone-empty">
-        <div class="ps-dropzone-icon" id="ps-dropzone-icon">📷</div>
-        <div class="ps-dropzone-label" id="ps-dropzone-label">Choose file</div>
-        <div class="ps-dropzone-sub" id="ps-dropzone-filename">No photo selected yet</div>
+    <label class="dropzone" id="photo-dropzone" for="photo-input">
+      <img id="photo-preview" class="dropzone__preview" hidden alt="Preview of the selected photo">
+      <div id="photo-empty">
+        <div class="dropzone__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a2 2 0 0 0 1.7-.9l.6-1a2 2 0 0 1 1.7-.9h2.6a2 2 0 0 1 1.7.9l.6 1a2 2 0 0 0 1.7.9h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5Z"/>
+            <circle cx="12" cy="12.5" r="3.2"/>
+          </svg>
+        </div>
+        <div class="dropzone__label" id="photo-label">Choose a photo</div>
+        <div class="dropzone__sub" id="photo-filename">Hold the page flat and fill the frame</div>
       </div>
     </label>
-    <input class="ps-file-input" type="file" id="photo-input" name="photo" accept="image/*" capture="environment" required>
 
-    <button class="btn primary ps-submit" type="submit" id="photo-search-submit">Search</button>
+    <input class="visually-hidden-input" type="file" id="photo-input" name="photo"
+           accept="image/*" required>
+
+    <button class="btn btn--primary btn--block" type="submit" id="photo-submit"
+            style="margin-top:var(--sp-4);">
+      Read this photo
+    </button>
 
     {% if form.photo.errors %}
-      <div class="msg error" style="margin-top:10px;">{{ form.photo.errors|striptags }}</div>
+      <div class="help help--error">{{ form.photo.errors|striptags }}</div>
     {% endif %}
   </form>
 </div>
 
-<div id="photo-search-loading" class="loading-overlay" hidden>
-  <div class="loading-box">
-    <div class="spinner"></div>
-    <div class="loading-title">Reading your photo…</div>
-    <div class="loading-sub muted">Running OCR and matching each line to a PLU. This can take a few seconds.</div>
+<div id="photo-overlay" class="overlay" hidden role="status" aria-live="polite">
+  <div class="overlay__box">
+    <div class="spinner spinner--lg"></div>
+    <div style="font-weight:700;">Reading your photo&hellip;</div>
+    <p class="text-sm muted" style="margin-top:var(--sp-2);">
+      Running OCR and matching each line to a PLU. This takes a few seconds.
+    </p>
   </div>
 </div>
 
-<style>
-  .ps-hero{
-    display:flex;
-    align-items:center;
-    gap:16px;
-    margin-bottom:16px;
-  }
-  .ps-hero-icon{
-    flex: none;
-    width:52px;
-    height:52px;
-    border-radius:16px;
-    display:grid;
-    place-items:center;
-    font-size:26px;
-    background: linear-gradient(135deg, rgba(34,197,94,.25), rgba(96,165,250,.25));
-    border:1px solid var(--line);
-  }
-
-  .ps-upload-card{ padding:20px; }
-
-  .ps-file-input{
-    position:absolute;
-    width:1px; height:1px;
-    padding:0; margin:-1px;
-    overflow:hidden;
-    clip:rect(0,0,0,0);
-    white-space:nowrap;
-    border:0;
-  }
-
-  .ps-dropzone{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-height:180px;
-    border-radius:16px;
-    border:1.5px dashed var(--line);
-    background: rgba(2,6,23,.35);
-    cursor:pointer;
-    transition: border-color .15s ease, background .15s ease;
-    overflow:hidden;
-    padding:16px;
-  }
-  .ps-dropzone:hover{
-    border-color: rgba(96,165,250,.55);
-    background: rgba(2,6,23,.5);
-  }
-  .ps-file-input:focus-visible + .ps-dropzone,
-  .ps-dropzone:has(.ps-file-input:focus-visible){
-    border-color: rgba(96,165,250,.8);
-    box-shadow: 0 0 0 4px rgba(96,165,250,.15);
-  }
-
-  .ps-dropzone-empty{ text-align:center; }
-  .ps-dropzone-icon{ font-size:36px; margin-bottom:8px; }
-  .ps-dropzone-label{ font-weight:700; font-size:16px; margin-bottom:4px; }
-  .ps-dropzone-sub{ color:var(--muted); font-size:13px; }
-
-  .ps-preview-img{
-    max-width:100%;
-    max-height:260px;
-    border-radius:12px;
-    margin:0 auto;
-  }
-  .ps-preview-img[hidden]{ display:none; }
-  .ps-preview-img:not([hidden]){ display:block; }
-
-  .ps-submit{
-    width:100%;
-    margin-top:14px;
-    min-height:48px;
-    font-size:16px;
-  }
-
-  .loading-overlay{
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgba(5,8,22,.72);
-    backdrop-filter: blur(3px);
-    box-sizing: border-box;
-  }
-  .loading-overlay[hidden]{ display: none; }
-  .loading-overlay:not([hidden]){ display: flex; }
-  .loading-box{
-    max-width: 340px;
-    width: 100%;
-    text-align: center;
-    padding: 28px 22px;
-    border-radius: 18px;
-    border: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(15,23,42,.95), rgba(11,19,38,.95));
-    box-shadow: var(--shadow);
-    box-sizing: border-box;
-  }
-  .spinner{
-    width: 42px;
-    height: 42px;
-    margin: 0 auto 16px;
-    border-radius: 50%;
-    border: 4px solid rgba(148,163,184,.25);
-    border-top-color: var(--accent2);
-    animation: spin .8s linear infinite;
-  }
-  .loading-title{ font-weight: 700; font-size: 16px; margin-bottom: 6px; }
-  .loading-sub{ font-size: 13px; line-height: 1.5; }
-  @keyframes spin{ to{ transform: rotate(360deg); } }
-
-  .ps-results-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:14px;
-    flex-wrap:wrap;
-  }
-  .ps-count{ font-weight:700; font-size:15px; }
-
-  .ps-result-list{ display:grid; gap:10px; }
-  .ps-result-row{
-    display:flex;
-    align-items:flex-start;
-    gap:12px;
-    padding:12px 14px;
-    border-radius:14px;
-    border:1px solid var(--line);
-    background: rgba(2,6,23,.35);
-  }
-  .ps-plu-badge{
-    flex:none;
-    min-width:56px;
-    text-align:center;
-    padding:6px 10px;
-    border-radius:10px;
-    font-weight:800;
-    font-size:14px;
-    background: linear-gradient(135deg, rgba(34,197,94,.9), rgba(96,165,250,.75));
-    color:#06101f;
-  }
-  .ps-result-desc{ min-width:0; }
-  .ps-result-desc a{ font-weight:650; }
-  .ps-result-line{
-    font-size:12px;
-    color:var(--muted);
-    margin-top:2px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-</style>
-
-<script>
-  (function(){
-    var isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || "");
-
-    var label = document.getElementById("ps-dropzone-label");
-    var icon = document.getElementById("ps-dropzone-icon");
-    if (isMobile) {
-      label.textContent = "Take Photo";
-      icon.textContent = "📷";
-    } else {
-      label.textContent = "Choose File";
-      icon.textContent = "🖼️";
-    }
-
-    var fileInput = document.getElementById("photo-input");
-    var filenameEl = document.getElementById("ps-dropzone-filename");
-    var previewImg = document.getElementById("ps-preview-img");
-    var emptyState = document.getElementById("ps-dropzone-empty");
-
-    fileInput.addEventListener("change", function(){
-      var file = fileInput.files && fileInput.files[0];
-      if (!file) {
-        filenameEl.textContent = "No photo selected yet";
-        previewImg.hidden = true;
-        emptyState.hidden = false;
-        return;
-      }
-      filenameEl.textContent = file.name;
-      previewImg.src = URL.createObjectURL(file);
-      previewImg.hidden = false;
-      emptyState.hidden = true;
-    });
-
-    var form = document.getElementById("photo-search-form");
-    var overlay = document.getElementById("photo-search-loading");
-    var submitBtn = document.getElementById("photo-search-submit");
-    form.addEventListener("submit", function(){
-      if (!form.checkValidity()) return;
-      overlay.hidden = false;
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Searching…";
-    });
-  })();
-</script>
-
 {% if results is not None %}
-  <div class="card" style="margin-top:16px;">
-    <div class="card-pad">
-      <div class="ps-results-head">
-        <div class="ps-count">
-          {% if results %}{{ results|length }} line{{ results|length|pluralize }} detected{% else %}No readable text found{% endif %}
-        </div>
+  <div style="margin-top:var(--sp-4);">
+    <div class="results-head">
+      <div style="font-weight:700;">
         {% if results %}
-          <a class="btn primary" href="{% url 'plu:photo_search_pdf' %}">Download PDF</a>
+          {{ results|length }} line{{ results|length|pluralize }} detected
+        {% else %}
+          No readable text found
         {% endif %}
       </div>
-
       {% if results %}
-        <div class="ps-result-list">
-          {% for row in results %}
-            <div class="ps-result-row">
-              {% if row.item %}
-                <div class="ps-plu-badge">{{ row.item.plu_no }}</div>
-                <div class="ps-result-desc">
-                  <div><a href="{% url 'plu:detail' row.item.plu_no %}">{{ row.item.description }}</a></div>
-                  <div class="ps-result-line">Read: “{{ row.line }}”</div>
-                </div>
-              {% else %}
-                <div class="ps-plu-badge" style="background:rgba(148,163,184,.25); color:var(--text);">—</div>
-                <div class="ps-result-desc">
-                  <div class="muted">{{ row.line }}</div>
-                </div>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="muted">No readable text found in that photo.</div>
+        <a class="btn btn--sm" href="{% url 'plu:photo_search_pdf' %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+          Download PDF
+        </a>
       {% endif %}
     </div>
+
+    {% if results %}
+      <ul class="result-list">
+        {% for row in results %}
+          <li>
+            {% if row.item %}
+              <a class="result" href="{% url 'plu:detail' row.item.plu_no %}">
+                <span class="plu-badge">{{ row.item.plu_no }}</span>
+                <span class="result__body">
+                  <span class="result__title">{{ row.item.description }}</span>
+                  <span class="result__sub">Read: {{ row.line }}</span>
+                </span>
+                <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m9 18 6-6-6-6"/>
+                </svg>
+              </a>
+            {% else %}
+              <div class="result">
+                <span class="plu-badge plu-badge--muted">&mdash;</span>
+                <span class="result__body">
+                  <span class="result__title muted">{{ row.line }}</span>
+                  <span class="result__sub">No match found</span>
+                </span>
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="card">
+        <div class="empty">
+          <div class="empty__title">Nothing readable</div>
+          <div class="empty__sub">Try again with more light and the page filling the frame.</div>
+        </div>
+      </div>
+    {% endif %}
   </div>
 {% endif %}
 

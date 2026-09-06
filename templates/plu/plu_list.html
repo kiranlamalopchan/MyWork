@@ -1,118 +1,109 @@
 {% extends "base.html" %}
+{% block title %}Search PLUs · Butcher PLU{% endblock %}
+
 {% block content %}
 
-<div class="card hero">
-  <div class="hero-left">
-    <h1 class="title">Find any PLU fast.</h1>
-    <p class="subtitle">
-      Search by <strong>PLU number</strong> or keywords in the <strong>description</strong>.
-      Keeps things simple for daily shop work.
-    </p>
+{# Sticky under the app bar, so the field stays reachable however far you scroll. #}
+<form class="searchbar" method="get" role="search" id="plu-search-form"
+      data-search-url="{% url 'plu:search_api' %}"
+      data-detail-url-template="{% url 'plu:detail' 987654321 %}">
+  <div class="searchbar__field">
+    <svg class="searchbar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
+    </svg>
 
-    <div class="badges">
-      <span class="badge">Search by PLU</span>
-      <span class="badge">Search by description</span>
-      <span class="badge">Clean results</span>
-      {% if request.user.is_staff %}
-        <span class="badge">Admin tools available</span>
-      {% endif %}
-    </div>
+    <label class="sr-only" for="plu-search-input">Search PLUs</label>
+    <input class="input searchbar__input"
+           id="plu-search-input"
+           type="search"
+           name="q"
+           value="{{ q|default:'' }}"
+           placeholder="PLU number or description"
+           autocomplete="off"
+           autocorrect="off"
+           autocapitalize="off"
+           spellcheck="false"
+           enterkeyhint="search">
+
+    <button type="button" class="searchbar__clear" id="plu-search-clear" aria-label="Clear search" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12"/>
+      </svg>
+    </button>
   </div>
 
-  <div class="hero-right">
-    <div class="stat">
-      <span>Total items</span>
-      <strong>{{ total_count|default:"—" }}</strong>
-    </div>
-    <div class="stat">
-      <span>Showing</span>
-      <strong>{{ page_obj.paginator.count|default:"—" }}</strong>
-    </div>
-    <div class="stat">
-      <span>Per page</span>
-      <strong>25</strong>
-    </div>
-
-    <div class="footer-note">
-      Tip: try “t-bone”, “striploin”, “mince”, “chops”.
-    </div>
-  </div>
-</div>
-
-<div class="card search-card" style="margin-top:16px;">
-  <form method="get">
-    <div class="row">
-      <div style="flex:1; min-width:240px;">
-        <input class="input" type="text" name="q" value="{{ q|default:'' }}"
-               placeholder="Search PLU (e.g. 5001) or description (e.g. scotch fillet)">
-      </div>
-
-      <button class="btn primary" type="submit">Search</button>
-
-      {% if q %}
-        <a class="btn" href="{% url 'plu:list' %}">Clear</a>
-      {% endif %}
-    </div>
-  </form>
-</div>
-
-<div class="card" style="margin-top:14px;">
-  <div class="card-pad">
-    {% if page_obj and page_obj.object_list %}
-      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
-        <div class="muted">
-          Results{% if q %} for “<strong>{{ q }}</strong>”{% endif %}
-        </div>
-        <div class="muted">
-          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </div>
-      </div>
-
-      <div style="overflow:auto;">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:140px;">PLU</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in page_obj %}
-              <tr>
-                <td><strong>{{ item.plu_no }}</strong></td>
-                <td>
-                  <a href="{% url 'plu:detail' item.plu_no %}">
-                    {{ item.description }}
-                  </a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="row" style="justify-content:space-between; margin-top:14px;">
-        <div class="muted">
-          {% if page_obj.has_previous %}
-            <a class="btn" href="?q={{ q|urlencode }}&page={{ page_obj.previous_page_number }}">← Prev</a>
-          {% else %}
-            <span class="btn" style="opacity:.45; cursor:not-allowed;">← Prev</span>
-          {% endif %}
-        </div>
-
-        <div class="muted">
-          {% if page_obj.has_next %}
-            <a class="btn" href="?q={{ q|urlencode }}&page={{ page_obj.next_page_number }}">Next →</a>
-          {% else %}
-            <span class="btn" style="opacity:.45; cursor:not-allowed;">Next →</span>
-          {% endif %}
-        </div>
-      </div>
-
+  <div class="searchbar__meta" id="plu-search-meta" aria-live="polite">
+    {% if q %}
+      {{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }} for &ldquo;{{ q }}&rdquo;
     {% else %}
-      <div class="muted">No items found{% if q %} for “<strong>{{ q }}</strong>”{% endif %}.</div>
+      {{ total_count }} PLU{{ total_count|pluralize }} in the list
     {% endif %}
   </div>
+
+  {# Submit target for browsers without JS; the live search intercepts it otherwise. #}
+  <button type="submit" class="sr-only">Search</button>
+</form>
+
+<div id="plu-results">
+  {% if page_obj.object_list %}
+    <ul class="result-list">
+      {% for item in page_obj %}
+        <li>
+          <a class="result" href="{% url 'plu:detail' item.plu_no %}">
+            <span class="plu-badge">{{ item.plu_no }}</span>
+            <span class="result__body">
+              <span class="result__title">{{ item.description }}</span>
+            </span>
+            <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="pager" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+          <a class="btn" href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" rel="prev">Previous</a>
+        {% else %}
+          <span class="btn" aria-disabled="true">Previous</span>
+        {% endif %}
+
+        <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+        {% if page_obj.has_next %}
+          <a class="btn" href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ page_obj.next_page_number }}" rel="next">Next</a>
+        {% else %}
+          <span class="btn" aria-disabled="true">Next</span>
+        {% endif %}
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <div class="empty__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
+          </svg>
+        </div>
+        {% if q %}
+          <div class="empty__title">No matches</div>
+          <div class="empty__sub">Nothing found for &ldquo;{{ q }}&rdquo;. Try fewer words.</div>
+        {% else %}
+          <div class="empty__title">No PLUs yet</div>
+          <div class="empty__sub">
+            {% if request.user.is_staff %}
+              Import a CSV to get started.
+            {% else %}
+              Ask a manager to import the PLU list.
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
 </div>
 
 {% endblock %}

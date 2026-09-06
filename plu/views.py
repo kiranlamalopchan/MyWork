@@ -18,8 +18,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
-from django.http import HttpResponse
+from django.db.models import Case, IntegerField, Q, Value, When
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -64,28 +64,71 @@ def register(request):
     return render(request, "registration/register.html", {"form": form})
 
 
+# Live search sends a request per typing pause, so cap what comes back; the
+# result list is scrolled on a phone and nobody scrolls past a few dozen rows.
+SEARCH_LIMIT = 50
+
+
+def search_plu_items(q: str):
+    """
+    Ranked PLU search, shared by the search page and the live-search endpoint.
+
+    Every word in the query has to appear in the description, but they don't
+    have to be adjacent or in order: descriptions read "LAMB BONE-IN BBQ
+    CHOPS", so a natural search like "lamb chops" finds nothing if the words
+    are matched as one phrase.
+
+    Results are ranked the way someone standing at the scale expects: the PLU
+    they typed exactly, then codes starting with those digits, then the
+    closest description matches. Within a rank, lowest PLU number first.
+    """
+    qs = PluItem.objects.all()
+
+    if not q:
+        return qs.order_by("plu_no")
+
+    words = q.split()
+
+    # Every word must be somewhere in the description...
+    matches = Q()
+    for word in words:
+        matches &= Q(description__icontains=word)
+
+    # ...unless the whole query is a PLU number, which matches the code too.
+    whens = []
+    if q.isdigit():
+        matches |= Q(plu_no__icontains=q)
+        whens += [
+            When(plu_no=int(q), then=Value(0)),
+            When(plu_no__startswith=q, then=Value(1)),
+        ]
+
+    whens += [
+        When(description__istartswith=q, then=Value(2)),
+        When(description__icontains=q, then=Value(3)),
+    ]
+
+    return (
+        qs.filter(matches)
+        .annotate(rank=Case(*whens, default=Value(4), output_field=IntegerField()))
+        .order_by("rank", "plu_no")
+    )
+
+
 @login_required
 def plu_list(request):
     """
     Main PLU search page (home).
-    Search by PLU number or description.
+
+    Renders results server-side so the page works with JavaScript disabled;
+    app.js layers live-as-you-type search on top via search_api below.
     """
     q = (request.GET.get("q") or "").strip()
 
-    qs = PluItem.objects.all().order_by("plu_no")  # ordered to avoid pagination warning
-
-    if q:
-        # If user types only digits -> search PLU contains + description contains
-        if q.isdigit():
-            qs = qs.filter(Q(plu_no__icontains=q) | Q(description__icontains=q))
-        else:
-            qs = qs.filter(description__icontains=q)
+    qs = search_plu_items(q)
 
     paginator = Paginator(qs, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    total_count = PluItem.objects.count()
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(
         request,
@@ -93,8 +136,30 @@ def plu_list(request):
         {
             "page_obj": page_obj,
             "q": q,
-            "total_count": total_count,
+            "total_count": PluItem.objects.count(),
         },
+    )
+
+
+@login_required
+def search_api(request):
+    """
+    JSON backing the live search on the list page. Returns at most
+    SEARCH_LIMIT rows, and says so via `truncated` when there are more.
+    """
+    q = (request.GET.get("q") or "").strip()
+
+    qs = search_plu_items(q)
+    total = qs.count()
+    rows = qs.values("plu_no", "description")[:SEARCH_LIMIT]
+
+    return JsonResponse(
+        {
+            "q": q,
+            "total": total,
+            "truncated": total > SEARCH_LIMIT,
+            "results": list(rows),
+        }
     )
 
 
@@ -303,12 +368,19 @@ def photo_search_pdf(request):
     return response
 
 
+# PluItem only stores these two; any other column in the file is ignored.
+REQUIRED_CSV_HEADERS = ("plu_no", "description")
+
+
 @login_required
 @user_passes_test(is_staff_user)
 def import_csv(request):
     """
     Import page ONLY for staff/superuser.
-    CSV headers must include: plu_no, description, sales_mode, price, tare
+
+    CSV must have a header row containing plu_no and description. Extra
+    columns (sales_mode, price, tare and the like) are ignored, so exports
+    from the till system can be uploaded unedited.
     """
     if request.method == "POST":
         form = CsvImportForm(request.POST, request.FILES)
@@ -318,16 +390,15 @@ def import_csv(request):
             try:
                 decoded = f.read().decode("utf-8-sig")
             except Exception:
-                messages.error(request, "Could not read file. Please upload a valid UTF-8 CSV.")
+                messages.error(request, "Could not read that file. Please upload a valid UTF-8 CSV.")
                 return redirect("plu:import")
 
             reader = csv.DictReader(io.StringIO(decoded))
-            required = {"plu_no", "description", "sales_mode", "price", "tare"}
-            headers = set([h.strip() for h in (reader.fieldnames or [])])
+            headers = {(h or "").strip() for h in (reader.fieldnames or [])}
+            missing = [h for h in REQUIRED_CSV_HEADERS if h not in headers]
 
-            if not required.issubset(headers):
-                missing = ", ".join(sorted(required - headers))
-                messages.error(request, f"CSV is missing headers: {missing}")
+            if missing:
+                messages.error(request, f"CSV is missing headers: {', '.join(missing)}")
                 return redirect("plu:import")
 
             created = 0
@@ -336,43 +407,32 @@ def import_csv(request):
 
             with transaction.atomic():
                 for row in reader:
-                    try:
-                        plu_no_raw = (row.get("plu_no") or "").strip()
-                        if not plu_no_raw:
-                            skipped += 1
-                            continue
+                    plu_no_raw = (row.get("plu_no") or "").strip()
+                    description = (row.get("description") or "").strip()
 
-                        plu_no = int(plu_no_raw)
-
-                        description = (row.get("description") or "").strip()
-                        sales_mode = (row.get("sales_mode") or "").strip() or "Weight"
-
-                        price_raw = (row.get("price") or "").strip()
-                        tare_raw = (row.get("tare") or "").strip()
-
-                        # Safe parsing
-                        price = float(price_raw) if price_raw else 0.0
-                        tare = float(tare_raw) if tare_raw else 0.0
-
-                        obj, was_created = PluItem.objects.update_or_create(
-                            plu_no=plu_no,
-                            defaults={
-                                "description": description,
-                                "sales_mode": sales_mode,
-                                "price": price,
-                                "tare": tare,
-                            },
-                        )
-                        if was_created:
-                            created += 1
-                        else:
-                            updated += 1
-                    except Exception:
+                    # A row is only usable with a numeric PLU and a description.
+                    if not plu_no_raw or not description:
                         skipped += 1
+                        continue
+
+                    try:
+                        plu_no = int(plu_no_raw)
+                    except ValueError:
+                        skipped += 1
+                        continue
+
+                    _, was_created = PluItem.objects.update_or_create(
+                        plu_no=plu_no,
+                        defaults={"description": description[:255]},
+                    )
+                    if was_created:
+                        created += 1
+                    else:
+                        updated += 1
 
             messages.success(
                 request,
-                f"Import complete. Created: {created}, Updated: {updated}, Skipped: {skipped}.",
+                f"Import complete. Created: {created}, updated: {updated}, skipped: {skipped}.",
             )
             return redirect("plu:list")
         else:
@@ -380,4 +440,8 @@ def import_csv(request):
     else:
         form = CsvImportForm()
 
-    return render(request, "plu/import_csv.html", {"form": form, "required_headers": "plu_no, description, sales_mode, price, tare"})
+    return render(
+        request,
+        "plu/import_csv.html",
+        {"form": form, "required_headers": ", ".join(REQUIRED_CSV_HEADERS)},
+    )

@@ -1,18 +1,71 @@
 {% extends "base.html" %}
+{% block title %}Import CSV · Butcher PLU{% endblock %}
+
 {% block content %}
-  <div class="card">
-    <h2 style="margin-top: 0;">Import PLUs from CSV</h2>
-    <p class="muted">CSV headers must be: <code>plu_no,description,sales_mode,price,tare</code></p>
 
-    <form method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <button class="btn" type="submit">Import</button>
-    </form>
+<div class="page-head">
+  <h1 class="page-title">Import PLUs</h1>
+  <p class="page-sub">Upload a CSV to add new PLUs and update existing ones.</p>
+</div>
 
-    <hr style="border:0; border-top:1px solid #e5e7eb; margin: 16px 0;">
+<div class="card card__pad">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
 
-    <p><strong>Tip:</strong> If you want, paste your PLUs into Excel first, export as CSV, then import here.</p>
-    <p class="muted">A sample CSV is included in the project: <code>sample_data/plu_sample.csv</code></p>
+    <label class="dropzone" for="csv-input">
+      <div>
+        <div class="dropzone__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/>
+            <path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>
+          </svg>
+        </div>
+        <div class="dropzone__label">Choose a CSV file</div>
+        <div class="dropzone__sub" id="csv-filename">No file selected yet</div>
+      </div>
+    </label>
+
+    <input class="visually-hidden-input" type="file" id="csv-input" name="csv_file"
+           accept=".csv,text/csv" required>
+
+    <button class="btn btn--primary btn--block" type="submit" id="csv-submit"
+            style="margin-top:var(--sp-4);">
+      Import
+    </button>
+
+    {% if form.csv_file.errors %}
+      <div class="help help--error">{{ form.csv_file.errors|striptags }}</div>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card card__pad" style="margin-top:var(--sp-4);">
+  <div class="section-label">File format</div>
+  <p class="text-sm" style="margin-top:var(--sp-2);">
+    The first row must be a header row containing <code>{{ required_headers }}</code>.
+    Any other columns are ignored.
+  </p>
+
+  <div class="scroll-x" style="margin-top:var(--sp-3);">
+    <pre class="code" style="display:block; padding:var(--sp-3); white-space:pre; margin:0;">plu_no,description
+5000,BEEF PORTERHOUSE STEAK
+5001,BEEF RUMP STEAK</pre>
   </div>
+
+  <p class="help">
+    Rows are matched on <code>plu_no</code>: an existing PLU is updated, a new one is created.
+    A sample file lives at <code>sample_data/plu_sample.csv</code>.
+  </p>
+
+  <hr class="rule">
+
+  <a class="btn btn--block" href="/admin/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-2.8-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.5 15H3a2 2 0 1 1 0-4h.2A1.6 1.6 0 0 0 4.3 8.2l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1Z"/>
+    </svg>
+    Open Django admin
+  </a>
+</div>
+
 {% endblock %}

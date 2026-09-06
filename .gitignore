@@ -2,3 +2,11 @@ __pycache__/
 *.pyc
 venv/
 *.log
+
+# Local database: holds password hashes and session keys, so it is not
+# published. The PLU data itself is versioned as sample_data/plu_items.csv
+# and can be restored through the Import CSV page.
+db.sqlite3
+db.sqlite3-journal
+db.sqlite3-wal
+db.sqlite3-shm
