@@ -56,6 +56,17 @@
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="m9 18 6-6-6-6"/></svg>';
 
+  var ICON_SEARCH_LG =
+    '<div class="empty__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></div>';
+
+  function emptyCard(title, sub) {
+    return '<div class="card"><div class="empty">' + ICON_SEARCH_LG +
+      '<div class="empty__title">' + title + "</div>" +
+      '<div class="empty__sub">' + sub + "</div></div></div>";
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, "&amp;")
@@ -111,15 +122,22 @@
       return detailTemplate.replace("987654321", String(pluNo));
     }
 
-    // Keep the server-rendered markup so clearing the box restores it
-    // (including its pagination) rather than re-fetching.
-    var initialHtml = resultsEl.innerHTML;
-    var initialMeta = metaEl ? metaEl.innerHTML : "";
+    // The page renders no list until something is searched for, so an empty
+    // box always goes back to the prompt. Only a page loaded without a query
+    // already has that markup to reuse; one loaded with ?q= gets it rebuilt.
     var initialQuery = input.value.trim();
+    var idleHtml = initialQuery ? "" : resultsEl.innerHTML;
+    var idleMeta = initialQuery ? "" : (metaEl ? metaEl.innerHTML : "");
 
     var timer = null;
     var inFlight = null;
     var lastRendered = initialQuery;
+
+    // Centres the box while nothing has been searched for; see .search-page.
+    var page = document.getElementById("search-page");
+    function setIdle(idle) {
+      if (page) page.classList.toggle("is-idle", idle);
+    }
 
     function setMeta(html) {
       if (metaEl) metaEl.innerHTML = html;
@@ -127,14 +145,10 @@
 
     function renderResults(query, data) {
       if (!data.results.length) {
-        resultsEl.innerHTML =
-          '<div class="card"><div class="empty">' +
-          '<div class="empty__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-          'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-          '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></div>' +
-          '<div class="empty__title">No matches</div>' +
-          '<div class="empty__sub">Nothing found for &ldquo;' + escapeHtml(query) + '&rdquo;.</div>' +
-          "</div></div>";
+        resultsEl.innerHTML = emptyCard(
+          "No matches",
+          "Nothing found for &ldquo;" + escapeHtml(query) + "&rdquo;. Try fewer words."
+        );
         setMeta("0 results");
         return;
       }
@@ -160,9 +174,19 @@
       setMeta(meta);
     }
 
-    function restoreInitial() {
-      resultsEl.innerHTML = initialHtml;
-      setMeta(initialMeta);
+    // Back to the "type something" state the page opens in.
+    function showIdle() {
+      resultsEl.innerHTML = idleHtml ||
+        emptyCard("Search a PLU", "Type a PLU number or part of a description to see matches.");
+
+      if (idleMeta) {
+        setMeta(idleMeta);
+      } else {
+        var total = parseInt(form.getAttribute("data-total-count"), 10);
+        setMeta(isNaN(total) ? "" :
+          "Search " + total + " PLU" + (total === 1 ? "" : "s") + " by number or description");
+      }
+      setIdle(true);
       lastRendered = "";
     }
 
@@ -171,10 +195,14 @@
 
       if (!query) {
         if (inFlight) { inFlight.abort(); inFlight = null; }
-        restoreInitial();
+        showIdle();
         syncUrl("");
         return;
       }
+
+      // Move the box up as soon as there's a query, not when results land, so
+      // the layout settles while the request is still in flight.
+      setIdle(false);
 
       if (inFlight) inFlight.abort();
       var controller = new AbortController();
@@ -245,6 +273,110 @@
     }
 
     syncClear();
+  }
+
+  /* ----------------------------------------------------------------------
+     Animated placeholder
+     Types real descriptions from this shop's list through the empty search
+     box, so the hint doubles as a worked example of what you can search for.
+     Pauses whenever the box is in use — a moving placeholder under a live
+     cursor is a distraction, not a hint.
+     ---------------------------------------------------------------------- */
+  function initPlaceholderTyper() {
+    var input = document.getElementById("plu-search-input");
+    var data = document.getElementById("search-examples");
+    if (!input || !data) return;
+
+    // Reduced motion keeps the plain, static hint the markup ships with.
+    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduced.matches) return;
+
+    var examples;
+    try { examples = JSON.parse(data.textContent); } catch (e) { return; }
+    if (!Array.isArray(examples) || !examples.length) return;
+
+    // Descriptions are stored shouting (BEEF BONELESS BLADE); lowercase reads
+    // as a hint rather than a heading.
+    examples = examples.map(function (s) { return String(s).toLowerCase(); });
+
+    var STATIC = input.getAttribute("placeholder") || "";
+    var TYPE_MS = 55, DELETE_MS = 28, HOLD_MS = 1500, GAP_MS = 350;
+
+    var idx = 0, pos = 0, deleting = false, timer = null, paused = false;
+
+    function stop() {
+      clearTimeout(timer);
+      timer = null;
+    }
+
+    function step() {
+      if (paused) return;
+
+      var word = examples[idx];
+      var next;
+
+      if (!deleting) {
+        pos++;
+        input.placeholder = word.slice(0, pos) + "▌";
+        if (pos >= word.length) {
+          deleting = true;
+          input.placeholder = word;   // drop the caret while it rests
+          next = HOLD_MS;
+        } else {
+          next = TYPE_MS;
+        }
+      } else {
+        pos--;
+        input.placeholder = word.slice(0, pos) + "▌";
+        if (pos <= 0) {
+          deleting = false;
+          idx = (idx + 1) % examples.length;
+          next = GAP_MS;
+        } else {
+          next = DELETE_MS;
+        }
+      }
+
+      timer = setTimeout(step, next);
+    }
+
+    function pause() {
+      paused = true;
+      stop();
+      input.placeholder = STATIC;
+    }
+
+    function resume() {
+      if (!paused) return;
+      paused = false;
+      pos = 0;
+      deleting = false;
+      stop();
+      timer = setTimeout(step, GAP_MS);
+    }
+
+    // Typing or focusing hands the box back to the user.
+    input.addEventListener("focus", pause);
+    input.addEventListener("blur", function () {
+      if (!input.value) resume();
+    });
+    input.addEventListener("input", function () {
+      if (input.value) pause();
+    });
+
+    // A page opened with ?q= already has a query in the box; leave it alone.
+    if (input.value) {
+      paused = true;
+    } else {
+      timer = setTimeout(step, GAP_MS);
+    }
+
+    // Honour the setting being flipped mid-session.
+    if (reduced.addEventListener) {
+      reduced.addEventListener("change", function (e) {
+        if (e.matches) pause();
+      });
+    }
   }
 
   /* ----------------------------------------------------------------------
@@ -383,6 +515,7 @@
     initTheme();
     initStickyBar();
     initLiveSearch();
+    initPlaceholderTyper();
     initCopy();
     initPhotoPicker();
     initCsvPicker();

@@ -3,10 +3,19 @@
 
 {% block content %}
 
+{% comment %}
+  `is-idle` centres the box in the viewport until something is searched for;
+  app.js drops the class the moment a query runs.
+{% endcomment %}
+<div class="search-page{% if not q %} is-idle{% endif %}" id="search-page">
+
+{{ placeholder_examples|json_script:"search-examples" }}
+
 {# Sticky under the app bar, so the field stays reachable however far you scroll. #}
 <form class="searchbar" method="get" role="search" id="plu-search-form"
       data-search-url="{% url 'plu:search_api' %}"
-      data-detail-url-template="{% url 'plu:detail' 987654321 %}">
+      data-detail-url-template="{% url 'plu:detail' 987654321 %}"
+      data-total-count="{{ total_count }}">
   <div class="searchbar__field">
     <svg class="searchbar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
@@ -36,7 +45,7 @@
     {% if q %}
       {{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }} for &ldquo;{{ q }}&rdquo;
     {% else %}
-      {{ total_count }} PLU{{ total_count|pluralize }} in the list
+      Search {{ total_count }} PLU{{ total_count|pluralize }} by number or description
     {% endif %}
   </div>
 
@@ -91,6 +100,10 @@
         {% if q %}
           <div class="empty__title">No matches</div>
           <div class="empty__sub">Nothing found for &ldquo;{{ q }}&rdquo;. Try fewer words.</div>
+        {% elif total_count %}
+          {# Nothing searched for yet — the list stays out of the way until asked for. #}
+          <div class="empty__title">Search a PLU</div>
+          <div class="empty__sub">Type a PLU number or part of a description to see matches.</div>
         {% else %}
           <div class="empty__title">No PLUs yet</div>
           <div class="empty__sub">
@@ -104,6 +117,8 @@
       </div>
     </div>
   {% endif %}
+</div>
+
 </div>
 
 {% endblock %}

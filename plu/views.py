@@ -122,13 +122,25 @@ def plu_list(request):
 
     Renders results server-side so the page works with JavaScript disabled;
     app.js layers live-as-you-type search on top via search_api below.
+
+    Nothing is listed until something is searched for: on a phone, a
+    thousand rows sitting under the box is just noise between you and the
+    one code you came for.
     """
     q = (request.GET.get("q") or "").strip()
 
-    qs = search_plu_items(q)
+    page_obj = None
+    if q:
+        paginator = Paginator(search_plu_items(q), 25)
+        page_obj = paginator.get_page(request.GET.get("page"))
 
-    paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    # Real descriptions for the animated placeholder, so the examples always
+    # match this shop's list instead of a hardcoded guess. Short ones only:
+    # a long cut name types out for too long to read as a hint.
+    examples = [
+        d for d in PluItem.objects.order_by("?").values_list("description", flat=True)[:40]
+        if len(d) <= 26
+    ][:6]
 
     return render(
         request,
@@ -137,6 +149,7 @@ def plu_list(request):
             "page_obj": page_obj,
             "q": q,
             "total_count": PluItem.objects.count(),
+            "placeholder_examples": examples,
         },
     )
 
@@ -146,8 +159,14 @@ def search_api(request):
     """
     JSON backing the live search on the list page. Returns at most
     SEARCH_LIMIT rows, and says so via `truncated` when there are more.
+
+    An empty query comes back empty rather than as the whole table: the page
+    shows a prompt until you type something.
     """
     q = (request.GET.get("q") or "").strip()
+
+    if not q:
+        return JsonResponse({"q": "", "total": 0, "truncated": False, "results": []})
 
     qs = search_plu_items(q)
     total = qs.count()

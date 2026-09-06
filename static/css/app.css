@@ -67,6 +67,17 @@
   --safe-r: env(safe-area-inset-right, 0px);
 
   --tap: 48px; /* minimum comfortable touch target */
+
+  /* Motion — one set of curves and durations so everything moves alike.
+     `--ease-out` overshoots slightly at the end, which is what makes an
+     entrance read as "settled" rather than "stopped". */
+  --ease:      cubic-bezier(.4, 0, .2, 1);
+  --ease-out:  cubic-bezier(.16, 1, .3, 1);
+  --ease-snap: cubic-bezier(.34, 1.4, .64, 1);
+
+  --dur-1: .12s;  /* press / hover feedback */
+  --dur-2: .2s;   /* state changes */
+  --dur-3: .34s;  /* entrances */
 }
 
 /* Dark palette: applied when the OS asks for it, unless the user forced light */
@@ -499,6 +510,18 @@ input[type="file"] { font-size: 15px; }
 /* --------------------------------------------------------------------------
    9. Search
    -------------------------------------------------------------------------- */
+/* The page opens with the box sitting in the middle of the screen, the way a
+   search screen should, and the first query pulls it up to the top so the
+   results get the room. Animating the padding makes that one movement rather
+   than a jump, and leaves the bar's sticky positioning untouched. */
+.search-page {
+  padding-top: 0;
+  transition: padding-top .45s var(--ease-out);
+}
+.search-page.is-idle {
+  padding-top: clamp(24px, 25vh, 240px);
+}
+
 /* The search bar pins under the app bar so the field is always reachable */
 .searchbar {
   position: sticky;
@@ -880,16 +903,115 @@ code, .code {
 
 .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+/* --------------------------------------------------------------------------
+   17. Motion
+   Entrances on page load, stagger on lists that get re-rendered as you type,
+   and press/hover feedback on everything you can touch. All of it is
+   switched off wholesale by the reduced-motion block at the end.
+   -------------------------------------------------------------------------- */
+@keyframes fade-in   { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes fade-up   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes rise      { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: none; } }
+@keyframes pop-in    { from { opacity: 0; transform: scale(.94); }       to { opacity: 1; transform: none; } }
+
+html { scroll-behavior: smooth; }
+
+/* Page chrome and content settle in together on every navigation, which is
+   what makes a full page load read as a transition rather than a flash. */
+.appbar    { animation: fade-down var(--dur-3) var(--ease-out) both; }
+.container { animation: fade-up   var(--dur-3) var(--ease-out) both; }
+.tabbar    { animation: rise      var(--dur-3) var(--ease-out) both; }
+
+.alerts   > .alert { animation: fade-down var(--dur-3) var(--ease-out) both; }
+.searchbar         { animation: fade-up var(--dur-3) var(--ease-out) both; }
+
+/* Result rows cascade in. This re-runs on every live-search render, so it
+   doubles as the feedback that the list actually changed under your fingers.
+   The stagger is capped: past a dozen rows the delay would outlast the typing. */
+.result-list > li { animation: fade-up var(--dur-2) var(--ease-out) both; }
+.result-list > li:nth-child(1)  { animation-delay: 0ms; }
+.result-list > li:nth-child(2)  { animation-delay: 18ms; }
+.result-list > li:nth-child(3)  { animation-delay: 36ms; }
+.result-list > li:nth-child(4)  { animation-delay: 54ms; }
+.result-list > li:nth-child(5)  { animation-delay: 72ms; }
+.result-list > li:nth-child(6)  { animation-delay: 90ms; }
+.result-list > li:nth-child(7)  { animation-delay: 108ms; }
+.result-list > li:nth-child(8)  { animation-delay: 126ms; }
+.result-list > li:nth-child(n+9) { animation-delay: 140ms; }
+
+.card        { animation: fade-up var(--dur-3) var(--ease-out) both; }
+.empty__icon { animation: pop-in var(--dur-3) var(--ease-snap) both .06s; }
+.detail-hero { animation: pop-in var(--dur-3) var(--ease-out) both; }
+.overlay     { animation: fade-in var(--dur-2) var(--ease) both; }
+.overlay__box{ animation: pop-in var(--dur-3) var(--ease-snap) both; }
+.auth        { animation: fade-up var(--dur-3) var(--ease-out) both; }
+
+/* Touch feedback: everything tappable dips slightly under a finger. */
+.result {
+  transition: background var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
+}
+.result:active { transform: scale(.99); }
+
+.tab {
+  transition: color var(--dur-2) var(--ease), background var(--dur-2) var(--ease),
+              transform var(--dur-1) var(--ease);
+}
+.tab:active { transform: scale(.93); }
+.tab svg { transition: stroke-width var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-snap); }
+.tab.is-active svg { transform: translateY(-1px) scale(1.06); }
+
+.icon-btn {
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease),
+              transform var(--dur-1) var(--ease);
+}
+.icon-btn:active { transform: scale(.92); }
+.icon-btn svg { transition: transform var(--dur-3) var(--ease-snap); }
+.icon-btn:hover svg { transform: rotate(15deg); }
+
+.brand__mark { transition: transform var(--dur-3) var(--ease-snap); }
+.brand:hover .brand__mark { transform: rotate(-6deg) scale(1.06); }
+
+.plu-badge { transition: transform var(--dur-2) var(--ease-snap), background var(--dur-2) var(--ease); }
+.result:hover .plu-badge { transform: scale(1.05); }
+
+.result__chev { transition: transform var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease); }
+.result:hover .result__chev { transform: translateX(3px); color: var(--brand); }
+
+/* Inputs: the focus ring grows in rather than snapping on. */
+.input, input[type="text"], input[type="password"], input[type="email"],
+input[type="search"], input[type="number"], select, textarea {
+  transition: border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease),
+              background var(--dur-2) var(--ease);
+}
+
+.searchbar__clear {
+  animation: pop-in var(--dur-2) var(--ease-snap) both;
+  transition: background var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
+}
+.searchbar__clear:active { transform: scale(.9); }
+
+.searchbar__meta { transition: color var(--dur-2) var(--ease); }
+
+.card, .alert { transition: box-shadow var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease); }
+.result-list { transition: box-shadow var(--dur-2) var(--ease); }
+
+/* mark highlights sweep in as the live search replaces the list */
+.result mark { animation: fade-in var(--dur-2) var(--ease) both; }
+
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
   *, *::before, *::after {
     animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
 }
 
 /* --------------------------------------------------------------------------
-   17. Wider screens — nav moves up into the app bar, tab bar disappears
+   18. Wider screens — nav moves up into the app bar, tab bar disappears
    -------------------------------------------------------------------------- */
 @media (min-width: 860px) {
   :root { --tabbar-h: 0px; }
