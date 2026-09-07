@@ -81,9 +81,11 @@
 </main>
 
 {% if request.user.is_authenticated and section_nav %}
-  {# Primary navigation on phones: fixed to the bottom, inside thumb reach.
-     Scoped to the app you're inside — the hub has no tab bar, because its
-     two cards *are* the navigation. #}
+  {% comment %}
+    Primary navigation on phones: fixed to the bottom, inside thumb reach.
+    Scoped to the app you're inside — the hub has no tab bar, because its
+    two cards *are* the navigation.
+  {% endcomment %}
   <nav class="tabbar" aria-label="{{ section_name }}">
     {% include section_nav %}
   </nav>

@@ -162,6 +162,10 @@ body {
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;       /* no rubber-band bounce behind fixed bars */
   -webkit-tap-highlight-color: transparent;
+  /* A long unbroken string — a pasted product description, a workplace name
+     with no spaces — must wrap rather than widen the page. Nothing here can
+     use overflow-x: hidden, because that would break the sticky search bar. */
+  overflow-wrap: break-word;
 }
 
 /* Every interactive element gets instant taps (no 300ms delay) */
