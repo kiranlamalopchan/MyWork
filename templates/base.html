@@ -5,24 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f4f5f7">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Find butcher PLU codes fast, by number or description.">
+  <meta name="description" content="MyWork — PLU lookup and timesheets in one place.">
 
   <!-- Add to Home Screen: opens full-screen, like an installed app -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="PLU">
+  <meta name="apple-mobile-web-app-title" content="MyWork">
   <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
   <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'img/icon-180.png' %}">
 
-  <title>{% block title %}Butcher PLU{% endblock %}</title>
+  <title>{% block title %}MyWork{% endblock %}</title>
 
   {# Applied before first paint so the correct palette is up immediately. #}
   <script>
     (function () {
       try {
-        var saved = localStorage.getItem("plu-theme");
+        var saved = localStorage.getItem("mywork-theme");
         if (saved === "light" || saved === "dark") {
           document.documentElement.setAttribute("data-theme", saved);
         }
@@ -42,14 +42,16 @@
 
 <header class="appbar">
   <div class="appbar__inner">
-    <a class="brand" href="{% if request.user.is_authenticated %}{% url 'plu:list' %}{% else %}{% url 'plu:login' %}{% endif %}">
-      <span class="brand__mark" aria-hidden="true">PLU</span>
-      <span class="brand__text">Butcher PLU</span>
+    {# The brand is always the way back to the hub, so a section is never a dead end. #}
+    <a class="brand" href="{% if request.user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">
+      <span class="brand__mark" aria-hidden="true">MW</span>
+      <span class="brand__text">MyWork</span>
+      {% if section_name %}<span class="brand__section">{{ section_name }}</span>{% endif %}
     </a>
 
-    {% if request.user.is_authenticated %}
-      <nav class="appbar__nav" aria-label="Main">
-        {% include "plu/_nav_links.html" %}
+    {% if request.user.is_authenticated and section_nav %}
+      <nav class="appbar__nav" aria-label="{{ section_name }}">
+        {% include section_nav %}
       </nav>
     {% endif %}
 
@@ -78,10 +80,12 @@
   {% block content %}{% endblock %}
 </main>
 
-{% if request.user.is_authenticated %}
-  {# Primary navigation on phones: fixed to the bottom, inside thumb reach. #}
-  <nav class="tabbar" aria-label="Main">
-    {% include "plu/_nav_links.html" %}
+{% if request.user.is_authenticated and section_nav %}
+  {# Primary navigation on phones: fixed to the bottom, inside thumb reach.
+     Scoped to the app you're inside — the hub has no tab bar, because its
+     two cards *are* the navigation. #}
+  <nav class="tabbar" aria-label="{{ section_name }}">
+    {% include section_nav %}
   </nav>
 {% endif %}
 

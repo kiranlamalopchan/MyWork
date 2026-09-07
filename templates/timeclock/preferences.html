@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Preferences · MyWork{% endblock %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'timeclock:more' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  More
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">Hours limit</h1>
+  <p class="page-sub">Set a cap and the timesheet will show how much of it is left, and warn you before you reach it.</p>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+
+  <div class="card">
+    <div class="card__pad">
+      {% include "timeclock/_form_fields.html" with form=form %}
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <button type="submit" class="btn btn--primary">Save</button>
+    <a class="btn" href="{% url 'timeclock:timesheet' %}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

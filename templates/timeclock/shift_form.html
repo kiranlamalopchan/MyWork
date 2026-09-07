@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Edit shift · MyWork{% endblock %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'timeclock:shift_detail' shift.pk %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Back to shift
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">Edit shift</h1>
+  <p class="page-sub">Totals are worked out from these times, so fixing one here fixes every figure built on it.</p>
+</div>
+
+<form method="post" novalidate id="shift-form">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert--error">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card__pad">
+      {% for field in form %}
+        <div class="field">
+          <label class="label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}<div class="help help--error">{{ field.errors|striptags }}</div>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="help">Leave clock-out empty to put the shift back to running.</div>
+    </div>
+  </div>
+
+  {# ---- Breaks -------------------------------------------------------- #}
+  <div class="card">
+    <div class="card__head">
+      <div class="results-head">
+        <span class="section-label">Breaks</span>
+      </div>
+    </div>
+
+    <div class="card__pad">
+      {{ formset.management_form }}
+
+      {% if formset.non_form_errors %}
+        <div class="alert alert--error">{{ formset.non_form_errors }}</div>
+      {% endif %}
+
+      <div id="break-rows">
+        {% for bform in formset %}
+          <div class="break-edit">
+            {{ bform.id }}
+            <div class="break-edit__grid">
+              <div class="field">
+                <label class="label" for="{{ bform.break_start.id_for_label }}">Start</label>
+                {{ bform.break_start }}
+                {% if bform.break_start.errors %}<div class="help help--error">{{ bform.break_start.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="field">
+                <label class="label" for="{{ bform.break_end.id_for_label }}">End</label>
+                {{ bform.break_end }}
+                {% if bform.break_end.errors %}<div class="help help--error">{{ bform.break_end.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+            {% if bform.instance.pk %}
+              <label class="checkline">
+                {{ bform.DELETE }}
+                <span>Delete this break</span>
+              </label>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% comment %}
+        Blueprint for a new row. app.js clones it, swaps __prefix__ for the
+        next index and bumps TOTAL_FORMS, which is all Django's formset needs
+        to treat it as a real form on POST.
+      {% endcomment %}
+      <template id="break-empty">
+        <div class="break-edit">
+          <div class="break-edit__grid">
+            <div class="field">
+              <label class="label">Start</label>
+              {{ formset.empty_form.break_start }}
+            </div>
+            <div class="field">
+              <label class="label">End</label>
+              {{ formset.empty_form.break_end }}
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <button type="button" class="btn btn--block" id="add-break">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Add a break
+      </button>
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <button type="submit" class="btn btn--primary">Save changes</button>
+    <a class="btn" href="{% url 'timeclock:shift_detail' shift.pk %}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

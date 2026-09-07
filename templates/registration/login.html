@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Sign in · Butcher PLU{% endblock %}
+{% block title %}Sign in · MyWork{% endblock %}
 
 {% block content %}
 
 <div class="auth">
-  <div class="auth__logo" aria-hidden="true">PLU</div>
+  <div class="auth__logo" aria-hidden="true">MW</div>
   <h1 class="auth__title">Welcome back</h1>
-  <p class="auth__sub">Sign in to search the PLU list.</p>
+  <p class="auth__sub">Sign in to MyWork — PLU lookup and timesheets.</p>
 
   <div class="card card__pad">
     {% if form.errors %}
@@ -44,7 +44,7 @@
   </div>
 
   <p class="auth__footer">
-    New here? <a href="{% url 'plu:register' %}">Create an account</a>
+    New here? <a href="{% url 'register' %}">Create an account</a>
   </p>
 </div>
 

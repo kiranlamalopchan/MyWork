@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load timeclock_extras %}
+{% block title %}Shift · MyWork{% endblock %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'timeclock:timesheet' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Timesheet
+</a>
+
+<div class="shift-hero shift-hero--{{ shift.status|lower }}">
+  <div class="shift-hero__status">
+    <span class="status-pill status-pill--{{ shift.status|lower }}">
+      <span class="status-pill__dot" aria-hidden="true"></span>
+      {{ shift.get_status_display|upper }}
+    </span>
+  </div>
+  <div class="shift-hero__worked">{{ shift.worked_duration|hm|default:"0m" }}</div>
+  <div class="shift-hero__meta">
+    {{ shift.workplace.name|default:"No workplace" }} · {{ shift.clock_in|date:"l, j F" }}
+  </div>
+</div>
+
+{# ---- The arithmetic, laid out so it can be checked against a payslip --- #}
+<div class="card">
+  <div class="card__pad">
+    <div class="ledger">
+      <div class="ledger__row">
+        <span>Clock in</span>
+        <span class="ledger__val">{{ shift.clock_in|time:"g:i A" }}</span>
+      </div>
+      <div class="ledger__row">
+        <span>Clock out</span>
+        <span class="ledger__val">
+          {% if shift.clock_out %}{{ shift.clock_out|time:"g:i A" }}{% else %}<em class="muted">still running</em>{% endif %}
+        </span>
+      </div>
+
+      <hr class="rule">
+
+      <div class="ledger__row">
+        <span>Total shift</span>
+        <span class="ledger__val">{{ shift.total_duration|hm }}</span>
+      </div>
+      <div class="ledger__row">
+        <span>Total break</span>
+        <span class="ledger__val ledger__val--minus">− {{ shift.total_break|hm|default:"0m" }}</span>
+      </div>
+
+      <div class="ledger__row ledger__row--total">
+        <span>Worked</span>
+        <span class="ledger__val">{{ shift.worked_duration|hm|default:"0m" }}</span>
+      </div>
+
+      <div class="ledger__row ledger__row--faint">
+        <span>Decimal hours</span>
+        <span class="ledger__val">{{ shift.worked_duration|decimal_hours }}</span>
+      </div>
+
+      {% if shift.estimated_pay %}
+        <div class="ledger__row ledger__row--faint">
+          <span>Estimated pay</span>
+          <span class="ledger__val">${{ shift.estimated_pay|floatformat:2 }}</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ---- Breaks ----------------------------------------------------------- #}
+<div class="card">
+  <div class="card__head">
+    <div class="results-head">
+      <span class="section-label">Breaks</span>
+      <span class="muted text-sm">{{ shift.breaks.count }} total</span>
+    </div>
+  </div>
+  <div class="card__pad">
+    {% if shift.breaks.all %}
+      <ol class="break-list">
+        {% for b in shift.breaks.all %}
+          <li class="break{% if b.is_running %} break--running{% endif %}">
+            <span class="break__no">{{ forloop.counter }}</span>
+            <span class="break__times">
+              {{ b.break_start|time:"g:i A" }}
+              <span class="shift__arrow" aria-hidden="true">→</span>
+              {% if b.break_end %}{{ b.break_end|time:"g:i A" }}{% else %}<em>running</em>{% endif %}
+            </span>
+            <span class="break__dur">{{ b.duration|minutes }}</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="muted text-sm">No breaks recorded for this shift.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if shift.note %}
+  <div class="card">
+    <div class="card__pad">
+      <div class="section-label">Note</div>
+      <p class="text-sm" style="margin-top:var(--sp-2)">{{ shift.note|linebreaksbr }}</p>
+    </div>
+  </div>
+{% endif %}
+
+<div class="detail-actions">
+  <a class="btn btn--primary" href="{% url 'timeclock:shift_edit' shift.pk %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+    </svg>
+    Edit times
+  </a>
+
+  <form method="post" action="{% url 'timeclock:shift_delete' shift.pk %}"
+        onsubmit="return confirm('Delete this shift? This can\'t be undone.');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--danger btn--block">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>
+      </svg>
+      Delete shift
+    </button>
+  </form>
+</div>
+
+{% endblock %}

@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'plu',
+    'timeclock',
 ]
 
 
@@ -33,10 +34,13 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Must sit after AuthenticationMiddleware: it reads request.user to find
+    # which timezone the user's phone reported.
+    'timeclock.middleware.UserTimezoneMiddleware',
 ]
 
 
-ROOT_URLCONF = 'butcher_app.urls'
+ROOT_URLCONF = 'mywork.urls'
 
 
 TEMPLATES = [
@@ -50,13 +54,16 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                # Which of MyWork's apps the current page belongs to, so
+                # base.html can render that app's navigation and nothing else.
+                'mywork.context_processors.section',
             ],
         },
     },
 ]
 
 
-WSGI_APPLICATION = 'butcher_app.wsgi.application'
+WSGI_APPLICATION = 'mywork.wsgi.application'
 
 
 DATABASES = {
@@ -97,5 +104,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # -------------------------
 
 LOGIN_URL = '/login/'
+# After signing in you land on the hub, where you pick an app.
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/' 

@@ -1,7 +1,7 @@
 {
-  "name": "Butcher PLU",
-  "short_name": "PLU",
-  "description": "Find butcher PLU codes fast, by number or description.",
+  "name": "MyWork",
+  "short_name": "MyWork",
+  "description": "PLU lookup and timesheets in one place.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

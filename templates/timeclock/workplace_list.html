@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Workplaces · MyWork{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1 class="page-title">My workplaces</h1>
+  <p class="page-sub">The default one is picked automatically when you clock in.</p>
+</div>
+
+{% if workplaces %}
+  <ul class="result-list">
+    {% for w in workplaces %}
+      <li>
+        <div class="workplace">
+          <span class="workplace__mark" aria-hidden="true">{{ w.name|slice:":1"|upper }}</span>
+
+          <div class="workplace__body">
+            {% comment %}
+              Name gets the row to itself; the Default tag rides on the sub
+              line so a long workplace name isn't truncated to make room.
+            {% endcomment %}
+            <div class="workplace__name">
+              <span class="workplace__label">{{ w.name }}</span>
+            </div>
+            <div class="workplace__sub">
+              {% if w.is_default %}<span class="chip__tag">Default</span> {% endif %}
+              {% if w.address %}{{ w.address }}{% else %}No address{% endif %}
+              {% if w.hourly_rate %} · ${{ w.hourly_rate|floatformat:2 }}/hr{% endif %}
+            </div>
+          </div>
+
+          <div class="workplace__actions">
+            {% if not w.is_default %}
+              <form method="post" action="{% url 'timeclock:workplace_default' w.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="icon-btn icon-btn--sm" title="Make default" aria-label="Make {{ w.name }} the default">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m12 4 2.4 5 5.6.8-4 3.9 1 5.5-5-2.7-5 2.7 1-5.5-4-3.9 5.6-.8Z"/>
+                  </svg>
+                </button>
+              </form>
+            {% endif %}
+
+            <a class="icon-btn icon-btn--sm" href="{% url 'timeclock:workplace_edit' w.pk %}" title="Edit" aria-label="Edit {{ w.name }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+              </svg>
+            </a>
+
+            <form method="post" action="{% url 'timeclock:workplace_delete' w.pk %}"
+                  onsubmit="return confirm('Remove {{ w.name|escapejs }}? Past shifts stay on your timesheet.');">
+              {% csrf_token %}
+              <button type="submit" class="icon-btn icon-btn--sm icon-btn--danger" title="Remove" aria-label="Remove {{ w.name }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="card">
+    <div class="empty">
+      <div class="empty__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/>
+        </svg>
+      </div>
+      <div class="empty__title">No workplaces yet</div>
+      <div class="empty__sub">Add the places you work so shifts can be recorded against them.</div>
+    </div>
+  </div>
+{% endif %}
+
+<div class="detail-actions">
+  <a class="btn btn--primary" href="{% url 'timeclock:workplace_create' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Add workplace
+  </a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load timeclock_extras %}
+{% block title %}Timesheet · MyWork{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <h1 class="page-title">Timesheet</h1>
+  <p class="page-sub">Every shift, and what it added up to.</p>
+</div>
+
+{# List / calendar toggle, so both views of the same data are one tap apart. #}
+<div class="segmented" role="tablist" aria-label="Timesheet view">
+  <a class="segmented__item is-on" role="tab" aria-selected="true" href="{% url 'timeclock:timesheet' %}">List</a>
+  <a class="segmented__item" role="tab" aria-selected="false" href="{% url 'timeclock:calendar' %}">Calendar</a>
+</div>
+
+{# ---- Totals ---------------------------------------------------------- #}
+<div class="summary-grid summary-grid--3">
+  <div class="summary-card">
+    <div class="summary-card__label">This week</div>
+    <div class="summary-card__value">{{ summary.week|hm|default:"0m" }}</div>
+    <div class="summary-card__sub">from {{ summary.week_start|date:"j M" }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-card__label">This fortnight</div>
+    <div class="summary-card__value">{{ summary.fortnight|hm|default:"0m" }}</div>
+    <div class="summary-card__sub">from {{ summary.fortnight_start|date:"j M" }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-card__label">This month</div>
+    <div class="summary-card__value">{{ summary.month|hm|default:"0m" }}</div>
+    <div class="summary-card__sub">{% now "F" %}</div>
+  </div>
+</div>
+
+{% if summary.limit %}
+  {% include "timeclock/_limit_bar.html" with limit=summary.limit %}
+{% endif %}
+
+{# ---- Workplace filter ------------------------------------------------- #}
+{% if workplaces %}
+  <div class="chips chips--filter">
+    <div class="chips__scroll">
+      <a class="chip chip--link{% if not workplace %} is-on{% endif %}" href="{% url 'timeclock:timesheet' %}">
+        <span class="chip__body"><span class="chip__name">All</span></span>
+      </a>
+      {% for w in workplaces %}
+        <a class="chip chip--link{% if workplace and w.pk == workplace.pk %} is-on{% endif %}"
+           href="?workplace={{ w.pk }}">
+          <span class="chip__body">
+            <span class="chip__name">{{ w.name }}{% if w.is_archived %} (removed){% endif %}</span>
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+{# ---- Shifts, grouped by day ------------------------------------------- #}
+{% if days %}
+  {% for day in days %}
+    <div class="day">
+      <div class="day__head">
+        <span class="day__date">{{ day.date|date:"D j M" }}</span>
+        <span class="day__total">{{ day.total|hm|default:"0m" }}</span>
+      </div>
+
+      <ul class="shift-list">
+        {% for shift in day.shifts %}
+          <li>
+            <a class="shift" href="{% url 'timeclock:shift_detail' shift.pk %}">
+              <span class="shift__bar shift__bar--{{ shift.status|lower }}" aria-hidden="true"></span>
+
+              <span class="shift__body">
+                <span class="shift__top">
+                  <span class="shift__where">{{ shift.workplace.name|default:"No workplace" }}</span>
+                  {% if shift.is_open %}
+                    <span class="status-pill status-pill--{{ shift.status|lower }} status-pill--sm">
+                      <span class="status-pill__dot" aria-hidden="true"></span>
+                      {{ shift.get_status_display|upper }}
+                    </span>
+                  {% else %}
+                    <span class="shift__worked">{{ shift.worked_duration|hm }}</span>
+                  {% endif %}
+                </span>
+
+                <span class="shift__times">
+                  <span>{{ shift.clock_in|time:"g:i A" }}</span>
+                  <span class="shift__arrow" aria-hidden="true">→</span>
+                  <span>{% if shift.clock_out %}{{ shift.clock_out|time:"g:i A" }}{% else %}now{% endif %}</span>
+                  {% if shift.total_break %}
+                    <span class="shift__break">· {{ shift.total_break|minutes }} break</span>
+                  {% endif %}
+                </span>
+              </span>
+
+              <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pager" aria-label="Pagination">
+      {% if page_obj.has_previous %}
+        <a class="btn" href="?{% if workplace %}workplace={{ workplace.pk }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" rel="prev">Previous</a>
+      {% else %}
+        <span class="btn" aria-disabled="true">Previous</span>
+      {% endif %}
+      <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="btn" href="?{% if workplace %}workplace={{ workplace.pk }}&amp;{% endif %}page={{ page_obj.next_page_number }}" rel="next">Next</a>
+      {% else %}
+        <span class="btn" aria-disabled="true">Next</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+{% else %}
+  <div class="card">
+    <div class="empty">
+      <div class="empty__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+        </svg>
+      </div>
+      <div class="empty__title">No shifts yet</div>
+      <div class="empty__sub">
+        {% if workplace %}Nothing recorded for {{ workplace.name }}.{% else %}Clock in to start your first one.{% endif %}
+      </div>
+      <a class="btn btn--primary" href="{% url 'timeclock:dashboard' %}" style="margin-top:var(--sp-4)">Go to the clock</a>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

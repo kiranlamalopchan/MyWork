@@ -1,0 +1,40 @@
+{% load timeclock_extras %}
+{% comment %}
+  The hours cap. `limit.state` is one of ok / close / over and drives the
+  colour, so the bar warns before the limit rather than only after it.
+{% endcomment %}
+<div class="card limit limit--{{ limit.state }}">
+  <div class="card__pad">
+    <div class="limit__head">
+      <div>
+        <div class="section-label">This {{ limit.period_label }}</div>
+        <div class="limit__figure">
+          <span class="limit__used">{{ limit.used|hm|default:"0m" }}</span>
+          <span class="limit__cap">/ {{ limit.cap|hm }}</span>
+        </div>
+      </div>
+      <a class="btn btn--ghost btn--sm" href="{% url 'timeclock:preferences' %}">Change</a>
+    </div>
+
+    <div class="limit__track" role="img"
+         aria-label="{{ limit.percent }} percent of your {{ limit.period_label }} limit used">
+      <div class="limit__fill" style="--pct: {{ limit.percent }}%"></div>
+    </div>
+
+    <div class="limit__note">
+      {% if limit.state == 'over' %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 8v5"/><path d="M12 16.5v.5"/><circle cx="12" cy="12" r="9"/>
+        </svg>
+        {{ limit.over|hm }} over your limit
+      {% elif limit.state == 'close' %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 8v5"/><path d="M12 16.5v.5"/><circle cx="12" cy="12" r="9"/>
+        </svg>
+        Only {{ limit.remaining|hm }} remaining
+      {% else %}
+        {{ limit.remaining|hm }} remaining
+      {% endif %}
+    </div>
+  </div>
+</div>

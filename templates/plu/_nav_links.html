@@ -1,7 +1,8 @@
 {% comment %}
-Shared navigation items. Rendered twice: inside the app bar on wide screens,
-and inside the fixed bottom tab bar on phones. The CSS decides which one shows.
-Kept to at most four items so the tab bar stays comfortable on a small phone.
+Navigation for the PLU Management app. Rendered twice — in the app bar on wide
+screens, in the fixed bottom tab bar on phones — and only ever on PLU pages;
+base.html picks this file from the URL namespace. The last slot goes back to
+the hub, which is how you cross over to TimeSheet.
 {% endcomment %}
 {% with current=request.resolver_match.url_name %}
 
@@ -16,8 +17,7 @@ Kept to at most four items so the tab bar stays comfortable on a small phone.
 <a class="tab{% if current == 'photo_search' %} is-active{% endif %}"
    href="{% url 'plu:photo_search' %}">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a2 2 0 0 0 1.7-.9l.6-1a2 2 0 0 1 1.7-.9h2.6a2 2 0 0 1 1.7.9l.6 1a2 2 0 0 0 1.7.9h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5Z"/>
-    <circle cx="12" cy="12.5" r="3.2"/>
+    <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a2 2 0 0 0 1.7-.9l.6-1a2 2 0 0 1 1.7-.9h2.6a2 2 0 0 1 1.7.9l.6 1a2 2 0 0 0 1.7.9h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5Z"/><circle cx="12" cy="12.5" r="3.2"/>
   </svg>
   <span>Photo</span>
 </a>
@@ -32,14 +32,12 @@ Kept to at most four items so the tab bar stays comfortable on a small phone.
   </a>
 {% endif %}
 
-<form method="post" action="{% url 'plu:logout' %}" class="tab-form">
-  {% csrf_token %}
-  <button type="submit" class="tab" title="Signed in as {{ request.user.username }}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/>
-    </svg>
-    <span>Sign out</span>
-  </button>
-</form>
+<a class="tab" href="{% url 'home' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
+    <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>
+  </svg>
+  <span>Apps</span>
+</a>
 
 {% endwith %}

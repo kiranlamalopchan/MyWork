@@ -13,15 +13,12 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from django.contrib import messages
-from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 
 from .forms import CsvImportForm, PhotoSearchForm
 from .models import PluItem
@@ -29,39 +26,6 @@ from .models import PluItem
 
 def is_staff_user(user):
     return user.is_authenticated and user.is_staff
-
-
-def home_redirect(request):
-    """
-    Open login page first.
-    If already logged in, go to PLU list (home/search page).
-    """
-    if request.user.is_authenticated:
-        return redirect("plu:list")
-    return redirect("plu:login")
-
-
-def register(request):
-    """
-    Public registration page.
-    After successful registration -> log them in -> go to PLU list.
-    """
-    if request.user.is_authenticated:
-        return redirect("plu:list")
-
-    if request.method == "POST":
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Account created. You are now logged in.")
-            return redirect("plu:list")
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        form = UserCreationForm()
-
-    return render(request, "registration/register.html", {"form": form})
 
 
 # Live search sends a request per typing pause, so cap what comes back; the

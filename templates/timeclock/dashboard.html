@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% load timeclock_extras %}
+{% block title %}Clock · MyWork{% endblock %}
+
+{% block content %}
+
+{% comment %}
+  Three states share one screen: ready to clock in, working, and on a break.
+  The dial in the middle is the same element throughout — only its colour,
+  label and what the ticker counts change — so moving between states reads as
+  one object changing rather than three pages swapping.
+{% endcomment %}
+
+<div class="clock"
+     id="clock-live"
+     data-status="{% if shift %}{{ shift.status }}{% else %}IDLE{% endif %}"
+     data-server-now="{{ server_now_iso }}"
+     data-clock-in="{{ clock_in_iso }}"
+     data-break-start="{{ break_start_iso }}"
+     data-banked-break="{{ banked_break_seconds }}"
+     data-target-hours="{{ target_hours }}">
+
+  {% if not workplaces %}
+
+    {# Nothing can happen until there's somewhere to clock in at. #}
+    <div class="card">
+      <div class="empty">
+        <div class="empty__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/>
+          </svg>
+        </div>
+        <div class="empty__title">Add a workplace first</div>
+        <div class="empty__sub">You need somewhere to clock in at before the timer can start.</div>
+        <a class="btn btn--primary" href="{% url 'timeclock:workplace_create' %}" style="margin-top:var(--sp-4)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Add workplace
+        </a>
+      </div>
+    </div>
+
+  {% else %}
+
+    {# ---- Status + workplace ------------------------------------------- #}
+    <div class="clock__head">
+      <span class="status-pill status-pill--{{ shift.status|default:'IDLE'|lower }}">
+        <span class="status-pill__dot" aria-hidden="true"></span>
+        {% if shift %}{{ shift.get_status_display|upper }}{% else %}NOT STARTED{% endif %}
+      </span>
+      <div class="clock__date">{% now "l, j F" %}</div>
+    </div>
+
+    {% if long_shift %}
+      <div class="alert alert--warning">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="width:18px;height:18px;flex:none">
+          <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/>
+        </svg>
+        <span>This shift has been running over {{ target_hours }} hours. If you forgot to clock out, edit the time after you do.</span>
+      </div>
+    {% endif %}
+
+    {# ---- The dial ------------------------------------------------------ #}
+    <div class="dial dial--{{ shift.status|default:'IDLE'|lower }}">
+      <svg class="dial__ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="dial__track" cx="60" cy="60" r="52"/>
+        <circle class="dial__progress" id="dial-progress" cx="60" cy="60" r="52"/>
+      </svg>
+
+      <div class="dial__face">
+        {% if shift and shift.status == 'ON_BREAK' %}
+          <div class="dial__label">On break</div>
+          <div class="dial__time" id="clock-elapsed">{{ running_break.duration|hms }}</div>
+          <div class="dial__sub">since {{ running_break.break_start|time:"g:i A" }}</div>
+        {% elif shift %}
+          <div class="dial__label">Worked</div>
+          <div class="dial__time" id="clock-elapsed">{{ shift.worked_duration|hms }}</div>
+          <div class="dial__sub">in since {{ shift.clock_in|time:"g:i A" }}</div>
+        {% else %}
+          <div class="dial__label">Current time</div>
+          <div class="dial__time dial__time--clock" id="wall-clock">{% now "g:i" %}</div>
+          <div class="dial__sub">{% now "A" %} · ready when you are</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ---- Actions ------------------------------------------------------- #}
+    {% if not shift %}
+
+      <form method="post" action="{% url 'timeclock:clock_in' %}" data-stamp-time class="clock__actions">
+        {% csrf_token %}
+
+        {% if workplaces|length > 1 %}
+          <fieldset class="chips">
+            <legend class="section-label">Workplace</legend>
+            <div class="chips__scroll">
+              {% for w in workplaces %}
+                <label class="chip">
+                  <input type="radio" name="workplace" value="{{ w.pk }}"
+                         {% if selected_workplace and w.pk == selected_workplace.pk %}checked{% endif %}>
+                  <span class="chip__body">
+                    <span class="chip__name">{{ w.name }}</span>
+                    {% if w.is_default %}<span class="chip__tag">Default</span>{% endif %}
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+        {% else %}
+          <input type="hidden" name="workplace" value="{{ selected_workplace.pk }}">
+          <div class="clock__where">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>
+            </svg>
+            {{ selected_workplace.name }}
+          </div>
+        {% endif %}
+
+        <button type="submit" class="big-btn big-btn--go">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+          </svg>
+          Clock in
+        </button>
+      </form>
+
+    {% elif shift.status == 'ON_BREAK' %}
+
+      <div class="clock__where">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>
+        </svg>
+        {{ shift.workplace.name|default:"No workplace" }}
+      </div>
+
+      <form method="post" action="{% url 'timeclock:end_break' %}" data-stamp-time class="clock__actions">
+        {% csrf_token %}
+        <button type="submit" class="big-btn big-btn--go">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m5 3 14 9-14 9V3Z"/>
+          </svg>
+          End break
+        </button>
+      </form>
+
+    {% else %}
+
+      <div class="clock__where">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>
+        </svg>
+        {{ shift.workplace.name|default:"No workplace" }}
+      </div>
+
+      <div class="clock__actions clock__actions--split">
+        <form method="post" action="{% url 'timeclock:start_break' %}" data-stamp-time>
+          {% csrf_token %}
+          <button type="submit" class="big-btn big-btn--soft">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 4v16M18 4v16"/>
+            </svg>
+            Break
+          </button>
+        </form>
+        <form method="post" action="{% url 'timeclock:clock_out' %}" data-stamp-time>
+          {% csrf_token %}
+          <button type="submit" class="big-btn big-btn--stop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            Clock out
+          </button>
+        </form>
+      </div>
+
+    {% endif %}
+
+    {# ---- Live shift breakdown ------------------------------------------ #}
+    {% if shift %}
+      <div class="metric-row">
+        <div class="metric">
+          <div class="metric__label">Clocked in</div>
+          <div class="metric__value">{{ shift.clock_in|time:"g:i A" }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Break</div>
+          <div class="metric__value" id="clock-break">{{ shift.total_break|minutes }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Breaks taken</div>
+          <div class="metric__value">{{ shift.breaks.count }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ---- Today + limit -------------------------------------------------- #}
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card__label">Today</div>
+        <div class="summary-card__value">{{ today_total|hm|default:"0m" }}</div>
+        <div class="summary-card__sub">{{ today_shifts|length }} shift{{ today_shifts|length|pluralize }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card__label">This week</div>
+        <div class="summary-card__value">{{ summary.week|hm|default:"0m" }}</div>
+        <div class="summary-card__sub">from {{ summary.week_start|date:"j M" }}</div>
+      </div>
+    </div>
+
+    {% if summary.limit %}
+      {% include "timeclock/_limit_bar.html" with limit=summary.limit %}
+    {% endif %}
+
+  {% endif %}
+</div>
+
+{% endblock %}

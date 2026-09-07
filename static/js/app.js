@@ -1,4 +1,4 @@
-/* Butcher PLU — progressive enhancement.
+/* MyWork — progressive enhancement.
    Everything here is optional: each page works fully with JS disabled, and
    these handlers only bind when the elements they need are actually present. */
 (function () {
@@ -20,7 +20,7 @@
       var next = current === "dark" ? "light" : "dark";
 
       root.setAttribute("data-theme", next);
-      try { localStorage.setItem("plu-theme", next); } catch (e) { /* private mode */ }
+      try { localStorage.setItem("mywork-theme", next); } catch (e) { /* private mode */ }
 
       var meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.setAttribute("content", next === "dark" ? "#0b1120" : "#f4f5f7");
@@ -511,8 +511,202 @@
     });
   }
 
+  /* ----------------------------------------------------------------------
+     Live clock
+     Keeps the dial counting between page loads. Everything is derived from
+     the server's timestamps, and the server's own "now" is compared against
+     the browser's once at startup — so a phone whose clock is minutes out
+     still shows the elapsed time the server would agree with.
+     ---------------------------------------------------------------------- */
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  function formatHMS(seconds) {
+    if (seconds < 0) seconds = 0;
+    var s = Math.floor(seconds);
+    return pad2(Math.floor(s / 3600)) + ":" + pad2(Math.floor(s / 60) % 60) + ":" + pad2(s % 60);
+  }
+
+  function formatMinutes(seconds) {
+    var m = Math.floor(Math.max(seconds, 0) / 60);
+    var h = Math.floor(m / 60);
+    return h ? h + "h " + (m % 60) + "m" : m + "m";
+  }
+
+  function initLiveClock() {
+    var root = document.getElementById("clock-live");
+    if (!root) return;
+
+    var status = root.getAttribute("data-status");
+    var timeEl = document.getElementById("clock-elapsed");
+    var breakEl = document.getElementById("clock-break");
+    var wallEl = document.getElementById("wall-clock");
+    var ring = document.getElementById("dial-progress");
+
+    // 2πr for the r=52 circle in the markup.
+    var CIRCUMFERENCE = 326.73;
+    var targetSeconds = (parseFloat(root.getAttribute("data-target-hours")) || 8) * 3600;
+
+    function ms(attr) {
+      var raw = root.getAttribute(attr);
+      if (!raw) return null;
+      var t = Date.parse(raw);
+      return isNaN(t) ? null : t;
+    }
+
+    var clockIn = ms("data-clock-in");
+    var breakStart = ms("data-break-start");
+    var bankedBreak = (parseInt(root.getAttribute("data-banked-break"), 10) || 0) * 1000;
+
+    // The phone's clock is the source of truth: the stored clock-in was
+    // stamped from this same device, so counting forward from it here needs
+    // no correction against the server. Skewing to the server would instead
+    // make the elapsed time disagree with the phone's own clock.
+    function now() { return Date.now(); }
+
+    var lastText = "";
+
+    function paint() {
+      if (status === "IDLE") {
+        if (wallEl) {
+          var d = new Date(now());
+          var h = d.getHours() % 12;
+          wallEl.textContent = (h === 0 ? 12 : h) + ":" + pad2(d.getMinutes());
+        }
+        return;
+      }
+      if (!clockIn) return;
+
+      // A break that's running keeps growing; finished ones are already banked.
+      var breakMs = bankedBreak + (breakStart ? Math.max(now() - breakStart, 0) : 0);
+      var workedMs = Math.max(now() - clockIn - breakMs, 0);
+
+      if (timeEl) {
+        var text = formatHMS((status === "ON_BREAK" ? now() - breakStart : workedMs) / 1000);
+        if (text !== lastText) {
+          lastText = text;
+          timeEl.textContent = text;
+        }
+      }
+
+      if (breakEl) breakEl.textContent = formatMinutes(breakMs / 1000);
+
+      if (ring) {
+        var progress = Math.min(workedMs / 1000 / targetSeconds, 1);
+        ring.style.strokeDashoffset = String(CIRCUMFERENCE * (1 - progress));
+      }
+    }
+
+    paint();
+    var timer = setInterval(paint, 1000);
+
+    // A phone that's been asleep comes back with a stale face; repaint the
+    // moment it's visible again rather than waiting for the next tick.
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) paint();
+    });
+    window.addEventListener("pagehide", function () { clearInterval(timer); });
+  }
+
+  /* ----------------------------------------------------------------------
+     Stamp the phone's own clock onto every clock action
+     The server records the instant this reports rather than its own, so the
+     time saved is the time that was on the phone when the button was tapped.
+     The IANA zone rides along so every page renders in the phone's local
+     time instead of whatever timezone the server is set to.
+     ---------------------------------------------------------------------- */
+  function localIsoNow() {
+    var d = new Date();
+    // Build the offset by hand: toISOString() would convert to UTC and drop
+    // the phone's own offset, which is the part the server needs.
+    var offset = -d.getTimezoneOffset();
+    var sign = offset >= 0 ? "+" : "-";
+    var abs = Math.abs(offset);
+
+    return d.getFullYear() +
+      "-" + pad2(d.getMonth() + 1) +
+      "-" + pad2(d.getDate()) +
+      "T" + pad2(d.getHours()) +
+      ":" + pad2(d.getMinutes()) +
+      ":" + pad2(d.getSeconds()) +
+      sign + pad2(Math.floor(abs / 60)) + ":" + pad2(abs % 60);
+  }
+
+  function initClientClock() {
+    var zone = "";
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch (e) { /* very old browser — the server falls back to its own zone */ }
+
+    // Publish the zone on every page, not just when a clock button is
+    // pressed, so pages render in the phone's local time from the first
+    // visit — and follow the phone if it moves.
+    if (zone && document.cookie.indexOf("plu_tz=" + zone) === -1) {
+      document.cookie = "plu_tz=" + encodeURIComponent(zone) +
+        ";path=/;max-age=31536000;SameSite=Lax";
+    }
+
+    var forms = document.querySelectorAll("form[data-stamp-time]");
+    if (!forms.length) return;
+
+    forms.forEach(function (form) {
+      // Filled at submit time, not page load, so a page left open for hours
+      // still posts the moment the button was actually pressed.
+      form.addEventListener("submit", function () {
+        setHidden(form, "client_time", localIsoNow());
+        if (zone) setHidden(form, "client_tz", zone);
+      });
+    });
+
+    function setHidden(form, name, value) {
+      var input = form.querySelector('input[name="' + name + '"]');
+      if (!input) {
+        input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        form.appendChild(input);
+      }
+      input.value = value;
+    }
+  }
+
+  /* ----------------------------------------------------------------------
+     Break rows on the shift edit page
+     Clones the formset's empty_form and renumbers it, which is all Django
+     needs to treat the new row as a real form on POST.
+     ---------------------------------------------------------------------- */
+  function initBreakRows() {
+    var addBtn = document.getElementById("add-break");
+    var rows = document.getElementById("break-rows");
+    var tpl = document.getElementById("break-empty");
+    if (!addBtn || !rows || !tpl) return;
+
+    var totalInput = document.querySelector('input[name$="-TOTAL_FORMS"]');
+    if (!totalInput) return;
+
+    addBtn.addEventListener("click", function () {
+      var index = parseInt(totalInput.value, 10) || 0;
+      var html = tpl.innerHTML.replace(/__prefix__/g, String(index));
+
+      var holder = document.createElement("div");
+      holder.innerHTML = html;
+      var row = holder.firstElementChild;
+      // Only rows created by this tap animate in; the ones already on the
+      // page when it loaded stay put.
+      row.classList.add("is-new");
+      rows.appendChild(row);
+
+      totalInput.value = String(index + 1);
+
+      var first = row.querySelector("input");
+      if (first) first.focus();
+    });
+  }
+
   function init() {
     initTheme();
+    initLiveClock();
+    initClientClock();
+    initBreakRows();
     initStickyBar();
     initLiveSearch();
     initPlaceholderTyper();

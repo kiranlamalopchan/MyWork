@@ -1,0 +1,42 @@
+{% comment %}
+Navigation for the TimeSheet Management app. Rendered twice — in the app bar on
+wide screens, in the fixed bottom tab bar on phones — and only ever on
+timesheet pages. Four slots is the most a phone tab bar carries comfortably, so
+workplaces and the hours limit sit behind More, and the last slot returns to
+the hub.
+{% endcomment %}
+{% with current=request.resolver_match.url_name %}
+
+<a class="tab{% if current == 'dashboard' %} is-active{% endif %}"
+   href="{% url 'timeclock:dashboard' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+  </svg>
+  <span>Clock</span>
+</a>
+
+<a class="tab{% if current == 'timesheet' or current == 'calendar' or current == 'shift_detail' or current == 'shift_edit' %} is-active{% endif %}"
+   href="{% url 'timeclock:timesheet' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/><path d="M8 14h3M8 17.5h6"/>
+  </svg>
+  <span>Timesheet</span>
+</a>
+
+<a class="tab{% if current == 'more' or current == 'workplaces' or current == 'workplace_create' or current == 'workplace_edit' or current == 'preferences' %} is-active{% endif %}"
+   href="{% url 'timeclock:more' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
+  </svg>
+  <span>More</span>
+</a>
+
+<a class="tab" href="{% url 'home' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
+    <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>
+  </svg>
+  <span>Apps</span>
+</a>
+
+{% endwith %}
