@@ -135,6 +135,8 @@
 
     // Centres the box while nothing has been searched for; see .search-page.
     var page = document.getElementById("search-page");
+    var bar = document.querySelector(".searchbar");
+
     function setIdle(idle) {
       if (page) page.classList.toggle("is-idle", idle);
     }
@@ -195,6 +197,7 @@
 
       if (!query) {
         if (inFlight) { inFlight.abort(); inFlight = null; }
+        if (bar) bar.classList.remove("is-busy");
         showIdle();
         syncUrl("");
         return;
@@ -208,7 +211,11 @@
       var controller = new AbortController();
       inFlight = controller;
 
-      setMeta('<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:-2px"></span> Searching&hellip;');
+      // The bar itself carries the waiting (a moving hairline), so the text
+      // only needs three dots keeping time with it.
+      if (bar) bar.classList.add("is-busy");
+      setMeta('Searching<span class="dot-flash">.</span>' +
+              '<span class="dot-flash">.</span><span class="dot-flash">.</span>');
 
       fetch(endpoint + "?q=" + encodeURIComponent(query), {
         signal: controller.signal,
@@ -221,11 +228,13 @@
         .then(function (data) {
           if (controller.signal.aborted) return;
           inFlight = null;
+          if (bar) bar.classList.remove("is-busy");
           lastRendered = query;
           renderResults(query, data);
           syncUrl(query);
         })
         .catch(function (err) {
+          if (bar) bar.classList.remove("is-busy");
           if (err && err.name === "AbortError") return;
           inFlight = null;
           // Network trouble on a phone is normal — fall back to a real
@@ -702,6 +711,62 @@
     });
   }
 
+  /* ------------------------------------------------------------------------
+     Ripple — a tap should look like it landed somewhere specific, so the
+     circle grows from the point that was actually touched.
+     ---------------------------------------------------------------------- */
+  function initRipple() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    document.addEventListener("pointerdown", function (event) {
+      var btn = event.target.closest(".btn");
+      if (!btn || btn.disabled || btn.classList.contains("is-loading")) return;
+
+      var rect = btn.getBoundingClientRect();
+      var ripple = document.createElement("span");
+      ripple.className = "btn__ripple";
+      ripple.style.setProperty("--rx", (event.clientX - rect.left) + "px");
+      ripple.style.setProperty("--ry", (event.clientY - rect.top) + "px");
+      btn.appendChild(ripple);
+
+      // Outlives the .5s animation by a hair, so it never vanishes mid-grow.
+      setTimeout(function () { ripple.remove(); }, 550);
+    }, { passive: true });
+  }
+
+  /* ------------------------------------------------------------------------
+     Submit feedback — a form that is working says so, and stops taking taps.
+     Two forms opt out: the live-search form never navigates, and the photo
+     upload already covers the screen with its own OCR overlay. The CSV import
+     form is left in, because that upload is the slowest thing in the app.
+     ---------------------------------------------------------------------- */
+  var NO_BUSY = { "plu-search-form": 1, "photo-form": 1 };
+
+  function initSubmitState() {
+    document.querySelectorAll("form").forEach(function (form) {
+      if (form.id && NO_BUSY[form.id]) return;
+
+      form.addEventListener("submit", function () {
+        // A form that failed validation never leaves the page; the browser
+        // blocks submit before this fires, so the button is safe to lock.
+        var btn = form.querySelector('button[type="submit"], button:not([type])');
+        if (!btn || btn.classList.contains("is-loading")) return;
+
+        // Hold the rendered width, or swapping the label for a spinner makes
+        // the button collapse to the spinner's size mid-press.
+        btn.style.minWidth = btn.offsetWidth + "px";
+        btn.classList.add("is-loading");
+
+        // Bfcache restores can bring the old DOM back with the button still
+        // spinning, so clear it when the page is shown again.
+        window.addEventListener("pageshow", function () {
+          btn.classList.remove("is-loading");
+          btn.style.minWidth = "";
+        }, { once: true });
+      });
+    });
+  }
+
   function init() {
     initTheme();
     initLiveClock();
@@ -713,6 +778,8 @@
     initCopy();
     initPhotoPicker();
     initCsvPicker();
+    initRipple();
+    initSubmitState();
   }
 
   if (document.readyState === "loading") {

@@ -44,7 +44,12 @@
   <div class="appbar__inner">
     {# The brand is always the way back to the hub, so a section is never a dead end. #}
     <a class="brand" href="{% if request.user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">
-      <span class="brand__mark" aria-hidden="true">MW</span>
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="44"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M136 358V178l120 106 120-106v180"/>
+        </svg>
+      </span>
       <span class="brand__text">MyWork</span>
       {% if section_name %}<span class="brand__section">{{ section_name }}</span>{% endif %}
     </a>

@@ -1,15 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Butcher PLU">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MyWork">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#10b981"/>
+    <linearGradient id="mw-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34d399"/>
       <stop offset="1" stop-color="#047857"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <g fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="228" cy="228" r="112"/>
-    <path d="M310 310 396 396"/>
-  </g>
-  <text x="256" y="470" text-anchor="middle" font-family="Helvetica, Arial, sans-serif"
-        font-size="86" font-weight="bold" fill="#ffffff" opacity=".92">PLU</text>
+
+  <rect width="512" height="512" rx="120" fill="url(#mw-bg)"/>
+
+  <!-- The M of MyWork as one continuous stroke. Kept inside the middle 80% so
+       Android's maskable crop can round the corners off without clipping it. -->
+  <path d="M136 358V178l120 106 120-106v180"
+        fill="none" stroke="#ffffff" stroke-width="44"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
