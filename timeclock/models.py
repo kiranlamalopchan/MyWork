@@ -8,23 +8,57 @@ total that was built from it — there are no stale cached numbers to go stale.
 """
 
 from datetime import timedelta
+from typing import NamedTuple
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
 
-def _monday_of_this_week():
-    """Default fortnight anchor: the Monday of the current week."""
-    today = timezone.localdate()
-    return today - timedelta(days=today.weekday())
+class Weekday(models.IntegerChoices):
+    """
+    The days, numbered the way `date.weekday()` numbers them.
+
+    Storing Python's own numbering means the week-start arithmetic below is a
+    single subtraction, with no translation table to get wrong.
+    """
+
+    MONDAY = 0, "Monday"
+    TUESDAY = 1, "Tuesday"
+    WEDNESDAY = 2, "Wednesday"
+    THURSDAY = 3, "Thursday"
+    FRIDAY = 4, "Friday"
+    SATURDAY = 5, "Saturday"
+    SUNDAY = 6, "Sunday"
 
 
-def week_start(day):
-    """Monday of the week `day` falls in."""
-    return day - timedelta(days=day.weekday())
+# Sunday to Saturday is the week most rosters and pay slips are written in, so
+# it is what a new workplace and a new account start on. Anyone whose week runs
+# Monday to Sunday changes it in one place and every total follows.
+DEFAULT_WEEK_START = Weekday.SUNDAY
+
+# Pay fortnights here run Thursday to Wednesday, so that is the day a new
+# cycle anchors on. A fortnight repeats every 14 days, which means whichever
+# weekday the anchor lands on is the weekday every cycle starts on from then
+# on — picking the day is the whole of choosing the cycle.
+DEFAULT_FORTNIGHT_START = Weekday.THURSDAY
+
+# A monthly cycle can start on any day the payroll does, but only the first 28
+# exist in every month — the 30th would have no February.
+MAX_MONTH_START_DAY = 28
+
+
+def week_start(day, starts_on=DEFAULT_WEEK_START):
+    """
+    Start of the week `day` falls in, given the day the week starts on.
+
+    The modulo keeps this right whichever way round the two days sit: a
+    Wednesday in a Sunday-start week goes back 3 days, a Sunday goes back 0.
+    """
+    return day - timedelta(days=(day.weekday() - int(starts_on)) % 7)
 
 
 def fortnight_start(day, anchor):
@@ -38,7 +72,84 @@ def fortnight_start(day, anchor):
     return anchor + timedelta(days=((day - anchor).days // 14) * 14)
 
 
+def month_start(day, starts_on=1):
+    """
+    Start of the monthly cycle `day` falls in, given the day it starts on.
+
+    A cycle starting on the 26th means the 25th still belongs to the cycle
+    that opened last month, which is how a pay period that straddles the
+    calendar month is counted.
+    """
+    starts_on = min(max(int(starts_on), 1), MAX_MONTH_START_DAY)
+    if day.day >= starts_on:
+        return day.replace(day=starts_on)
+    # Step into the previous month via its last day, so month lengths and
+    # year boundaries take care of themselves.
+    return (day.replace(day=1) - timedelta(days=1)).replace(day=starts_on)
+
+
+def next_month_start(day, starts_on=1):
+    """The start of the cycle after the one `day` falls in."""
+    start = month_start(day, starts_on)
+    # Day 28 at the latest, so adding 4 days can never skip a whole month.
+    return (start.replace(day=1) + timedelta(days=32)).replace(day=start.day)
+
+
+class Pay(NamedTuple):
+    """
+    What some hours are worth: what was earned, what is withheld, and what
+    actually lands in the bank.
+
+    The three travel together because they are only ever read together — a
+    take-home figure with no gross beside it is a number you cannot check
+    against a payslip.
+    """
+
+    gross: float
+    tax: float
+    net: float
+
+
+class LimitPeriod(models.TextChoices):
+    WEEK = "WEEK", "Per week"
+    FORTNIGHT = "FORTNIGHT", "Per fortnight"
+    MONTH = "MONTH", "Per month"
+
+
+def _current_week_start():
+    """The start of the week we're in."""
+    return week_start(timezone.localdate())
+
+
+def _recent_fortnight_start():
+    """Default fortnight anchor: the most recent Thursday."""
+    return week_start(timezone.localdate(), DEFAULT_FORTNIGHT_START)
+
+
+def fortnight_runs(anchor):
+    """
+    "Thursday → Wednesday": the days a fortnight anchored here runs between.
+
+    Reads the weekday off the anchor rather than being told it, so the label
+    can never disagree with the date the totals are actually counted from.
+    """
+    if anchor is None:
+        return ""
+    start = Weekday(anchor.weekday())
+    return f"{start.label} → {Weekday((anchor.weekday() + 13) % 7).label}"
+
+
+# Historical migrations name these as field defaults and are loaded on every
+# fresh `migrate`, so they stay importable. Nothing in the models uses them.
+_monday_of_this_week = _current_week_start
+
+
 class Workplace(models.Model):
+    # Each workplace carries its own cap. Two jobs are two separate agreements
+    # — a 30-hour visa cap at one and a 20-hour roster limit at the other are
+    # counted, warned about and blown through independently.
+    Period = LimitPeriod
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="workplaces"
     )
@@ -47,6 +158,37 @@ class Workplace(models.Model):
     hourly_rate = models.DecimalField(
         max_digits=7, decimal_places=2, null=True, blank=True,
         help_text="Optional. Used to estimate pay alongside your hours.",
+    )
+    # The share of pay this employer withholds. It sits here rather than on
+    # the account because withholding is per employer: someone claiming the
+    # tax-free threshold at one job and not at the other is withheld at two
+    # different rates, and averaging them would be wrong at both.
+    #
+    # A percentage rather than a tax table: the real PAYG scales are
+    # progressive, change every year and differ by what you claimed on your
+    # TFN declaration, so a figure read straight off your own payslip is both
+    # simpler and closer to the truth than a table this app tried to keep up
+    # to date. It is an estimate either way, and it is labelled as one.
+    tax_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Optional. Take it off a payslip: tax withheld ÷ gross × 100.",
+    )
+    # Null means "no cap here" — the limit card simply doesn't appear for this
+    # workplace, while any other workplace's cap carries on unaffected.
+    hours_limit = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    limit_period = models.CharField(
+        max_length=9, choices=LimitPeriod.choices, default=LimitPeriod.FORTNIGHT
+    )
+    # Where this workplace's cycle starts — one setting per period, so the cap
+    # is measured over the same days the job's own roster or pay slip uses.
+    # Jobs rarely share a cycle, which is why these sit beside the cap they
+    # measure rather than on the user.
+    week_starts_on = models.IntegerField(choices=Weekday.choices, default=DEFAULT_WEEK_START)
+    fortnight_anchor = models.DateField(default=_recent_fortnight_start)
+    month_starts_on = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(MAX_MONTH_START_DAY)],
     )
     is_default = models.BooleanField(default=False)
     # Deleting a workplace that has shifts against it archives it instead, so
@@ -69,6 +211,63 @@ class Workplace(models.Model):
 
     def __str__(self):
         return self.name
+
+    # ---- hours cap -----------------------------------------------------
+
+    @property
+    def has_limit(self):
+        return self.hours_limit is not None
+
+    # ---- pay -----------------------------------------------------------
+
+    @property
+    def withholds(self):
+        """Whether this job's tax is known, as opposed to simply not set."""
+        return self.tax_rate is not None
+
+    def pay_for(self, hours):
+        """
+        What `hours` here comes to. None when there is no rate to price it
+        with — a job with no rate has no pay to show, which is not the same
+        as a job that paid nothing.
+        """
+        if self.hourly_rate is None:
+            return None
+        gross = round(float(self.hourly_rate) * hours, 2)
+        tax = round(gross * float(self.tax_rate or 0) / 100, 2)
+        return Pay(gross, tax, round(gross - tax, 2))
+
+    def limit_window(self, day=None):
+        """
+        The [start, end) dates the cap is measured over for `day`.
+
+        Every period reads its start from this workplace, so each job counts
+        against its own cycle: a week from the weekday it starts on, a
+        fortnight from its anchor date, a month from the day of the month its
+        pay period opens.
+        """
+        day = day or timezone.localdate()
+
+        if self.limit_period == LimitPeriod.WEEK:
+            start = week_start(day, self.week_starts_on)
+            return start, start + timedelta(days=7)
+
+        if self.limit_period == LimitPeriod.MONTH:
+            return month_start(day, self.month_starts_on), next_month_start(day, self.month_starts_on)
+
+        start = fortnight_start(day, self.fortnight_anchor)
+        return start, start + timedelta(days=14)
+
+    @property
+    def fortnight_runs(self):
+        return fortnight_runs(self.fortnight_anchor)
+
+    @property
+    def period_label(self):
+        return {
+            LimitPeriod.WEEK: "week",
+            LimitPeriod.MONTH: "month",
+        }.get(self.limit_period, "fortnight")
 
     @transaction.atomic
     def make_default(self):
@@ -180,11 +379,17 @@ class Shift(models.Model):
         return max(self.total_duration - self.total_break, timedelta())
 
     @property
-    def estimated_pay(self):
-        if not self.workplace or self.workplace.hourly_rate is None:
+    def pay(self):
+        """This shift's gross, tax and take-home, or None if it has no rate."""
+        if not self.workplace:
             return None
-        hours = self.worked_duration.total_seconds() / 3600
-        return round(float(self.workplace.hourly_rate) * hours, 2)
+        return self.workplace.pay_for(self.worked_duration.total_seconds() / 3600)
+
+    @property
+    def estimated_pay(self):
+        """Gross for this shift. Kept as the name the rest of the app knows."""
+        pay = self.pay
+        return pay.gross if pay else None
 
     # ---- transitions ---------------------------------------------------
     # Each one refuses the moves that don't make sense from where it is, so
@@ -257,7 +462,9 @@ class Shift(models.Model):
         self.save(update_fields=["clock_out", "status", "updated_at"])
 
     def clean(self):
-        if self.clock_out and self.clock_out <= self.clock_in:
+        # clock_in can still be unset here: a form whose clock_in failed its
+        # own validation leaves it off the instance, and this runs anyway.
+        if self.clock_in and self.clock_out and self.clock_out <= self.clock_in:
             raise ValidationError({"clock_out": "Clock-out has to be after clock-in."})
 
 
@@ -303,23 +510,26 @@ class Break(models.Model):
 
 
 class TimePreference(models.Model):
-    """Per-user settings for the hours cap shown on the timesheet."""
+    """
+    Per-user settings that aren't tied to any one workplace.
 
-    class Period(models.TextChoices):
-        WEEK = "WEEK", "Per week"
-        FORTNIGHT = "FORTNIGHT", "Per fortnight"
+    The hours cap is *not* here — it lives on each Workplace, so every job is
+    counted against its own limit. What's left is where your own week,
+    fortnight and month begin (used for the combined "all workplaces" figures
+    and the calendar grid), and the phone's timezone.
+    """
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="time_pref"
     )
-    # Null means "no cap" — the limit card simply doesn't appear.
-    hours_limit = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    limit_period = models.CharField(
-        max_length=9, choices=Period.choices, default=Period.FORTNIGHT
+    # Your cycles, for the figures that span every workplace. A workplace's own
+    # cap uses that workplace's settings instead.
+    week_starts_on = models.IntegerField(choices=Weekday.choices, default=DEFAULT_WEEK_START)
+    fortnight_anchor = models.DateField(default=_recent_fortnight_start)
+    month_starts_on = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(MAX_MONTH_START_DAY)],
     )
-    # Which Monday the fortnight cycle counts from, so "this fortnight" means
-    # the same 14 days for the user every time.
-    fortnight_anchor = models.DateField(default=_monday_of_this_week)
 
     # The phone's own IANA zone (e.g. "Australia/Sydney"), reported by the
     # browser and refreshed on every clock action. Times are rendered in this
@@ -329,6 +539,10 @@ class TimePreference(models.Model):
 
     def __str__(self):
         return f"Time preferences for {self.user}"
+
+    @property
+    def fortnight_runs(self):
+        return fortnight_runs(self.fortnight_anchor)
 
     @classmethod
     def for_user(cls, user):

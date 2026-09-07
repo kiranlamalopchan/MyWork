@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{% if notice %}Edit notice{% else %}New notice{% endif %} · MyWork{% endblock %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'notices:board' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Notice board
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">{% if notice %}Edit notice{% else %}New notice{% endif %}</h1>
+  <p class="page-sub">
+    {% if notice %}Everyone who reads the board sees the change.
+    {% else %}Everyone signed in will see this on the board.{% endif %}
+  </p>
+</div>
+
+<form method="post" action="{% if notice %}{% url 'notices:edit' notice.pk %}{% else %}{% url 'notices:create' %}{% endif %}" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next_url }}">
+
+  <div class="card">
+    <div class="card__pad">
+      <div class="field">
+        <label class="label" for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
+        {{ form.body }}
+        {% if form.body.errors %}<div class="help help--error">{{ form.body.errors|striptags }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <button type="submit" class="btn btn--primary">{% if notice %}Save changes{% else %}Post notice{% endif %}</button>
+    <a class="btn" href="{% url 'notices:board' %}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

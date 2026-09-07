@@ -20,6 +20,8 @@ urlpatterns = [
 
     path("shifts/", views.timesheet, name="timesheet"),
     path("calendar/", views.calendar_month, name="calendar"),
+    # Typing in a day the clock was never started on.
+    path("shifts/add/", views.shift_create, name="shift_create"),
     path("shifts/<int:pk>/", views.shift_detail, name="shift_detail"),
     path("shifts/<int:pk>/edit/", views.shift_edit, name="shift_edit"),
     path("shifts/<int:pk>/delete/", views.shift_delete, name="shift_delete"),

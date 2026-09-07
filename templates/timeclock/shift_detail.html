@@ -18,7 +18,7 @@
       {{ shift.get_status_display|upper }}
     </span>
   </div>
-  <div class="shift-hero__worked">{{ shift.worked_duration|hm|default:"0m" }}</div>
+  <div class="shift-hero__worked" data-tally="{{ shift.worked_duration|seconds }}">{{ shift.worked_duration|hm|default:"0m" }}</div>
   <div class="shift-hero__meta">
     {{ shift.workplace.name|default:"No workplace" }} · {{ shift.clock_in|date:"l, j F" }}
   </div>
@@ -60,11 +60,21 @@
         <span class="ledger__val">{{ shift.worked_duration|decimal_hours }}</span>
       </div>
 
-      {% if shift.estimated_pay %}
+      {% if shift.pay %}
         <div class="ledger__row ledger__row--faint">
-          <span>Estimated pay</span>
-          <span class="ledger__val">${{ shift.estimated_pay|floatformat:2 }}</span>
+          <span>Gross pay</span>
+          <span class="ledger__val">${{ shift.pay.gross|floatformat:2 }}</span>
         </div>
+        {% if shift.workplace.withholds %}
+          <div class="ledger__row ledger__row--faint">
+            <span>Tax withheld</span>
+            <span class="ledger__val ledger__val--minus">−${{ shift.pay.tax|floatformat:2 }}</span>
+          </div>
+          <div class="ledger__row ledger__row--faint">
+            <span>Take-home</span>
+            <span class="ledger__val">${{ shift.pay.net|floatformat:2 }}</span>
+          </div>
+        {% endif %}
       {% endif %}
     </div>
   </div>

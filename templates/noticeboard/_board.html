@@ -1,0 +1,53 @@
+{% load humanize %}
+{% comment %}
+  The board, shared by the hub, the full page and a profile.
+
+  Everyone reads the same list and may react or reply to any of it. Edit and
+  Remove appear only on rows you wrote, and Delete only on comments you wrote
+  — each button's view re-checks, so this is about not offering what you
+  can't do rather than about enforcing it.
+
+  Takes: notices (decorated by views.decorate), form, comment_form, next_url.
+{% endcomment %}
+
+{% if notices %}
+  {% comment %}
+    Two notices are open and the rest are folded away. A board is read on the
+    way past, so it opens at a length you can take in at a glance rather than
+    at whatever length it happens to have grown to — and the fold is one tap,
+    with everything already on the page behind it.
+  {% endcomment %}
+  <ul class="notices">
+    {% for notice in notices|slice:":2" %}
+      {% include "noticeboard/_notice.html" %}
+    {% endfor %}
+  </ul>
+
+  {% with rest=notices|slice:"2:" %}
+    {% if rest %}
+      <details class="fold fold--notices">
+        <summary class="fold__toggle">
+          <span class="fold__more">Show {{ rest|length }} more notice{{ rest|pluralize }}</span>
+          <span class="fold__less">Show fewer</span>
+        </summary>
+        <ul class="notices fold__body">
+          {% for notice in rest %}
+            {% include "noticeboard/_notice.html" %}
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  {% endwith %}
+{% else %}
+  <div class="notices-empty">
+    <div class="empty__icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 5h16v12H8l-4 4Z"/><path d="M8 9.5h8"/><path d="M8 13h5"/>
+      </svg>
+    </div>
+    <div class="empty__title">Nothing on the board</div>
+    <div class="empty__sub">Post the first notice — everyone signed in will see it.</div>
+  </div>
+{% endif %}
+
+{% include "noticeboard/_compose_modal.html" %}

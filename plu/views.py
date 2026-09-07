@@ -32,6 +32,21 @@ def is_staff_user(user):
 # result list is scrolled on a phone and nobody scrolls past a few dozen rows.
 SEARCH_LIMIT = 50
 
+# The codes this shop actually reaches for. They are a small band in a list of
+# a thousand, and they are most of what anybody searches for, so they sort
+# above the rest rather than being hunted for among it. Both ends included.
+PRIORITY_FIRST = 7000
+PRIORITY_LAST = 7100
+
+
+def _priority():
+    """0 for a code in the priority band, 1 for everything else."""
+    return Case(
+        When(plu_no__gte=PRIORITY_FIRST, plu_no__lte=PRIORITY_LAST, then=Value(0)),
+        default=Value(1),
+        output_field=IntegerField(),
+    )
+
 
 def search_plu_items(q: str):
     """
@@ -42,14 +57,20 @@ def search_plu_items(q: str):
     CHOPS", so a natural search like "lamb chops" finds nothing if the words
     are matched as one phrase.
 
-    Results are ranked the way someone standing at the scale expects: the PLU
-    they typed exactly, then codes starting with those digits, then the
-    closest description matches. Within a rank, lowest PLU number first.
+    Results are ranked the way someone standing at the scale expects:
+
+      1. the PLU they typed, if they typed one exactly — a code you type is a
+         code you already know, and it outranks everything including the
+         priority band;
+      2. then the priority band (7000-7100), the codes this shop uses daily;
+      3. then how well the row matches — code prefix, then description start,
+         then description anywhere;
+      4. and lowest PLU number within all of that.
     """
-    qs = PluItem.objects.all()
+    qs = PluItem.objects.annotate(priority=_priority())
 
     if not q:
-        return qs.order_by("plu_no")
+        return qs.order_by("priority", "plu_no")
 
     words = q.split()
 
@@ -60,12 +81,17 @@ def search_plu_items(q: str):
 
     # ...unless the whole query is a PLU number, which matches the code too.
     whens = []
+    exact = Value(1, output_field=IntegerField())
     if q.isdigit():
         matches |= Q(plu_no__icontains=q)
-        whens += [
+        whens.append(When(plu_no__startswith=q, then=Value(1)))
+        # Typed in full, this is the one row they came for. It is kept out of
+        # `rank` so that it sorts above the band rather than within it.
+        exact = Case(
             When(plu_no=int(q), then=Value(0)),
-            When(plu_no__startswith=q, then=Value(1)),
-        ]
+            default=Value(1),
+            output_field=IntegerField(),
+        )
 
     whens += [
         When(description__istartswith=q, then=Value(2)),
@@ -74,8 +100,11 @@ def search_plu_items(q: str):
 
     return (
         qs.filter(matches)
-        .annotate(rank=Case(*whens, default=Value(4), output_field=IntegerField()))
-        .order_by("rank", "plu_no")
+        .annotate(
+            exact=exact,
+            rank=Case(*whens, default=Value(4), output_field=IntegerField()),
+        )
+        .order_by("exact", "priority", "rank", "plu_no")
     )
 
 

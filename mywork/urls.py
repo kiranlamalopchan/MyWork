@@ -19,6 +19,9 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("register/", views.register, name="register"),
 
+    # The shared notice board behind the hub
+    path("notices/", include("noticeboard.urls")),
+
     # The two apps
     path("plu/", include("plu.urls")),
     path("timesheet/", include("timeclock.urls")),

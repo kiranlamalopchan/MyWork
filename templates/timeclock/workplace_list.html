@@ -5,7 +5,7 @@
 
 <div class="page-head">
   <h1 class="page-title">My workplaces</h1>
-  <p class="page-sub">The default one is picked automatically when you clock in.</p>
+  <p class="page-sub">The default one is picked automatically when you clock in. Each one keeps its own hours limit.</p>
 </div>
 
 {% if workplaces %}
@@ -27,6 +27,7 @@
               {% if w.is_default %}<span class="chip__tag">Default</span> {% endif %}
               {% if w.address %}{{ w.address }}{% else %}No address{% endif %}
               {% if w.hourly_rate %} · ${{ w.hourly_rate|floatformat:2 }}/hr{% endif %}
+              {% if w.hours_limit %} · {{ w.hours_limit|floatformat:"-2" }}h/{{ w.period_label }}{% endif %}
             </div>
           </div>
 

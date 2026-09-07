@@ -9,11 +9,27 @@
 </div>
 
 {% comment %}
-  TimeSheet settings that don't earn one of the four tab-bar slots, so the bar
-  stays thumb-comfortable on a small phone. PLU's own features are not here —
-  they belong to the other app, reachable from the hub.
+  Everything the four tab-bar slots don't carry, so the bar stays
+  thumb-comfortable and the Timesheet page stays a list of shifts and nothing
+  else. PLU's own features are not here — they belong to the other app,
+  reachable from the grid button in the app bar.
 {% endcomment %}
 <ul class="result-list">
+  <li>
+    <a class="menu-row" href="{% url 'timeclock:shift_create' %}">
+      <span class="menu-row__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M12 3a9 9 0 0 1 0 18"/>
+        </svg>
+      </span>
+      <span class="menu-row__body">
+        <span class="menu-row__title">Add a past shift</span>
+        <span class="menu-row__sub">For a day you forgot to clock in</span>
+      </span>
+      <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+    </a>
+  </li>
+
   <li>
     <a class="menu-row" href="{% url 'timeclock:workplaces' %}">
       <span class="menu-row__icon">
@@ -23,7 +39,7 @@
       </span>
       <span class="menu-row__body">
         <span class="menu-row__title">Workplaces</span>
-        <span class="menu-row__sub">{{ workplace_count }} saved</span>
+        <span class="menu-row__sub"><span data-tally="{{ workplace_count }}" data-tally-format="int">{{ workplace_count }}</span> saved</span>
       </span>
       <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
     </a>
@@ -37,8 +53,8 @@
         </svg>
       </span>
       <span class="menu-row__body">
-        <span class="menu-row__title">Hours limit</span>
-        <span class="menu-row__sub">Weekly or fortnightly cap</span>
+        <span class="menu-row__title">Hours limits</span>
+        <span class="menu-row__sub">A separate cap for each workplace</span>
       </span>
       <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
     </a>

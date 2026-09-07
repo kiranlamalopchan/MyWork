@@ -19,24 +19,83 @@
 <div class="summary-grid summary-grid--3">
   <div class="summary-card">
     <div class="summary-card__label">This week</div>
-    <div class="summary-card__value">{{ summary.week|hm|default:"0m" }}</div>
+    <div class="summary-card__value" data-tally="{{ summary.week|seconds }}">{{ summary.week|hm|default:"0m" }}</div>
     <div class="summary-card__sub">from {{ summary.week_start|date:"j M" }}</div>
+    {% if summary.week_pay %}
+      <div class="summary-card__pay">${{ summary.week_pay.pay.net|floatformat:2 }}</div>
+    {% endif %}
   </div>
   <div class="summary-card">
     <div class="summary-card__label">This fortnight</div>
-    <div class="summary-card__value">{{ summary.fortnight|hm|default:"0m" }}</div>
+    <div class="summary-card__value" data-tally="{{ summary.fortnight|seconds }}">{{ summary.fortnight|hm|default:"0m" }}</div>
     <div class="summary-card__sub">from {{ summary.fortnight_start|date:"j M" }}</div>
+    {% if summary.fortnight_pay %}
+      <div class="summary-card__pay">${{ summary.fortnight_pay.pay.net|floatformat:2 }}</div>
+    {% endif %}
   </div>
   <div class="summary-card">
     <div class="summary-card__label">This month</div>
-    <div class="summary-card__value">{{ summary.month|hm|default:"0m" }}</div>
-    <div class="summary-card__sub">{% now "F" %}</div>
+    <div class="summary-card__value" data-tally="{{ summary.month|seconds }}">{{ summary.month|hm|default:"0m" }}</div>
+    <div class="summary-card__sub">from {{ summary.month_start|date:"j M" }}</div>
+    {% if summary.month_pay %}
+      <div class="summary-card__pay">${{ summary.month_pay.pay.net|floatformat:2 }}</div>
+    {% endif %}
   </div>
 </div>
 
-{% if summary.limit %}
-  {% include "timeclock/_limit_bar.html" with limit=summary.limit %}
+{% comment %}
+  The pay period, laid out the way a payslip is so the two can be checked
+  against each other line by line. The fortnight is the one that matters:
+  it's the period the money actually arrives in.
+{% endcomment %}
+{% if summary.fortnight_pay %}
+  <div class="card">
+    <div class="card__pad">
+      <div class="pay-head">
+        <h2 class="pay-head__title">This fortnight’s pay</h2>
+        <span class="pay-head__dates">{{ summary.fortnight_start|date:"j M" }} – {{ summary.fortnight_end|date:"j M" }}</span>
+      </div>
+
+      <div class="ledger">
+        <div class="ledger__row">
+          <span>Hours worked</span>
+          <span class="ledger__val">{{ summary.fortnight|decimal_hours }}</span>
+        </div>
+        <div class="ledger__row">
+          <span>Gross earnings</span>
+          <span class="ledger__val">${{ summary.fortnight_pay.pay.gross|floatformat:2 }}</span>
+        </div>
+        {% if summary.fortnight_pay.withheld %}
+          <div class="ledger__row">
+            <span>Tax withheld</span>
+            <span class="ledger__val ledger__val--minus">−${{ summary.fortnight_pay.pay.tax|floatformat:2 }}</span>
+          </div>
+        {% endif %}
+        <div class="ledger__row ledger__row--total">
+          <span>{% if summary.fortnight_pay.withheld %}Take-home{% else %}Total{% endif %}</span>
+          <span class="ledger__val">${{ summary.fortnight_pay.pay.net|floatformat:2 }}</span>
+        </div>
+      </div>
+
+      {% if not summary.fortnight_pay.withheld %}
+        <p class="pay-note">
+          This is before tax. Add the percentage withheld on a payslip to your
+          workplace and every figure here becomes take-home.
+        </p>
+      {% else %}
+        <p class="pay-note">Estimated from your hourly rate and withholding — check it against your payslip.</p>
+      {% endif %}
+    </div>
+  </div>
 {% endif %}
+
+{% comment %}
+  One bar per workplace that has a cap — each job's hours are counted only
+  against its own limit, never pooled.
+{% endcomment %}
+{% for limit in summary.limits %}
+  {% include "timeclock/_limit_bar.html" with limit=limit %}
+{% endfor %}
 
 {# ---- Workplace filter ------------------------------------------------- #}
 {% if workplaces %}
@@ -59,12 +118,24 @@
 
 {# ---- Shifts, grouped by day ------------------------------------------- #}
 {% if days %}
+  {% comment %}
+    One day, one row. Collapsed, the header still answers the question the
+    list is usually asked — which day, how many shifts, how long — so opening
+    one is a choice rather than the only way to read the page. The newest day
+    starts open because that's the one being checked.
+  {% endcomment %}
   {% for day in days %}
-    <div class="day">
-      <div class="day__head">
+    <details class="day"{% if forloop.first %} open{% endif %}>
+      <summary class="day__head">
         <span class="day__date">{{ day.date|date:"D j M" }}</span>
-        <span class="day__total">{{ day.total|hm|default:"0m" }}</span>
-      </div>
+        <span class="day__meta">
+          <span class="day__count">{{ day.shifts|length }} shift{{ day.shifts|length|pluralize }}</span>
+          <span class="day__total" data-tally="{{ day.total|seconds }}">{{ day.total|hm|default:"0m" }}</span>
+          <svg class="day__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </span>
+      </summary>
 
       <ul class="shift-list">
         {% for shift in day.shifts %}
@@ -102,7 +173,7 @@
           </li>
         {% endfor %}
       </ul>
-    </div>
+    </details>
   {% endfor %}
 
   {% if page_obj.paginator.num_pages > 1 %}

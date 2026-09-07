@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Reactions · MyWork{% endblock %}
+
+{% comment %}
+  Who is behind the count. The board shows a tally and the first couple of
+  names; this is the whole list, grouped by what each person left.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{{ back }}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Back
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">{{ total }} reaction{{ total|pluralize }}</h1>
+  <p class="page-sub">On {{ item.author.username }}’s post — “{{ quoted|truncatechars:80 }}”</p>
+</div>
+
+{% if groups %}
+  <div class="reactors">
+    {% for group in groups %}
+      <section class="reactors__group">
+        <h2 class="reactors__head">
+          <span class="reactors__emoji" aria-hidden="true">{{ group.emoji }}</span>
+          {{ group.people|length }}
+        </h2>
+        <ul class="reactors__list">
+          {% for person in group.people %}
+            <li class="reactors__row">
+              <a class="reactors__person" href="{% url 'notices:person' person.username %}">
+                <span class="avatar avatar--sm" style="--hue: {{ person.hue }}" aria-hidden="true">{{ person.initial }}</span>
+                <span class="reactors__name">
+                  {{ person.username }}{% if person.is_me %} <span class="reactors__you">you</span>{% endif %}
+                </span>
+              </a>
+              <span class="reactors__mark" aria-hidden="true">{{ group.emoji }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="notices-empty">
+    <div class="empty__title">No reactions yet</div>
+    <div class="empty__sub">Be the first — the faces are under the post.</div>
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -24,7 +24,7 @@
 
     <div class="cal__title">
       <div class="cal__month">{{ month_date|date:"F Y" }}</div>
-      <div class="cal__total">{{ month_total|hm|default:"0m" }} over {{ worked_days }} day{{ worked_days|pluralize }}</div>
+      <div class="cal__total"><span data-tally="{{ month_total|seconds }}">{{ month_total|hm|default:"0m" }}</span> over <span data-tally="{{ worked_days }}" data-tally-format="int">{{ worked_days }}</span> day{{ worked_days|pluralize }}</div>
     </div>
 
     <a class="icon-btn icon-btn--sm" aria-label="Next month"
@@ -33,8 +33,9 @@
     </a>
   </div>
 
+  {# Rotated to the day the user's week starts on — Sunday by default. #}
   <div class="cal__grid cal__grid--head" aria-hidden="true">
-    <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+    {% for label in weekday_labels %}<span title="{{ label.name }}">{{ label.letter }}</span>{% endfor %}
   </div>
 
   <div class="cal__grid">
@@ -83,7 +84,7 @@
                     {% if shift.total_break %}<span class="shift__break">· {{ shift.total_break|minutes }} break</span>{% endif %}
                   </span>
                 </span>
-                <span class="day-shift__worked">{{ shift.worked_duration|hm }}</span>
+                <span class="day-shift__worked" data-tally="{{ shift.worked_duration|seconds }}">{{ shift.worked_duration|hm }}</span>
               </a>
             </li>
           {% endfor %}
@@ -91,6 +92,14 @@
       {% else %}
         <p class="muted text-sm">Nothing recorded on this day.</p>
       {% endif %}
+
+      {# Quiet by design: it carries this day's prefill, which the More entry can't. #}
+      <a class="daylink" href="{% url 'timeclock:shift_create' %}?day={{ selected|date:'Y-m-d' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Add a shift on this day
+      </a>
     </div>
   </div>
 {% endif %}

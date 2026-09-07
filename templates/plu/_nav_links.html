@@ -1,8 +1,8 @@
 {% comment %}
 Navigation for the PLU Management app. Rendered twice — in the app bar on wide
 screens, in the fixed bottom tab bar on phones — and only ever on PLU pages;
-base.html picks this file from the URL namespace. The last slot goes back to
-the hub, which is how you cross over to TimeSheet.
+base.html picks this file from the URL namespace. Switching apps is the grid
+button in the app bar, so every slot here is a PLU feature.
 {% endcomment %}
 {% with current=request.resolver_match.url_name %}
 
@@ -31,13 +31,5 @@ the hub, which is how you cross over to TimeSheet.
     <span>Import</span>
   </a>
 {% endif %}
-
-<a class="tab" href="{% url 'home' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
-    <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>
-  </svg>
-  <span>Apps</span>
-</a>
 
 {% endwith %}

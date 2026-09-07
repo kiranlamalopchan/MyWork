@@ -1,8 +1,14 @@
+from datetime import timedelta
+
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.forms import inlineformset_factory
+from django.utils import timezone
 
-from .models import Break, Shift, TimePreference, Workplace
+from .models import (
+    MAX_MONTH_START_DAY, Break, Shift, TimePreference, Workplace, fortnight_runs,
+)
 
 # Phones give a proper date+time spinner for this input type, which beats
 # typing a timestamp into a text box while standing at a time clock.
@@ -19,25 +25,80 @@ class LocalDateTimeField(forms.DateTimeField):
         super().__init__(**kwargs)
 
 
+def _say_which_days(form):
+    """
+    Spell out the cycle the chosen anchor actually produces.
+
+    The field asks for a date, but what it sets is a weekday: every cycle
+    from then on starts on the same day of the week. Saying so under the box
+    turns a date nobody can read a rule out of into a rule you can check.
+    """
+    field = form.fields["fortnight_anchor"]
+    anchor = getattr(form.instance, "fortnight_anchor", None)
+    if anchor:
+        field.help_text = f"{field.help_text} Fortnights run {fortnight_runs(anchor)}."
+
+
 class WorkplaceForm(forms.ModelForm):
+    """
+    Everything about one workplace, its own hours cap included — the cap is
+    per workplace, so this is the only screen that sets it.
+    """
+
     class Meta:
         model = Workplace
-        fields = ["name", "address", "hourly_rate", "is_default"]
+        fields = [
+            "name", "address", "hourly_rate", "tax_rate",
+            "hours_limit", "limit_period",
+            "week_starts_on", "fortnight_anchor", "month_starts_on",
+            "is_default",
+        ]
         labels = {
             "name": "Workplace name",
             "address": "Address (optional)",
             "hourly_rate": "Hourly rate (optional)",
+            "tax_rate": "Tax withheld % (optional)",
+            "hours_limit": "Hours limit here (optional)",
+            "limit_period": "Applies",
+            "week_starts_on": "Week starts on",
+            "fortnight_anchor": "Fortnight starts from",
+            "month_starts_on": "Month starts on day",
             "is_default": "Use as my default workplace",
         }
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Courtlands Aged Care", "autofocus": True}),
             "address": forms.TextInput(attrs={"placeholder": "Street, suburb"}),
             "hourly_rate": forms.NumberInput(attrs={"step": "0.01", "min": "0", "inputmode": "decimal"}),
+            "tax_rate": forms.NumberInput(
+                attrs={"step": "0.01", "min": "0", "max": "100",
+                       "inputmode": "decimal", "placeholder": "e.g. 10.8"}
+            ),
+            "hours_limit": forms.NumberInput(
+                attrs={"step": "0.5", "min": "0", "inputmode": "decimal", "placeholder": "e.g. 48"}
+            ),
+            "fortnight_anchor": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "month_starts_on": forms.NumberInput(
+                attrs={"min": "1", "max": str(MAX_MONTH_START_DAY), "inputmode": "numeric"}
+            ),
+        }
+        help_texts = {
+            "tax_rate": "From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax.",
+            "hours_limit": "Counted against this workplace only. Leave blank for no limit.",
+            "week_starts_on": "Used for a weekly limit, and for this job's week totals.",
+            "fortnight_anchor": "Any date this job's fortnight cycle has started on.",
+            "month_starts_on": f"1–{MAX_MONTH_START_DAY}. Use the day your pay month opens.",
         }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        _say_which_days(self)
+
+    def clean_hours_limit(self):
+        hours = self.cleaned_data.get("hours_limit")
+        if hours is not None and hours <= 0:
+            raise ValidationError("An hours limit has to be more than zero. Leave it blank for no limit.")
+        return hours
 
     def clean_name(self):
         name = (self.cleaned_data.get("name") or "").strip()
@@ -55,8 +116,19 @@ class WorkplaceForm(forms.ModelForm):
 
 
 class ShiftForm(forms.ModelForm):
+    """
+    One shift's times, used both to correct a recorded shift and to enter a
+    day you forgot to clock in on. Because a typed-in shift has none of the
+    guards a live clock-in has, the checks it would have got at the button —
+    not two shifts at once, not a time that hasn't happened — are done here.
+    """
+
     clock_in = LocalDateTimeField(label="Clock in")
     clock_out = LocalDateTimeField(label="Clock out", required=False)
+
+    # A typed date can land anywhere; a few minutes of tolerance keeps a phone
+    # whose clock runs slightly fast from arguing about "now".
+    FUTURE_GRACE = timedelta(minutes=5)
 
     class Meta:
         model = Shift
@@ -65,6 +137,7 @@ class ShiftForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.user = user
         # Only ever offer this user's own workplaces, plus whichever one this
         # shift already points at even if it has since been archived.
         qs = Workplace.objects.filter(user=user, is_archived=False)
@@ -73,11 +146,58 @@ class ShiftForm(forms.ModelForm):
         self.fields["workplace"].queryset = qs.distinct()
         self.fields["workplace"].empty_label = "No workplace"
 
+    def _clashing_shift(self, start, end):
+        """
+        Another of this user's shifts covering any of the same time.
+
+        Entering a day from memory is exactly when a shift gets added twice,
+        or added over one that was recorded after all, so the overlap is worth
+        catching before it quietly doubles a total. An unfinished shift has no
+        end yet, so it's treated as running up to the far edge of the range.
+        """
+        if self.user is None:
+            return None
+
+        far_future = timezone.now() + timedelta(days=365 * 10)
+        others = Shift.objects.filter(user=self.user).select_related("workplace")
+        if self.instance.pk:
+            others = others.exclude(pk=self.instance.pk)
+
+        return (
+            others.filter(clock_in__lt=end or far_future)
+            .filter(Q(clock_out__isnull=True) | Q(clock_out__gt=start))
+            .order_by("-clock_in")
+            .first()
+        )
+
     def clean(self):
         cleaned = super().clean()
         start, end = cleaned.get("clock_in"), cleaned.get("clock_out")
+
         if start and end and end <= start:
             self.add_error("clock_out", "Clock-out has to be after clock-in.")
+            return cleaned
+
+        cutoff = timezone.now() + self.FUTURE_GRACE
+        if start and start > cutoff:
+            self.add_error("clock_in", "That's in the future. A shift can only be added once it's been worked.")
+        if end and end > cutoff:
+            self.add_error("clock_out", "That's in the future. Leave it empty if the shift is still running.")
+
+        if start and not self.errors:
+            clash = self._clashing_shift(start, end)
+            if clash is not None:
+                where = clash.workplace.name if clash.workplace else "no workplace"
+                when = timezone.localtime(clash.clock_in)
+                if clash.clock_out:
+                    span = f"{when:%-I:%M %p}–{timezone.localtime(clash.clock_out):%-I:%M %p}"
+                else:
+                    span = f"{when:%-I:%M %p} and still running"
+                self.add_error(
+                    "clock_in",
+                    f"This overlaps a shift you already have at {where} on {when:%-d %b} ({span}).",
+                )
+
         return cleaned
 
 
@@ -138,21 +258,34 @@ BreakFormSet = inlineformset_factory(
 
 
 class TimePreferenceForm(forms.ModelForm):
+    """
+    Where your own week, fortnight and month begin.
+
+    These drive the figures that span every workplace, and the calendar grid.
+    A workplace's own limit is measured over that workplace's cycle instead,
+    set on the workplace itself.
+    """
+
     class Meta:
         model = TimePreference
-        fields = ["hours_limit", "limit_period", "fortnight_anchor"]
+        fields = ["week_starts_on", "fortnight_anchor", "month_starts_on"]
         labels = {
-            "hours_limit": "Hours limit",
-            "limit_period": "Applies",
+            "week_starts_on": "Week starts on",
             "fortnight_anchor": "Fortnight starts from",
+            "month_starts_on": "Month starts on day",
         }
         widgets = {
-            "hours_limit": forms.NumberInput(
-                attrs={"step": "0.5", "min": "0", "inputmode": "decimal", "placeholder": "e.g. 48"}
-            ),
             "fortnight_anchor": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "month_starts_on": forms.NumberInput(
+                attrs={"min": "1", "max": str(MAX_MONTH_START_DAY), "inputmode": "numeric"}
+            ),
         }
         help_texts = {
-            "hours_limit": "Leave blank for no limit.",
-            "fortnight_anchor": "Any Monday your fortnight cycle has started on.",
+            "week_starts_on": "Also sets which day the calendar grid starts on.",
+            "fortnight_anchor": "Any date your fortnight cycle has started on.",
+            "month_starts_on": f"1–{MAX_MONTH_START_DAY}. Use 1 for the calendar month.",
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _say_which_days(self)

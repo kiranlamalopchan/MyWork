@@ -12,6 +12,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import redirect, render
 
+from noticeboard.views import board_context, recent_for_hub
+
 
 @login_required
 def home(request):
@@ -19,8 +21,17 @@ def home(request):
     The hub. Two cards, one per app — picking one hands the whole navigation
     over to that app's own section, so the tab bar only ever shows the
     features of the app you're currently inside.
+
+    Under them, the notice board: the one thing on MyWork that everybody
+    shares, so it belongs on the page everybody lands on.
     """
-    return render(request, "home.html")
+    notices, total = recent_for_hub(request.user)
+    return render(request, "home.html", board_context(
+        request,
+        notices=notices,
+        notice_total=total,
+        next_url=request.path,
+    ))
 
 
 def register(request):

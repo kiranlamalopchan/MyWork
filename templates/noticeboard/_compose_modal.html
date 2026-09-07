@@ -1,0 +1,43 @@
+{% comment %}
+  The composer, in a dialog. Rendered once per page and opened by app.js when
+  the + is tapped; a rejected post re-opens it with the words still in it.
+  With JavaScript off the dialog never opens and the + is an ordinary link to
+  the same form on its own page.
+{% endcomment %}
+<dialog class="modal" id="compose-modal" aria-labelledby="compose-title"
+        {% if form.errors %}data-open{% endif %}>
+  <div class="modal__box">
+    <div class="modal__head">
+      <h2 class="modal__title" id="compose-title">New notice</h2>
+      <button type="button" class="icon-btn icon-btn--sm" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18"/>
+        </svg>
+      </button>
+    </div>
+
+    <form class="compose" method="post" action="{% url 'notices:create' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}">
+
+      <div class="compose__row">
+        <span class="avatar avatar--me" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span>
+        <div class="compose__field">
+          {{ form.body }}
+          {% if form.body.errors %}
+            <div class="help help--error">{{ form.body.errors|striptags }}</div>
+          {% endif %}
+          <div class="compose__foot">
+            <span class="compose__count" id="notice-count" aria-live="polite"></span>
+            <button type="submit" class="btn btn--primary btn--sm" id="notice-post">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>
+              </svg>
+              Post
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</dialog>

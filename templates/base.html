@@ -60,6 +60,58 @@
       </nav>
     {% endif %}
 
+    {% if request.user.is_authenticated %}
+      {% comment %}
+        The app switcher. Which app you're in is a top-of-screen concern, so
+        it lives up here and the bottom bar is left to the features of the app
+        you're already inside.
+      {% endcomment %}
+      <details class="appmenu" id="app-switcher">
+        <summary class="icon-btn appmenu__btn" title="Switch app" aria-label="Switch app" aria-haspopup="menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
+            <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>
+          </svg>
+        </summary>
+
+        <div class="appmenu__panel" role="menu">
+          <div class="appmenu__label">Apps</div>
+
+          <a class="appmenu__item{% if section_name == 'PLU' %} is-on{% endif %}" role="menuitem" href="{% url 'plu:list' %}">
+            <span class="appmenu__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
+              </svg>
+            </span>
+            <span class="appmenu__body">
+              <span class="appmenu__name">PLU</span>
+              <span class="appmenu__sub">Product codes</span>
+            </span>
+          </a>
+
+          <a class="appmenu__item{% if section_name == 'TimeSheet' %} is-on{% endif %}" role="menuitem" href="{% url 'timeclock:dashboard' %}">
+            <span class="appmenu__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+              </svg>
+            </span>
+            <span class="appmenu__body">
+              <span class="appmenu__name">TimeSheet</span>
+              <span class="appmenu__sub">Shifts &amp; hours</span>
+            </span>
+          </a>
+
+          <div class="appmenu__rule"></div>
+
+          <a class="appmenu__link" role="menuitem" href="{% url 'home' %}">All apps</a>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="appmenu__link appmenu__link--danger" role="menuitem">Sign out</button>
+          </form>
+        </div>
+      </details>
+    {% endif %}
+
     <button type="button" class="icon-btn" id="theme-toggle"
             aria-label="Switch between light and dark theme">
       <svg class="icon-btn__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -87,12 +139,17 @@
 
 {% if request.user.is_authenticated and section_nav %}
   {% comment %}
-    Primary navigation on phones: fixed to the bottom, inside thumb reach.
-    Scoped to the app you're inside — the hub has no tab bar, because its
-    two cards *are* the navigation.
+    Primary navigation on phones: a pill floating inside thumb reach.
+
+    Nothing in it but the features of the app you're inside — switching
+    between apps is the grid button in the app bar, and the brand beside it
+    is the way back to the hub. The hub itself has no tab bar at all,
+    because its two cards *are* the navigation.
   {% endcomment %}
   <nav class="tabbar" aria-label="{{ section_name }}">
-    {% include section_nav %}
+    <div class="tabbar__inner">
+      {% include section_nav %}
+    </div>
   </nav>
 {% endif %}
 

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.username }} · MyWork{% endblock %}
+
+{% comment %}
+  Somebody's profile: who they are on the board, and what they have put on it.
+
+  Their notices are rendered by the very partial the board uses, so this page
+  is the board filtered to one person — react, comment and reply all work here
+  exactly as they do on the wall itself.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'notices:board' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Notice board
+</a>
+
+<div class="profile">
+  <span class="avatar avatar--lg" style="--hue: {{ hue }}" aria-hidden="true">{{ initial }}</span>
+  <div class="profile__id">
+    <h1 class="profile__name">{{ profile.username }}{% if is_me %} <span class="profile__you">you</span>{% endif %}</h1>
+    <p class="profile__since">
+      {% if profile.get_full_name %}{{ profile.get_full_name }} · {% endif %}
+      On MyWork since {{ profile.date_joined|date:"j M Y" }}
+    </p>
+  </div>
+</div>
+
+<div class="stat-row profile__stats">
+  <div class="stat">
+    <div class="stat__value">{{ profile.notice_count }}</div>
+    <div class="stat__label">notice{{ profile.notice_count|pluralize }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__value">{{ profile.comment_count }}</div>
+    <div class="stat__label">comment{{ profile.comment_count|pluralize }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__value">{{ received }}</div>
+    <div class="stat__label">reaction{{ received|pluralize }} received</div>
+  </div>
+  <div class="stat">
+    <div class="stat__value">{{ given }}</div>
+    <div class="stat__label">reaction{{ given|pluralize }} given</div>
+  </div>
+</div>
+
+<div class="board">
+  <div class="board__head">
+    <h2 class="board__title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 5h16v12H8l-4 4Z"/>
+      </svg>
+      {% if is_me %}Your notices{% else %}Their notices{% endif %}
+    </h2>
+    {% if profile.notice_count > notices|length %}
+      <span class="board__count">latest {{ notices|length }} of {{ profile.notice_count }}</span>
+    {% endif %}
+  </div>
+
+  {% if notices %}
+    {% include "noticeboard/_board.html" %}
+  {% else %}
+    <div class="notices-empty">
+      <div class="empty__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 5h16v12H8l-4 4Z"/><path d="M8 9.5h8"/><path d="M8 13h5"/>
+        </svg>
+      </div>
+      <div class="empty__title">{% if is_me %}You haven’t posted yet{% else %}{{ profile.username }} hasn’t posted yet{% endif %}</div>
+      <div class="empty__sub">{% if is_me %}Anything you post shows up here.{% else %}Their notices will show up here.{% endif %}</div>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

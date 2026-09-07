@@ -49,6 +49,19 @@ def minutes(value):
 
 
 @register.filter
+def seconds(value):
+    """
+    A timedelta as whole seconds.
+
+    Feeds the count-up in app.js: the page already prints the final figure,
+    and this is the same number in the raw form the animation counts towards.
+    """
+    if not isinstance(value, timedelta):
+        return ""
+    return int(max(value.total_seconds(), 0))
+
+
+@register.filter
 def decimal_hours(value):
     """A timedelta as a decimal like 5.32, for payroll-style reading."""
     if not isinstance(value, timedelta):

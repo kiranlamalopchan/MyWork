@@ -767,8 +767,270 @@
     });
   }
 
+  /* ----------------------------------------------------------------------
+     App switcher
+     The <details> opens and closes on its own; this only adds what a menu is
+     expected to do — close when you click away, when you press Escape, or
+     once you've picked something.
+     ---------------------------------------------------------------------- */
+  function initAppMenu() {
+    var menu = document.getElementById("app-switcher");
+    if (!menu) return;
+
+    document.addEventListener("click", function (event) {
+      if (!menu.open) return;
+      if (menu.contains(event.target)) return;
+      menu.open = false;
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || !menu.open) return;
+      menu.open = false;
+      var btn = menu.querySelector("summary");
+      if (btn) btn.focus();
+    });
+
+    // Navigating away leaves the panel open behind the new page in bfcache.
+    menu.querySelectorAll("a").forEach(function (link) {
+      link.addEventListener("click", function () { menu.open = false; });
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Count-up
+     Every figure on screen is the real server-rendered number; this only
+     animates the journey to it. The element already contains the final text,
+     so with JS off — or reduced motion on — nothing is lost, it just appears
+     rather than arrives.
+     ---------------------------------------------------------------------- */
+  var TALLY_FORMATS = {
+    // Seconds in, "5h 19m" out — the same shape the `hm` template filter prints.
+    hm: function (seconds) {
+      var m = Math.round(Math.max(seconds, 0) / 60);
+      var h = Math.floor(m / 60);
+      m = m % 60;
+      if (h && m) return h + "h " + m + "m";
+      if (h) return h + "h";
+      return m + "m";
+    },
+    minutes: formatMinutes,
+    int: function (n) { return String(Math.round(Math.max(n, 0))); }
+  };
+
+  function initTally() {
+    var els = document.querySelectorAll("[data-tally]");
+    if (!els.length) return;
+
+    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    els.forEach(function (el) {
+      var target = parseFloat(el.getAttribute("data-tally"));
+      if (isNaN(target)) return;
+
+      var render = TALLY_FORMATS[el.getAttribute("data-tally-format")] || TALLY_FORMATS.hm;
+      if (reduced || target <= 0) {
+        el.textContent = render(target);
+        return;
+      }
+
+      // Reserve the width the final figure needs, or the card jitters as the
+      // number grows through "9m" to "36h 40m".
+      el.style.minWidth = el.offsetWidth + "px";
+      el.style.display = "inline-block";
+
+      var DURATION = 850;
+      var started = null;
+
+      function step(now) {
+        if (started === null) started = now;
+        var p = Math.min((now - started) / DURATION, 1);
+        // Fast at first, settling at the end — the same feel as --ease-out.
+        el.textContent = render(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) {
+          requestAnimationFrame(step);
+        } else {
+          el.textContent = render(target);
+          el.style.minWidth = "";
+          el.style.display = "";
+        }
+      }
+
+      requestAnimationFrame(step);
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Cycle start — show the one that applies
+     A workplace carries a start for all three periods, but only the period
+     its limit uses is worth asking about. The others stay in the form (and
+     keep submitting their values), just out of the way.
+     ---------------------------------------------------------------------- */
+  function initPeriodFields() {
+    var period = document.getElementById("id_limit_period");
+    if (!period) return;
+
+    var fields = {
+      WEEK: document.getElementById("id_week_starts_on"),
+      FORTNIGHT: document.getElementById("id_fortnight_anchor"),
+      MONTH: document.getElementById("id_month_starts_on")
+    };
+
+    var rows = {};
+    Object.keys(fields).forEach(function (key) {
+      if (fields[key]) rows[key] = fields[key].closest(".field");
+    });
+    if (!Object.keys(rows).length) return;
+
+    function sync() {
+      Object.keys(rows).forEach(function (key) {
+        rows[key].hidden = key !== period.value;
+      });
+    }
+
+    period.addEventListener("change", sync);
+    sync();
+  }
+
+  /* ----------------------------------------------------------------------
+     Notice composer
+     The box grows with what you write, counts down only once the limit is
+     within sight, and won't post an empty notice. Without this the textarea
+     is simply a fixed three rows and the server catches the empty post.
+     ---------------------------------------------------------------------- */
+  /* ----------------------------------------------------------------------
+     Compose dialog
+     The + is a real link to the composer's own page; this catches the click
+     and opens the same form in a <dialog> instead. With JS off the link is
+     simply followed, so posting never depends on any of this.
+     ---------------------------------------------------------------------- */
+  function initComposeModal() {
+    var modal = document.getElementById("compose-modal");
+    if (!modal || typeof modal.showModal !== "function") return;
+
+    function open(event) {
+      if (event) event.preventDefault();
+      modal.classList.remove("is-closing");
+      modal.showModal();
+      var box = modal.querySelector("textarea");
+      if (box) box.focus();
+    }
+
+    function close() {
+      // Let the box travel back out before the dialog is taken away.
+      modal.classList.add("is-closing");
+      setTimeout(function () {
+        modal.classList.remove("is-closing");
+        modal.close();
+      }, 160);
+    }
+
+    document.querySelectorAll("[data-compose]").forEach(function (trigger) {
+      trigger.addEventListener("click", open);
+    });
+
+    modal.querySelectorAll("[data-close]").forEach(function (btn) {
+      btn.addEventListener("click", close);
+    });
+
+    // Clicking the backdrop lands on the dialog itself, never on its box.
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) close();
+    });
+
+    // Escape closes the dialog itself; intercept so it animates out too.
+    modal.addEventListener("cancel", function (event) {
+      event.preventDefault();
+      close();
+    });
+
+    // A rejected post comes back with the box marked open, so the writer
+    // sees the error where they typed rather than on an empty board.
+    if (modal.hasAttribute("data-open")) open();
+  }
+
+  /* ----------------------------------------------------------------------
+     Comment and reply boxes
+     Reply and Comment are ordinary anchors to the box they open — the fold
+     itself is :target, so it works with no script at all. This only puts the
+     cursor in the box, which is what you meant when you tapped the word.
+     ---------------------------------------------------------------------- */
+  function initCommentBoxes() {
+    document.addEventListener("click", function (event) {
+      var link = event.target.closest ? event.target.closest("[data-focus]") : null;
+      if (!link) return;
+
+      var target = document.querySelector(link.getAttribute("href"));
+      if (!target) return;
+
+      // The anchor points either at the input itself or at the form that
+      // :target reveals, in which case the input inside it wants the cursor.
+      var input = target.matches("input") ? target : target.querySelector("input[type=text]");
+      if (!input) return;
+
+      // After the browser has followed the anchor, so its own scroll lands
+      // first and the focus doesn't fight it.
+      setTimeout(function () { input.focus({ preventScroll: true }); }, 0);
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Reaction picker
+     The row of faces is a <details>, so it opens without script. This only
+     closes the one you left open when you move on.
+     ---------------------------------------------------------------------- */
+  function initReactions() {
+    var pickers = document.querySelectorAll("details.react");
+    if (!pickers.length) return;
+
+    document.addEventListener("click", function (event) {
+      pickers.forEach(function (picker) {
+        if (picker.open && !picker.contains(event.target)) picker.open = false;
+      });
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      pickers.forEach(function (picker) { picker.open = false; });
+    });
+  }
+
+  function initCompose() {
+    var box = document.querySelector(".compose textarea");
+    if (!box) return;
+
+    var counter = document.getElementById("notice-count");
+    var post = document.getElementById("notice-post");
+    var max = parseInt(box.getAttribute("maxlength"), 10) || 0;
+
+    function sync() {
+      // Collapse first, or the box can only ever get taller.
+      box.style.height = "auto";
+      box.style.height = Math.min(box.scrollHeight, 260) + "px";
+
+      var used = box.value.trim().length;
+      if (post) post.disabled = used === 0;
+
+      if (counter && max) {
+        var left = max - box.value.length;
+        // Silent until the last fifth — a counter that always shows is noise.
+        counter.textContent = left <= max / 5 ? left + " left" : "";
+        counter.classList.toggle("is-close", left <= 40);
+      }
+    }
+
+    box.addEventListener("input", sync);
+    sync();
+  }
+
   function init() {
     initTheme();
+    initCompose();
+    initComposeModal();
+    initReactions();
+    initCommentBoxes();
+    initAppMenu();
+    initTally();
+    initPeriodFields();
     initLiveClock();
     initClientClock();
     initBreakRows();

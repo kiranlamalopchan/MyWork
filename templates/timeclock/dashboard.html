@@ -187,7 +187,7 @@
         </div>
         <div class="metric">
           <div class="metric__label">Breaks taken</div>
-          <div class="metric__value">{{ shift.breaks.count }}</div>
+          <div class="metric__value" data-tally="{{ shift.breaks.count }}" data-tally-format="int">{{ shift.breaks.count }}</div>
         </div>
       </div>
     {% endif %}
@@ -196,18 +196,18 @@
     <div class="summary-grid">
       <div class="summary-card">
         <div class="summary-card__label">Today</div>
-        <div class="summary-card__value">{{ today_total|hm|default:"0m" }}</div>
+        <div class="summary-card__value" data-tally="{{ today_total|seconds }}">{{ today_total|hm|default:"0m" }}</div>
         <div class="summary-card__sub">{{ today_shifts|length }} shift{{ today_shifts|length|pluralize }}</div>
       </div>
       <div class="summary-card">
         <div class="summary-card__label">This week</div>
-        <div class="summary-card__value">{{ summary.week|hm|default:"0m" }}</div>
+        <div class="summary-card__value" data-tally="{{ summary.week|seconds }}">{{ summary.week|hm|default:"0m" }}</div>
         <div class="summary-card__sub">from {{ summary.week_start|date:"j M" }}</div>
       </div>
     </div>
 
-    {% if summary.limit %}
-      {% include "timeclock/_limit_bar.html" with limit=summary.limit %}
+    {% if limit %}
+      {% include "timeclock/_limit_bar.html" with limit=limit %}
     {% endif %}
 
   {% endif %}

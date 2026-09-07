@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Notice board · MyWork{% endblock %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'home' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  MyWork
+</a>
+
+<div class="board__bar">
+  <div class="page-head">
+    <h1 class="page-title">Notice board</h1>
+    <p class="page-sub">Everyone sees every notice, and can react or reply. Yours are the only ones you can change.</p>
+  </div>
+  {% include "noticeboard/_post_button.html" %}
+</div>
+
+<div class="board">
+  {% include "noticeboard/_board.html" %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+  <nav class="pager" aria-label="Pagination">
+    {% if page_obj.has_previous %}
+      <a class="btn" href="?page={{ page_obj.previous_page_number }}" rel="prev">Newer</a>
+    {% else %}
+      <span class="btn" aria-disabled="true">Newer</span>
+    {% endif %}
+    <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn" href="?page={{ page_obj.next_page_number }}" rel="next">Older</a>
+    {% else %}
+      <span class="btn" aria-disabled="true">Older</span>
+    {% endif %}
+  </nav>
+{% endif %}
+
+{% endblock %}

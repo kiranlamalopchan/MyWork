@@ -10,8 +10,8 @@ class BreakInline(admin.TabularInline):
 
 @admin.register(Workplace)
 class WorkplaceAdmin(admin.ModelAdmin):
-    list_display = ("name", "user", "is_default", "is_archived", "hourly_rate")
-    list_filter = ("is_default", "is_archived")
+    list_display = ("name", "user", "is_default", "is_archived", "hourly_rate", "hours_limit", "limit_period")
+    list_filter = ("is_default", "is_archived", "limit_period")
     search_fields = ("name", "user__username")
 
 
@@ -26,4 +26,4 @@ class ShiftAdmin(admin.ModelAdmin):
 
 @admin.register(TimePreference)
 class TimePreferenceAdmin(admin.ModelAdmin):
-    list_display = ("user", "hours_limit", "limit_period", "fortnight_anchor")
+    list_display = ("user", "fortnight_anchor", "timezone_name")

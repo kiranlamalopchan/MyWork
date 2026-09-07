@@ -20,7 +20,16 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import BreakFormSet, ShiftForm, TimePreferenceForm, WorkplaceForm
-from .models import Shift, TimePreference, Workplace, fortnight_start, week_start
+from .models import (
+    Pay,
+    Shift,
+    TimePreference,
+    Workplace,
+    fortnight_start,
+    month_start,
+    next_month_start,
+    week_start,
+)
 
 # Remembers the workplace you picked last so the next shift starts on the
 # right one without asking again.
@@ -110,57 +119,144 @@ def _total_worked(shifts):
     return sum((s.worked_duration for s in shifts), timedelta())
 
 
-def _period_total(user, start_date, end_date_exclusive, workplace=None):
-    """Net worked time for shifts starting inside the given date range."""
+def _period_figures(user, start_date, end_date_exclusive, workplace=None):
+    """
+    Worked time and what it earned, for shifts starting inside the range.
+
+    Both come out of one pass over the same shifts, because they are read
+    together on every screen that shows either — and because each shift has
+    to be priced by its own workplace's rate and withholding. Two jobs on
+    different rates add up; they never average.
+
+    The pay half is None when nothing in the window has a rate to price it
+    with. That is not the same as $0.00, and the templates say so.
+    """
     start, end = _day_bounds(start_date, end_date_exclusive)
     qs = _shifts_for(user).filter(clock_in__gte=start, clock_in__lt=end)
     if workplace:
         qs = qs.filter(workplace=workplace)
-    return _total_worked(qs)
+
+    worked = timedelta()
+    gross = tax = 0.0
+    priced = False
+    withheld = False
+
+    for shift in qs:
+        worked += shift.worked_duration
+        pay = shift.pay
+        if pay is None:
+            continue
+        priced = True
+        withheld = withheld or shift.workplace.withholds
+        gross += pay.gross
+        tax += pay.tax
+
+    if not priced:
+        return worked, None
+
+    money = Pay(round(gross, 2), round(tax, 2), round(gross - tax, 2))
+    # Carried alongside so a screen can tell "nothing withheld" from "we were
+    # never told what is withheld" and prompt for the missing setting.
+    return worked, {"pay": money, "withheld": withheld}
+
+
+def _period_total(user, start_date, end_date_exclusive, workplace=None):
+    """Net worked time for shifts starting inside the given date range."""
+    return _period_figures(user, start_date, end_date_exclusive, workplace)[0]
+
+
+def _limit_for(user, workplace, today=None):
+    """
+    How one workplace is tracking against its own cap, or None if it has none.
+
+    Only that workplace's shifts count, over that workplace's own week or
+    fortnight cycle — hours at another job never eat into this limit.
+    """
+    if workplace is None or not workplace.has_limit:
+        return None
+
+    today = today or timezone.localdate()
+    start, end = workplace.limit_window(today)
+
+    cap = timedelta(hours=float(workplace.hours_limit))
+    used = _period_total(user, start, end, workplace)
+    pct = min(used / cap * 100, 100) if cap else 0
+
+    return {
+        "workplace": workplace,
+        "cap": cap,
+        "used": used,
+        "remaining": max(cap - used, timedelta()),
+        "over": max(used - cap, timedelta()),
+        "percent": round(pct, 1),
+        "period_label": workplace.period_label,
+        "period_start": start,
+        # Amber once the last tenth is in sight, red once it's gone.
+        "state": "over" if used >= cap else ("close" if pct >= 90 else "ok"),
+    }
+
+
+def _limits_for(user, workplace=None):
+    """
+    The limit cards to show: just this workplace's when one is filtered to,
+    otherwise one per workplace that has a cap — each counted separately.
+    """
+    if workplace is not None:
+        limit = _limit_for(user, workplace)
+        return [limit] if limit else []
+
+    today = timezone.localdate()
+    return [
+        limit
+        for w in Workplace.objects.filter(
+            user=user, is_archived=False, hours_limit__isnull=False
+        )
+        if (limit := _limit_for(user, w, today))
+    ]
 
 
 def _summary(user, workplace=None):
-    """The week / fortnight / month figures shown as cards on the timesheet."""
+    """
+    The week / fortnight / month figures shown as cards on the timesheet.
+
+    Every one of the three runs from a start the user chose. Filtered to a
+    workplace, they follow that job's own cycle so the cards line up with the
+    limit bar underneath them; unfiltered, they follow the account's.
+    """
     pref = TimePreference.for_user(user)
+    cycle = workplace or pref
     today = timezone.localdate()
     tomorrow = today + timedelta(days=1)
 
-    w_start = week_start(today)
-    f_start = fortnight_start(today, pref.fortnight_anchor)
-    m_start = today.replace(day=1)
+    w_start = week_start(today, cycle.week_starts_on)
+    f_start = fortnight_start(today, cycle.fortnight_anchor)
+    m_start = month_start(today, cycle.month_starts_on)
 
-    week = _period_total(user, w_start, w_start + timedelta(days=7), workplace)
-    fortnight = _period_total(user, f_start, f_start + timedelta(days=14), workplace)
-    month = _period_total(user, m_start, tomorrow, workplace)
+    week, week_pay = _period_figures(user, w_start, w_start + timedelta(days=7), workplace)
+    fortnight, fortnight_pay = _period_figures(
+        user, f_start, f_start + timedelta(days=14), workplace
+    )
+    # Month-to-date, not the whole cycle: the figure is what's been worked so
+    # far, the way the week and fortnight cards read.
+    month, month_pay = _period_figures(user, m_start, tomorrow, workplace)
 
-    summary = {
+    return {
         "today": _period_total(user, today, tomorrow, workplace),
         "week": week,
+        "week_pay": week_pay,
         "week_start": w_start,
+        "week_end": w_start + timedelta(days=6),
         "fortnight": fortnight,
+        "fortnight_pay": fortnight_pay,
         "fortnight_start": f_start,
+        "fortnight_end": f_start + timedelta(days=13),
         "month": month,
+        "month_pay": month_pay,
+        "month_start": m_start,
+        "month_end": next_month_start(today, cycle.month_starts_on) - timedelta(days=1),
         "pref": pref,
-        "limit": None,
+        "limits": _limits_for(user, workplace),
     }
-
-    if pref.hours_limit:
-        limit = timedelta(hours=float(pref.hours_limit))
-        used = week if pref.limit_period == TimePreference.Period.WEEK else fortnight
-        remaining = limit - used
-        pct = min(used / limit * 100, 100) if limit else 0
-        summary["limit"] = {
-            "cap": limit,
-            "used": used,
-            "remaining": max(remaining, timedelta()),
-            "over": max(used - limit, timedelta()),
-            "percent": round(pct, 1),
-            "period_label": "week" if pref.limit_period == TimePreference.Period.WEEK else "fortnight",
-            # Amber once the last tenth is in sight, red once it's gone.
-            "state": "over" if used >= limit else ("close" if pct >= 90 else "ok"),
-        }
-
-    return summary
 
 
 def _selected_workplace(request, workplaces):
@@ -226,6 +322,9 @@ def dashboard(request):
         # figure beside it rather than sitting on 0m all morning.
         "today_total": _total_worked(today_shifts),
         "summary": _summary(request.user),
+        # The bar under the clock is for the job in front of you, not a
+        # total of every job.
+        "limit": _limit_for(request.user, selected),
         "target_hours": SHIFT_TARGET_HOURS,
         # Flags a shift that's run past the target — nearly always someone who
         # walked off without clocking out, so it gets a visible prompt rather
@@ -388,8 +487,11 @@ def calendar_month(request):
     # The busiest day sets the scale for the little bar under each date.
     busiest = max(totals.values(), default=timedelta())
 
+    # The grid starts on whichever day the user's week starts on, so the
+    # columns line up with the week the totals are counted over.
+    first_weekday = TimePreference.for_user(request.user).week_starts_on
     weeks = []
-    for week in pycalendar.Calendar(firstweekday=0).monthdatescalendar(year, month):
+    for week in pycalendar.Calendar(firstweekday=first_weekday).monthdatescalendar(year, month):
         weeks.append([
             {
                 "date": day,
@@ -417,6 +519,14 @@ def calendar_month(request):
 
     return render(request, "timeclock/calendar.html", {
         "weeks": weeks,
+        # Column headings have to follow the same rotation as the grid.
+        "weekday_labels": [
+            {
+                "letter": pycalendar.day_abbr[(first_weekday + i) % 7][0],
+                "name": pycalendar.day_name[(first_weekday + i) % 7],
+            }
+            for i in range(7)
+        ],
         "month_date": first,
         "month_total": sum(totals.values(), timedelta()),
         "worked_days": len(totals),
@@ -434,6 +544,95 @@ def shift_detail(request, pk):
         _shifts_for(request.user).prefetch_related(Prefetch("breaks")), pk=pk
     )
     return render(request, "timeclock/shift_detail.html", {"shift": shift})
+
+
+def _new_shift_initial(request, workplaces):
+    """
+    Sensible starting times for a shift being typed in.
+
+    A day picked from the calendar prefills a 9-to-5 on that day; today
+    prefills the last eight hours up to now, which is the shape of "I forgot
+    to clock in this morning". Either way the pickers open on the right date
+    instead of making someone scroll a year.
+    """
+    now = timezone.localtime()
+    today = now.date()
+
+    day = today
+    raw = request.GET.get("day")
+    if raw:
+        try:
+            day = date.fromisoformat(raw)
+        except ValueError:
+            day = today
+    # Nothing was worked tomorrow; a hand-edited date falls back to today.
+    day = min(day, today)
+
+    if day == today:
+        end = now
+        start = end - timedelta(hours=8)
+    else:
+        tz = timezone.get_current_timezone()
+        start = timezone.make_aware(datetime.combine(day, time(9, 0)), tz)
+        end = start + timedelta(hours=8)
+
+    return {
+        "clock_in": start,
+        "clock_out": end,
+        "workplace": _selected_workplace(request, workplaces),
+    }
+
+
+@login_required
+def shift_create(request):
+    """
+    Add a shift by hand, for a day the clock was never started on.
+
+    Deliberately the same form and break rows as editing, so a forgotten day
+    is filled in the same way a wrong time is corrected. ShiftForm refuses a
+    future time or one that overlaps a shift already recorded, which are the
+    two ways an entry from memory goes wrong.
+    """
+    shift = Shift(user=request.user)
+    workplaces = list(Workplace.objects.filter(user=request.user, is_archived=False))
+
+    if request.method == "POST":
+        form = ShiftForm(request.POST, instance=shift, user=request.user)
+        formset = BreakFormSet(request.POST, instance=shift)
+
+        if form.is_valid():
+            # The formset checks its breaks against the shift's span, so it
+            # has to see the times being saved now.
+            formset.instance.clock_in = form.cleaned_data["clock_in"]
+            formset.instance.clock_out = form.cleaned_data.get("clock_out")
+
+        if form.is_valid() and formset.is_valid():
+            shift = form.save(commit=False)
+            shift.user = request.user
+            # No clock-out means the shift is still running — the fix for
+            # realising mid-shift that you never clocked in.
+            shift.status = Shift.Status.COMPLETED if shift.clock_out else Shift.Status.WORKING
+            shift.save()
+            formset.save()
+
+            if shift.is_open and shift.breaks.filter(break_end__isnull=True).exists():
+                shift.status = Shift.Status.ON_BREAK
+                shift.save(update_fields=["status", "updated_at"])
+
+            messages.success(request, "Shift added to your timesheet.")
+            return redirect("timeclock:shift_detail", pk=shift.pk)
+
+        messages.error(request, "Please fix the errors below.")
+    else:
+        form = ShiftForm(
+            instance=shift, user=request.user,
+            initial=_new_shift_initial(request, workplaces),
+        )
+        formset = BreakFormSet(instance=shift)
+
+    return render(request, "timeclock/shift_form.html", {
+        "shift": None, "form": form, "formset": formset,
+    })
 
 
 @login_required
@@ -582,6 +781,11 @@ def workplace_make_default(request, pk):
 
 @login_required
 def preferences(request):
+    """
+    The hours-limit screen. Each cap belongs to a workplace and is edited
+    there, so this lists them side by side and keeps only the settings that
+    genuinely span every workplace.
+    """
     pref = TimePreference.for_user(request.user)
 
     if request.method == "POST":
@@ -589,11 +793,15 @@ def preferences(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Preferences saved.")
-            return redirect("timeclock:timesheet")
+            return redirect("timeclock:preferences")
     else:
         form = TimePreferenceForm(instance=pref)
 
-    return render(request, "timeclock/preferences.html", {"form": form})
+    return render(request, "timeclock/preferences.html", {
+        "form": form,
+        "limits": _limits_for(request.user),
+        "workplaces": Workplace.objects.filter(user=request.user, is_archived=False),
+    })
 
 
 @login_required

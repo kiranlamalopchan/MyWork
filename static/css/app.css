@@ -35,6 +35,15 @@
   --line:        #e3e8ef;
   --line-strong: #cbd5e1;
 
+  /* The floating nav pill. It is its own small piece of chrome — dark in
+     either theme, so the bar reads as one object hovering over the page
+     rather than as another card in the stack. */
+  --pill:        #16181d;
+  --pill-ink:    rgba(255, 255, 255, .62);
+  --pill-line:   rgba(255, 255, 255, .08);
+  --pill-on:     #ffffff;
+  --pill-on-ink: #16181d;
+
   /* Elevation */
   --shadow-1: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
   --shadow-2: 0 4px 12px rgba(15, 23, 42, .08), 0 2px 4px rgba(15, 23, 42, .04);
@@ -105,6 +114,13 @@
     --line:        #26334d;
     --line-strong: #35455f;
 
+    /* Lifted off the dark background rather than sunk into it. */
+    --pill:        #1a2540;
+    --pill-ink:    rgba(232, 237, 245, .60);
+    --pill-line:   rgba(255, 255, 255, .10);
+    --pill-on:     #e8edf5;
+    --pill-on-ink: #0b1120;
+
     --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
     --shadow-2: 0 4px 14px rgba(0, 0, 0, .40);
     --shadow-3: 0 14px 36px rgba(0, 0, 0, .55);
@@ -134,6 +150,12 @@
 
   --line:        #26334d;
   --line-strong: #35455f;
+
+  --pill:        #1a2540;
+  --pill-ink:    rgba(232, 237, 245, .60);
+  --pill-line:   rgba(255, 255, 255, .10);
+  --pill-on:     #e8edf5;
+  --pill-on-ink: #0b1120;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
   --shadow-2: 0 4px 14px rgba(0, 0, 0, .40);
@@ -293,52 +315,90 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 /* --------------------------------------------------------------------------
-   4. Bottom tab bar (phones) — primary navigation within thumb reach
+   4. Bottom tab bar (phones) — a floating pill within thumb reach
+
+   Not a bar across the foot of the screen but an object hovering over it:
+   the page runs to the bottom edge underneath, and navigation is one dark
+   pill you can reach without shifting your grip. Icon-only, because at this
+   size the icon is read and the caption underneath never is — the caption is
+   still in the markup for anyone listening rather than looking.
    -------------------------------------------------------------------------- */
 .tabbar {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(var(--safe-b) + var(--sp-3));
   z-index: 45;
   display: flex;
-  padding-bottom: var(--safe-b);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(16px);
-  backdrop-filter: saturate(180%) blur(16px);
-  border-top: 1px solid var(--line);
+  justify-content: center;
+  /* The page either side of the pill still belongs to the page. */
+  pointer-events: none;
 }
 
-.tab {
-  flex: 1 1 0;
-  min-width: 0;
-  height: var(--tabbar-h);
+.tabbar__inner {
+  pointer-events: auto;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  /* Most of the screen wide, with the tabs spread across it — the reach of a
+     thumb is the width of the phone, not the width of four icons. */
+  width: 80%;
+  justify-content: space-around;
+  gap: 2px;
+  padding: 6px;
+  border-radius: var(--r-pill);
+  background: var(--pill);
+  border: 1px solid var(--pill-line);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, .30), 0 3px 10px rgba(2, 6, 23, .20);
+  /* More tabs than a narrow phone can hold slide rather than wrap: a pill
+     that grows a second row stops being a pill. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabbar__inner::-webkit-scrollbar { display: none; }
+
+.tab {
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
   background: none;
   border: 0;
   cursor: pointer;
-  padding: 0 2px;
 }
 .tab:hover { text-decoration: none; }
 .tab svg { width: 22px; height: 22px; }
-.tab span {
-  max-width: 100%;
+
+/* ---- The pill's own tabs ------------------------------------------------ */
+.tabbar .tab {
+  flex: none;
+  width: 52px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--pill-ink);
+}
+.tabbar .tab:hover { color: var(--pill-on); }
+
+/* The caption is read out, not shown — the pill is icons only. */
+.tabbar .tab span {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  clip-path: inset(50%);
   white-space: nowrap;
 }
-.tab.is-active { color: var(--brand); }
-.tab.is-active svg { stroke-width: 2.4; }
+
+/* Where you are: a filled circle, the one bright thing in the bar. */
+.tabbar .tab.is-active {
+  background: var(--pill-on);
+  color: var(--pill-on-ink);
+}
+.tabbar .tab.is-active svg { stroke-width: 2.1; }
 
 /* Sign out is a POST, so it's a form-wrapped button that has to size like a tab */
-.tab-form { flex: 1 1 0; min-width: 0; display: flex; }
+.tab-form { flex: none; display: flex; }
 .tab-form .tab { width: 100%; }
 
 /* --------------------------------------------------------------------------
@@ -1180,6 +1240,30 @@ code, .code {
 }
 .summary-card__sub { margin-top: 2px; font-size: 12px; color: var(--muted); }
 
+/* The money under the hours. Quiet by comparison — the hours are what the
+   card is for, and the pay is what they came to. */
+.summary-card__pay {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pay-period card: a payslip you can hold the real one against. */
+.pay-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.pay-head__title { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+.pay-head__dates { flex: none; font-size: 12px; color: var(--muted); }
+.pay-note { margin: var(--sp-3) 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
 /* ---- Hours limit ------------------------------------------------------- */
 .limit__head {
   display: flex;
@@ -1227,16 +1311,53 @@ code, .code {
 .limit--over  { border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 
 /* ---- Timesheet list ---------------------------------------------------- */
+/* Each day is a <details>: the header is the whole summary, so a shut day is
+   still a readable line — date, how many shifts, how long — and opening one
+   costs a tap and no page load. */
 .day { margin-bottom: var(--sp-4); }
+
 .day__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: 0 var(--sp-1) var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--dur-2) var(--ease);
 }
+.day__head::-webkit-details-marker { display: none; }
+.day__head:hover { background: var(--surface-2); }
+.day[open] .day__head { margin-bottom: var(--sp-1); }
+
 .day__date { font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+
+.day__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  color: var(--muted);
+}
+/* The count is what a shut day gains over an open one, so it steps back once
+   the shifts it was standing in for are on screen. */
+.day__count { font-size: 12px; transition: opacity var(--dur-2) var(--ease); }
+/* Hidden, not removed — the total keeps its place instead of jumping left. */
+.day[open] .day__count { opacity: 0; }
+
 .day__total { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.day__chev {
+  flex: none;
+  width: 16px; height: 16px;
+  color: var(--muted);
+  transition: transform var(--dur-2) var(--ease);
+}
+.day[open] .day__chev { transform: rotate(180deg); }
+
+/* Opening one drops the list in rather than snapping it into place. */
+.day[open] .shift-list { animation: mw-rise var(--dur-3) var(--ease-out) both; }
 
 .shift-list {
   list-style: none;
@@ -1622,7 +1743,7 @@ html { scroll-behavior: smooth; }
 }
 .tab:active { transform: scale(.93); }
 .tab svg { transition: stroke-width var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-snap); }
-.tab.is-active svg { transform: translateY(-1px) scale(1.06); }
+.tabbar .tab.is-active svg { transform: none; }
 
 .icon-btn {
   transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease),
@@ -1775,8 +1896,6 @@ input[type="date"], input[type="time"], select, textarea {
 }
 
 /* Leaving the hub is not the reason you came here, so it sits apart and quiet. */
-.hub-signout { margin-top: var(--sp-6); }
-
 
 /* --------------------------------------------------------------------------
    19. Wider screens — nav moves up into the app bar, tab bar disappears
@@ -1793,7 +1912,9 @@ input[type="date"], input[type="time"], select, textarea {
   }
   .appbar__nav .tab {
     flex: none;
+    display: inline-flex;
     flex-direction: row;
+    align-items: center;
     gap: var(--sp-2);
     height: 40px;
     padding: 0 var(--sp-3);
@@ -1843,16 +1964,11 @@ input[type="date"], input[type="time"], select, textarea {
 .empty,
 .stat-row,
 .btn-row,
-.hub-signout {
-  animation: mw-rise var(--dur-3) var(--ease-out) both;
-}
-
 /* A short cascade, so a screen assembles instead of flashing in as one slab. */
 .app-card:nth-child(2)     { animation-delay: .07s; }
 .card:nth-of-type(2)       { animation-delay: .05s; }
 .card:nth-of-type(3)       { animation-delay: .10s; }
 .card:nth-of-type(n+4)     { animation-delay: .14s; }
-.hub-signout               { animation-delay: .14s; }
 
 /* Search results re-render on every keystroke, so the cascade has to be quick
    enough to keep up with typing — .24s, and only the first eight rows wait. */
@@ -1974,3 +2090,887 @@ input[type="date"], input[type="time"], select, textarea {
 
 .icon-btn { transition: background var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-snap); }
 .icon-btn:active { transform: scale(.9); }
+
+
+/* --------------------------------------------------------------------------
+   21. App switcher — which app you're in is an app-bar concern
+
+   The bottom bar carries the features of the app you're already inside, so
+   moving *between* apps happens up here instead of spending a tab slot on it.
+   A <details> is the whole mechanism: it opens and closes with no script, and
+   app.js only adds the conveniences (outside click, Escape).
+   -------------------------------------------------------------------------- */
+.appmenu { position: relative; flex: none; }
+
+.appmenu__btn { list-style: none; }
+.appmenu__btn::-webkit-details-marker { display: none; }
+.appmenu[open] > .appmenu__btn {
+  background: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+  color: var(--brand);
+}
+
+.appmenu__panel {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  right: 0;
+  z-index: 60;
+  /* Never wider than the screen it drops onto. */
+  width: min(268px, calc(100vw - var(--sp-6)));
+  padding: var(--sp-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  transform-origin: top right;
+  animation: mw-menu var(--dur-2) var(--ease-out) both;
+}
+.appmenu__panel form { margin: 0; }
+
+@keyframes mw-menu {
+  from { opacity: 0; transform: translateY(-6px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.appmenu__label {
+  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.appmenu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  color: var(--text);
+  transition: background var(--dur-1) var(--ease);
+}
+.appmenu__item:hover { background: var(--surface-2); text-decoration: none; }
+.appmenu__item.is-on { background: var(--brand-soft); }
+
+.appmenu__icon {
+  flex: none;
+  width: 36px; height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.appmenu__item.is-on .appmenu__icon { background: var(--brand); color: var(--brand-ink); }
+.appmenu__icon svg { width: 18px; height: 18px; }
+
+.appmenu__body { min-width: 0; }
+.appmenu__name { display: block; font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+.appmenu__sub  { display: block; font-size: 12px; color: var(--muted); }
+
+.appmenu__rule { height: 1px; margin: var(--sp-2) var(--sp-1); background: var(--line); }
+
+.appmenu__link {
+  display: block;
+  width: 100%;
+  padding: 10px var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.appmenu__link:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+.appmenu__link--danger { color: var(--danger); }
+
+/* On a short screen the open panel could reach the bottom bar (z 45), so the
+   app bar is lifted above it for as long as the menu is open. */
+.appbar:has(.appmenu[open]) { z-index: 50; }
+
+
+
+/* --------------------------------------------------------------------------
+   22. Flow — one rhythm, so nothing ever sits flush against what's above it
+
+   Cards, grids and lists each brought their own margins, which left gaps
+   wherever two different kinds met (a summary row above a limit card, say).
+   This sets a floor for every top-level block instead. Adjacent margins
+   collapse, so anything that already spaces itself further apart keeps its
+   own spacing — this only ever adds a gap, never doubles one.
+   -------------------------------------------------------------------------- */
+.container > * + *:not(.searchbar) { margin-top: var(--sp-4); }
+
+
+/* --------------------------------------------------------------------------
+   23. No horizontal overflow, at any width
+
+   `1fr` is `minmax(auto, 1fr)`: a long unbreakable figure in one cell widens
+   the whole grid and pushes the page sideways. `minmax(0, 1fr)` lets the
+   column shrink instead, which is what keeps these rows inside the screen on
+   a 320px phone. Flex rows need the same permission via min-width.
+   -------------------------------------------------------------------------- */
+.summary-grid,
+.stat-row,
+.app-grid           { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.summary-grid--3,
+.metric-row         { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cal__grid          { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.detail-actions > * { min-width: 0; }
+
+@media (min-width: 860px) {
+  .detail-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* The narrowest phone: three figures across is the tightest row in the app,
+   so the value is allowed to shrink a step further before it would clip. */
+.summary-grid--3 .summary-card__value { font-size: clamp(15px, 4.4vw, 24px); }
+
+/* Flex rows whose text must be free to wrap or ellipsis rather than push */
+.limit__head > div:first-child,
+.results-head > *,
+.day__head > *,
+.cal__title { min-width: 0; }
+
+/* A long workplace name heads its own limit bar — wrap it, don't widen it */
+.limit .section-label { overflow-wrap: anywhere; }
+
+/* Nothing inside the page may be wider than the page */
+.container > * { max-width: 100%; }
+
+/* app.js hides the form rows that don't apply; nothing may override this. */
+[hidden] { display: none !important; }
+
+
+/* --------------------------------------------------------------------------
+   24. Live data — figures arrive the way they were earned
+
+   Totals count up to their value, bars fill to their share and the dial
+   sweeps to its position, all from the real server-rendered number. Nothing
+   here invents data: with JS off, or reduced motion on, every figure is
+   simply the final value, printed.
+   -------------------------------------------------------------------------- */
+[data-tally] { font-variant-numeric: tabular-nums; }
+
+.limit__fill { animation: mw-fill .9s var(--ease-out) both; }
+@keyframes mw-fill {
+  from { width: 0; }
+  to   { width: var(--pct, 0%); }
+}
+
+.cal__bar-fill { animation: mw-grow .5s var(--ease-out) both; }
+@keyframes mw-grow {
+  from { height: 0; }
+  to   { height: max(2px, calc(var(--h, 0%) * .16)); }
+}
+
+
+/* The quiet way into "add a shift on this day" — a link, not a button, so the
+   day panel stays a list of what happened. */
+.daylink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand);
+}
+.daylink svg { width: 15px; height: 15px; }
+
+
+/* --------------------------------------------------------------------------
+   25. Notice board — the one surface everybody on MyWork shares
+
+   Reads as a wall of short messages: a coloured initial for who wrote it, the
+   words, and nothing else unless it's yours. The colour comes from the name
+   itself (see Notice.hue), so a person is the same colour on every device
+   without anything being assigned or stored.
+   -------------------------------------------------------------------------- */
+.board { display: grid; gap: var(--sp-3); }
+
+.board__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.board__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+.board__title svg { width: 18px; height: 18px; flex: none; color: var(--brand); }
+.board__count { flex: none; font-size: 12px; color: var(--muted); }
+
+.board__more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  justify-self: start;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand);
+}
+.board__more svg { width: 15px; height: 15px; }
+
+/* ---- The initial beside every notice ----------------------------------- */
+.avatar {
+  flex: none;
+  width: 38px; height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(140deg,
+    hsl(var(--hue, 210) 62% 52%),
+    hsl(calc(var(--hue, 210) + 24) 58% 42%));
+  /* A pale name colour on a pale card still has to hold white text. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
+.avatar--me { background: linear-gradient(140deg, var(--brand), var(--brand-strong)); color: var(--brand-ink); }
+/* The avatar and the name lead to a profile. They stay looking like a face
+   and a name — a board of underlined blue names would read as a link list. */
+a.avatar { text-decoration: none; transition: transform var(--dur-1) var(--ease-snap); }
+a.avatar:hover { transform: scale(1.06); text-decoration: none; }
+
+/* ---- Writing one -------------------------------------------------------- */
+.compose {
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.compose:focus-within {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+  box-shadow: var(--shadow-2);
+}
+.compose__row { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.compose__field { flex: 1; min-width: 0; }
+
+/* The box is a line high until there's something in it — app.js grows it as
+   you type, so an empty board doesn't open with a wall of blank textarea. */
+.compose textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: none;
+  overflow: hidden;
+}
+.compose textarea:focus { outline: none; border-color: var(--brand); background: var(--surface); }
+.compose textarea::placeholder { color: var(--muted); }
+
+.compose__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+.compose__count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.compose__count.is-close { color: var(--warn); font-weight: 700; }
+
+/* ---- Reading them ------------------------------------------------------- */
+.notices { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  animation: mw-rise var(--dur-3) var(--ease-out) both;
+}
+/* Your own are marked down the edge rather than coloured differently, so the
+   board still reads as one wall. */
+.notice--mine { border-left: 3px solid var(--brand); }
+
+.notice__body { flex: 1; min-width: 0; }
+
+.notice__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.notice__who {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.notice__when { font-size: 12px; color: var(--muted); }
+
+.notice__text {
+  margin-top: 3px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  /* A pasted URL or an unbroken run of characters wraps instead of widening
+     the card and, with it, the page. */
+  overflow-wrap: anywhere;
+}
+
+.notices-empty {
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+}
+.notices-empty .empty__icon { margin: 0 auto var(--sp-2); }
+
+/* The hub's board is a section below the tiles; give it room to breathe. */
+.app-grid + .board { margin-top: var(--sp-6); }
+
+
+/* ---- The way in: one small button -------------------------------------- */
+.board__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.board__bar .page-head { margin-bottom: 0; min-width: 0; }
+.board__tools { display: flex; align-items: center; gap: var(--sp-3); flex: none; }
+
+.post-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 34px;
+  padding: 0 var(--sp-3) 0 10px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(140deg, var(--brand), var(--brand-strong));
+  color: var(--brand-ink);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--brand) 34%, transparent);
+  transition: transform var(--dur-1) var(--ease-snap), box-shadow var(--dur-2) var(--ease);
+}
+.post-btn:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--brand) 42%, transparent);
+}
+.post-btn:active { transform: scale(.95); }
+.post-btn svg { width: 15px; height: 15px; }
+
+/* Past the narrowest phones the label is worth its width; below that the +
+   says it on its own. */
+@media (max-width: 380px) {
+  .post-btn { width: 34px; padding: 0; justify-content: center; }
+  .post-btn__label { display: none; }
+}
+
+/* ---- The composer, in a dialog ----------------------------------------- */
+.modal {
+  width: 100%;
+  max-width: 520px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
+}
+.modal::backdrop {
+  background: rgba(2, 6, 23, .5);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: mw-veil var(--dur-2) var(--ease) both;
+}
+@keyframes mw-veil { from { opacity: 0; } to { opacity: 1; } }
+
+.modal__box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-3);
+  padding: var(--sp-4);
+  animation: mw-modal .3s var(--ease-out) both;
+}
+@keyframes mw-modal {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Leaving reverses the arrival, so the box goes back the way it came. */
+.modal.is-closing .modal__box { animation: mw-modal-out .16s var(--ease) both; }
+.modal.is-closing::backdrop { animation: mw-veil .16s var(--ease) reverse both; }
+@keyframes mw-modal-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(8px) scale(.98); }
+}
+
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.modal__title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+
+/* On a phone it belongs at the bottom, in reach, and slides up like a sheet. */
+@media (max-width: 559px) {
+  .modal {
+    max-width: none;
+    margin: auto auto 0;
+    /* Dialogs are centred by UA styles; this pins it to the bottom edge. */
+    align-self: end;
+  }
+  .modal__box {
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    padding-bottom: calc(var(--sp-4) + var(--safe-b));
+    animation-name: mw-sheet;
+  }
+  @keyframes mw-sheet {
+    from { opacity: .4; transform: translateY(100%); }
+    to   { opacity: 1; transform: none; }
+  }
+  .modal.is-closing .modal__box { animation: mw-sheet .18s var(--ease) reverse both; }
+}
+
+/* ---- Reactions and replies --------------------------------------------- */
+.notice { flex-direction: column; gap: var(--sp-2); }
+.notice__main { display: flex; align-items: flex-start; gap: var(--sp-3); width: 100%; }
+
+.avatar--sm { width: 28px; height: 28px; font-size: 12px; }
+
+/* The running tally, above the buttons — what everyone else made of it. */
+.tally {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.tally__emoji { display: inline-flex; align-items: center; gap: 2px; }
+.tally__pip {
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--surface);
+  font-size: 11px;
+  margin-right: -6px;
+}
+.tally__n { margin-left: 10px; font-weight: 700; }
+.tally__comments { margin-left: auto; }
+
+/* Who is behind the count. The names are the point — the tally is a link to
+   the rest of them, so nobody has to guess whose the emoji were. */
+a.tally__emoji { color: inherit; min-width: 0; }
+a.tally__emoji:hover { color: var(--text); text-decoration: none; }
+a.tally__emoji:hover .tally__who { text-decoration: underline; }
+.tally__who {
+  margin-left: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.acts { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+.acts form { margin: 0; }
+
+.act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.act::-webkit-details-marker { display: none; }
+.act:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+.act svg { width: 15px; height: 15px; }
+.act.is-on { color: var(--brand); }
+.act__emoji { font-size: 14px; line-height: 1; }
+.act--quiet { margin-left: auto; }
+.act--quiet + form .act--quiet { margin-left: 0; }
+.act--danger:hover { color: var(--danger); background: var(--danger-soft, var(--surface-2)); }
+
+/* ---- The emoji picker --------------------------------------------------- */
+.react { position: relative; }
+
+.picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-3);
+  animation: mw-picker var(--dur-2) var(--ease-out) both;
+}
+@keyframes mw-picker {
+  from { opacity: 0; transform: translateY(6px) scale(.9); }
+  to   { opacity: 1; transform: none; }
+}
+
+.picker__btn {
+  width: 38px; height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  /* Each face arrives a beat after the one before it, the way the row of
+     reactions pops open on a phone. */
+  animation: mw-pop var(--dur-3) var(--ease-snap) both;
+  animation-delay: calc(var(--i, 0) * .035s);
+  transition: transform var(--dur-1) var(--ease-snap), background var(--dur-1) var(--ease);
+}
+.picker__btn:hover { transform: scale(1.25) translateY(-2px); background: var(--surface-2); }
+.picker__btn:active { transform: scale(1.05); }
+.picker__btn.is-on { background: var(--brand-soft); }
+
+/* ---- Comments ----------------------------------------------------------- */
+.comment { display: flex; align-items: flex-start; gap: var(--sp-2); }
+/* The bubble hugs what was written rather than filling the row — a two-word
+   comment in a full-width block reads as an announcement, not a remark. */
+.comment__body {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.comment__col { flex: 1; min-width: 0; }
+.comment__who { font-size: 12.5px; font-weight: 800; margin-right: 6px; color: inherit; }
+a.comment__who:hover { color: var(--brand); text-decoration: none; }
+.comment__text { font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.comment__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+/* ---- One line of actions under a comment --------------------------------
+   Time, react, reply and delete read as one sentence of small print. They
+   are laid out so they stay on that line: nothing in the row is allowed to
+   grow, and the panels they open (the faces, the reply box) sit outside it.
+   -------------------------------------------------------------------------- */
+.comment__foot { flex-wrap: wrap; gap: var(--sp-3); }
+.comment__foot form { margin: 0; display: inline-flex; }
+.comment__foot .react { flex: none; }
+.comment__time { flex: none; }
+
+.comment__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+}
+.comment__act::-webkit-details-marker { display: none; }
+.comment__act:hover { color: var(--text); text-decoration: none; }
+.comment__act.is-on { color: var(--brand); }
+.comment__act .act__emoji { font-size: 13px; line-height: 1; }
+
+/* The count on the comment itself, tucked against the bubble the way a chat
+   app hangs it there. The names behind it are one tap, or one hover, away. */
+.comment__tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 1px 6px 1px 3px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+  vertical-align: 1px;
+}
+.comment__tally:hover { color: var(--text); text-decoration: none; }
+.comment__tally .tally__pip { width: 15px; height: 15px; font-size: 9px; margin-right: -4px; }
+.comment__tally .tally__n { margin-left: 7px; }
+
+/* ---- Replies ------------------------------------------------------------
+   Stepped in once and no further — the model keeps threads one deep, so the
+   fourth indent never has to exist.
+   -------------------------------------------------------------------------- */
+.replies {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--line);
+}
+
+/* ---- Folds --------------------------------------------------------------
+   "View 3 previous comments". A <details>, so several threads can be open at
+   once and none of it needs script.
+   -------------------------------------------------------------------------- */
+.fold__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.fold__toggle::-webkit-details-marker { display: none; }
+.fold__toggle::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--line-strong);
+}
+.fold__toggle:hover { color: var(--text); }
+.fold__body {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  animation: mw-rise var(--dur-2) var(--ease-out) both;
+}
+/* One word swaps for the other, so the line always says what tapping does. */
+.fold__less, .fold[open] .fold__more { display: none; }
+.fold[open] .fold__less { display: inline; }
+
+/* The board's own fold carries whole notices rather than a line of chat, so
+   it reads as a control across the list instead of a note beside one. */
+.fold--notices { margin-top: var(--sp-2); }
+.fold--notices > .fold__toggle {
+  justify-content: center;
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+.fold--notices > .fold__toggle::before { display: none; }
+.fold--notices > .fold__toggle:hover { background: var(--surface-2); color: var(--text); }
+
+/* The picker on a comment is the same row of faces, sized for a smaller row. */
+.picker--sm { padding: 4px; }
+.picker--sm .picker__btn { width: 32px; height: 32px; font-size: 18px; }
+
+/* The thread under a notice: comments, then the box to add one. */
+.thread {
+  display: grid;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+}
+.comment__del {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.comment__del:hover { color: var(--danger); }
+
+.reply { display: flex; align-items: center; gap: var(--sp-2); }
+.reply__input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+.reply__input:focus { outline: none; border-color: var(--brand); background: var(--surface); }
+.reply__send {
+  flex: none;
+  width: 36px; height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease-snap), background var(--dur-1) var(--ease);
+}
+.reply__send:hover { background: var(--brand); color: var(--brand-ink); }
+.reply__send:active { transform: scale(.92); }
+.reply__send svg { width: 16px; height: 16px; }
+
+/* ---- The reply box ------------------------------------------------------
+   Folded away until its Reply is tapped. That's :target rather than script:
+   the link is an ordinary anchor, so it works with JavaScript off, and only
+   one box is ever open — which is what keeps a thread readable.
+   -------------------------------------------------------------------------- */
+.reply--sm { display: none; margin-top: var(--sp-2); }
+.reply--sm:target { display: flex; animation: mw-rise var(--dur-2) var(--ease-out) both; }
+.reply--sm .reply__input { height: 34px; font-size: 13px; }
+.reply--sm .reply__send { width: 34px; height: 34px; }
+.reply__cancel { flex: none; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.reply__cancel:hover { color: var(--danger); text-decoration: none; }
+
+
+/* The notice being returned to after a reaction or reply says so briefly. */
+.notice:target { animation: mw-flag 1.4s var(--ease) both; }
+@keyframes mw-flag {
+  0%, 60% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 55%, transparent), var(--shadow-1); }
+  100%    { box-shadow: var(--shadow-1); }
+}
+
+/* ---- Who reacted, and who wrote it -------------------------------------
+   Two pages behind the board: the list of names under a tally, and the
+   person behind a name. Both are read once and left, so they are plain
+   lists rather than anything that needs learning.
+   ------------------------------------------------------------------------ */
+.reactors { display: grid; gap: var(--sp-4); }
+.reactors__group { display: grid; gap: var(--sp-2); }
+.reactors__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.reactors__emoji { font-size: 20px; line-height: 1; }
+.reactors__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.reactors__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.reactors__person {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  flex: 1;
+  color: inherit;
+}
+.reactors__person:hover { text-decoration: none; }
+.reactors__person:hover .reactors__name { color: var(--brand); }
+.reactors__name { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.reactors__you {
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.reactors__mark { flex: none; font-size: 18px; }
+
+/* ---- A profile ---------------------------------------------------------- */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.avatar--lg { width: 58px; height: 58px; font-size: 24px; }
+.profile__id { min-width: 0; }
+.profile__name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+}
+.profile__you {
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.profile__since { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+
+/* The same tiles the apps use for their numbers — two by two on a phone,
+   and in one row once there is room for four. */
+.profile__stats { margin-bottom: var(--sp-5); }
+@media (min-width: 560px) { .profile__stats { grid-template-columns: repeat(4, 1fr); } }
+
+/* The comment being returned to after a reply says so, the same way a notice
+   does — otherwise a long thread comes back looking untouched. */
+.comment:target > .comment__col > .comment__body {
+  animation: mw-flag-soft 1.4s var(--ease) both;
+}
+@keyframes mw-flag-soft {
+  0%, 60% { background: var(--brand-soft); }
+  100%    { background: var(--surface-2); }
+}

@@ -21,8 +21,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # "3 minutes ago" on the notice board reads better than a timestamp.
+    'django.contrib.humanize',
     'plu',
     'timeclock',
+    'noticeboard',
 ]
 
 

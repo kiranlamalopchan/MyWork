@@ -37,15 +37,38 @@
 
 </div>
 
-{# The hub has no tab bar, so sign-out lives here — quiet, well below the choice. #}
-<form class="hub-signout" method="post" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button type="submit" class="btn btn--ghost btn--block">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/>
-    </svg>
-    Sign out
-  </button>
-</form>
+{% comment %}
+  The notice board. It sits under the app tiles rather than above them: the
+  reason you opened MyWork is one of the two apps, and the board is what you
+  read on the way past. Everyone sees every notice; the edit and remove
+  buttons only ever appear on your own.
+{% endcomment %}
+<section class="board" aria-labelledby="board-title">
+  <div class="board__head">
+    <h2 class="board__title" id="board-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 5h16v12H8l-4 4Z"/>
+      </svg>
+      Notice board
+    </h2>
+    <div class="board__tools">
+      {% if notice_total %}
+        <span class="board__count">{{ notice_total }} notice{{ notice_total|pluralize }}</span>
+      {% endif %}
+      {% include "noticeboard/_post_button.html" %}
+    </div>
+  </div>
+
+  {% include "noticeboard/_board.html" %}
+
+  {% if notice_total > notices|length %}
+    <a class="board__more" href="{% url 'notices:board' %}">
+      See all {{ notice_total }} notices
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    </a>
+  {% endif %}
+</section>
 
 {% endblock %}
