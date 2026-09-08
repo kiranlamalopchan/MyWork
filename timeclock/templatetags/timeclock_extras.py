@@ -2,7 +2,22 @@ from datetime import timedelta
 
 from django import template
 
+from ..models import color_css
+
 register = template.Library()
+
+
+@register.filter
+def wp_color(workplace):
+    """
+    The CSS colour a workplace is drawn in, grey when a shift has none.
+
+    A filter rather than an hsl() written into each template: the saturation
+    and lightness that make eight hues tell each other apart were chosen once,
+    and a template that spells them out again is one that will be missed when
+    they change.
+    """
+    return color_css(workplace.color if workplace else None)
 
 
 def _parts(value):

@@ -48,7 +48,7 @@ class WorkplaceForm(forms.ModelForm):
     class Meta:
         model = Workplace
         fields = [
-            "name", "address", "hourly_rate", "tax_rate",
+            "name", "address", "color", "hourly_rate", "tax_rate",
             "hours_limit", "limit_period",
             "week_starts_on", "fortnight_anchor", "month_starts_on",
             "is_default",
@@ -56,6 +56,7 @@ class WorkplaceForm(forms.ModelForm):
         labels = {
             "name": "Workplace name",
             "address": "Address (optional)",
+            "color": "Colour",
             "hourly_rate": "Hourly rate (optional)",
             "tax_rate": "Tax withheld % (optional)",
             "hours_limit": "Hours limit here (optional)",
@@ -67,6 +68,10 @@ class WorkplaceForm(forms.ModelForm):
         }
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Courtlands Aged Care", "autofocus": True}),
+            # Swatches rather than a dropdown of colour names: the choice is
+            # which colour, and a list reading "Blue, Green, Orange" makes you
+            # picture the thing you could simply have been shown.
+            "color": forms.RadioSelect,
             "address": forms.TextInput(attrs={"placeholder": "Street, suburb"}),
             "hourly_rate": forms.NumberInput(attrs={"step": "0.01", "min": "0", "inputmode": "decimal"}),
             "tax_rate": forms.NumberInput(
@@ -82,6 +87,7 @@ class WorkplaceForm(forms.ModelForm):
             ),
         }
         help_texts = {
+            "color": "How this job is marked on the calendar and beside its shifts.",
             "tax_rate": "From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax.",
             "hours_limit": "Counted against this workplace only. Leave blank for no limit.",
             "week_starts_on": "Used for a weekly limit, and for this job's week totals.",
@@ -92,7 +98,17 @@ class WorkplaceForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        # A colour is never something you have to choose: one is always
+        # already selected, and anything posting this form without one — a
+        # script, an older client — gets the next free colour rather than an
+        # error about a field it never saw.
+        self.fields["color"].required = False
         _say_which_days(self)
+
+    def clean_color(self):
+        """Blank keeps what this workplace already has; a new one is dealt a
+        free colour by `Workplace.save`."""
+        return self.cleaned_data.get("color") or self.instance.color
 
     def clean_hours_limit(self):
         hours = self.cleaned_data.get("hours_limit")

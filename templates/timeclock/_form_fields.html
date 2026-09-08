@@ -4,18 +4,40 @@
   difference worth special-casing.
 {% endcomment %}
 {% for field in form %}
-  {% if field.field.widget.input_type == 'checkbox' %}
+  {% if field.name == 'color' %}
+    {% comment %}
+      The one field you pick by looking rather than by reading: a row of the
+      colours themselves, the chosen one ringed. The radios are real and
+      still there — hidden under each swatch — so it works by keyboard and
+      without JavaScript exactly as a radio group should.
+    {% endcomment %}
+    <div class="field">
+      <span class="label">{{ field.label }}</span>
+      <div class="swatch-pick">
+        {% for choice in field %}
+          <label class="swatch-pick__opt" title="{{ choice.choice_label }}">
+            {{ choice.tag }}
+            <span class="swatch swatch--lg" style="--wp-css: hsl({{ choice.data.value }} 62% 50%)" aria-hidden="true"></span>
+          </label>
+        {% endfor %}
+      </div>
+      {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+      {% if field.errors %}<div class="help help--error">{{ field.errors|striptags }}</div>{% endif %}
+    </div>
+  {% elif field.field.widget.input_type == 'checkbox' %}
     <label class="checkline">
       {{ field }}
       <span>{{ field.label }}</span>
     </label>
     {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
   {% else %}
-    <div class="field">
+    <div class="field{% if field.errors %} field--invalid{% endif %}">
       <label class="label" for="{{ field.id_for_label }}">{{ field.label }}</label>
       {{ field }}
       {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
-      {% if field.errors %}<div class="help help--error">{{ field.errors|striptags }}</div>{% endif %}
+      {# Always present, so a message appearing doesn't shove the form down. #}
+      <div class="help help--error" data-error
+           {% if not field.errors %}hidden{% endif %}>{{ field.errors|striptags }}</div>
     </div>
   {% endif %}
 {% endfor %}

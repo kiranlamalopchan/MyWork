@@ -3,15 +3,14 @@
 
 {% block content %}
 
-<div class="page-head">
-  <h1 class="page-title">MyWork</h1>
-  <p class="page-sub">Signed in as {{ request.user.username }}</p>
-</div>
-
 {% comment %}
   The hub. Two apps, two tiles, side by side even on the narrowest phone —
   the choice is the whole page, so nothing else competes for the tap. Picking
   one hands navigation over to that app and its own tab bar takes over.
+
+  No heading above them: the app bar already says MyWork, and who is signed in
+  is the face in the corner of it. Repeating both here spent the top third of
+  the hub on two things you could already see.
 {% endcomment %}
 <div class="app-grid">
 

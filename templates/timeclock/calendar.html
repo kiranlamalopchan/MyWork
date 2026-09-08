@@ -6,7 +6,6 @@
 
 <div class="page-head">
   <h1 class="page-title">Calendar</h1>
-  <p class="page-sub">Hours worked on each day. Tap a date to see the shifts behind it.</p>
 </div>
 
 {# List / calendar toggle, so both views of the same data are one tap apart. #}
@@ -42,13 +41,25 @@
     {% for week in weeks %}
       {% for cell in week %}
         {% if cell.total %}
+          {% comment %}
+            The line under the date is the day's work divided between the jobs
+            that did it: one colour end to end for a day at one workplace, and
+            for a day at two, each holding the share of the line it was worked
+            for. Busiest first, so a glance down the month compares the jobs
+            without reading a single figure.
+          {% endcomment %}
           <a class="cal__day has-hours{% if not cell.in_month %} is-dim{% endif %}{% if cell.is_today %} is-today{% endif %}{% if selected and cell.date == selected %} is-picked{% endif %}"
              href="?year={{ month_date.year }}&amp;month={{ month_date.month }}&amp;day={{ cell.date|date:'Y-m-d' }}"
-             aria-label="{{ cell.date|date:'j F' }}, {{ cell.total|hm }} worked">
+             style="--wp-lead: {{ cell.lead }}"
+             aria-label="{{ cell.date|date:'j F' }}, {{ cell.total|hm }} worked{% if cell.places %} at {{ cell.places|join:", " }}{% endif %}">
             <span class="cal__num">{{ cell.date.day }}</span>
             <span class="cal__hrs">{{ cell.total|hm }}</span>
-            {# Bar height is relative to the busiest day, so the month reads at a glance. #}
-            <span class="cal__bar-fill" style="--h: {{ cell.height }}%" aria-hidden="true"></span>
+            <span class="cal__track" aria-hidden="true">
+              {% for seg in cell.track %}
+                <span class="cal__seg"
+                      style="--wp-css: {{ seg.css }}; left: {{ seg.left }}%; width: {{ seg.width }}%"></span>
+              {% endfor %}
+            </span>
           </a>
         {% else %}
           <span class="cal__day{% if not cell.in_month %} is-dim{% endif %}{% if cell.is_today %} is-today{% endif %}">
@@ -58,6 +69,19 @@
       {% endfor %}
     {% endfor %}
   </div>
+
+  {% if legend %}
+    {# What each colour means, for the jobs actually worked this month. #}
+    <div class="cal__key">
+      {% for place in legend %}
+        <span class="cal__key-item">
+          <span class="swatch" style="--wp-css: {{ place.css }}" aria-hidden="true"></span>
+          <span class="cal__key-name">{{ place.name }}</span>
+          <span class="cal__key-hrs">{{ place.worked|hm }}</span>
+        </span>
+      {% endfor %}
+    </div>
+  {% endif %}
 </div>
 
 {% if selected %}
@@ -70,13 +94,29 @@
     </div>
     <div class="card__pad">
       {% if selected_shifts %}
-        <ul class="break-list">
+        {# Earliest first, and numbered when there was more than one. #}
+        <ul class="break-list{% if selected_shifts|length > 1 %} shift-run{% endif %}">
           {% for shift in selected_shifts %}
+            {% if shift.gap_before %}
+              <li class="shift-gap">
+                <span class="shift-gap__rule" aria-hidden="true"></span>
+                <span class="shift-gap__text">{{ shift.gap_before|hm }} off</span>
+                <span class="shift-gap__rule" aria-hidden="true"></span>
+              </li>
+            {% endif %}
             <li>
               <a class="day-shift" href="{% url 'timeclock:shift_detail' shift.pk %}">
                 <span class="shift__bar shift__bar--{{ shift.status|lower }}" aria-hidden="true"></span>
+                {% if selected_shifts|length > 1 %}
+                  <span class="shift__seq" style="--wp-css: {{ shift.workplace|wp_color }}"
+                        aria-label="Shift {{ shift.seq }} of {{ selected_shifts|length }}">{{ shift.seq }}</span>
+                {% endif %}
                 <span class="day-shift__body">
-                  <span class="day-shift__where">{{ shift.workplace.name|default:"No workplace" }}</span>
+                  <span class="day-shift__where">
+                    {# The same colour the date above was filled with. #}
+                    <span class="swatch swatch--sm" style="--wp-css: {{ shift.workplace|wp_color }}" aria-hidden="true"></span>
+                    <span class="shift__name">{{ shift.workplace.name|default:"No workplace" }}</span>
+                  </span>
                   <span class="shift__times">
                     <span>{{ shift.clock_in|time:"g:i A" }}</span>
                     <span class="shift__arrow" aria-hidden="true">→</span>

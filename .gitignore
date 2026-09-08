@@ -11,4 +11,8 @@ db.sqlite3-journal
 db.sqlite3-wal
 db.sqlite3-shm
 
+# Profile photos people upload. They belong with the database they are keyed
+# to, not with the code — and they are somebody's face, not a project asset.
+media/
+
 .DS_Store

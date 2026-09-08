@@ -16,6 +16,12 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import models
 
+# The letter and colour somebody wears on the board are the same ones they
+# wear in the app bar and on their profile, so they are defined once, with the
+# person. Re-exported here because the board has always imported them from
+# here, and `Social` below still reads them.
+from accounts.avatars import hue_for, initial_for  # noqa: F401
+
 # Long enough for a shift swap, a reminder or a phone number; short enough
 # that the board stays a board rather than a forum.
 MAX_BODY = 600
@@ -49,19 +55,6 @@ class Emoji(models.TextChoices):
     ANGRY = "\U0001F621", "Angry"
 
 
-def initial_for(name):
-    """The letter on somebody's avatar."""
-    return (name or "?")[:1].upper()
-
-
-def hue_for(name):
-    """
-    A stable colour for somebody's avatar, 0-359.
-
-    Derived from the name itself rather than stored, so the same person is the
-    same colour on every device and nothing has to be assigned.
-    """
-    return sum(ord(c) * (i + 1) for i, c in enumerate(name or "")) % 360
 
 
 class Social:
@@ -178,8 +171,11 @@ class Notice(Social, models.Model):
         counting them. Fetching any of it per row would turn one page into
         dozens of queries.
         """
-        return cls.objects.select_related("author").prefetch_related(
-            "reactions__user", "comments__author", "comments__reactions__user"
+        return cls.objects.select_related("author", "author__profile").prefetch_related(
+            "reactions__user",
+            "comments__author",
+            "comments__author__profile",
+            "comments__reactions__user",
         )
 
     @classmethod

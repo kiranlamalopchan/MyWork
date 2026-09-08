@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import CommentForm, NoticeForm
 from .models import (
-    Comment, CommentReaction, Emoji, Notice, Reaction, hue_for, initial_for,
+    Comment, CommentReaction, Emoji, Notice, Reaction,
 )
 
 # How many notices the hub shows before pointing at the full board. The board
@@ -290,7 +290,9 @@ def comment_delete(request, pk):
 def notice_reactors(request, pk):
     """Who reacted to a notice, and with what."""
     notice = get_object_or_404(
-        Notice.objects.select_related("author").prefetch_related("reactions__user"), pk=pk
+        Notice.objects.select_related("author", "author__profile")
+        .prefetch_related("reactions__user__profile"),
+        pk=pk,
     )
     return _reactors_page(request, notice, notice.body)
 
@@ -299,7 +301,8 @@ def notice_reactors(request, pk):
 def comment_reactors(request, pk):
     """The same list, for a comment."""
     comment = get_object_or_404(
-        Comment.objects.select_related("author", "notice").prefetch_related("reactions__user"),
+        Comment.objects.select_related("author", "author__profile", "notice")
+        .prefetch_related("reactions__user__profile"),
         pk=pk,
     )
     return _reactors_page(request, comment, comment.body)
@@ -309,18 +312,17 @@ def _reactors_page(request, item, quoted):
     """
     The list behind a tally, for a notice or a comment alike.
 
-    The avatar each name wears is worked out here rather than in the template,
-    the same way the board's own rows are prepared in `decorate` — a template
-    that has to compute is a template that will disagree with another one.
+    Each row carries the user themselves, not a copy of their name and
+    colour: the face is drawn by the same `{% avatar %}` tag the board uses,
+    so somebody who has set a photo is shown wearing it here too.
     """
     groups = [
         {
             "emoji": emoji,
             "people": [
                 {
+                    "user": user,
                     "username": user.get_username(),
-                    "initial": initial_for(user.get_username()),
-                    "hue": hue_for(user.get_username()),
                     "is_me": user.pk == request.user.pk,
                 }
                 for user in users
@@ -373,6 +375,4 @@ def person(request, username):
             Reaction.objects.filter(user=profile).count()
             + CommentReaction.objects.filter(user=profile).count()
         ),
-        initial=initial_for(profile.get_username()),
-        hue=hue_for(profile.get_username()),
     ))

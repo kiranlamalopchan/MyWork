@@ -144,6 +144,42 @@ def fortnight_runs(anchor):
 _monday_of_this_week = _current_week_start
 
 
+# The colours a workplace can wear, as hues on the wheel.
+#
+# A hue rather than a hex pair because every surface that draws one needs it at
+# a different weight — a solid 40px badge, a pale wash behind a calendar date,
+# a 3px bar down the side of a row — and one hue can be lightened, softened and
+# saturated to suit each of them from CSS, where a fixed hex cannot. It is also
+# how somebody's avatar colour already works, so the two agree.
+#
+# Eight, spaced far enough apart to stay apart in the smallest thing that shows
+# one: a third of a calendar cell, next to another colour, at a glance.
+WORKPLACE_COLORS = [
+    (212, "Blue"),
+    (150, "Green"),
+    (32, "Orange"),
+    (272, "Violet"),
+    (330, "Pink"),
+    (188, "Teal"),
+    (56, "Amber"),
+    (108, "Lime"),
+]
+
+# How a hue is mixed. Everything that draws a workplace colour starts from
+# these and fades or lightens from there, so one job is recognisably one colour
+# whether it is a 40px badge or a wash behind a date.
+COLOR_S, COLOR_L = "62%", "50%"
+
+# What a shift with no workplace is drawn in: grey, and deliberately not one of
+# the eight, so "somewhere" and "nowhere in particular" never look alike.
+NO_COLOR_CSS = "hsl(220 8% 58%)"
+
+
+def color_css(hue):
+    """One workplace hue as a CSS colour, or grey for no workplace at all."""
+    return NO_COLOR_CSS if hue is None else f"hsl({hue} {COLOR_S} {COLOR_L})"
+
+
 class Workplace(models.Model):
     # Each workplace carries its own cap. Two jobs are two separate agreements
     # — a 30-hour visa cap at one and a 20-hour roster limit at the other are
@@ -155,6 +191,15 @@ class Workplace(models.Model):
     )
     name = models.CharField(max_length=120)
     address = models.CharField(max_length=255, blank=True)
+    # How this job is coloured everywhere it appears — the badge in the list,
+    # the wash behind a calendar date, the bar beside a shift. Assigned on
+    # first save from whatever the user isn't already using, so two jobs never
+    # arrive the same colour and nobody has to choose one to get started.
+    color = models.PositiveSmallIntegerField(
+        choices=WORKPLACE_COLORS,
+        default=WORKPLACE_COLORS[0][0],
+        verbose_name="Colour",
+    )
     hourly_rate = models.DecimalField(
         max_digits=7, decimal_places=2, null=True, blank=True,
         help_text="Optional. Used to estimate pay alongside your hours.",
@@ -211,6 +256,43 @@ class Workplace(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def css_color(self):
+        """This workplace's colour, ready to drop into a style attribute."""
+        return color_css(self.color)
+
+    def save(self, *args, **kwargs):
+        """Give a brand-new workplace a colour nothing else here is wearing."""
+        if self._state.adding:
+            self.color = self.color_or_next()
+        super().save(*args, **kwargs)
+
+    def color_or_next(self):
+        """
+        The colour a workplace should open with.
+
+        The one it was given, unless another of this user's jobs is already
+        wearing it; then the first free colour in the palette, and once all
+        eight are in use the one this user has fewest of — a ninth job has to
+        share with something, and the least-used colour is the least confusing
+        thing to share with.
+
+        Only ever on the way in. A new workplace can't say whether blue was
+        chosen or simply left alone, so it takes the free colour; editing one
+        afterwards sets exactly what you pick, duplicate or not.
+        """
+        taken = list(
+            Workplace.objects.filter(user=self.user, is_archived=False)
+            .exclude(pk=self.pk)
+            .values_list("color", flat=True)
+        )
+        if self.color is not None and self.color not in taken:
+            return self.color
+        for hue, _ in WORKPLACE_COLORS:
+            if hue not in taken:
+                return hue
+        return min((hue for hue, _ in WORKPLACE_COLORS), key=taken.count)
 
     # ---- hours cap -----------------------------------------------------
 

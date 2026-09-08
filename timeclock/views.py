@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import BreakFormSet, ShiftForm, TimePreferenceForm, WorkplaceForm
 from .models import (
+    color_css,
     Pay,
     Shift,
     TimePreference,
@@ -119,6 +120,36 @@ def _total_worked(shifts):
     return sum((s.worked_duration for s in shifts), timedelta())
 
 
+def _in_order(day_shifts):
+    """
+    One day's shifts in the order they were actually worked.
+
+    The timesheet reads newest day first, and inside a day that ordering is
+    wrong: a day is a sequence — you clocked in, you finished, you started
+    again — and reading it bottom-up makes you reconstruct the day backwards.
+    So the days stay newest first and their shifts run earliest first.
+
+    Each one is told where it sits in the day and how long since the one
+    before it ended, which is what lets a day worth several shifts be drawn as
+    a run rather than as three identical rows that happen to be adjacent.
+    """
+    ordered = sorted(day_shifts, key=lambda shift: shift.clock_in)
+
+    previous_end = None
+    for position, shift in enumerate(ordered, start=1):
+        shift.seq = position
+        # No gap before the first, and none after one still running — there is
+        # no end to measure from until it has one.
+        shift.gap_before = (
+            shift.clock_in - previous_end
+            if previous_end and shift.clock_in > previous_end
+            else None
+        )
+        previous_end = shift.clock_out
+
+    return ordered
+
+
 def _period_figures(user, start_date, end_date_exclusive, workplace=None):
     """
     Worked time and what it earned, for shifts starting inside the range.
@@ -163,6 +194,19 @@ def _period_figures(user, start_date, end_date_exclusive, workplace=None):
 def _period_total(user, start_date, end_date_exclusive, workplace=None):
     """Net worked time for shifts starting inside the given date range."""
     return _period_figures(user, start_date, end_date_exclusive, workplace)[0]
+
+
+def hours_this_week(user):
+    """
+    Net worked time so far this week, over the account's own week start.
+
+    Public because the profile page shows it too: one reading of "this week"
+    for the whole of MyWork, rather than a second sum that rounds or starts
+    the week differently from the timesheet it is meant to agree with.
+    """
+    pref = TimePreference.for_user(user)
+    start = week_start(timezone.localdate(), pref.week_starts_on)
+    return _period_total(user, start, start + timedelta(days=7))
 
 
 def _limit_for(user, workplace, today=None):
@@ -443,6 +487,12 @@ def timesheet(request):
         days[-1]["shifts"].append(shift)
         days[-1]["total"] += shift.worked_duration
 
+    # The page arrives newest first, which is right for the days and wrong
+    # inside them: a day reads forwards.
+    for day in days:
+        day["shifts"] = _in_order(day["shifts"])
+        day["is_run"] = len(day["shifts"]) > 1
+
     return render(request, "timeclock/timesheet.html", {
         "page_obj": page_obj,
         "days": days,
@@ -450,6 +500,92 @@ def timesheet(request):
         "workplace": workplace,
         "summary": _summary(request.user, workplace),
     })
+
+
+# A workplace that took a sliver of the day still has to be visible on a line
+# a few dozen pixels wide. Anything under this is widened to it, and the space
+# is taken back off the longer jobs so the line still adds up to the day.
+MIN_SHARE_PCT = 6.0
+
+
+def _share_out(shares):
+    """
+    Percentages that add to 100 with nothing too thin to see.
+
+    Widening a sliver has to come out of somewhere, or the line stops being
+    the day. It comes off whatever is above the floor, in proportion, so the
+    jobs that lose width are the ones that can afford to.
+    """
+    if len(shares) < 2:
+        return [100.0] * len(shares)
+
+    lifted = [max(share, MIN_SHARE_PCT) for share in shares]
+    owed = sum(lifted) - 100.0
+    if owed <= 0:
+        return lifted
+
+    spare = sum(share - MIN_SHARE_PCT for share in lifted if share > MIN_SHARE_PCT)
+    if spare <= 0:
+        # Every job is at the floor already: split the line evenly and admit
+        # that at this width the difference between them can't be drawn.
+        return [100.0 / len(lifted)] * len(lifted)
+
+    return [
+        share - (share - MIN_SHARE_PCT) / spare * owed if share > MIN_SHARE_PCT else share
+        for share in lifted
+    ]
+
+
+def _day_shape(day_shifts):
+    """
+    How one day divides between the jobs worked on it, as a single line.
+
+    The line is the day's work, end to end, and each workplace holds the share
+    of it that it was worked for: six hours at one job and two at another is
+    three quarters of the line against one quarter, which is the comparison
+    you actually want to make when you glance at a month. Busiest first, so
+    the line reads as a ranking as well as a split.
+
+    Returns {"track", "lead", "legend"} — the segments, the colour of whichever
+    job took most of the day, and what worked where, busiest first.
+    """
+    worked = {}
+    names = {}
+    for shift in day_shifts:
+        hue = shift.workplace.color if shift.workplace else None
+        names[hue] = shift.workplace.name if shift.workplace else "No workplace"
+        worked[hue] = worked.get(hue, 0) + shift.worked_duration.total_seconds()
+
+    if not worked:
+        return {"track": [], "lead": None, "legend": []}
+
+    order = sorted(worked.items(), key=lambda pair: (-pair[1], str(pair[0])))
+    total = sum(seconds for _, seconds in order)
+    if total > 0:
+        shares = _share_out([seconds / total * 100 for _, seconds in order])
+    else:
+        # Every shift on the day is still zero-length (clocked in a moment
+        # ago). Show the jobs evenly rather than dividing by nothing.
+        shares = [100.0 / len(order)] * len(order)
+
+    track = []
+    at = 0.0
+    for i, ((hue, _), share) in enumerate(zip(order, shares)):
+        # The last segment is pinned to the end so rounding can't leave a
+        # hairline of empty line showing past the final colour.
+        width = 100.0 - at if i == len(order) - 1 else share
+        track.append({
+            "css": color_css(hue),
+            "left": f"{at:.4g}",
+            "width": f"{width:.4g}",
+        })
+        at += width
+
+    return {
+        "track": track,
+        "lead": color_css(order[0][0]),
+        "legend": [(names[hue], hue, seconds) for hue, seconds in order],
+    }
 
 
 @login_required
@@ -480,12 +616,20 @@ def calendar_month(request):
     )
 
     totals = {}
+    by_day = {}
     for shift in shifts:
         day = timezone.localtime(shift.clock_in).date()
         totals[day] = totals.get(day, timedelta()) + shift.worked_duration
+        by_day.setdefault(day, []).append(shift)
 
-    # The busiest day sets the scale for the little bar under each date.
-    busiest = max(totals.values(), default=timedelta())
+    # How each day divides between its jobs, and what worked where this month.
+    shapes = {day: _day_shape(day_shifts) for day, day_shifts in by_day.items()}
+
+    month_by_place = {}
+    for shape in shapes.values():
+        for name, hue, seconds in shape["legend"]:
+            entry = month_by_place.setdefault(name, {"name": name, "hue": hue, "seconds": 0})
+            entry["seconds"] += seconds
 
     # The grid starts on whichever day the user's week starts on, so the
     # columns line up with the week the totals are counted over.
@@ -498,9 +642,13 @@ def calendar_month(request):
                 "in_month": day.month == month,
                 "is_today": day == today,
                 "total": totals.get(day),
-                "height": (
-                    round(totals[day] / busiest * 100) if day in totals and busiest else 0
-                ),
+                # Where in the day each shift sat, on a midnight-to-midnight
+                # line, and the colour of whichever job took most of it.
+                "track": shapes[day]["track"] if day in shapes else [],
+                "lead": shapes[day]["lead"] if day in shapes else None,
+                "places": [
+                    name for name, _, _ in (shapes[day]["legend"] if day in shapes else [])
+                ],
             }
             for day in week
         ])
@@ -513,9 +661,9 @@ def calendar_month(request):
         except ValueError:
             selected = None
     if selected:
-        selected_shifts = [
-            s for s in shifts if timezone.localtime(s.clock_in).date() == selected
-        ]
+        selected_shifts = _in_order(
+            [s for s in shifts if timezone.localtime(s.clock_in).date() == selected]
+        )
 
     return render(request, "timeclock/calendar.html", {
         "weeks": weeks,
@@ -528,6 +676,16 @@ def calendar_month(request):
             for i in range(7)
         ],
         "month_date": first,
+        # The key under the grid: without it the colours are decoration.
+        # Only the jobs actually worked this month, busiest first.
+        "legend": sorted(
+            (
+                {**entry, "css": color_css(entry["hue"]),
+                 "worked": timedelta(seconds=entry["seconds"])}
+                for entry in month_by_place.values()
+            ),
+            key=lambda entry: -entry["seconds"],
+        ),
         "month_total": sum(totals.values(), timedelta()),
         "worked_days": len(totals),
         "prev_month": first - timedelta(days=1),

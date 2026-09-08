@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load avatars %}
+{% block title %}Profile · MyWork{% endblock %}
+
+{% comment %}
+  Your profile, to look at.
+
+  Three things, in the order you want them: who you are, what MyWork knows
+  about you, and what you've done in it. Nothing on this page is a form —
+  changing your details is a screen you go to on purpose, behind the small
+  Edit beside your name, so what you read here is what is actually saved.
+
+  The picture is the exception, because a decision about a picture belongs to
+  the picture: tapping your face offers the only two there are.
+{% endcomment %}
+
+{% block content %}
+
+{% comment %}
+  Removing is a POST of its own and cannot nest inside the picker form, so it
+  sits here empty and the menu item submits it by name.
+
+  Note for anyone editing this file: Django's {# ... #} is a single-line
+  comment. Spanning it over two lines does not comment anything out — it
+  prints the words onto the page, which is exactly what happened here.
+{% endcomment %}
+<form id="photo-remove" method="post" action="{% url 'accounts:photo_remove' %}" hidden
+      onsubmit="return confirm('Remove your photo? Your initial goes back in its place.');">
+  {% csrf_token %}
+</form>
+
+{# ---- Who you are ------------------------------------------------------ #}
+<div class="card card__pad profile-id">
+  <a class="profile-id__edit" href="{% url 'accounts:edit' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+    </svg>
+    Edit
+  </a>
+
+  <form class="photo-form" method="post" enctype="multipart/form-data"
+        action="{% url 'accounts:photo' %}" id="photo-form">
+    {% csrf_token %}
+    <details class="photo-menu" id="photo-menu" data-dismiss>
+      <summary class="photo-menu__btn" aria-haspopup="menu"
+               aria-label="{% if me.photo_url %}Change or remove your photo{% else %}Add a photo{% endif %}">
+        {% avatar request.user size="xl" label="Your photo" %}
+        <span class="photo-menu__badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a2 2 0 0 0 1.7-.9l.6-1a2 2 0 0 1 1.7-.9h2.6a2 2 0 0 1 1.7.9l.6 1a2 2 0 0 0 1.7.9h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5Z"/>
+            <circle cx="12" cy="12.5" r="3.2"/>
+          </svg>
+        </span>
+      </summary>
+
+      <div class="photo-menu__panel" role="menu">
+        {% comment %}
+          The file input lies invisible across this row, so the row is the
+          picker: it opens the camera roll with no JavaScript in the way and
+          still takes focus from a keyboard. With JavaScript the pick uploads
+          itself; without it, the button below is how it's sent.
+        {% endcomment %}
+        <label class="photo-menu__item" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 16V4"/><path d="m8 8 4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+          {% if me.photo_url %}Change photo{% else %}Add a photo{% endif %}
+          {{ photo_form.photo }}
+        </label>
+
+        <noscript>
+          <button type="submit" class="photo-menu__item">Upload the picked photo</button>
+        </noscript>
+
+        {% if me.photo_url %}
+          <button type="submit" form="photo-remove" role="menuitem"
+                  class="photo-menu__item photo-menu__item--danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>
+            </svg>
+            Remove photo
+          </button>
+        {% endif %}
+      </div>
+    </details>
+  </form>
+
+  <h1 class="profile-id__name">{{ me.name }}</h1>
+  <p class="profile-id__meta">
+    {{ request.user.username }} · since {{ request.user.date_joined|date:"M Y" }}
+  </p>
+  <p class="profile-id__note" id="photo-hint" hidden></p>
+</div>
+
+{# ---- What MyWork knows about you -------------------------------------- #}
+<div class="card facts">
+  <div class="facts__row">
+    <span class="facts__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>
+      </svg>
+    </span>
+    <span class="facts__label">Name</span>
+    <span class="facts__value">{{ me.display_name|default:"—" }}</span>
+  </div>
+
+  <div class="facts__row">
+    <span class="facts__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>
+      </svg>
+    </span>
+    <span class="facts__label">Email</span>
+    <span class="facts__value">{{ request.user.email|default:"—" }}</span>
+  </div>
+
+  <div class="facts__row">
+    <span class="facts__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 3 6.2 2 2 0 0 1 5 4Z"/>
+      </svg>
+    </span>
+    <span class="facts__label">Phone</span>
+    <span class="facts__value">
+      {% if me.phone %}<a href="tel:{{ me.phone|cut:' ' }}">{{ me.phone }}</a>{% else %}—{% endif %}
+    </span>
+  </div>
+
+  <div class="facts__row">
+    <span class="facts__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/>
+      </svg>
+    </span>
+    <span class="facts__label">Address</span>
+    <span class="facts__value">{{ me.address|default:"—" }}</span>
+  </div>
+
+  {% if not me.has_details %}
+    {# Empty dashes explain nothing on their own. #}
+    <a class="facts__prompt" href="{% url 'accounts:edit' %}">
+      Add your contact details
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+    </a>
+  {% endif %}
+</div>
+
+{% comment %}
+  ---- What you've done in it ------------------------------------------------
+
+  One figure leads and the rest support it. The week's hours are the number
+  anybody opens this for, so it is the size of a number you actually read;
+  everything else is a count, and counts belong in a grid where they can be
+  compared rather than in six rows of equal weight where they can't.
+{% endcomment %}
+<details class="panel">
+  <summary class="panel__head">
+    <span class="panel__title">Activity</span>
+    <span class="panel__hint">{{ week_hours|floatformat:1 }}h this week</span>
+    <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
+  </summary>
+
+  <div class="panel__body">
+    <div class="lead-stat">
+      <div class="lead-stat__value">
+        {{ week_hours|floatformat:1 }}<span class="lead-stat__unit">h</span>
+      </div>
+      <div class="lead-stat__label">worked this week</div>
+    </div>
+
+    <div class="tallies">
+      <div class="tally">
+        <div class="tally__value">{{ shift_count }}</div>
+        <div class="tally__label">shift{{ shift_count|pluralize }}</div>
+      </div>
+      <div class="tally">
+        <div class="tally__value">{{ workplace_count }}</div>
+        <div class="tally__label">workplace{{ workplace_count|pluralize }}</div>
+      </div>
+      <div class="tally">
+        <div class="tally__value">{{ notice_count }}</div>
+        <div class="tally__label">notice{{ notice_count|pluralize }}</div>
+      </div>
+      <div class="tally">
+        <div class="tally__value">{{ comment_count }}</div>
+        <div class="tally__label">comment{{ comment_count|pluralize }}</div>
+      </div>
+      <div class="tally">
+        <div class="tally__value">{{ reactions_received }}</div>
+        <div class="tally__label">reaction{{ reactions_received|pluralize }}</div>
+      </div>
+    </div>
+  </div>
+</details>
+
+{% endblock %}

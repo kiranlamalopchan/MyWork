@@ -104,6 +104,51 @@
     }
   }
 
+  /* ----------------------------------------------------------------------
+     Skeletons
+     Shapes standing in for something being waited for. Built here rather
+     than written into each template because the two places that wait — a
+     search in flight and a page that hasn't arrived — want the same shapes,
+     and a placeholder that drifts from the thing it replaces is worse than
+     no placeholder at all.
+     ---------------------------------------------------------------------- */
+  function skeletonRows(count, lead) {
+    var html = '<ul class="skeleton-list">';
+    // Widths step down the stack so it reads as writing, not as grey bars.
+    var widths = ["skeleton--w85", "skeleton--w70", "skeleton--w55", "skeleton--w40"];
+    for (var i = 0; i < count; i++) {
+      html +=
+        '<li><div class="skeleton-row">' +
+        '<span class="skeleton ' + (lead || "skeleton--badge") + '"></span>' +
+        '<span class="skeleton-row__body">' +
+        '<span class="skeleton skeleton--line ' + widths[i % widths.length] + '"></span>' +
+        '<span class="skeleton skeleton--line skeleton--w40"></span>' +
+        "</span></div></li>";
+    }
+    return html + "</ul>";
+  }
+
+  function skeletonPage() {
+    return (
+      '<div class="skeleton-page">' +
+      '<div class="skeleton-page__head">' +
+      '<span class="skeleton skeleton--title skeleton--w55"></span>' +
+      '<span class="skeleton skeleton--line skeleton--w70"></span>' +
+      "</div>" +
+      '<div class="skeleton-tiles">' +
+      '<span class="skeleton skeleton--tile"></span>' +
+      '<span class="skeleton skeleton--tile"></span>' +
+      "</div>" +
+      '<div class="skeleton-card">' +
+      '<span class="skeleton skeleton--line skeleton--w40"></span>' +
+      '<span class="skeleton skeleton--line skeleton--w85"></span>' +
+      '<span class="skeleton skeleton--line skeleton--w70"></span>' +
+      "</div>" +
+      skeletonRows(3, "skeleton--circle") +
+      "</div>"
+    );
+  }
+
   function initLiveSearch() {
     var input = document.getElementById("plu-search-input");
     var resultsEl = document.getElementById("plu-results");
@@ -216,6 +261,14 @@
       if (bar) bar.classList.add("is-busy");
       setMeta('Searching<span class="dot-flash">.</span>' +
               '<span class="dot-flash">.</span><span class="dot-flash">.</span>');
+
+      // Rows in the shape of the results that are coming, so the list doesn't
+      // sit empty and then jump. Only when there is nothing useful there yet:
+      // a refined search keeps its previous results visible, because they are
+      // still nearly the answer and blanking them loses more than it gains.
+      if (!lastRendered) {
+        resultsEl.innerHTML = skeletonRows(5);
+      }
 
       fetch(endpoint + "?q=" + encodeURIComponent(query), {
         signal: controller.signal,
@@ -773,26 +826,36 @@
      expected to do — close when you click away, when you press Escape, or
      once you've picked something.
      ---------------------------------------------------------------------- */
+  /* Any <details> marked data-dismiss behaves like a menu: a click outside or
+     an Escape shuts it. Written once because there are two of them now — the
+     app switcher in the bar, and the one on your own photo — and a second
+     copy is a second thing to forget when a third arrives. */
   function initAppMenu() {
-    var menu = document.getElementById("app-switcher");
-    if (!menu) return;
+    var menus = document.querySelectorAll("details[data-dismiss]");
+    if (!menus.length) return;
 
     document.addEventListener("click", function (event) {
-      if (!menu.open) return;
-      if (menu.contains(event.target)) return;
-      menu.open = false;
+      menus.forEach(function (menu) {
+        if (!menu.open || menu.contains(event.target)) return;
+        menu.open = false;
+      });
     });
 
     document.addEventListener("keydown", function (event) {
-      if (event.key !== "Escape" || !menu.open) return;
-      menu.open = false;
-      var btn = menu.querySelector("summary");
-      if (btn) btn.focus();
+      if (event.key !== "Escape") return;
+      menus.forEach(function (menu) {
+        if (!menu.open) return;
+        menu.open = false;
+        var btn = menu.querySelector("summary");
+        if (btn) btn.focus();
+      });
     });
 
     // Navigating away leaves the panel open behind the new page in bfcache.
-    menu.querySelectorAll("a").forEach(function (link) {
-      link.addEventListener("click", function () { menu.open = false; });
+    menus.forEach(function (menu) {
+      menu.querySelectorAll("a").forEach(function (link) {
+        link.addEventListener("click", function () { menu.open = false; });
+      });
     });
   }
 
@@ -817,18 +880,42 @@
     int: function (n) { return String(Math.round(Math.max(n, 0))); }
   };
 
+  /* Counting a figure up is a way of saying "this was just worked out". It
+     says that once. Every page after the first is a page you navigated to on
+     purpose, and watching the same totals climb again each time turns an
+     arrival into a wait — so the flourish is spent on the first render of a
+     visit and every page after it draws its numbers already finished.
+
+     Per tab, not per account: coming back tomorrow is a new arrival, and a
+     browser with storage turned off simply gets it every time rather than
+     never. */
+  var TALLY_KEY = "mywork-tallied";
+
+  function tallyAlreadyPlayed() {
+    try { return sessionStorage.getItem(TALLY_KEY) === "1"; }
+    catch (e) { return false; }
+  }
+
+  function markTallyPlayed() {
+    try { sessionStorage.setItem(TALLY_KEY, "1"); }
+    catch (e) { /* private mode — the count-up just plays each time */ }
+  }
+
   function initTally() {
     var els = document.querySelectorAll("[data-tally]");
     if (!els.length) return;
 
-    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var instant =
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      tallyAlreadyPlayed();
+    if (!instant) markTallyPlayed();
 
     els.forEach(function (el) {
       var target = parseFloat(el.getAttribute("data-tally"));
       if (isNaN(target)) return;
 
       var render = TALLY_FORMATS[el.getAttribute("data-tally-format")] || TALLY_FORMATS.hm;
-      if (reduced || target <= 0) {
+      if (instant || target <= 0) {
         el.textContent = render(target);
         return;
       }
@@ -1022,6 +1109,202 @@
     sync();
   }
 
+  /* ----------------------------------------------------------------------
+     Profile photo — see the picture you picked before you commit to it
+     Without this the circle keeps showing your old face (or your initial)
+     until the upload round-trips, which reads as the tap having missed.
+     ---------------------------------------------------------------------- */
+  function initAvatarPicker() {
+    var input = document.getElementById("avatar-input");
+    if (!input) return;
+
+    var menu = input.closest("details");
+    var face = menu && menu.querySelector(".avatar");
+    var hint = document.getElementById("photo-hint");
+    if (!face) return;
+
+    var objectUrl = null;
+
+    input.addEventListener("change", function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = URL.createObjectURL(file);
+
+      var img = face.querySelector(".avatar__img");
+      if (!img) {
+        // Replacing an initial: the letter goes, an image takes its place.
+        face.textContent = "";
+        img = document.createElement("img");
+        img.className = "avatar__img";
+        img.alt = "";
+        face.appendChild(img);
+      }
+      img.src = objectUrl;
+
+      // The choice is made, so the menu has nothing left to offer — and the
+      // picture behind it is the thing you now want to look at.
+      if (menu) menu.open = false;
+
+      if (hint) {
+        hint.textContent = "Uploading\u2026";
+        hint.hidden = false;
+      }
+
+      // Picking the photo is the decision; there is nothing left to confirm,
+      // so it sends itself. requestSubmit rather than submit so the page's
+      // own submit handling still sees it go.
+      var form = input.form;
+      if (!form) return;
+      if (form.requestSubmit) form.requestSubmit();
+      else form.submit();
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Page skeletons
+     Every screen here is rendered by the server, so most of the time there is
+     no gap to fill: you tap, the page arrives, and a placeholder would only
+     have flickered. On a phone on mobile data there is a gap, and that is the
+     one this fills — the old page stops being the answer the moment you tap,
+     and sitting on it for two seconds looks like the tap missed.
+
+     So nothing is shown for the first fraction of a second. Past that, the
+     page's own content is set aside (the nodes themselves, so nothing is lost
+     or re-initialised) and shapes stand in until the new page lands. If the
+     navigation never happens, the page comes back.
+     ---------------------------------------------------------------------- */
+  function initNavSkeleton() {
+    var main = document.querySelector("main.container");
+    if (!main) return;
+
+    // Long enough that a quick navigation never flashes a skeleton.
+    var WAIT = 400;
+    // A navigation that never lands — offline, or cancelled in a way the page
+    // is never told about — gets its content back rather than being stranded.
+    var GIVE_UP = 12000;
+
+    var timer = null;
+    var giveUp = null;
+    var parked = null;
+
+    function show() {
+      if (parked) return;
+      parked = document.createDocumentFragment();
+      while (main.firstChild) parked.appendChild(main.firstChild);
+      main.innerHTML = skeletonPage();
+      main.setAttribute("aria-busy", "true");
+      giveUp = setTimeout(restore, GIVE_UP);
+    }
+
+    function restore() {
+      clearTimeout(timer);
+      clearTimeout(giveUp);
+      if (!parked) return;
+      main.innerHTML = "";
+      main.appendChild(parked);
+      main.removeAttribute("aria-busy");
+      parked = null;
+    }
+
+    function arm() {
+      clearTimeout(timer);
+      timer = setTimeout(show, WAIT);
+    }
+
+    document.addEventListener("click", function (event) {
+      // Anything the browser won't treat as a plain navigation is not one:
+      // new tabs, downloads, modified clicks, and anything already handled.
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      var link = event.target.closest ? event.target.closest("a[href]") : null;
+      if (!link || link.hasAttribute("download")) return;
+      if (link.target && link.target !== "_self") return;
+      if (link.origin !== window.location.origin) return;
+
+      var href = link.getAttribute("href") || "";
+      if (!href || href.charAt(0) === "#") return;
+      // A link to where you already are only moves the scroll position.
+      if (link.pathname === window.location.pathname &&
+          link.search === window.location.search) return;
+
+      arm();
+    });
+
+    document.addEventListener("submit", function (event) {
+      // The live search and the compose dialog handle their own submits, and
+      // a delete form whose confirm() was declined never leaves the page —
+      // all of them have cancelled the event by the time it reaches here.
+      if (event.defaultPrevented) return;
+      var form = event.target;
+      if (form.getAttribute && form.getAttribute("target")) return;
+      arm();
+    });
+
+    // Leaving for real: the timers go with the page.
+    window.addEventListener("pagehide", function () {
+      clearTimeout(timer);
+      clearTimeout(giveUp);
+    });
+
+    // Back button onto a page the browser kept: it comes back mid-skeleton,
+    // so put its content back.
+    window.addEventListener("pageshow", function (event) {
+      if (event.persisted) restore();
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Live field errors
+     A message from the server describes the value that was in the box when
+     it was sent. The moment you change that value the message stops being
+     true, and leaving it there tells you off for something you have already
+     fixed — so it goes as soon as you touch the field.
+
+     While you type, the browser's own checks stand in: a half-typed address
+     is not an error yet, but one you have finished and got wrong is, and it
+     is said in the same slot rather than in a popup over the page.
+     ---------------------------------------------------------------------- */
+  function initLiveErrors() {
+    var fields = document.querySelectorAll(".field");
+    if (!fields.length) return;
+
+    fields.forEach(function (field) {
+      var control = field.querySelector(
+        "input:not([type=hidden]):not([type=file]), select, textarea"
+      );
+      var slot = field.querySelector("[data-error]");
+      if (!control || !slot) return;
+
+      function show(message) {
+        slot.textContent = message || "";
+        slot.hidden = !message;
+        field.classList.toggle("field--invalid", !!message);
+        if (message) control.setAttribute("aria-invalid", "true");
+        else control.removeAttribute("aria-invalid");
+      }
+
+      control.addEventListener("input", function () {
+        // An empty box is not yet wrong — it is a box being cleared, or one
+        // you have not filled in. Nagging mid-keystroke is what makes people
+        // stop reading these messages at all.
+        if (!control.value) {
+          show("");
+          return;
+        }
+        show(control.checkValidity() ? "" : control.validationMessage);
+      });
+
+      // Moving on is when a browser would normally have spoken up.
+      control.addEventListener("blur", function () {
+        if (!control.value) return;
+        if (!control.checkValidity()) show(control.validationMessage);
+      });
+    });
+  }
+
   function init() {
     initTheme();
     initCompose();
@@ -1039,9 +1322,12 @@
     initPlaceholderTyper();
     initCopy();
     initPhotoPicker();
+    initAvatarPicker();
     initCsvPicker();
     initRipple();
     initSubmitState();
+    initNavSkeleton();
+    initLiveErrors();
   }
 
   if (document.readyState === "loading") {

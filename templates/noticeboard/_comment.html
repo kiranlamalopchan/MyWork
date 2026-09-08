@@ -1,4 +1,4 @@
-{% load humanize %}
+{% load humanize avatars %}
 {% comment %}
   One comment, and whatever was said back to it.
 
@@ -17,9 +17,7 @@
 {% endcomment %}
 
 <div class="comment" id="comment-{{ comment.pk }}">
-  <a class="avatar avatar--sm" style="--hue: {{ comment.hue }}"
-     href="{% url 'notices:person' comment.author.username %}"
-     aria-label="{{ comment.author.username }}'s profile">{{ comment.initial }}</a>
+  {% avatar comment.author size="sm" link=True %}
 
   <div class="comment__col">
     <div class="comment__body">

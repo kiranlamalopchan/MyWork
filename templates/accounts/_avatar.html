@@ -1,0 +1,17 @@
+{% comment %}
+  One face. A photo if they have set one, the first letter of their username
+  if they have not — over a colour derived from that username either way, so
+  the circle is theirs even while the photo is still loading.
+
+  Rendered only through the avatar tag; see accounts/templatetags/avatars.py.
+{% endcomment %}
+{% if link %}
+  <a class="avatar{{ size_class }}{{ me_class }}" style="--hue: {{ profile.hue }}"
+     href="{% url 'notices:person' username %}"
+     aria-label="{{ profile.name }}'s profile">
+{% if profile.photo_url %}<img class="avatar__img" src="{{ profile.photo_url }}" alt="">{% else %}{{ profile.initial }}{% endif %}</a>
+{% else %}
+  <span class="avatar{{ size_class }}{{ me_class }}" style="--hue: {{ profile.hue }}"
+        {% if label %}role="img" aria-label="{{ label }}"{% else %}aria-hidden="true"{% endif %}>
+{% if profile.photo_url %}<img class="avatar__img" src="{{ profile.photo_url }}" alt="">{% else %}{{ profile.initial }}{% endif %}</span>
+{% endif %}

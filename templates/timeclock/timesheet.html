@@ -6,7 +6,6 @@
 
 <div class="page-head">
   <h1 class="page-title">Timesheet</h1>
-  <p class="page-sub">Every shift, and what it added up to.</p>
 </div>
 
 {# List / calendar toggle, so both views of the same data are one tap apart. #}
@@ -137,15 +136,37 @@
         </span>
       </summary>
 
-      <ul class="shift-list">
+      {% comment %}
+        A day worked in one go is one row. A day worked in two or three is a
+        run: the shifts numbered in the order they happened, with the time
+        off between them written in the join. Same rows, but you can see the
+        shape of the day without reading a single clock.
+      {% endcomment %}
+      <ul class="shift-list{% if day.is_run %} shift-run{% endif %}">
         {% for shift in day.shifts %}
+          {% if shift.gap_before %}
+            <li class="shift-gap">
+              <span class="shift-gap__rule" aria-hidden="true"></span>
+              <span class="shift-gap__text">{{ shift.gap_before|hm }} off</span>
+              <span class="shift-gap__rule" aria-hidden="true"></span>
+            </li>
+          {% endif %}
           <li>
             <a class="shift" href="{% url 'timeclock:shift_detail' shift.pk %}">
               <span class="shift__bar shift__bar--{{ shift.status|lower }}" aria-hidden="true"></span>
+              {% if day.is_run %}
+                {# Which of the day's shifts this is, in its workplace's colour. #}
+                <span class="shift__seq" style="--wp-css: {{ shift.workplace|wp_color }}"
+                      aria-label="Shift {{ shift.seq }} of {{ day.shifts|length }}">{{ shift.seq }}</span>
+              {% endif %}
 
               <span class="shift__body">
                 <span class="shift__top">
-                  <span class="shift__where">{{ shift.workplace.name|default:"No workplace" }}</span>
+                  <span class="shift__where">
+                    {# The colour this job wears on the calendar. #}
+                    <span class="swatch swatch--sm" style="--wp-css: {{ shift.workplace|wp_color }}" aria-hidden="true"></span>
+                    <span class="shift__name">{{ shift.workplace.name|default:"No workplace" }}</span>
+                  </span>
                   {% if shift.is_open %}
                     <span class="status-pill status-pill--{{ shift.status|lower }} status-pill--sm">
                       <span class="status-pill__dot" aria-hidden="true"></span>

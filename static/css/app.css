@@ -21,19 +21,22 @@
   --warn:         #b45309;
   --warn-soft:    rgba(180, 83, 9, .12);
 
-  /* Surfaces — light */
-  --bg:        #f4f5f7;
+  /* Surfaces — light
+     Three steps, close together. With the shadows gone the separation between
+     a card and the page behind it is this half-tone and one hairline, which
+     is all it needs to be. */
+  --bg:        #f6f7f9;
   --surface:   #ffffff;
-  --surface-2: #f8fafc;
-  --surface-3: #eef1f5;
+  --surface-2: #f4f6f8;
+  --surface-3: #eaedf1;
 
   /* Text */
   --text:   #0f172a;
   --text-2: #475569;
   --muted:  #64748b;
 
-  --line:        #e3e8ef;
-  --line-strong: #cbd5e1;
+  --line:        #e8ebf0;
+  --line-strong: #d4dae2;
 
   /* The floating nav pill. It is its own small piece of chrome — dark in
      either theme, so the bar reads as one object hovering over the page
@@ -44,10 +47,14 @@
   --pill-on:     #ffffff;
   --pill-on-ink: #16181d;
 
-  /* Elevation */
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
-  --shadow-2: 0 4px 12px rgba(15, 23, 42, .08), 0 2px 4px rgba(15, 23, 42, .04);
-  --shadow-3: 0 12px 32px rgba(15, 23, 42, .14);
+  /* Elevation
+     Only things that genuinely float cast a shadow — a menu over the page, a
+     dialog over everything. A card is not floating: it is a piece of the page,
+     and a hairline says so more quietly than a drop shadow under every one of
+     a dozen of them. */
+  --shadow-1: none;
+  --shadow-2: 0 2px 8px rgba(15, 23, 42, .05);
+  --shadow-3: 0 16px 40px rgba(15, 23, 42, .12), 0 2px 8px rgba(15, 23, 42, .04);
 
   /* Shape */
   --r-sm: 10px;
@@ -67,7 +74,7 @@
 
   /* Chrome heights — used to reserve scroll room for the fixed bars */
   --appbar-h: 56px;
-  --tabbar-h: 60px;
+  --tabbar-h: 68px;
 
   /* Safe areas (iPhone notch / home indicator) */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -121,9 +128,11 @@
     --pill-on:     #e8edf5;
     --pill-on-ink: #0b1120;
 
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
-    --shadow-2: 0 4px 14px rgba(0, 0, 0, .40);
-    --shadow-3: 0 14px 36px rgba(0, 0, 0, .55);
+    /* Flat here too: on a dark ground a card is separated by its own lighter
+       surface, and a shadow under it only muddies the edge. */
+    --shadow-1: none;
+    --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
+    --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
   }
 }
 
@@ -157,9 +166,9 @@
   --pill-on:     #e8edf5;
   --pill-on-ink: #0b1120;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35);
-  --shadow-2: 0 4px 14px rgba(0, 0, 0, .40);
-  --shadow-3: 0 14px 36px rgba(0, 0, 0, .55);
+  --shadow-1: none;
+  --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
 }
 
 /* --------------------------------------------------------------------------
@@ -240,7 +249,7 @@ img { max-width: 100%; height: auto; display: block; }
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-weight: 800;
+  font-weight: 650;
   font-size: 17px;
   letter-spacing: -.01em;
   color: var(--text);
@@ -256,7 +265,7 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: linear-gradient(140deg, var(--brand), var(--brand-strong));
+  background: var(--brand);
   color: var(--brand-ink);
   transition: transform var(--dur-2) var(--ease-snap),
               box-shadow var(--dur-2) var(--ease);
@@ -319,9 +328,8 @@ img { max-width: 100%; height: auto; display: block; }
 
    Not a bar across the foot of the screen but an object hovering over it:
    the page runs to the bottom edge underneath, and navigation is one dark
-   pill you can reach without shifting your grip. Icon-only, because at this
-   size the icon is read and the caption underneath never is — the caption is
-   still in the markup for anyone listening rather than looking.
+   pill you can reach without shifting your grip. Each tab names itself under
+   its icon, so which slot does what is readable rather than guessed at.
    -------------------------------------------------------------------------- */
 .tabbar {
   position: fixed;
@@ -348,7 +356,7 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: var(--r-pill);
   background: var(--pill);
   border: 1px solid var(--pill-line);
-  box-shadow: 0 12px 32px rgba(2, 6, 23, .30), 0 3px 10px rgba(2, 6, 23, .20);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, .22), 0 2px 6px rgba(2, 6, 23, .14);
   /* More tabs than a narrow phone can hold slide rather than wrap: a pill
      that grows a second row stops being a pill. */
   overflow-x: auto;
@@ -359,7 +367,7 @@ img { max-width: 100%; height: auto; display: block; }
 .tab {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 550;
   background: none;
   border: 0;
   cursor: pointer;
@@ -369,24 +377,34 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* ---- The pill's own tabs ------------------------------------------------ */
 .tabbar .tab {
-  flex: none;
-  width: 52px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-pill);
+  /* Share the pill out rather than claim a fixed slice: four captioned tabs
+     still fit across the narrowest phone, and two spread out instead of
+     huddling in the middle. */
+  flex: 1 1 auto;
+  min-width: 54px;
+  max-width: 78px;
+  height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 20px;
   color: var(--pill-ink);
 }
 .tabbar .tab:hover { color: var(--pill-on); }
+.tabbar .tab svg { width: 20px; height: 20px; }
 
-/* The caption is read out, not shown — the pill is icons only. */
+/* The caption: small enough to stay under the icon, never wrapping the pill
+   onto a second row — a long name is clipped, not folded. */
 .tabbar .tab span {
-  position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px;
-  padding: 0;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 550;
+  letter-spacing: .01em;
   overflow: hidden;
-  clip-path: inset(50%);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -411,15 +429,15 @@ img { max-width: 100%; height: auto; display: block; }
   box-shadow: var(--shadow-1);
 }
 .card + .card { margin-top: var(--sp-4); }
-.card__pad { padding: var(--sp-4); }
+.card__pad { padding: var(--sp-5); }
 
 .card__head {
-  padding: var(--sp-4) var(--sp-4) 0;
+  padding: var(--sp-5) var(--sp-5) 0;
 }
 
 .page-title {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.02em;
   line-height: 1.2;
 }
@@ -428,11 +446,12 @@ img { max-width: 100%; height: auto; display: block; }
   color: var(--muted);
   font-size: 14px;
 }
-.page-head { margin-bottom: var(--sp-4); }
+/* A heading needs air under it more than it needs weight. */
+.page-head { margin-bottom: var(--sp-5); padding-top: var(--sp-2); }
 
 .section-label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -460,7 +479,7 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
   color: var(--text);
   font: inherit;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 550;
   cursor: pointer;
   user-select: none;
   transition: transform .06s ease, background .12s ease, opacity .12s ease;
@@ -504,21 +523,17 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 .label {
   display: block;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 550;
   color: var(--text);
   margin-bottom: var(--sp-2);
 }
 
 /* Django renders bare <input>s, so style by element as well as class */
+/* Every text-like input, named by what it is not. The list used to be spelled
+   out type by type, and the first one anybody added — tel, for a phone
+   number — came out as a raw browser box beside its styled neighbours. */
 .input,
-input[type="text"],
-input[type="password"],
-input[type="email"],
-input[type="search"],
-input[type="number"],
-input[type="datetime-local"],
-input[type="date"],
-input[type="time"],
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
 select,
 textarea {
   width: 100%;
@@ -537,14 +552,7 @@ textarea {
 .input::placeholder, input::placeholder { color: var(--muted); }
 
 .input:focus,
-input[type="text"]:focus,
-input[type="password"]:focus,
-input[type="email"]:focus,
-input[type="search"]:focus,
-input[type="number"]:focus,
-input[type="datetime-local"]:focus,
-input[type="date"]:focus,
-input[type="time"]:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus,
 select:focus,
 textarea:focus {
   border-color: var(--brand);
@@ -561,6 +569,17 @@ input[type="file"] { font-size: 15px; }
 }
 .help ul { margin: var(--sp-1) 0 0; padding-left: 18px; }
 .help--error { color: var(--danger); }
+
+/* A field the form is complaining about. The ring is the same one focus uses,
+   in the same place, so the eye lands on the box rather than on the sentence
+   underneath it — and it clears the moment the value changes. */
+.field--invalid > .input,
+.field--invalid > input,
+.field--invalid > select,
+.field--invalid > textarea {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
 
 /* --------------------------------------------------------------------------
    8. Messages / alerts
@@ -629,7 +648,6 @@ input[type="file"] { font-size: 15px; }
   padding-left: 42px !important;
   padding-right: 50px !important;
   border-radius: var(--r-pill) !important;
-  box-shadow: var(--shadow-1);
 }
 .searchbar__input::-webkit-search-cancel-button { display: none; }
 
@@ -696,7 +714,7 @@ input[type="file"] { font-size: 15px; }
   color: var(--brand);
   text-align: center;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -.01em;
 }
@@ -705,7 +723,7 @@ input[type="file"] { font-size: 15px; }
 .result__body { min-width: 0; flex: 1; }
 .result__title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 550;
   line-height: 1.35;
   /* two lines max, then ellipsis — long cut descriptions stay tidy */
   display: -webkit-box;
@@ -748,7 +766,7 @@ input[type="file"] { font-size: 15px; }
   color: var(--muted);
 }
 .empty__icon svg { width: 26px; height: 26px; }
-.empty__title { font-weight: 700; font-size: 16px; }
+.empty__title { font-weight: 600; font-size: 16px; }
 .empty__sub { margin-top: var(--sp-1); color: var(--muted); font-size: 14px; }
 
 .skeleton {
@@ -825,7 +843,7 @@ input[type="file"] { font-size: 15px; }
 }
 .detail-hero__label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--brand);
@@ -834,14 +852,14 @@ input[type="file"] { font-size: 15px; }
   margin-top: var(--sp-1);
   font-size: 64px;
   line-height: 1.05;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -.03em;
   font-variant-numeric: tabular-nums;
 }
 .detail-hero__desc {
   margin-top: var(--sp-3);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 550;
   line-height: 1.35;
   color: var(--text-2);
 }
@@ -860,7 +878,7 @@ input[type="file"] { font-size: 15px; }
   background: var(--text);
   color: var(--bg);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 550;
   box-shadow: var(--shadow-3);
   opacity: 0;
   pointer-events: none;
@@ -899,7 +917,7 @@ input[type="file"] { font-size: 15px; }
   color: var(--brand);
 }
 .dropzone__icon svg { width: 26px; height: 26px; }
-.dropzone__label { font-weight: 700; font-size: 16px; }
+.dropzone__label { font-weight: 600; font-size: 16px; }
 .dropzone__sub { margin-top: var(--sp-1); font-size: 13px; color: var(--muted); word-break: break-word; }
 .dropzone__preview { max-height: 260px; border-radius: var(--r-md); margin: 0 auto; }
 .dropzone__preview[hidden] { display: none; }
@@ -938,16 +956,15 @@ input[type="file"] { font-size: 15px; }
   border-radius: var(--r-lg);
   display: grid;
   place-items: center;
-  background: linear-gradient(140deg, var(--brand), var(--brand-strong));
+  background: var(--brand);
   color: var(--brand-ink);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 20px;
-  box-shadow: var(--shadow-2);
 }
-.auth__title { text-align: center; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.auth__title { text-align: center; font-size: 24px; font-weight: 650; letter-spacing: -.02em; }
 .auth__sub { text-align: center; color: var(--muted); font-size: 14px; margin-top: var(--sp-1); margin-bottom: var(--sp-5); }
 .auth__footer { text-align: center; margin-top: var(--sp-4); font-size: 14px; color: var(--muted); }
-.auth__footer a { font-weight: 650; }
+.auth__footer a { font-weight: 550; }
 
 /* --------------------------------------------------------------------------
    16. Misc
@@ -963,7 +980,7 @@ input[type="file"] { font-size: 15px; }
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
-.stat__value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.stat__value { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .stat__label { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 code, .code {
@@ -1000,7 +1017,7 @@ code, .code {
   padding: 6px var(--sp-3);
   border-radius: var(--r-pill);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: .06em;
   background: var(--surface-3);
   color: var(--muted);
@@ -1067,7 +1084,7 @@ code, .code {
 .dial__face { position: relative; text-align: center; padding: 0 var(--sp-5); }
 .dial__label {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1075,7 +1092,7 @@ code, .code {
 .dial__time {
   margin-top: var(--sp-1);
   font-size: clamp(30px, 10vw, 42px);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -.03em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -1100,7 +1117,7 @@ code, .code {
   border-radius: var(--r-pill);
   font: inherit;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.01em;
   cursor: pointer;
   position: relative;
@@ -1113,8 +1130,8 @@ code, .code {
 .big-btn:active { transform: scale(.97); }
 .big-btn:hover { filter: brightness(1.06); text-decoration: none; }
 
-.big-btn--go   { background: linear-gradient(140deg, var(--brand), var(--brand-strong)); color: var(--brand-ink); }
-.big-btn--stop { background: linear-gradient(140deg, var(--danger), color-mix(in srgb, var(--danger) 70%, #000)); color: #fff; }
+.big-btn--go   { background: var(--brand); color: var(--brand-ink); }
+.big-btn--stop { background: var(--danger); color: #fff; }
 .big-btn--soft { background: var(--surface-3); color: var(--text); box-shadow: var(--shadow-1); }
 
 .clock__where {
@@ -1123,7 +1140,7 @@ code, .code {
   justify-content: center;
   gap: var(--sp-2);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 550;
   color: var(--text-2);
 }
 .clock__where svg { width: 17px; height: 17px; color: var(--muted); }
@@ -1156,7 +1173,7 @@ code, .code {
   background: var(--surface);
   color: var(--text-2);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 550;
   white-space: nowrap;
   transition: border-color var(--dur-2) var(--ease), background var(--dur-2) var(--ease),
               color var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
@@ -1173,7 +1190,7 @@ code, .code {
 
 .chip__tag {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: .06em;
   text-transform: uppercase;
   padding: 2px 7px;
@@ -1195,11 +1212,11 @@ code, .code {
   border: 1px solid var(--line);
   text-align: center;
 }
-.metric__label { font-size: 11px; color: var(--muted); font-weight: 650; }
+.metric__label { font-size: 11px; color: var(--muted); font-weight: 550; }
 .metric__value {
   margin-top: 2px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1226,7 +1243,7 @@ code, .code {
 }
 .summary-card__label {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1234,7 +1251,7 @@ code, .code {
 .summary-card__value {
   margin-top: var(--sp-1);
   font-size: clamp(20px, 6vw, 26px);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -.03em;
   font-variant-numeric: tabular-nums;
 }
@@ -1247,7 +1264,7 @@ code, .code {
   padding-top: var(--sp-2);
   border-top: 1px solid var(--line);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   color: var(--brand);
   font-variant-numeric: tabular-nums;
 }
@@ -1260,7 +1277,7 @@ code, .code {
   gap: var(--sp-2);
   margin-bottom: var(--sp-3);
 }
-.pay-head__title { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+.pay-head__title { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 .pay-head__dates { flex: none; font-size: 12px; color: var(--muted); }
 .pay-note { margin: var(--sp-3) 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
 
@@ -1275,11 +1292,11 @@ code, .code {
 .limit__figure { margin-top: var(--sp-1); }
 .limit__used {
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
-.limit__cap { font-size: 14px; color: var(--muted); font-weight: 650; }
+.limit__cap { font-size: 14px; color: var(--muted); font-weight: 550; }
 
 .limit__track {
   height: 10px;
@@ -1291,7 +1308,7 @@ code, .code {
   height: 100%;
   width: var(--pct, 0%);
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--brand), var(--brand-strong));
+  background: var(--brand);
 }
 
 .limit__note {
@@ -1304,10 +1321,10 @@ code, .code {
 }
 .limit__note svg { width: 16px; height: 16px; flex: none; }
 
-.limit--close .limit__fill { background: linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--warn) 70%, #f00)); }
-.limit--close .limit__note { color: var(--warn); font-weight: 650; }
-.limit--over  .limit__fill { background: linear-gradient(90deg, var(--danger), color-mix(in srgb, var(--danger) 60%, #000)); }
-.limit--over  .limit__note { color: var(--danger); font-weight: 700; }
+.limit--close .limit__fill { background: var(--warn); }
+.limit--close .limit__note { color: var(--warn); font-weight: 550; }
+.limit--over  .limit__fill { background: var(--danger); }
+.limit--over  .limit__note { color: var(--danger); font-weight: 600; }
 .limit--over  { border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 
 /* ---- Timesheet list ---------------------------------------------------- */
@@ -1331,7 +1348,7 @@ code, .code {
 .day__head:hover { background: var(--surface-2); }
 .day[open] .day__head { margin-bottom: var(--sp-1); }
 
-.day__date { font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+.day__date { font-size: 13px; font-weight: 650; letter-spacing: .02em; }
 
 .day__meta {
   display: flex;
@@ -1395,14 +1412,23 @@ code, .code {
   justify-content: space-between;
   gap: var(--sp-2);
 }
+/* The workplace name, with its colour beside it. A flex row so the swatch
+   keeps its size while a long name still truncates rather than pushing out. */
 .shift__where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
+}
+.shift__name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.shift__worked { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; flex: none; }
+.shift__worked { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; flex: none; }
 .shift__times {
   display: flex;
   flex-wrap: wrap;
@@ -1422,7 +1448,7 @@ code, .code {
   gap: 4px;
   margin-bottom: var(--sp-3);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 550;
   color: var(--muted);
   transition: color var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-out);
 }
@@ -1440,7 +1466,7 @@ code, .code {
 .shift-hero__status { margin-bottom: var(--sp-3); }
 .shift-hero__worked {
   font-size: clamp(40px, 13vw, 56px);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -.03em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -1455,18 +1481,18 @@ code, .code {
   gap: var(--sp-3);
   font-size: 15px;
 }
-.ledger__val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ledger__val { font-weight: 600; font-variant-numeric: tabular-nums; }
 .ledger__val--minus { color: var(--warn); }
 .ledger__row--total {
   margin-top: var(--sp-1);
   padding-top: var(--sp-3);
   border-top: 2px solid var(--line);
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 650;
 }
 .ledger__row--total .ledger__val { font-size: 20px; color: var(--brand); }
 .ledger__row--faint { font-size: 13px; color: var(--muted); }
-.ledger__row--faint .ledger__val { font-weight: 650; color: var(--muted); }
+.ledger__row--faint .ledger__val { font-weight: 550; color: var(--muted); }
 
 .break-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
 .break {
@@ -1488,10 +1514,10 @@ code, .code {
   border-radius: 50%;
   background: var(--surface-3);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 .break__times { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
-.break__dur { font-weight: 800; font-variant-numeric: tabular-nums; }
+.break__dur { font-weight: 650; font-variant-numeric: tabular-nums; }
 
 .break-edit {
   padding: var(--sp-3);
@@ -1509,7 +1535,7 @@ code, .code {
   gap: var(--sp-2);
   min-height: var(--tap);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 550;
   cursor: pointer;
 }
 .checkline input[type="checkbox"] {
@@ -1537,7 +1563,7 @@ code, .code {
   justify-content: center;
   border-radius: var(--r-pill);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--muted);
   transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease),
               box-shadow var(--dur-2) var(--ease);
@@ -1560,7 +1586,7 @@ code, .code {
   border-bottom: 1px solid var(--line);
 }
 .cal__title { flex: 1; min-width: 0; text-align: center; }
-.cal__month { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+.cal__month { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
 .cal__total { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
 .cal__grid {
@@ -1573,7 +1599,7 @@ code, .code {
   padding-bottom: 0;
   text-align: center;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   color: var(--muted);
 }
 
@@ -1595,7 +1621,7 @@ code, .code {
   transition: background var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
 }
 .cal__day.is-dim { opacity: .32; }
-.cal__num { font-size: 12.5px; font-weight: 650; line-height: 1.1; }
+.cal__num { font-size: 12.5px; font-weight: 550; line-height: 1.1; }
 
 .cal__day.is-today .cal__num {
   width: 20px; height: 20px;
@@ -1604,13 +1630,32 @@ code, .code {
   border-radius: 50%;
   background: var(--text);
   color: var(--bg);
-  font-weight: 800;
+  font-weight: 650;
 }
 
+/* A worked day is tinted with whichever job took most of it — enough to pick
+   the worked days out of the month at arm's length. The precise reading is
+   the 24-hour line below; this is only the ground it sits on. */
 a.cal__day.has-hours {
-  background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--text);
+  background: color-mix(in srgb, var(--wp-lead, var(--brand)) 14%, transparent);
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) a.cal__day.has-hours {
+    background: color-mix(in srgb, var(--wp-lead, var(--brand)) 24%, transparent);
+  }
+}
+:root[data-theme="dark"] a.cal__day.has-hours {
+  background: color-mix(in srgb, var(--wp-lead, var(--brand)) 24%, transparent);
+}
+:root[data-theme="light"] a.cal__day.has-hours {
+  background: color-mix(in srgb, var(--wp-lead, var(--brand)) 14%, transparent);
+}
+
+/* Everything written on the day sits above its colours. */
+.cal__num,
+.cal__hrs,
+.cal__track { position: relative; z-index: 1; }
 a.cal__day:hover { text-decoration: none; background: var(--surface-3); transform: scale(1.04); }
 a.cal__day:active { transform: scale(.96); }
 a.cal__day.is-picked {
@@ -1621,7 +1666,7 @@ a.cal__day.is-picked {
 
 .cal__hrs {
   font-size: 9.5px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1;
   letter-spacing: -.02em;
   white-space: nowrap;
@@ -1629,13 +1674,29 @@ a.cal__day.is-picked {
 
 /* Relative-height bar pinned to the bottom of the cell: the month's shape
    reads at a glance without having to compare the numbers. */
-.cal__bar-fill {
+/* ---- The day's work, split between its jobs -----------------------------
+   One line per worked date, pinned along the foot of the cell and filled end
+   to end: each workplace holds the share of it that it was worked for. A day
+   at one job is one colour; a day split six hours to two is three quarters
+   against one quarter. */
+.cal__track {
   position: absolute;
-  left: 4px; right: 4px; bottom: 3px;
-  height: max(2px, calc(var(--h, 0%) * .16));
-  border-radius: 2px;
-  background: var(--brand);
-  opacity: .5;
+  left: 4px;
+  right: 4px;
+  bottom: 3px;
+  height: 5px;
+  border-radius: 3px;
+  /* Rounds both ends of the line once, rather than every segment inside it —
+     square segments meeting square segments is what makes a split read as one
+     line divided rather than as separate bars laid near each other. */
+  overflow: hidden;
+}
+
+.cal__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--wp-css, var(--brand));
 }
 
 .day-shift {
@@ -1652,8 +1713,16 @@ a.cal__day.is-picked {
 }
 .day-shift:hover { background: var(--surface-3); text-decoration: none; }
 .day-shift__body { flex: 1; min-width: 0; }
-.day-shift__where { font-size: 14px; font-weight: 700; display: block; }
-.day-shift__worked { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* The workplace name, with its colour beside it. */
+.day-shift__where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.day-shift__worked { flex: none; font-weight: 650; font-variant-numeric: tabular-nums; }
 
 /* ---- Workplaces + menu rows -------------------------------------------- */
 .workplace,
@@ -1677,7 +1746,7 @@ a.cal__day.is-picked {
   border-radius: var(--r-md);
   background: var(--brand-soft);
   color: var(--brand);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 16px;
   transition: transform var(--dur-3) var(--ease-snap);
 }
@@ -1692,7 +1761,7 @@ a.cal__day.is-picked {
   align-items: center;
   gap: var(--sp-2);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   min-width: 0;
 }
 /* A long workplace name truncates rather than wrapping under its own
@@ -1773,9 +1842,9 @@ html { scroll-behavior: smooth; }
 .searchbar__meta { transition: color var(--dur-2) var(--ease); }
 
 /* Inputs: the focus ring grows in rather than snapping on. */
-.input, input[type="text"], input[type="password"], input[type="email"],
-input[type="search"], input[type="number"], input[type="datetime-local"],
-input[type="date"], input[type="time"], select, textarea {
+.input,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+select, textarea {
   transition: border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease),
               background var(--dur-2) var(--ease);
 }
@@ -1826,7 +1895,7 @@ input[type="date"], input[type="time"], select, textarea {
   background: var(--brand-soft);
   color: var(--brand);
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .02em;
   text-transform: uppercase;
 }
@@ -1884,7 +1953,7 @@ input[type="date"], input[type="time"], select, textarea {
 .app-card__title {
   display: block;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.01em;
   line-height: 1.2;
 }
@@ -2102,13 +2171,26 @@ input[type="date"], input[type="time"], select, textarea {
    -------------------------------------------------------------------------- */
 .appmenu { position: relative; flex: none; }
 
-.appmenu__btn { list-style: none; }
-.appmenu__btn::-webkit-details-marker { display: none; }
-.appmenu[open] > .appmenu__btn {
-  background: var(--brand-soft);
-  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
-  color: var(--brand);
+/* The button is the user's own face rather than a glyph, so it is sized and
+   ringed here instead of borrowing .icon-btn's box — a photo in a bordered
+   square reads as an image on a page, not as a control. */
+.appmenu__btn {
+  list-style: none;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  /* Held open by a transparent ring so the avatar doesn't shift by 2px when
+     the menu opens and the ring appears. */
+  box-shadow: 0 0 0 2px transparent;
+  transition: box-shadow var(--dur-2) var(--ease), transform var(--dur-1) var(--ease-snap);
 }
+.appmenu__btn::-webkit-details-marker { display: none; }
+.appmenu__btn:hover { box-shadow: 0 0 0 2px var(--line-strong); }
+.appmenu__btn:active { transform: scale(.94); }
+.appmenu[open] > .appmenu__btn { box-shadow: 0 0 0 2px var(--brand); }
 
 .appmenu__panel {
   position: absolute;
@@ -2135,7 +2217,7 @@ input[type="date"], input[type="time"], select, textarea {
 .appmenu__label {
   padding: var(--sp-2) var(--sp-2) var(--sp-1);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -2166,8 +2248,18 @@ input[type="date"], input[type="time"], select, textarea {
 .appmenu__icon svg { width: 18px; height: 18px; }
 
 .appmenu__body { min-width: 0; }
-.appmenu__name { display: block; font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+.appmenu__name { display: block; font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
 .appmenu__sub  { display: block; font-size: 12px; color: var(--muted); }
+
+/* Your own row. Wears the face rather than a square app icon, because it is
+   the one row in here that is a person and not a place. */
+.appmenu__me .appmenu__name { font-size: 15px; }
+.appmenu__me .appmenu__body { flex: 1; }
+.appmenu__chev {
+  flex: none;
+  width: 16px; height: 16px;
+  color: var(--muted);
+}
 
 .appmenu__rule { height: 1px; margin: var(--sp-2) var(--sp-1); background: var(--line); }
 
@@ -2181,7 +2273,7 @@ input[type="date"], input[type="time"], select, textarea {
   color: var(--text-2);
   font: inherit;
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 550;
   text-align: left;
   cursor: pointer;
 }
@@ -2203,7 +2295,7 @@ input[type="date"], input[type="time"], select, textarea {
    collapse, so anything that already spaces itself further apart keeps its
    own spacing — this only ever adds a gap, never doubles one.
    -------------------------------------------------------------------------- */
-.container > * + *:not(.searchbar) { margin-top: var(--sp-4); }
+.container > * + *:not(.searchbar) { margin-top: var(--sp-5); }
 
 
 /* --------------------------------------------------------------------------
@@ -2218,7 +2310,8 @@ input[type="date"], input[type="time"], select, textarea {
 .stat-row,
 .app-grid           { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .summary-grid--3,
-.metric-row         { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metric-row,
+.tallies            { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cal__grid          { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .detail-actions > * { min-width: 0; }
 
@@ -2231,10 +2324,16 @@ input[type="date"], input[type="time"], select, textarea {
    so the value is allowed to shrink a step further before it would clip. */
 .summary-grid--3 .summary-card__value { font-size: clamp(15px, 4.4vw, 24px); }
 
-/* Flex rows whose text must be free to wrap or ellipsis rather than push */
+/* Flex rows whose text must be free to wrap or ellipsis rather than push.
+   Everything added since this list was written belongs on it too — a new
+   component that forgets is a page that scrolls sideways on one phone. */
 .limit__head > div:first-child,
 .results-head > *,
 .day__head > *,
+.panel__head > *,
+.facts__row > *,
+.shift__name,
+.cal__key-item,
 .cal__title { min-width: 0; }
 
 /* A long workplace name heads its own limit bar — wrap it, don't widen it */
@@ -2263,10 +2362,11 @@ input[type="date"], input[type="time"], select, textarea {
   to   { width: var(--pct, 0%); }
 }
 
-.cal__bar-fill { animation: mw-grow .5s var(--ease-out) both; }
+/* Each shift draws itself onto the day's line rather than appearing on it. */
+.cal__seg { animation: mw-grow .45s var(--ease-out) both; transform-origin: left center; }
 @keyframes mw-grow {
-  from { height: 0; }
-  to   { height: max(2px, calc(var(--h, 0%) * .16)); }
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: none; opacity: 1; }
 }
 
 
@@ -2278,7 +2378,7 @@ input[type="date"], input[type="time"], select, textarea {
   gap: var(--sp-2);
   margin-top: var(--sp-3);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--brand);
 }
 .daylink svg { width: 15px; height: 15px; }
@@ -2306,7 +2406,7 @@ input[type="date"], input[type="time"], select, textarea {
   gap: var(--sp-2);
   min-width: 0;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.01em;
 }
 .board__title svg { width: 18px; height: 18px; flex: none; color: var(--brand); }
@@ -2318,7 +2418,7 @@ input[type="date"], input[type="time"], select, textarea {
   gap: var(--sp-1);
   justify-self: start;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--brand);
 }
 .board__more svg { width: 15px; height: 15px; }
@@ -2331,15 +2431,33 @@ input[type="date"], input[type="time"], select, textarea {
   place-items: center;
   border-radius: 50%;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 650;
   color: #fff;
-  background: linear-gradient(140deg,
-    hsl(var(--hue, 210) 62% 52%),
-    hsl(calc(var(--hue, 210) + 24) 58% 42%));
+  background: hsl(var(--hue, 210) 58% 50%);
   /* A pale name colour on a pale card still has to hold white text. */
   text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
 }
-.avatar--me { background: linear-gradient(140deg, var(--brand), var(--brand-strong)); color: var(--brand-ink); }
+.avatar--me { background: var(--brand); color: var(--brand-ink); }
+
+/* A photo covers the letter but not the colour: the tinted circle stays
+   underneath, so it is what you see while the image is still on its way and
+   what shows through a transparent corner once it lands. */
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  /* The circle is already cropped square server-side; this is belt and
+     braces for a photo saved before that, and for a browser mid-download. */
+  display: block;
+}
+
+/* The sizes a face is drawn at. --sm and --lg are set with the board and the
+   profile header they belong to; these two are the app bar's and the profile
+   page's own. */
+.avatar--btn { width: 32px; height: 32px; font-size: 13px; }
+.avatar--md  { width: 40px; height: 40px; font-size: 16px; }
+.avatar--xl  { width: 96px; height: 96px; font-size: 38px; }
 /* The avatar and the name lead to a profile. They stay looking like a face
    and a name — a board of underlined blue names would read as a link list. */
 a.avatar { text-decoration: none; transition: transform var(--dur-1) var(--ease-snap); }
@@ -2388,7 +2506,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   margin-top: var(--sp-2);
 }
 .compose__count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.compose__count.is-close { color: var(--warn); font-weight: 700; }
+.compose__count.is-close { color: var(--warn); font-weight: 600; }
 
 /* ---- Reading them ------------------------------------------------------- */
 .notices { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
@@ -2418,7 +2536,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 }
 .notice__who {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.01em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2468,10 +2586,10 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   height: 34px;
   padding: 0 var(--sp-3) 0 10px;
   border-radius: var(--r-pill);
-  background: linear-gradient(140deg, var(--brand), var(--brand-strong));
+  background: var(--brand);
   color: var(--brand-ink);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.01em;
   box-shadow: 0 2px 10px color-mix(in srgb, var(--brand) 34%, transparent);
   transition: transform var(--dur-1) var(--ease-snap), box-shadow var(--dur-2) var(--ease);
@@ -2537,7 +2655,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   gap: var(--sp-3);
   margin-bottom: var(--sp-3);
 }
-.modal__title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.modal__title { font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
 
 /* On a phone it belongs at the bottom, in reach, and slides up like a sheet. */
 @media (max-width: 559px) {
@@ -2586,7 +2704,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   font-size: 11px;
   margin-right: -6px;
 }
-.tally__n { margin-left: 10px; font-weight: 700; }
+.tally__n { margin-left: 10px; font-weight: 600; }
 .tally__comments { margin-left: auto; }
 
 /* Who is behind the count. The names are the point — the tally is a link to
@@ -2616,7 +2734,7 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
   color: var(--muted);
   font: inherit;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   list-style: none;
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
@@ -2685,7 +2803,7 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
   background: var(--surface-2);
 }
 .comment__col { flex: 1; min-width: 0; }
-.comment__who { font-size: 12.5px; font-weight: 800; margin-right: 6px; color: inherit; }
+.comment__who { font-size: 12.5px; font-weight: 650; margin-right: 6px; color: inherit; }
 a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .comment__text { font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
 .comment__foot {
@@ -2716,7 +2834,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   color: var(--muted);
   font: inherit;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   list-style: none;
   white-space: nowrap;
@@ -2768,7 +2886,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   padding: 2px 0;
   color: var(--muted);
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   list-style: none;
 }
@@ -2825,7 +2943,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   color: var(--muted);
   font: inherit;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 .comment__del:hover { color: var(--danger); }
@@ -2869,7 +2987,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .reply--sm:target { display: flex; animation: mw-rise var(--dur-2) var(--ease-out) both; }
 .reply--sm .reply__input { height: 34px; font-size: 13px; }
 .reply--sm .reply__send { width: 34px; height: 34px; }
-.reply__cancel { flex: none; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.reply__cancel { flex: none; font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .reply__cancel:hover { color: var(--danger); text-decoration: none; }
 
 
@@ -2892,7 +3010,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   align-items: center;
   gap: var(--sp-2);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   color: var(--muted);
 }
 .reactors__emoji { font-size: 20px; line-height: 1; }
@@ -2916,14 +3034,14 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 }
 .reactors__person:hover { text-decoration: none; }
 .reactors__person:hover .reactors__name { color: var(--brand); }
-.reactors__name { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.reactors__name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .reactors__you {
   padding: 1px 6px;
   border-radius: var(--r-pill);
   background: var(--brand-soft);
   color: var(--brand);
   font-size: 10.5px;
-  font-weight: 800;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: .04em;
 }
@@ -2944,7 +3062,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   gap: var(--sp-2);
   margin: 0;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 650;
   letter-spacing: -.02em;
   overflow-wrap: anywhere;
 }
@@ -2954,7 +3072,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   background: var(--brand-soft);
   color: var(--brand);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: .04em;
 }
@@ -2963,7 +3081,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 /* The same tiles the apps use for their numbers — two by two on a phone,
    and in one row once there is room for four. */
 .profile__stats { margin-bottom: var(--sp-5); }
-@media (min-width: 560px) { .profile__stats { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 560px) { .profile__stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* The comment being returned to after a reply says so, the same way a notice
    does — otherwise a long thread comes back looking untouched. */
@@ -2974,3 +3092,616 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   0%, 60% { background: var(--brand-soft); }
   100%    { background: var(--surface-2); }
 }
+
+/* --------------------------------------------------------------------------
+   26. Profile — one subject, and the rest folded away
+
+   The page is a face, a name, and two lines you can open. Everything it can
+   do to the photo hangs off the photo, so there is no second block down the
+   page competing with the thing it acts on — and nothing here is on screen
+   that you didn't ask to see.
+   -------------------------------------------------------------------------- */
+
+/* ---- Who you are --------------------------------------------------------
+   Centred, and the only centred thing on the page: it is a portrait, and a
+   portrait pushed against the left margin with a column of air beside it
+   reads as a mistake rather than as a decision. */
+.profile-id {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-1);
+  padding-top: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  text-align: center;
+}
+
+/* Small, quiet, and in the corner: editing is what you occasionally came for,
+   not what the card is about. Absolute so it can't push the portrait off
+   centre by the width of its own label. */
+.profile-id__edit {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 550;
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.profile-id__edit:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+.profile-id__edit svg { width: 13px; height: 13px; }
+
+.profile-id__name {
+  margin-top: var(--sp-3);
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-id__meta { font-size: 13px; color: var(--muted); }
+
+.profile-id__note { margin-top: var(--sp-2); font-size: 12.5px; color: var(--text-2); }
+.profile-id__note--error { color: var(--danger); }
+
+/* ---- The photo, and what you can do to it -------------------------------
+   The circle is the button. Tapping it opens the two decisions there are to
+   make about a picture, next to the picture they are about. */
+.photo-menu { position: relative; }
+
+.photo-menu__btn {
+  position: relative;
+  display: block;
+  border-radius: 50%;
+  cursor: pointer;
+  list-style: none;
+  transition: transform var(--dur-2) var(--ease-snap);
+}
+.photo-menu__btn::-webkit-details-marker { display: none; }
+.photo-menu__btn:hover { transform: scale(1.03); }
+.photo-menu__btn:active { transform: scale(.97); }
+.photo-menu__btn:focus-visible .avatar,
+.photo-menu[open] .avatar {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--brand);
+}
+
+/* The camera on the rim: what says the circle is a control. Sat on the
+   circle's own edge — the corner of the square it is drawn in is half a
+   radius further out, and a badge left there floats away from the photo. */
+.photo-menu__badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  border: 3px solid var(--surface);
+  box-shadow: var(--shadow-1);
+  pointer-events: none;
+  transition: transform var(--dur-2) var(--ease-snap);
+}
+.photo-menu__badge svg { width: 15px; height: 15px; }
+.photo-menu[open] .photo-menu__badge { transform: scale(.85); opacity: .7; }
+
+.photo-menu__panel {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  left: 50%;
+  transform-origin: top center;
+  translate: -50% 0;
+  z-index: 40;
+  width: max-content;
+  min-width: 190px;
+  /* Sized by its longest item, but never wider than the phone it opens on. */
+  max-width: calc(100vw - var(--sp-6));
+  padding: var(--sp-1);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  text-align: left;
+  animation: mw-menu var(--dur-2) var(--ease-out) both;
+}
+
+.photo-menu__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+.photo-menu__item:hover { background: var(--surface-2); }
+.photo-menu__item svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.photo-menu__item--danger { color: var(--danger); }
+.photo-menu__item--danger:hover { background: var(--danger-soft); }
+.photo-menu__item--danger svg { color: var(--danger); }
+
+/* The real file input, laid invisible across its own menu row so the row is
+   the picker — no JavaScript between the tap and the camera roll. */
+.photo-menu__file {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.photo-menu__item:focus-within { background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--brand); }
+
+/* ---- The folded lines ---------------------------------------------------
+   One row each, shut: a title, and the answer you would have opened it for.
+   Opening one is then a choice rather than the only way to read the page. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 56px;
+  padding: 0 var(--sp-4);
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--dur-2) var(--ease);
+}
+.panel__head::-webkit-details-marker { display: none; }
+.panel__head:hover { background: var(--surface-2); }
+
+.panel__title { font-size: 15px; font-weight: 600; }
+
+/* The value the shut row is standing in for. It steps back once the panel is
+   open and the real thing is on screen under it. */
+.panel__hint {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity var(--dur-2) var(--ease);
+}
+.panel[open] .panel__hint { opacity: 0; }
+
+.panel__chev {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: transform var(--dur-2) var(--ease);
+}
+.panel[open] .panel__chev { transform: rotate(180deg); }
+
+.panel__body {
+  display: grid;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4) var(--sp-4);
+  animation: mw-rise var(--dur-3) var(--ease-out) both;
+}
+
+/* ---- Your details -------------------------------------------------------
+   A label and its value on one line, the labels in a column of their own so
+   the values line up down the card and can be read without being hunted for.
+   An empty one is an em dash rather than a blank: nothing there is a fact
+   about you too, and a gap only looks like the page failed to load. */
+.facts { overflow: hidden; }
+
+.facts__row {
+  display: grid;
+  /* The label column sizes to its own longest word rather than to a number
+     picked by eye, and the value gets everything left over — which on a
+     320px phone is the difference between reading an address and not. */
+  grid-template-columns: 20px auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 52px;
+  padding: var(--sp-2) var(--sp-4);
+}
+.facts__row + .facts__row { border-top: 1px solid var(--line); }
+
+.facts__icon { color: var(--muted); }
+.facts__icon svg { width: 17px; height: 17px; }
+
+.facts__label { font-size: 13px; color: var(--muted); }
+
+.facts__value {
+  min-width: 0;
+  text-align: right;
+  font-size: 14.5px;
+  font-weight: 550;
+  /* Wrapping beats an ellipsis here: half an address is no use to anyone,
+     and these rows are free to grow a line. */
+  overflow-wrap: anywhere;
+}
+
+/* Four dashes explain nothing on their own, so the empty card says what to do
+   about it — and stops saying it the moment anything is filled in. */
+.facts__prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 48px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--brand);
+}
+.facts__prompt:hover { background: var(--surface-3); text-decoration: none; }
+.facts__prompt svg { width: 14px; height: 14px; }
+
+/* ---- Activity -----------------------------------------------------------
+   One figure leads. Six numbers of identical weight is a table, and a table
+   is read by nobody — so the hours this week are set at a size you take in
+   without reading, and the counts sit under them in a grid where the eye can
+   run across them instead of down six labelled rows. */
+.lead-stat {
+  padding: var(--sp-4) 0 var(--sp-4);
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.lead-stat__value {
+  font-size: 44px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand);
+}
+.lead-stat__unit {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  margin-left: 2px;
+}
+.lead-stat__label {
+  margin-top: var(--sp-2);
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: .02em;
+  color: var(--muted);
+}
+
+/* The counts. Three across on a phone, five once there is room for them all
+   on one line — never a stray tile on a row of its own. */
+.tallies {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: var(--sp-3);
+}
+
+.tally {
+  padding: var(--sp-2) var(--sp-1);
+  text-align: center;
+  min-width: 0;
+}
+.tally__value {
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.tally__label {
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 560px) {
+  .tallies { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .lead-stat__value { font-size: 52px; }
+}
+
+/* The picker form wraps only the portrait, so it must not become a block of
+   its own between the card's padding and the face inside it. */
+.photo-form { display: contents; }
+
+/* --------------------------------------------------------------------------
+   27. Workplace colours — which job, at a glance
+
+   Two jobs on one timesheet are two different things, and reading the name
+   every time to tell which is which is work. Each workplace gets a hue, kept
+   on the workplace itself, and everything that shows one draws it from there:
+   the badge in the list, the swatch beside a shift, the wash behind a date.
+
+   Held as a hue so one number can be a solid 40px badge here and a 20%-opacity
+   wash there. `--wp-css` carries the finished colour to a swatch; the calendar
+   builds its own gradient because the proportions are the server's to work out.
+   -------------------------------------------------------------------------- */
+.swatch {
+  flex: none;
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 4px;
+  background: var(--wp-css, var(--brand));
+  /* Holds the shape against a card of nearly its own colour, in either theme. */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18);
+}
+.swatch--sm { width: 8px; height: 8px; border-radius: 3px; }
+.swatch--lg { width: 32px; height: 32px; border-radius: 50%; }
+
+/* The badge in the workplace list, in that workplace's own colour. */
+.workplace__mark--wp {
+  background: color-mix(in srgb, var(--wp-css) 16%, transparent);
+  color: var(--wp-css);
+}
+
+/* ---- Picking one -------------------------------------------------------- */
+.swatch-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.swatch-pick__opt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* The tap target is the ring's outer edge, not the 32px circle inside it. */
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  cursor: pointer;
+}
+/* The radio is real and focusable, just invisible under its own swatch. */
+.swatch-pick__opt input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+}
+.swatch-pick__opt .swatch {
+  transition: transform var(--dur-2) var(--ease-snap), box-shadow var(--dur-2) var(--ease);
+}
+.swatch-pick__opt:hover .swatch { transform: scale(1.08); }
+/* Chosen: ringed in its own colour, with the card's background as the gap, so
+   the mark reads at a glance without a tick sitting on top of the colour. */
+.swatch-pick__opt input:checked ~ .swatch {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18),
+              0 0 0 3px var(--surface),
+              0 0 0 5px var(--wp-css);
+}
+.swatch-pick__opt input:focus-visible ~ .swatch {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18),
+              0 0 0 3px var(--surface),
+              0 0 0 5px var(--text);
+}
+
+/* ---- The key under the calendar ----------------------------------------
+   Without it the colours are decoration. Only the jobs actually worked this
+   month are listed, so an eight-workplace account doesn't get an eight-line
+   key under a month it spent at one of them. */
+.cal__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.cal__key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-size: 12.5px;
+}
+.cal__key-name {
+  font-weight: 550;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal__key-hrs {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   28. A day worked in more than one go
+
+   One shift is a row. Two or three on the same date are a run: numbered in
+   the order they happened, with the time off written into the join between
+   them. The rows themselves don't change — what changes is that the day now
+   reads as a sequence instead of as repeated rows that happen to be adjacent.
+   -------------------------------------------------------------------------- */
+
+/* Which shift of the day this is, in that job's own colour — so on a day
+   split between two workplaces the numbers say the order and the colours say
+   where, without a second mark for either. */
+.shift__seq {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--wp-css, var(--text-2));
+  background: color-mix(in srgb, var(--wp-css, var(--line-strong)) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wp-css, var(--line-strong)) 38%, transparent);
+}
+
+/* The numbered chip already carries the colour, so the swatch beside the name
+   would be the same fact told twice. */
+.shift-run .shift__where > .swatch,
+.shift-run .day-shift__where > .swatch { display: none; }
+
+/* The join: how long you were off between one shift and the next. Written
+   into the rule rather than added as another row of its own, so a run of
+   three still reads as one day and not as five things. */
+.shift-gap {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-3);
+}
+.shift-gap__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.shift-gap__text {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inside the bordered timesheet list the joins replace the row rule, rather
+   than adding a second line above and below themselves. */
+.shift-list > li.shift-gap,
+.shift-list > li.shift-gap + li { border-top: 0; }
+.shift-list > li.shift-gap { background: var(--surface); }
+
+/* The calendar's day panel spaces its rows instead of ruling them, so the
+   join sits in that gap and needs none of its own. */
+.break-list > li.shift-gap { padding: 0 var(--sp-1); }
+
+/* --------------------------------------------------------------------------
+   29. Skeletons — the shape of what's coming
+
+   Shown only where something is genuinely being waited for: a search request
+   in flight, a page that hasn't arrived yet. A skeleton over content that is
+   already on screen isn't a loading state, it's a delay pretending to be one,
+   so nothing here fires unless there is a real wait behind it.
+
+   The blocks are the shape of the thing they stand in for — a row of results
+   looks like a row of results — because a placeholder that doesn't match what
+   replaces it makes the page jump at exactly the moment it should settle.
+   -------------------------------------------------------------------------- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+/* A light travelling across the block, rather than the whole block pulsing:
+   it reads as "on its way" instead of "broken". */
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 8%, transparent),
+    transparent
+  );
+  animation: mw-shimmer 1.3s var(--ease) infinite;
+}
+@keyframes mw-shimmer { to { transform: translateX(100%); } }
+
+/* The shapes. Widths vary down a stack so it reads as text rather than as a
+   set of identical grey bars. */
+.skeleton--line   { height: 11px; border-radius: 6px; }
+.skeleton--title  { height: 17px; border-radius: 8px; }
+.skeleton--circle { flex: none; width: 38px; height: 38px; border-radius: 50%; }
+/* Sized off .plu-badge, so the row it stands in for is the height it will be. */
+.skeleton--badge  { flex: none; width: 58px; height: 38px; border-radius: var(--r-sm); }
+.skeleton--tile   { height: 62px; border-radius: var(--r-md); }
+
+.skeleton--w40 { width: 40%; }
+.skeleton--w55 { width: 55%; }
+.skeleton--w70 { width: 70%; }
+.skeleton--w85 { width: 85%; }
+
+/* One placeholder row, shaped like a result: badge, two lines of text. */
+.skeleton-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.skeleton-list > li + li { border-top: 1px solid var(--line); }
+
+/* The same box as .result — same padding, same gap, same minimum height —
+   so when the real rows arrive nothing below them moves. */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 62px;
+  padding: var(--sp-3) var(--sp-4);
+}
+.skeleton-row__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+/* A card-shaped placeholder, for a page that hasn't landed yet. */
+.skeleton-card {
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: var(--sp-3);
+}
+
+/* The whole-page one. Nothing but the shapes a MyWork screen is made of: a
+   heading, a couple of cards, a list. */
+.skeleton-page { display: grid; gap: var(--sp-4); }
+.skeleton-page__head { display: grid; gap: var(--sp-2); }
+.skeleton-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }

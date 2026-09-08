@@ -23,6 +23,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # "3 minutes ago" on the notice board reads better than a timestamp.
     'django.contrib.humanize',
+    # Who you are on MyWork — the profile behind the avatar in the app bar.
+    'accounts',
     'plu',
     'timeclock',
     'noticeboard',
@@ -60,6 +62,8 @@ TEMPLATES = [
                 # Which of MyWork's apps the current page belongs to, so
                 # base.html can render that app's navigation and nothing else.
                 'mywork.context_processors.section',
+                # The signed-in user's own photo and name, for the app bar.
+                'mywork.context_processors.me',
             ],
         },
     },
@@ -90,6 +94,13 @@ TIME_ZONE = 'Australia/Darwin'
 
 USE_I18N = True
 USE_TZ = True
+
+
+# Uploads — at present only profile photos. Kept out of STATIC_ROOT: static
+# files ship with the code and are collected, these arrive from users and are
+# backed up with the database, not with the repository.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 STATIC_URL = 'static/'

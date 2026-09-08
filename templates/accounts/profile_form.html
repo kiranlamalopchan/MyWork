@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Edit profile · MyWork{% endblock %}
+
+{% comment %}
+  The editing half of the profile, on a screen of its own.
+
+  Four boxes and nothing else. What each one wants is written inside it in
+  grey rather than explained on a line underneath — a hint you have to look
+  away from the field to read is a hint arriving too late, and four of them
+  turn a short form into a page.
+
+  Only words here. The picture is changed from the menu on the picture, back
+  on the profile itself.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'accounts:profile' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Profile
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">Edit profile</h1>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert--error">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="card card__pad">
+    {% for field in form %}
+      {% comment %}
+        Every field carries an error slot whether or not it has an error yet.
+        It is where the server's complaint is rendered, and where app.js puts
+        a live one — and having it always present means a message appearing
+        never pushes the rest of the form down the screen.
+      {% endcomment %}
+      <div class="field{% if field.errors %} field--invalid{% endif %}">
+        <label class="label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        <div class="help help--error" data-error
+             {% if not field.errors %}hidden{% endif %}>{{ field.errors|striptags }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="detail-actions">
+    <button type="submit" class="btn btn--primary">Save changes</button>
+    <a class="btn" href="{% url 'accounts:profile' %}">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

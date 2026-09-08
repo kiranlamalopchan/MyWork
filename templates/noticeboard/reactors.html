@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load avatars %}
 {% block title %}Reactions · MyWork{% endblock %}
 
 {% comment %}
@@ -32,7 +33,7 @@
           {% for person in group.people %}
             <li class="reactors__row">
               <a class="reactors__person" href="{% url 'notices:person' person.username %}">
-                <span class="avatar avatar--sm" style="--hue: {{ person.hue }}" aria-hidden="true">{{ person.initial }}</span>
+                {% avatar person.user size="sm" %}
                 <span class="reactors__name">
                   {{ person.username }}{% if person.is_me %} <span class="reactors__you">you</span>{% endif %}
                 </span>

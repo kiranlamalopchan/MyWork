@@ -1,4 +1,4 @@
-{% load humanize %}
+{% load humanize avatars %}
 {% comment %}
   One notice: who wrote it, what they wrote, what the room made of it, and the
   thread underneath. Rendered by _board.html both above and below the fold, so
@@ -9,9 +9,7 @@
 
   <li class="notice{% if notice.is_mine %} notice--mine{% endif %}" id="notice-{{ notice.pk }}">
     <div class="notice__main">
-      <a class="avatar" style="--hue: {{ notice.hue }}"
-         href="{% url 'notices:person' notice.author.username %}"
-         aria-label="{{ notice.author.username }}'s profile">{{ notice.initial }}</a>
+      {% avatar notice.author link=True %}
 
       <div class="notice__body">
         <div class="notice__head">
@@ -133,7 +131,7 @@
       <form class="reply" method="post" action="{% url 'notices:comment' notice.pk %}">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next_url }}">
-        <span class="avatar avatar--sm avatar--me" aria-hidden="true">{{ request.user.username|slice:":1"|upper }}</span>
+        {% avatar request.user size="sm" me=True %}
         <input class="reply__input" id="say-{{ notice.pk }}" type="text" name="body" maxlength="300"
                placeholder="Write a comment…" aria-label="Write a comment" autocomplete="off">
         <button type="submit" class="reply__send" aria-label="Send comment">

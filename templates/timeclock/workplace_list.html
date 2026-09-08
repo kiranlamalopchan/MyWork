@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load timeclock_extras %}
 {% block title %}Workplaces · MyWork{% endblock %}
 
 {% block content %}
@@ -13,7 +14,10 @@
     {% for w in workplaces %}
       <li>
         <div class="workplace">
-          <span class="workplace__mark" aria-hidden="true">{{ w.name|slice:":1"|upper }}</span>
+          {# The colour this job wears everywhere else — the calendar, its shifts. #}
+          <span class="workplace__mark workplace__mark--wp"
+                style="--wp-css: {{ w|wp_color }}"
+                aria-hidden="true">{{ w.name|slice:":1"|upper }}</span>
 
           <div class="workplace__body">
             {% comment %}

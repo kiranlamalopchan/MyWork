@@ -32,3 +32,17 @@ def section(request):
         "section_name": current["name"],
         "section_title": current["title"],
     }
+
+
+def me(request):
+    """
+    The signed-in user's own profile, for the avatar button in the app bar.
+
+    Fetched here rather than reached through `request.user.profile` in the
+    template, so a page still renders for an account whose profile row is
+    somehow missing — a template that raises on an attribute has no way to
+    fall back to the letter.
+    """
+    from accounts.models import Profile
+
+    return {"me": Profile.of(getattr(request, "user", None))}
