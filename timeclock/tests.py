@@ -1,18 +1,24 @@
+import shutil
+import tempfile
 import zoneinfo
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from .forms import WorkplaceForm
+from . import payslip as payslip_reader
 from .models import (
     Break,
     fortnight_start,
+    Payment,
+    Payslip,
     Shift,
     TimePreference,
     Weekday,
@@ -21,7 +27,7 @@ from .models import (
     next_month_start,
     week_start,
 )
-from .views import _limits_for
+from .views import _limit_for, _limits_for
 
 
 class ShiftFlowTests(TestCase):
@@ -1194,3 +1200,648 @@ class ThursdayFortnightTests(TestCase):
             user=self.user, name="Fresh Meat", fortnight_anchor=date(2026, 8, 17)
         )
         self.assertEqual(job.fortnight_runs, "Monday → Sunday")
+
+
+class LimitResetOnPaymentTests(TestCase):
+    """
+    Being paid restarts the counting without forgetting the count.
+
+    The figure on the cap is the hours worked since the money arrived, so the
+    day you are paid it reads zero and the next stretch can be watched from a
+    clean start. What it must never do is hand out a second allowance: a cap
+    of 48 hours a fortnight is 48 whether or not somebody paid you halfway
+    through it, so the hours before the line stay in the period's total and
+    still turn the card red on their own.
+    """
+
+    CAP = 48
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate()
+        # A fortnight that opened three days ago, so there is room either side
+        # of a payment no matter which day the suite runs on.
+        self.job = Workplace.objects.create(
+            user=self.user, name="Fresh Meat", hourly_rate=26,
+            hours_limit=self.CAP, limit_period=Workplace.Period.FORTNIGHT,
+            fortnight_anchor=self.today - timedelta(days=3),
+        )
+        self.opens, _ = self.job.limit_window(self.today)
+
+    def _day(self, offset):
+        return self.opens + timedelta(days=offset)
+
+    def _worked(self, hours, offset=0, at=9):
+        start = timezone.make_aware(
+            datetime.combine(self._day(offset), time(at)),
+            timezone.get_current_timezone(),
+        )
+        return Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=start, clock_out=start + timedelta(hours=hours),
+            status=Shift.Status.COMPLETED,
+        )
+
+    def _paid_at(self, offset, hours):
+        """A payment drawing its line at midnight opening day `offset`."""
+        return Payment.objects.create(
+            workplace=self.job,
+            covers_through=timezone.make_aware(
+                datetime.combine(self._day(offset), time.min),
+                timezone.get_current_timezone(),
+            ),
+            hours=hours,
+        )
+
+    def test_the_count_goes_back_to_zero_when_the_money_arrives(self):
+        self._worked(5, offset=0)
+        self.assertEqual(_limit_for(self.user, self.job)["since"], timedelta(hours=5))
+
+        self._paid_at(1, hours=5)
+        limit = _limit_for(self.user, self.job)
+        self.assertEqual(limit["since"], timedelta())
+        self.assertEqual(limit["settled"], timedelta(hours=5))
+
+    def test_hours_worked_after_the_payment_count_again(self):
+        self._worked(5, offset=0)
+        self._paid_at(1, hours=5)
+        self._worked(6, offset=1)
+
+        limit = _limit_for(self.user, self.job)
+        self.assertEqual(limit["since"], timedelta(hours=6))
+        self.assertEqual(limit["used"], timedelta(hours=11))
+
+    def test_the_period_keeps_the_hours_it_was_paid_for(self):
+        # Over the cap, and then paid for. The breach does not go away.
+        self._worked(30, offset=0, at=0)
+        self._worked(20, offset=1, at=0)
+        self._paid_at(2, hours=50)
+
+        limit = _limit_for(self.user, self.job)
+        self.assertEqual(limit["since"], timedelta())
+        self.assertEqual(limit["used"], timedelta(hours=50))
+        self.assertEqual(limit["state"], "over")
+        self.assertEqual(limit["over"], timedelta(hours=2))
+
+    def test_the_two_lengths_of_the_bar_add_up_to_the_whole(self):
+        self._worked(12, offset=0)
+        self._paid_at(1, hours=12)
+        self._worked(6, offset=1)
+
+        limit = _limit_for(self.user, self.job)
+        self.assertEqual(limit["settled"] + limit["since"], limit["used"])
+        self.assertAlmostEqual(
+            limit["settled_percent"] + limit["since_percent"], limit["percent"], places=1
+        )
+
+    def test_a_payment_before_this_period_does_not_reset_it(self):
+        self._worked(5, offset=0)
+        self._paid_at(-7, hours=99)
+
+        limit = _limit_for(self.user, self.job)
+        self.assertIsNone(limit["paid_at"])
+        self.assertEqual(limit["since"], limit["used"])
+
+    def test_the_bar_says_what_the_reset_does_not_excuse(self):
+        self._worked(5, offset=0)
+        self._paid_at(1, hours=5)
+
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        self.assertIn("Counting again from your payment", html)
+        # The reset is a place to count from, and the bar has to say so.
+        self.assertIn("still counts toward this", html)
+        self.assertIn("5h used so far", html)
+
+
+class MonthStatementTests(TestCase):
+    """
+    A month as a PDF, to hold next to the money.
+
+    Being paid sets the running total back to zero, so the figure somebody
+    wants to check against a bank line is gone by the time the line appears.
+    The statement is that figure kept.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate()
+        self.job = Workplace.objects.create(
+            user=self.user, name="Fresh Meat", hourly_rate=26, tax_rate=15
+        )
+        start = timezone.now() - timedelta(hours=6)
+        self.shift = Shift.objects.create(
+            user=self.user, workplace=self.job, clock_in=start,
+            clock_out=start + timedelta(hours=5), status=Shift.Status.COMPLETED,
+        )
+
+    def _url(self, day=None):
+        day = day or self.today
+        return reverse("timeclock:statement", args=[day.year, day.month])
+
+    def test_the_month_downloads_as_a_pdf(self):
+        response = self.client.get(self._url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+        self.assertTrue(response.content.rstrip().endswith(b"%%EOF"))
+
+    def test_the_filename_sorts_by_month(self):
+        response = self.client.get(self._url())
+        self.assertIn(
+            f'filename="MyWork-statement-{self.today:%Y-%m}.pdf"',
+            response["Content-Disposition"],
+        )
+
+    def test_one_job_can_be_reconciled_on_its_own(self):
+        response = self.client.get(self._url(), {"workplace": self.job.pk})
+        self.assertIn("fresh-meat", response["Content-Disposition"])
+
+    def test_a_month_that_is_not_a_month_is_not_found(self):
+        self.assertEqual(self.client.get("/timesheet/pay/statement/2026/13/").status_code, 404)
+
+    def test_a_month_with_nothing_in_it_still_renders(self):
+        response = self.client.get(self._url(date(2019, 2, 1)))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+
+    def test_it_cannot_be_pointed_at_someone_elses_job(self):
+        other = User.objects.create_user("someone", password="pw")
+        theirs = Workplace.objects.create(user=other, name="Theirs")
+
+        response = self.client.get(self._url(), {"workplace": theirs.pk})
+        self.assertEqual(response.status_code, 404)
+
+    def test_signing_out_closes_it(self):
+        self.client.logout()
+        response = self.client.get(self._url())
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(settings.LOGIN_URL, response["Location"])
+
+
+# A real payslip's shape: a "this pay" column beside a year-to-date one, with
+# the period and the payment day printed on the same line as each other.
+SAMPLE_SLIP = """
+ASIAN UNITED FOOD SERVICE PTY LTD        ABN 12 345 678 901
+Employee: KIRAN LAMA
+Pay Period: 13/08/2026 to 26/08/2026      Payment Date: 26/08/2026
+
+Description          Units      Rate     This Pay        YTD
+Ordinary Hours     51.78335    33.25     1,721.80     18,940.20
+Gross                                    1,721.80     18,940.20
+PAYG Withholding                           186.00      2,046.00
+NET PAY                                  1,535.80     16,894.20
+Superannuation                             198.01      2,178.11
+"""
+
+
+class PayslipReadingTests(TestCase):
+    """
+    Getting the figures off the paper.
+
+    A payslip almost always prints two columns, and the label sits on a line
+    with both of them. Nothing here trusts column position: the reading that
+    gets believed is the one where gross − tax actually comes to net, which is
+    the same check a person does with a thumb on the page.
+    """
+
+    def test_a_two_column_slip_reads_this_pay_not_the_year(self):
+        read = payslip_reader.parse(SAMPLE_SLIP)
+
+        self.assertEqual(read["gross"], Decimal("1721.80"))
+        self.assertEqual(read["tax"], Decimal("186.00"))
+        self.assertEqual(read["net"], Decimal("1535.80"))
+        self.assertTrue(read["balanced"])
+
+    def test_the_year_to_date_column_printed_first_changes_nothing(self):
+        read = payslip_reader.parse("""
+            Period: 13/08/2026 to 26/08/2026
+                              YTD        This Pay
+            Gross         18940.20        1721.80
+            Tax            2046.00         186.00
+            Net           16894.20        1535.80
+        """)
+        # Both columns balance. A payslip's own pay is never larger than its
+        # year to date, and that is what settles it.
+        self.assertEqual(read["gross"], Decimal("1721.80"))
+        self.assertEqual(read["net"], Decimal("1535.80"))
+
+    def test_a_line_labelled_year_to_date_is_left_out_of_it(self):
+        read = payslip_reader.parse("""
+            Week Ending 26/08/2026
+            Gross 1263.50
+            Tax Withheld 154.00
+            YTD Gross 18940.20 Tax 2046.00
+        """)
+        self.assertEqual(read["gross"], Decimal("1263.50"))
+        self.assertEqual(read["tax"], Decimal("154.00"))
+
+    def test_a_missing_third_figure_is_worked_out_from_the_other_two(self):
+        read = payslip_reader.parse(
+            "Week Ending 26/08/2026\nGross Pay 1263.50\nTax Withheld 154.00"
+        )
+        self.assertEqual(read["net"], Decimal("1109.50"))
+        self.assertTrue(read["balanced"])
+
+    def test_the_period_and_the_payment_day_share_a_line(self):
+        read = payslip_reader.parse(SAMPLE_SLIP)
+
+        self.assertEqual(read["period_start"], date(2026, 8, 13))
+        self.assertEqual(read["period_end"], date(2026, 8, 26))
+        self.assertEqual(read["paid_on"], date(2026, 8, 26))
+
+    def test_a_date_with_nothing_saying_what_it_is_is_ignored(self):
+        # An ABN registration date is not a pay period.
+        read = payslip_reader.parse(
+            "Registered 01/07/1998\nGross 100.00\nTax 10.00\nNet 90.00"
+        )
+        self.assertIsNone(read["period_start"])
+        self.assertIsNone(read["period_end"])
+
+    def test_hours_and_rate_come_off_an_earnings_line(self):
+        read = payslip_reader.parse(
+            "Ordinary Earnings 51.7834 hrs @ $33.2500 $1,721.80\n"
+            "Taxable Earnings 1721.80\nPAYG Tax 186.00\nNET PAY 1535.80"
+        )
+        self.assertEqual(read["hours"], Decimal("51.7834"))
+        self.assertEqual(read["rate"], Decimal("33.2500"))
+        self.assertTrue(read["hours_check"])
+
+    def test_the_withheld_share_is_what_the_tax_field_asks_for(self):
+        self.assertEqual(
+            payslip_reader.withheld_percent(Decimal("1721.80"), Decimal("186.00")),
+            Decimal("10.80"),
+        )
+
+    def test_nothing_legible_is_not_a_payslip(self):
+        with self.assertRaises(payslip_reader.Unreadable):
+            payslip_reader.text_from(
+                SimpleUploadedFile("blank.png", b"", content_type="image/png")
+            )
+
+
+def _slip_pdf(text):
+    """A one-page PDF carrying `text`, the way payroll would email one."""
+    from io import BytesIO
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    buffer = BytesIO()
+    page = canvas.Canvas(buffer, pagesize=A4)
+    page.setFont("Courier", 10)
+    y = 780
+    for line in text.strip().splitlines():
+        page.drawString(40, y, line)
+        y -= 15
+    page.save()
+    return buffer.getvalue()
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="mywork-test-media-"))
+class PayslipFlowTests(TestCase):
+    """
+    Upload a payslip, read it, check it, and let the job learn from it.
+
+    The order matters: nothing a machine read off a file counts anywhere else
+    in MyWork until a person who can see the paper has confirmed it.
+    """
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.job = Workplace.objects.create(
+            user=self.user, name="AUFS", hourly_rate=Decimal("30.00")
+        )
+
+    def _upload(self, content=None, name="payslip.pdf", kind="application/pdf"):
+        return self.client.post(
+            reverse("timeclock:payslip_upload", args=[self.job.pk]),
+            {"file": SimpleUploadedFile(
+                name, content if content is not None else _slip_pdf(SAMPLE_SLIP),
+                content_type=kind,
+            )},
+            follow=True,
+        )
+
+    def _worked(self, hours, day):
+        start = timezone.make_aware(
+            datetime.combine(day, time(9)), timezone.get_current_timezone()
+        )
+        Shift.objects.create(
+            user=self.user, workplace=self.job, clock_in=start,
+            clock_out=start + timedelta(hours=hours),
+            status=Shift.Status.COMPLETED,
+        )
+
+    # ---- reading ---------------------------------------------------------
+
+    def test_uploading_a_payslip_reads_its_figures(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        self.assertEqual(slip.gross, Decimal("1721.80"))
+        self.assertEqual(slip.tax, Decimal("186.00"))
+        self.assertEqual(slip.net, Decimal("1535.80"))
+        self.assertEqual(slip.period_start, date(2026, 8, 13))
+        self.assertEqual(slip.source, Payslip.Source.PDF)
+        self.assertTrue(slip.adds_up)
+
+    def test_the_take_home_figure_comes_off_the_slip(self):
+        self._upload()
+        self.assertEqual(Payslip.objects.get().take_home, Decimal("1535.80"))
+
+    def test_nothing_is_trusted_until_a_person_confirms_it(self):
+        response = self._upload()
+        slip = Payslip.objects.get()
+
+        self.assertFalse(slip.confirmed)
+        self.assertTrue(slip.needs_checking)
+        self.assertContains(response, "check every figure against the paper")
+
+    def test_confirming_the_figures_marks_it_checked(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        self.client.post(reverse("timeclock:payslip_detail", args=[slip.pk]), {
+            "period_start": "2026-08-13", "period_end": "2026-08-26",
+            "paid_on": "2026-08-26", "hours": "51.7834", "rate": "33.25",
+            "gross": "1721.80", "tax": "186.00", "net": "1535.80",
+            "super_amount": "198.01",
+        })
+        slip.refresh_from_db()
+
+        self.assertTrue(slip.confirmed)
+        self.assertFalse(slip.needs_checking)
+
+    def test_a_correction_sticks(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        self.client.post(reverse("timeclock:payslip_detail", args=[slip.pk]), {
+            "period_start": "2026-08-13", "period_end": "2026-08-26",
+            "gross": "1800.00", "tax": "200.00", "net": "1600.00",
+        })
+        slip.refresh_from_db()
+        self.assertEqual(slip.gross, Decimal("1800.00"))
+
+    # ---- checking it against your own record -----------------------------
+
+    def test_it_is_checked_against_the_hours_you_recorded(self):
+        self._upload()
+        slip = Payslip.objects.get()
+        # Two eight-hour days inside the period the slip covers.
+        self._worked(8, date(2026, 8, 14))
+        self._worked(8, date(2026, 8, 15))
+
+        html = self.client.get(
+            reverse("timeclock:payslip_detail", args=[slip.pk])
+        ).content.decode()
+
+        self.assertIn("Against your timesheet", html)
+        self.assertIn("You recorded", html)
+        self.assertIn("16h", html)
+
+    def test_being_paid_for_less_than_you_worked_is_said_plainly(self):
+        self._upload()
+        slip = Payslip.objects.get()
+        for day in range(13, 27):
+            self._worked(8, date(2026, 8, day))
+
+        html = self.client.get(
+            reverse("timeclock:payslip_detail", args=[slip.pk])
+        ).content.decode()
+        self.assertIn("You recorded more than they paid for", html)
+
+    # ---- teaching the job ------------------------------------------------
+
+    def test_applying_writes_the_withholding_onto_the_job(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        self.client.post(reverse("timeclock:payslip_apply", args=[slip.pk]))
+        self.job.refresh_from_db()
+
+        self.assertEqual(self.job.tax_rate, Decimal("10.80"))
+        self.assertEqual(self.job.hourly_rate, Decimal("33.25"))
+        # And from then on every figure for this job is after tax.
+        self.assertTrue(self.job.withholds)
+
+    def test_applying_twice_changes_nothing_the_second_time(self):
+        self._upload()
+        slip = Payslip.objects.get()
+        self.client.post(reverse("timeclock:payslip_apply", args=[slip.pk]))
+        self.client.post(reverse("timeclock:payslip_apply", args=[slip.pk]))
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.tax_rate, Decimal("10.80"))
+
+    # ---- what may go wrong ------------------------------------------------
+
+    def test_a_file_that_is_not_a_payslip_is_refused(self):
+        response = self._upload(b"hello", name="notes.txt", kind="text/plain")
+
+        self.assertEqual(Payslip.objects.count(), 0)
+        self.assertContains(response, "has to be a PDF or a photo")
+
+    def test_a_file_nothing_can_be_read_from_is_kept_anyway(self):
+        # Losing somebody's payslip because a photo came out badly would be a
+        # worse answer than keeping it with empty boxes to type into.
+        self._upload(_slip_pdf("."), name="blurry.pdf")
+
+        slip = Payslip.objects.get()
+        self.assertIsNone(slip.gross)
+        self.assertTrue(slip.file)
+
+    # ---- whose it is ------------------------------------------------------
+
+    def test_a_stranger_cannot_reach_the_page_or_the_file(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        self.client.force_login(User.objects.create_user("someone", password="pw"))
+        self.assertEqual(
+            self.client.get(reverse("timeclock:payslip_detail", args=[slip.pk])).status_code, 404
+        )
+        self.assertEqual(
+            self.client.get(reverse("timeclock:payslip_file", args=[slip.pk])).status_code, 404
+        )
+
+    def test_the_file_is_served_to_its_owner(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        response = self.client.get(reverse("timeclock:payslip_file", args=[slip.pk]))
+        self.assertEqual(response.status_code, 200)
+
+    def test_signing_out_closes_the_lot(self):
+        self._upload()
+        slip = Payslip.objects.get()
+        self.client.logout()
+
+        for name, args in (
+            ("timeclock:payslips", []),
+            ("timeclock:payslip_detail", [slip.pk]),
+            ("timeclock:payslip_file", [slip.pk]),
+            ("timeclock:payslip_upload", [self.job.pk]),
+        ):
+            response = self.client.get(reverse(name, args=args))
+            self.assertEqual(response.status_code, 302, name)
+
+    def test_removing_it_takes_the_file_with_it(self):
+        self._upload()
+        slip = Payslip.objects.get()
+
+        self.client.post(reverse("timeclock:payslip_delete", args=[slip.pk]))
+        self.assertEqual(Payslip.objects.count(), 0)
+
+
+class LiveFilterTests(TestCase):
+    """
+    Switching jobs on the timesheet swaps what's below the filter, not the
+    filter itself.
+
+    The swap is done in the browser, so what is guaranteed here is the shape
+    the script relies on: a marked region holding everything the filter
+    decides, a marked chip row sitting outside it, and a server that answers
+    the chip's own URL with exactly the page a full load would have given.
+    Break any of those and the enhancement has to fall back — which it does,
+    to an ordinary link, which is why these are links.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.capped = Workplace.objects.create(
+            user=self.user, name="AUFS Meats", hourly_rate=Decimal("33.25"),
+            hours_limit=48, limit_period=Workplace.Period.FORTNIGHT,
+        )
+        self.other = Workplace.objects.create(
+            user=self.user, name="Fresh Meat", hourly_rate=Decimal("26.50")
+        )
+        self._worked(self.capped, 8)
+        self._worked(self.other, 5)
+
+    def _worked(self, workplace, hours):
+        start = timezone.localtime(timezone.now()).replace(
+            hour=9, minute=0, second=0, microsecond=0
+        ) - timedelta(days=1)
+        Shift.objects.create(
+            user=self.user, workplace=workplace,
+            clock_in=start, clock_out=start + timedelta(hours=hours),
+            status=Shift.Status.COMPLETED,
+        )
+
+    def _page(self, workplace=None):
+        params = {"workplace": workplace.pk} if workplace else {}
+        return self.client.get(reverse("timeclock:timesheet"), params).content.decode()
+
+    def _swapped(self, html):
+        """The part the script replaces — everything the filter decides."""
+        return html[html.index('id="sheet"'):html.index("</main>")]
+
+    def test_the_page_carries_the_two_marks_the_swap_needs(self):
+        html = self._page()
+        self.assertIn('id="sheet"', html)
+        self.assertIn('data-live-filter="sheet"', html)
+
+    def test_the_filter_sits_outside_the_part_that_gets_replaced(self):
+        # If the chips were inside it they would vanish mid-swap, which is
+        # the whole thing this is meant to stop.
+        html = self._page()
+        before = html[html.index("data-live-filter"):html.index('id="sheet"')]
+        self.assertNotIn("chip--link", self._swapped(html))
+        self.assertIn("chip--link", before)
+
+    def test_exactly_one_job_is_marked_as_chosen(self):
+        for page in (self._page(), self._page(self.capped), self._page(self.other)):
+            self.assertEqual(page.count("chip--link is-on"), 1)
+
+    def test_each_job_answers_with_only_its_own_work(self):
+        mine = self._swapped(self._page(self.capped))
+        theirs = self._swapped(self._page(self.other))
+
+        self.assertIn("AUFS Meats", mine)
+        self.assertNotIn("Fresh Meat", mine)
+        self.assertIn("Fresh Meat", theirs)
+        self.assertNotIn("AUFS Meats", theirs)
+
+    def test_a_cap_follows_the_filter_it_belongs_to(self):
+        self.assertIn("limit at AUFS Meats", self._swapped(self._page(self.capped)))
+        self.assertNotIn("limit at AUFS Meats", self._swapped(self._page(self.other)))
+
+    def test_a_chips_url_is_a_page_in_its_own_right(self):
+        # Without JavaScript the chip is followed, so it has to be a whole
+        # page and not only a fragment.
+        response = self.client.get(
+            reverse("timeclock:timesheet"), {"workplace": self.capped.pk}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<title>")
+        self.assertContains(response, "id=\"sheet\"")
+
+
+class LiveClockPickerTests(TestCase):
+    """
+    The clock's workplace picker drives what depends on it.
+
+    Choosing a job here used to change nothing until you clocked in, so the
+    hours cap under the dial went on describing whichever job you had been
+    looking at before — which looks like an answer rather than like a stale
+    one. Now the picker stays put and the part beneath it follows.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.capped = Workplace.objects.create(
+            user=self.user, name="AUFS Meats", is_default=True,
+            hours_limit=48, limit_period=Workplace.Period.FORTNIGHT,
+        )
+        self.free = Workplace.objects.create(user=self.user, name="Fresh Meat")
+
+    def _page(self, workplace=None):
+        params = {"workplace": workplace.pk} if workplace else {}
+        return self.client.get(reverse("timeclock:dashboard"), params).content.decode()
+
+    def _swapped(self, html):
+        return html[html.index('id="clock-detail"'):html.index("</main>")]
+
+    def test_the_picker_and_the_region_it_drives_are_both_marked(self):
+        html = self._page()
+        self.assertIn('data-live-filter="clock-detail"', html)
+        self.assertIn('id="clock-detail"', html)
+
+    def test_the_picker_sits_outside_the_part_that_gets_replaced(self):
+        # Swapping the picker away mid-choice is the one thing this must not do.
+        self.assertNotIn("data-live-filter", self._swapped(self._page()))
+
+    def test_the_cap_follows_the_job_you_picked(self):
+        self.assertIn("limit at AUFS Meats", self._swapped(self._page(self.capped)))
+        self.assertNotIn("AUFS Meats", self._swapped(self._page(self.free)))
+
+    def test_picking_one_is_remembered_for_next_time(self):
+        self.client.get(reverse("timeclock:dashboard"), {"workplace": self.free.pk})
+        self.assertNotIn("AUFS Meats", self._swapped(self._page()))
+
+    def test_a_running_shift_has_no_picker_to_drive_it(self):
+        # The job is settled the moment you clock in; there is nothing to pick.
+        Shift.objects.create(
+            user=self.user, workplace=self.capped,
+            clock_in=timezone.now() - timedelta(hours=1),
+            status=Shift.Status.WORKING,
+        )
+        html = self._page()
+        self.assertNotIn("data-live-filter", html)
+        self.assertIn('id="clock-detail"', html)
+
+    def test_one_workplace_needs_no_picker_either(self):
+        Workplace.objects.filter(pk=self.free.pk).delete()
+        self.assertNotIn("data-live-filter", self._page())

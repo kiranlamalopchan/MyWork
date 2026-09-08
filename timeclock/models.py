@@ -7,7 +7,9 @@ timestamps, so correcting a time on the edit page automatically corrects every
 total that was built from it — there are no stale cached numbers to go stale.
 """
 
+import uuid
 from datetime import timedelta
+from decimal import Decimal
 from typing import NamedTuple
 
 from django.conf import settings
@@ -114,6 +116,24 @@ class LimitPeriod(models.TextChoices):
     WEEK = "WEEK", "Per week"
     FORTNIGHT = "FORTNIGHT", "Per fortnight"
     MONTH = "MONTH", "Per month"
+
+
+class PayCycle(models.TextChoices):
+    """
+    How a job pays, which is not the same question as how often you work.
+
+    Two real ones, and they want opposite things from the app. A shop that
+    pays you when it gets round to it has no periods at all — there is one
+    running total of what you are owed, and it ends the day the money arrives.
+    A job that pays every second Wednesday has periods whether or not anyone
+    presses anything: the fortnight closes on Wednesday night and the next one
+    opens on Thursday morning, and the hours have to go with it.
+    """
+
+    IRREGULAR = "IRREGULAR", "Whenever I'm paid"
+    WEEK = "WEEK", "Weekly"
+    FORTNIGHT = "FORTNIGHT", "Fortnightly"
+    MONTH = "MONTH", "Monthly"
 
 
 def _current_week_start():
@@ -235,6 +255,15 @@ class Workplace(models.Model):
         default=1,
         validators=[MinValueValidator(1), MaxValueValidator(MAX_MONTH_START_DAY)],
     )
+    # How this job pays. The cycle it pays on reuses the same three settings
+    # the hours cap already reads — the week's first day, the fortnight's
+    # anchor date, the day the month opens — because a job has one calendar,
+    # not two. Set the fortnight anchor to a day your fortnight *starts* and
+    # payday falls on the day before the next one opens.
+    pay_cycle = models.CharField(
+        max_length=9, choices=PayCycle.choices, default=PayCycle.IRREGULAR
+    )
+
     is_default = models.BooleanField(default=False)
     # Deleting a workplace that has shifts against it archives it instead, so
     # the timesheet keeps showing the name each shift was actually worked
@@ -256,6 +285,75 @@ class Workplace(models.Model):
 
     def __str__(self):
         return self.name
+
+    # ---- how this job pays ----------------------------------------------
+
+    @property
+    def pays_on_a_cycle(self):
+        """Whether payday is a date on the calendar or just a day it happens."""
+        return self.pay_cycle != PayCycle.IRREGULAR
+
+    def pay_window(self, day=None):
+        """
+        The [start, end) dates of the pay period `day` falls in.
+
+        Read off the same cycle settings the hours cap uses, so a fortnight
+        that starts on a Thursday starts on a Thursday for both. Meaningless
+        for a job that pays whenever it likes, which has no periods — that is
+        the caller's to check with `pays_on_a_cycle`.
+        """
+        day = day or timezone.localdate()
+
+        if self.pay_cycle == PayCycle.WEEK:
+            start = week_start(day, self.week_starts_on)
+            return start, start + timedelta(days=7)
+
+        if self.pay_cycle == PayCycle.MONTH:
+            return (
+                month_start(day, self.month_starts_on),
+                next_month_start(day, self.month_starts_on),
+            )
+
+        start = fortnight_start(day, self.fortnight_anchor)
+        return start, start + timedelta(days=14)
+
+    def payday_for(self, window_end):
+        """
+        The day you are paid for a period ending (exclusive) at `window_end`.
+
+        The last day of the period, not the first of the next: a fortnight
+        that runs Thursday to Thursday is paid on the Wednesday, which is the
+        day the person actually waits for.
+        """
+        return window_end - timedelta(days=1)
+
+    @property
+    def pay_cycle_label(self):
+        return {
+            PayCycle.WEEK: "week",
+            PayCycle.MONTH: "month",
+            PayCycle.FORTNIGHT: "fortnight",
+        }.get(self.pay_cycle, "run")
+
+    @property
+    def paid_through(self):
+        """
+        The instant everything before was settled in one go, or None.
+
+        Only open-ended payments count: those are the ones that swept up all
+        history. A payment for one run of a cycle settles that run and says
+        nothing about the runs either side of it.
+        """
+        sweeps = [p.covers_through for p in self.payments.all() if p.covers_from is None]
+        return max(sweeps) if sweeps else None
+
+    def paid_runs(self):
+        """The [from, through) ranges already settled, run by run."""
+        return [
+            (p.covers_from, p.covers_through)
+            for p in self.payments.all()
+            if p.covers_from is not None
+        ]
 
     @property
     def css_color(self):
@@ -548,6 +646,189 @@ class Shift(models.Model):
         # own validation leaves it off the instance, and this runs anyway.
         if self.clock_in and self.clock_out and self.clock_out <= self.clock_in:
             raise ValidationError({"clock_out": "Clock-out has to be after clock-in."})
+
+
+class Payment(models.Model):
+    """
+    A payment received for the hours worked at one workplace.
+
+    Not an edit to the shifts. The timesheet is a record of what happened and
+    it never changes — you were at work whether or not anybody has paid you
+    yet. This is a line drawn under it: everything clocked in before
+    `covers_through` has been settled, so the unpaid total starts again from
+    that moment. Rubbing the line out puts those hours straight back.
+
+    One line per workplace, because two jobs pay on two different days and a
+    single "paid" marker across both would clear hours nobody has paid for.
+
+    The hours and the pay are written down here rather than recalculated
+    later. What a payment covered is a fact about the day it arrived; editing
+    an old shift afterwards should correct your timesheet, not silently
+    rewrite the history of a payment you have already banked.
+    """
+
+    workplace = models.ForeignKey(
+        Workplace, on_delete=models.CASCADE, related_name="payments"
+    )
+    # What this payment settles.
+    #
+    # A job that pays whenever it likes settles everything up to `covers_through`
+    # and leaves `covers_from` empty — there is nothing before it to exclude,
+    # because it is one running total from the start.
+    #
+    # A job on a cycle settles one run, and both ends are recorded. Employers
+    # pay runs out of order often enough — a fortnight queried and paid late,
+    # after the one that followed it — and a single "paid up to here" mark
+    # cannot say "the second fortnight is settled but the first is not". Two
+    # ends can.
+    covers_from = models.DateTimeField(null=True, blank=True)
+    covers_through = models.DateTimeField()
+    # What was cleared, as it stood at the time.
+    hours = models.DecimalField(max_digits=8, decimal_places=2)
+    # What it was worth, if the workplace had a rate to work it out with.
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-covers_through"]
+        indexes = [models.Index(fields=["workplace", "-covers_through"])]
+
+    def __str__(self):
+        return f"{self.hours}h at {self.workplace} to {self.covers_through:%d %b %Y}"
+
+
+def payslip_path(instance, filename):
+    """
+    Where an uploaded payslip lands.
+
+    A random name rather than the one it arrived with. A payslip carries a
+    full name, an address, a tax figure and often a bank account, so the last
+    thing its file should be is guessable — and `payslip-august.pdf` from two
+    different people must not collide. It is served through a view that checks
+    who is asking, never straight off the media URL.
+    """
+    suffix = (filename.rsplit(".", 1)[-1] or "bin").lower()[:5]
+    return f"payslips/{instance.workplace.user_id}/{uuid.uuid4().hex}.{suffix}"
+
+
+class Payslip(models.Model):
+    """
+    An employer's own statement of what they paid you.
+
+    MyWork can only ever estimate pay: it knows the hours you recorded and a
+    rate you typed in. The payslip knows. So one of these is the authority in
+    any disagreement, and it is stored as its own record rather than folded
+    into a Payment — a payment is money arriving, a payslip is the paperwork
+    that says what the money was, and they do not always come together or in
+    that order.
+
+    Every figure is a Decimal off the paper, not a float derived from
+    anything. `confirmed` marks the moment a person read the numbers back and
+    said yes: until then these are a machine's best reading of a photograph,
+    and the difference matters enough to keep on the row.
+    """
+
+    class Source(models.TextChoices):
+        PDF = "PDF", "PDF"
+        PHOTO = "PHOTO", "Photo"
+        TYPED = "TYPED", "Typed in"
+
+    workplace = models.ForeignKey(
+        Workplace, on_delete=models.CASCADE, related_name="payslips"
+    )
+    file = models.FileField(upload_to=payslip_path, blank=True)
+    source = models.CharField(max_length=5, choices=Source.choices, default=Source.TYPED)
+
+    # What it covers. Both ends are optional because plenty of slips print
+    # only "period ending", and half a period is still worth having.
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+    paid_on = models.DateField(null=True, blank=True)
+
+    # The work. Hours to four places because payroll systems really do print
+    # 51.78335 and rounding it would stop the arithmetic agreeing.
+    hours = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    rate = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+
+    # The money.
+    gross = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    tax = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    net = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    super_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name="Superannuation",
+    )
+
+    # A person has read these figures back off the paper and agreed with them.
+    confirmed = models.BooleanField(default=False)
+    # What came off the file, kept so a reading can be checked against the
+    # words it was taken from rather than believed on trust.
+    raw_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-period_end", "-created_at"]
+        indexes = [models.Index(fields=["workplace", "-period_end"])]
+
+    def __str__(self):
+        when = self.period_end or self.paid_on or self.created_at.date()
+        return f"{self.workplace} payslip to {when:%d %b %Y}"
+
+    # ---- what it says --------------------------------------------------
+
+    @property
+    def adds_up(self):
+        """
+        Whether gross − tax comes to net.
+
+        None when one of the three is missing, which is not the same as the
+        three of them disagreeing.
+        """
+        if self.gross is None or self.tax is None or self.net is None:
+            return None
+        return abs(self.gross - self.tax - self.net) <= Decimal("0.02")
+
+    @property
+    def hours_add_up(self):
+        """Whether hours × rate comes to the gross, within half a percent."""
+        if not (self.hours and self.rate and self.gross):
+            return None
+        slack = max(Decimal("0.02"), self.gross * Decimal("0.005"))
+        return abs(self.hours * self.rate - self.gross) <= slack
+
+    @property
+    def withheld_percent(self):
+        """
+        The share of gross withheld, to two places — exactly what the
+        workplace's tax rate field asks for.
+        """
+        if not self.gross or self.gross <= 0 or self.tax is None:
+            return None
+        return (self.tax / self.gross * 100).quantize(Decimal("0.01"))
+
+    @property
+    def take_home(self):
+        """
+        What actually landed, straight off the slip.
+
+        Falls back to gross − tax only when the slip did not print a net, and
+        never to an estimate: the whole point of a payslip is that this figure
+        is not a guess.
+        """
+        if self.net is not None:
+            return self.net
+        if self.gross is not None and self.tax is not None:
+            return self.gross - self.tax
+        return None
+
+    @property
+    def covers_a_period(self):
+        return self.period_start is not None and self.period_end is not None
+
+    @property
+    def needs_checking(self):
+        """Worth a second look before its figures are trusted anywhere else."""
+        return not self.confirmed or self.adds_up is False
 
 
 class Break(models.Model):

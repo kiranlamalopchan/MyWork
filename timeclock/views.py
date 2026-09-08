@@ -7,22 +7,40 @@ lookups 404 rather than 403 so they don't even confirm the row exists.
 """
 
 import calendar as pycalendar
+import mimetypes
 import zoneinfo
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Prefetch
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from .forms import BreakFormSet, ShiftForm, TimePreferenceForm, WorkplaceForm
+from accounts.models import Profile
+
+from . import payslip as payslip_reader
+from . import statement as statement_pdf
+from .forms import (
+    BreakFormSet,
+    PayslipForm,
+    PayslipUploadForm,
+    ShiftForm,
+    TimePreferenceForm,
+    WorkplaceForm,
+)
 from .models import (
     color_css,
+    Payment,
     Pay,
+    Payslip,
     Shift,
     TimePreference,
     Workplace,
@@ -196,6 +214,170 @@ def _period_total(user, start_date, end_date_exclusive, workplace=None):
     return _period_figures(user, start_date, end_date_exclusive, workplace)[0]
 
 
+def hm_words(worked):
+    """A timedelta as "5h 19m", matching the `hm` filter the templates use."""
+    total = int(worked.total_seconds())
+    hours, minutes = total // 3600, (total % 3600) // 60
+    if hours and minutes:
+        return f"{hours}h {minutes}m"
+    return f"{hours}h" if hours else f"{minutes}m"
+
+
+def _unpaid_shifts(workplace):
+    """
+    Every finished shift here that no payment has covered yet.
+
+    Two kinds of cover to clear: a sweep, which settled everything before some
+    instant, and a run, which settled one stretch and nothing either side of
+    it. A shift is owed unless one of them has it.
+    """
+    shifts = workplace.shifts.filter(status=Shift.Status.COMPLETED)
+
+    swept_to = workplace.paid_through
+    if swept_to:
+        shifts = shifts.filter(clock_in__gte=swept_to)
+
+    runs = workplace.paid_runs()
+    return [
+        shift
+        for shift in shifts.prefetch_related("breaks")
+        if not any(start <= shift.clock_in < end for start, end in runs)
+    ]
+
+
+def _run(workplace, shifts, start=None, end=None, closed=False):
+    """
+    One stretch of unpaid work, priced.
+
+    `payable` is the important one: a run can be settled from its payday, not
+    from the day after it. You are paid on the Wednesday — that is what payday
+    means — and a run that only opens for payment on Thursday leaves you
+    looking at hours you have already been paid for on the one day you most
+    want them gone.
+    """
+    worked = sum((shift.worked_duration for shift in shifts), timedelta())
+    hours = worked.total_seconds() / 3600
+    payday = workplace.payday_for(end) if end else None
+    return {
+        "start": start,
+        "end": end,
+        "payday": payday,
+        "worked": worked,
+        "hours": hours,
+        "shifts": len(shifts),
+        "pay": workplace.pay_for(hours) if hours else None,
+        "closed": closed,
+        "payable": closed or (payday is not None and payday <= timezone.localdate()),
+    }
+
+
+def _unpaid_days(workplace):
+    """
+    The unpaid work at one workplace, a day at a time, newest first.
+
+    Some jobs pay you on a day of their choosing for work up to some earlier
+    point — a Sunday shift paid for on the Monday, or the Sunday after that,
+    and always for what you did before. "Everything up to now" is the wrong
+    answer there: it clears the shift you are standing in the middle of.
+
+    So each day carries what would be settled if the money covered up to and
+    including it — the running total from the oldest unpaid day forwards, not
+    that day on its own. That is the figure to check against a payslip.
+    """
+    by_day = {}
+    for shift in _unpaid_shifts(workplace):
+        day = timezone.localtime(shift.clock_in).date()
+        by_day.setdefault(day, []).append(shift)
+
+    days = []
+    running = timedelta()
+    for day in sorted(by_day):
+        worked = sum((s.worked_duration for s in by_day[day]), timedelta())
+        running += worked
+        hours = running.total_seconds() / 3600
+        days.append({
+            "day": day,
+            # The exclusive end a payment covering through this day settles to,
+            # so it speaks the same language as a pay run's end date.
+            "end": day + timedelta(days=1),
+            "worked": worked,
+            "shifts": sorted(by_day[day], key=lambda s: s.clock_in),
+            "clears": running,
+            "clears_hours": hours,
+            "clears_pay": workplace.pay_for(hours) if hours else None,
+        })
+
+    days.reverse()
+    return days
+
+
+def _pay_state(workplace):
+    """
+    Where this job stands: what is still owed, and how it is divided up.
+
+    Two shapes, because two jobs pay in two different ways.
+
+    A job that pays whenever it likes has one open run — everything since the
+    last payment — and it ends when the money arrives and you say so. That is
+    the notepad: one running figure, wiped when you are paid.
+
+    A job that pays on a cycle has periods that close on their own. The one
+    containing today is still running; every closed period before it that
+    nobody has paid for is listed on its own, because they are separate
+    payments that may well arrive separately, and clearing one must not clear
+    the other.
+    """
+    shifts = _unpaid_shifts(workplace)
+
+    if not workplace.pays_on_a_cycle:
+        return {
+            "workplace": workplace,
+            "scheduled": False,
+            "since": workplace.paid_through,
+            "current": _run(workplace, shifts),
+            "due": [],
+            "worked": sum((s.worked_duration for s in shifts), timedelta()),
+            "last_payment": next(iter(workplace.payments.all()), None),
+        }
+
+    this_start, this_end = workplace.pay_window()
+
+    # Each shift belongs to the period its clock-in falls in.
+    buckets = {}
+    for shift in shifts:
+        day = timezone.localtime(shift.clock_in).date()
+        buckets.setdefault(workplace.pay_window(day), []).append(shift)
+
+    current = _run(workplace, buckets.pop((this_start, this_end), []),
+                   this_start, this_end)
+
+    # Closed and unpaid, most recently ended first. A period nobody worked is
+    # not a period anybody is owed for, so it is not listed.
+    due = [
+        _run(workplace, rows, window[0], window[1], closed=True)
+        for window, rows in sorted(buckets.items(), reverse=True)
+        if window[1] <= this_start and rows
+    ]
+
+    return {
+        "workplace": workplace,
+        "scheduled": True,
+        "since": workplace.paid_through,
+        "current": current,
+        "due": due,
+        "worked": sum((s.worked_duration for s in shifts), timedelta()),
+        "last_payment": next(iter(workplace.payments.all()), None),
+    }
+
+
+def unpaid_total(user):
+    """Hours owed across every active workplace — what the More row shows."""
+    places = Workplace.objects.filter(user=user, is_archived=False).prefetch_related(
+        "payments"
+    )
+    return sum((_pay_state(w)["worked"] for w in places), timedelta())
+
+
 def hours_this_week(user):
     """
     Net worked time so far this week, over the account's own week start.
@@ -209,12 +391,50 @@ def hours_this_week(user):
     return _period_total(user, start, start + timedelta(days=7))
 
 
+def _paid_line_in(workplace, start, end):
+    """
+    The most recent payment line falling inside [start, end), or None.
+
+    Where the counting starts again. Everything clocked in before a payment
+    has been settled and put away, so what is left of the period is what has
+    been worked since — which is the figure somebody watching a cap actually
+    wants after being paid.
+    """
+    window_start, window_end = _day_bounds(start, end)
+    lines = [
+        payment.covers_through
+        for payment in workplace.payments.all()
+        if window_start <= payment.covers_through < window_end
+    ]
+    return max(lines) if lines else None
+
+
+def _worked_since(user, workplace, since, until):
+    """Net worked time at one workplace for shifts starting in [since, until)."""
+    return _total_worked(
+        _shifts_for(user).filter(
+            workplace=workplace, clock_in__gte=since, clock_in__lt=until
+        )
+    )
+
+
 def _limit_for(user, workplace, today=None):
     """
     How one workplace is tracking against its own cap, or None if it has none.
 
     Only that workplace's shifts count, over that workplace's own week or
     fortnight cycle — hours at another job never eat into this limit.
+
+    Being paid restarts the count. The headline figure is the hours worked
+    since the last payment landed, so the day the money arrives the number
+    goes back to zero and the next stretch can be watched from a clean start
+    — the same wiped notepad the pay screen keeps.
+
+    What it does *not* do is forget. A cap of 48 hours a fortnight is 48 in
+    the fortnight whether or not somebody paid you halfway through it, so the
+    hours before the line stay in the bar, stay in the period total, and
+    still turn the card amber and then red on their own. The reset is a place
+    to count from, never a second allowance.
     """
     if workplace is None or not workplace.has_limit:
         return None
@@ -224,7 +444,18 @@ def _limit_for(user, workplace, today=None):
 
     cap = timedelta(hours=float(workplace.hours_limit))
     used = _period_total(user, start, end, workplace)
+
+    # The period's own hours, split either side of the last payment in it.
+    paid_at = _paid_line_in(workplace, start, end)
+    since = (
+        _worked_since(user, workplace, paid_at, _day_bounds(start, end)[1])
+        if paid_at
+        else used
+    )
+    settled = max(used - since, timedelta())
+
     pct = min(used / cap * 100, 100) if cap else 0
+    settled_pct = min(settled / cap * 100, 100) if cap else 0
 
     return {
         "workplace": workplace,
@@ -233,9 +464,17 @@ def _limit_for(user, workplace, today=None):
         "remaining": max(cap - used, timedelta()),
         "over": max(used - cap, timedelta()),
         "percent": round(pct, 1),
+        # The two halves of the bar: what a payment has already closed off,
+        # and what has been worked since. They sum to `percent`.
+        "settled": settled,
+        "settled_percent": round(settled_pct, 1),
+        "since": since,
+        "since_percent": round(max(pct - settled_pct, 0), 1),
+        "paid_at": paid_at,
         "period_label": workplace.period_label,
         "period_start": start,
-        # Amber once the last tenth is in sight, red once it's gone.
+        # Amber once the last tenth is in sight, red once it's gone — measured
+        # on the whole period, because that is what the cap is measured on.
         "state": "over" if used >= cap else ("close" if pct >= 90 else "ok"),
     }
 
@@ -254,7 +493,7 @@ def _limits_for(user, workplace=None):
         limit
         for w in Workplace.objects.filter(
             user=user, is_archived=False, hours_limit__isnull=False
-        )
+        ).prefetch_related("payments")
         if (limit := _limit_for(user, w, today))
     ]
 
@@ -329,7 +568,10 @@ def dashboard(request):
     The clock screen. Shows one of three states — ready to clock in, working,
     or on a break — and the buttons that move between them.
     """
-    workplaces = list(Workplace.objects.filter(user=request.user, is_archived=False))
+    workplaces = list(
+        Workplace.objects.filter(user=request.user, is_archived=False)
+        .prefetch_related("payments")
+    )
     shift = Shift.open_for(request.user)
 
     if shift:
@@ -752,7 +994,10 @@ def shift_create(request):
     two ways an entry from memory goes wrong.
     """
     shift = Shift(user=request.user)
-    workplaces = list(Workplace.objects.filter(user=request.user, is_archived=False))
+    workplaces = list(
+        Workplace.objects.filter(user=request.user, is_archived=False)
+        .prefetch_related("payments")
+    )
 
     if request.method == "POST":
         form = ShiftForm(request.POST, instance=shift, user=request.user)
@@ -967,4 +1212,669 @@ def more(request):
     """Menu page for everything that doesn't earn a slot in the tab bar."""
     return render(request, "timeclock/more.html", {
         "workplace_count": Workplace.objects.filter(user=request.user, is_archived=False).count(),
+        "payslip_count": Payslip.objects.filter(workplace__user=request.user).count(),
+        "payslips_to_check": sum(
+            1
+            for slip in Payslip.objects.filter(
+                workplace__user=request.user, confirmed=False
+            )
+        ),
+        "unpaid_total": unpaid_total(request.user),
     })
+
+
+@login_required
+def payments(request):
+    """
+    What each job still owes you, and the button that clears it.
+
+    One card per workplace and never one total across them: two jobs pay on
+    two different days, and a single figure would be cleared by whichever of
+    them paid first, taking the other's hours with it.
+    """
+    places = (
+        Workplace.objects.filter(user=request.user, is_archived=False)
+        .prefetch_related("payments")
+    )
+    owing = [_pay_state(workplace) for workplace in places]
+
+    return render(request, "timeclock/payments.html", {
+        "owing": owing,
+        "owed_total": sum((row["worked"] for row in owing), timedelta()),
+    })
+
+
+@login_required
+@require_POST
+def payment_record(request, pk):
+    """
+    Mark this workplace paid, up to a point.
+
+    A job that pays whenever it likes is settled up to now — the money is in
+    your hand, so everything worked before this moment is covered. A job on a
+    cycle is settled up to the end of the period being paid for, which is sent
+    with the form: paying for the fortnight that closed last Wednesday must
+    not also clear the one that has been running since Thursday.
+
+    Nothing is deleted either way. A line is drawn, the hours before it stop
+    being counted as owed, and the timesheet behind it is untouched.
+    """
+    workplace = get_object_or_404(
+        Workplace.objects.prefetch_related("payments"), pk=pk, user=request.user
+    )
+    state = _pay_state(workplace)
+
+    run = _run_being_paid(request, state)
+    if run is None:
+        # Not a failure to parse so much as a run that isn't owed: already
+        # settled, or still being worked. Saying which is more use than
+        # saying the form was wrong.
+        messages.info(
+            request,
+            f"That pay run at {workplace.name} isn't outstanding — it's either "
+            "already marked paid, or it hasn't finished yet.",
+        )
+        return redirect("timeclock:payments")
+    if run["hours"] <= 0:
+        messages.info(request, f"Nothing outstanding at {workplace.name}.")
+        return redirect("timeclock:payments")
+
+    Payment.objects.create(
+        workplace=workplace,
+        # A sweep for a job with no cycle; one run for a job that has one.
+        covers_from=_midnight(run["start"]) if run["start"] else None,
+        # The run's own end, unless that is still in the future — being paid
+        # on the Wednesday settles the run up to now, and an evening shift
+        # after the money arrives is honestly still owed.
+        covers_through=(
+            min(_midnight(run["end"]), timezone.now()) if run["end"] else timezone.now()
+        ),
+        hours=round(run["hours"], 2),
+        amount=round(run["pay"].gross, 2) if run["pay"] else None,
+    )
+    messages.success(
+        request, f"{hm_words(run['worked'])} at {workplace.name} marked paid."
+    )
+    return redirect("timeclock:payments")
+
+
+def _midnight(day):
+    """A local date as the instant it begins."""
+    return timezone.make_aware(
+        datetime.combine(day, time.min), timezone.get_current_timezone()
+    )
+
+
+def _run_being_paid(request, state):
+    """
+    Which stretch of work the form is settling.
+
+    A job with no cycle has only one, so there is nothing to name. A job with
+    one sends the end date of the run being paid, and it has to be a run that
+    is actually owed — a period still running has not finished being worked,
+    and one already settled must not be settled twice.
+    """
+    raw = (request.POST.get("through") or "").strip()
+
+    if not state["scheduled"]:
+        # No cut-off named: the money covered everything, which is the usual
+        # case and the one the card's own button sends.
+        if not raw:
+            return state["current"]
+        try:
+            end = date.fromisoformat(raw)
+        except ValueError:
+            return None
+        # Only the work before that cut-off, priced on its own.
+        cutoff = _midnight(end)
+        covered = [
+            shift
+            for shift in _unpaid_shifts(state["workplace"])
+            if shift.clock_in < cutoff
+        ]
+        return _run(state["workplace"], covered, end=end) if covered else None
+
+    try:
+        end = date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+    payable = list(state["due"])
+    if state["current"]["payable"]:
+        payable.append(state["current"])
+    return next((run for run in payable if run["end"] == end), None)
+
+
+@login_required
+def payment_choose(request, pk):
+    """
+    What did this payment cover?
+
+    For a job that pays on its own schedule for work up to some earlier point.
+    Rather than a date field to type into, it lists the unpaid days as they
+    actually happened — the record the employer is paying against — and each
+    one says what marking it would clear. You find the last day the money
+    covered and tap that.
+    """
+    workplace = get_object_or_404(
+        Workplace.objects.prefetch_related("payments"), pk=pk, user=request.user
+    )
+    if workplace.pays_on_a_cycle:
+        # A job with runs already answers this question with its runs.
+        return redirect("timeclock:payments")
+
+    return render(request, "timeclock/payment_choose.html", {
+        "workplace": workplace,
+        "days": _unpaid_days(workplace),
+        "state": _pay_state(workplace),
+    })
+
+
+@login_required
+@require_POST
+def payment_undo(request, pk):
+    """
+    Take the last line back out.
+
+    A button that resets a number to zero has to be undoable, or the first
+    mis-tap costs somebody the record of hours they have not been paid for.
+    """
+    workplace = get_object_or_404(
+        Workplace.objects.prefetch_related("payments"), pk=pk, user=request.user
+    )
+    last = workplace.payments.order_by("-created_at").first()
+
+    if last is None:
+        messages.info(request, f"No payments recorded at {workplace.name}.")
+    else:
+        last.delete()
+        messages.success(
+            request, f"Last payment at {workplace.name} undone — those hours are owed again."
+        )
+    return redirect("timeclock:payments")
+
+
+# ---------------------------------------------------------------------------
+#  The month statement
+# ---------------------------------------------------------------------------
+
+def _covering_payment(shift, payments):
+    """
+    The payment that settled this shift, or None if nothing has yet.
+
+    Two shapes of cover, the same two `_unpaid_shifts` clears against: a sweep,
+    which settled everything before an instant, and a run, which settled one
+    stretch and nothing either side of it. The earliest one that covers the
+    shift is the one that paid for it — a later payment covering the same
+    ground did not pay for it twice.
+    """
+    covering = [
+        payment
+        for payment in payments
+        if (
+            payment.covers_from is None
+            and shift.clock_in < payment.covers_through
+        )
+        or (
+            payment.covers_from is not None
+            and payment.covers_from <= shift.clock_in < payment.covers_through
+        )
+    ]
+    return min(covering, key=lambda p: p.created_at) if covering else None
+
+
+def _day_words(when):
+    """A date as "Sun 6 Sep" — the shape the screens use, no leading zero."""
+    local = timezone.localtime(when) if hasattr(when, "tzinfo") else when
+    return f"{local:%a} {local.day} {local:%b}"
+
+
+def _statement_month(year, month):
+    """The [first, next) dates of a month, or 404 for a month that isn't one."""
+    try:
+        first = date(year, month, 1)
+    except ValueError as exc:
+        raise Http404("No such month.") from exc
+    return first, next_month_start(first, 1)
+
+
+@login_required
+def statement(request, year, month):
+    """
+    One month as a PDF, to hold next to the money.
+
+    A payment lands in a bank account as one line: a date and an amount. This
+    is the other side of it — what turned up, what it said it covered, and
+    every shift behind it — so the two can be checked off against each other.
+
+    It matters most straight after being paid, because marking a payment
+    received sets the running total back to zero. The hours are still on the
+    timesheet, but the figure you were watching is gone; a statement is that
+    figure kept, on the day it was true.
+
+    Scoped to one workplace with ?workplace=<pk> when a single job is being
+    reconciled, and to everything otherwise.
+    """
+    first, last = _statement_month(year, month)
+    start, end = _day_bounds(first, last)
+
+    workplace = None
+    if raw := (request.GET.get("workplace") or "").strip():
+        workplace = get_object_or_404(Workplace, pk=raw, user=request.user)
+
+    shifts = (
+        _shifts_for(request.user)
+        .filter(status=Shift.Status.COMPLETED, clock_in__gte=start, clock_in__lt=end)
+        .order_by("clock_in")
+    )
+    if workplace:
+        shifts = shifts.filter(workplace=workplace)
+
+    # Every payment against the jobs in view, not just the month's — a shift
+    # worked in September may well have been settled in October, and the Paid
+    # column should say so rather than leave it looking outstanding.
+    all_payments = Payment.objects.filter(workplace__user=request.user)
+    if workplace:
+        all_payments = all_payments.filter(workplace=workplace)
+    by_workplace = {}
+    for payment in all_payments.select_related("workplace"):
+        by_workplace.setdefault(payment.workplace_id, []).append(payment)
+
+    # ---- the shifts ----------------------------------------------------
+    rows = []
+    worked = timedelta()
+    totals = {}
+    estimated = False
+
+    for shift in shifts:
+        worked += shift.worked_duration
+        paid_by = _covering_payment(shift, by_workplace.get(shift.workplace_id, []))
+        rows.append({
+            "date": _day_words(shift.clock_in),
+            "workplace": shift.workplace.name if shift.workplace else "No workplace",
+            "hue": shift.workplace.color if shift.workplace else None,
+            "start": timezone.localtime(shift.clock_in).strftime("%I:%M %p").lstrip("0"),
+            "finish": timezone.localtime(shift.clock_out).strftime("%I:%M %p").lstrip("0"),
+            "break": statement_pdf.hm(shift.total_break) if shift.total_break else "—",
+            "hours": statement_pdf.hm(shift.worked_duration),
+            "paid": (
+                f"{timezone.localtime(paid_by.created_at).day} "
+                f"{timezone.localtime(paid_by.created_at):%b}"
+                if paid_by else "—"
+            ),
+        })
+
+        # Priced by its own job's rate, never by an average of two.
+        place = shift.workplace
+        key = place.pk if place else None
+        bucket = totals.setdefault(key, {
+            "workplace": place.name if place else "No workplace",
+            "hue": place.color if place else None,
+            "worked": timedelta(), "gross": 0.0, "tax": 0.0,
+            "priced": False, "withholds": False,
+        })
+        bucket["worked"] += shift.worked_duration
+        if (pay := shift.pay) is not None:
+            estimated = True
+            bucket["priced"] = True
+            # $0.00 withheld and "nobody has told us what is withheld" are
+            # different answers, and only one of them can be printed as a
+            # take-home figure.
+            bucket["withholds"] = bucket["withholds"] or place.withholds
+            bucket["gross"] += pay.gross
+            bucket["tax"] += pay.tax
+
+    # ---- what arrived --------------------------------------------------
+    received = (
+        all_payments.filter(created_at__gte=start, created_at__lt=end)
+        .select_related("workplace")
+        .order_by("created_at")
+    )
+    payment_rows = []
+    received_hours = 0.0
+    received_amount = 0.0
+    priced_any = False
+
+    for payment in received:
+        received_hours += float(payment.hours)
+        if payment.amount is not None:
+            priced_any = True
+            received_amount += float(payment.amount)
+        opens = (
+            f"{timezone.localtime(payment.covers_from).day} "
+            f"{timezone.localtime(payment.covers_from):%b}"
+            if payment.covers_from else "everything"
+        )
+        closes = (
+            f"{timezone.localtime(payment.covers_through).day} "
+            f"{timezone.localtime(payment.covers_through):%b}"
+        )
+        payment_rows.append({
+            "received": _day_words(payment.created_at),
+            "workplace": payment.workplace.name,
+            "hue": payment.workplace.color,
+            "covers": f"{opens} – {closes}" if payment.covers_from else f"up to {closes}",
+            "hours": f"{float(payment.hours):g}h",
+            "amount": float(payment.amount) if payment.amount is not None else None,
+        })
+
+    me = Profile.of(request.user)
+    scope = workplace.name if workplace else "All workplaces"
+    label = first.strftime("%B %Y")
+
+    pdf = statement_pdf.build({
+        "month_label": label,
+        "subtitle": f"{me.name} · {scope}",
+        "payments": payment_rows,
+        "received_hours": f"{received_hours:g}h",
+        "received_amount": received_amount if priced_any else None,
+        "shifts": rows,
+        "worked_hours": statement_pdf.hm(worked),
+        "totals": [
+            {
+                "workplace": row["workplace"],
+                "hue": row["hue"],
+                "hours": statement_pdf.hm(row["worked"]),
+                "gross": round(row["gross"], 2) if row["priced"] else None,
+                "tax": round(row["tax"], 2) if row["withholds"] else None,
+                "net": (
+                    round(row["gross"] - row["tax"], 2)
+                    if row["priced"] and row["withholds"] else None
+                ),
+            }
+            for row in totals.values()
+        ],
+        "estimated": estimated,
+        "before_tax": any(
+            row["priced"] and not row["withholds"] for row in totals.values()
+        ),
+        "footnote": (
+            f"Prepared {timezone.localdate().strftime('%d %B %Y').lstrip('0')} from "
+            "your own MyWork timesheet. It records what you entered, not what an "
+            "employer has declared — keep it beside the payslip rather than "
+            "instead of it."
+        ),
+        "filename": _statement_filename(first, workplace),
+    })
+
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{_statement_filename(first, workplace)}"'
+    )
+    return response
+
+
+def _statement_filename(first, workplace):
+    """Sorts by date in a downloads folder, and says which job it is for."""
+    who = f"-{slugify(workplace.name)}" if workplace else ""
+    return f"MyWork-statement{who}-{first:%Y-%m}.pdf"
+
+
+# ---------------------------------------------------------------------------
+#  Payslips — the employer's own statement, checked against yours
+# ---------------------------------------------------------------------------
+
+def _payslip_or_404(request, pk):
+    """One of this user's payslips, by way of the workplace that owns it."""
+    return get_object_or_404(
+        Payslip.objects.select_related("workplace"),
+        pk=pk, workplace__user=request.user,
+    )
+
+
+def _reconcile(payslip):
+    """
+    The payslip against your own record of the same days.
+
+    This is the whole reason for uploading one. The slip says how many hours
+    they paid for; the timesheet says how many you worked. Where those two
+    disagree is the only place a conversation with an employer can start, and
+    it is worth putting a figure and a dollar value on rather than a feeling
+    that the pay looked light.
+
+    None when the slip does not say which days it covers — there is nothing
+    to compare it against until it does.
+    """
+    if not payslip.covers_a_period:
+        return None
+
+    workplace = payslip.workplace
+    start, end = _day_bounds(payslip.period_start, payslip.period_end + timedelta(days=1))
+    shifts = list(
+        _shifts_for(workplace.user).filter(
+            workplace=workplace, status=Shift.Status.COMPLETED,
+            clock_in__gte=start, clock_in__lt=end,
+        ).order_by("clock_in")
+    )
+
+    recorded = _total_worked(shifts)
+    recorded_hours = (
+        Decimal(recorded.total_seconds()) / Decimal(3600)
+    ).quantize(Decimal("0.0001"))
+
+    gap = None if payslip.hours is None else payslip.hours - recorded_hours
+    rate = payslip.rate or workplace.hourly_rate
+    return {
+        "shifts": shifts,
+        "days": len({timezone.localtime(s.clock_in).date() for s in shifts}),
+        "recorded": recorded,
+        "recorded_hours": recorded_hours,
+        "slip_hours": payslip.hours,
+        "gap": gap,
+        # Under an hour and a half either way is a rounding difference and a
+        # break policy, not a shortfall worth chasing.
+        "agrees": None if gap is None else abs(gap) <= Decimal("0.02"),
+        "short": None if gap is None else gap < Decimal("-0.02"),
+        "gap_money": (
+            None if gap is None or rate is None
+            else (gap * rate).quantize(Decimal("0.01"))
+        ),
+    }
+
+
+@login_required
+def payslips(request):
+    """
+    Every payslip you have uploaded, newest first.
+
+    Grouped by nothing and sorted by period, because what you come here for is
+    the last one — and after that, the one from the fortnight somebody is
+    arguing about.
+    """
+    rows = (
+        Payslip.objects.filter(workplace__user=request.user)
+        .select_related("workplace")
+    )
+    places = list(
+        Workplace.objects.filter(user=request.user, is_archived=False)
+    )
+    return render(request, "timeclock/payslips.html", {
+        "payslips": rows,
+        "workplaces": places,
+        "unchecked": sum(1 for row in rows if row.needs_checking),
+    })
+
+
+@login_required
+def payslip_upload(request, pk):
+    """
+    Take a payslip for this workplace and read what is on it.
+
+    The reading is never the last word. What comes out of a photograph is a
+    good guess, and it goes straight to a screen that shows every figure in a
+    box you can correct — because "exactly" is a promise only the person
+    holding the paper can make. Nothing is trusted anywhere else in the app
+    until that screen is confirmed.
+    """
+    workplace = get_object_or_404(Workplace, pk=pk, user=request.user)
+
+    if request.method != "POST":
+        return render(request, "timeclock/payslip_upload.html", {
+            "workplace": workplace, "form": PayslipUploadForm(),
+        })
+
+    form = PayslipUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return render(request, "timeclock/payslip_upload.html", {
+            "workplace": workplace, "form": form,
+        })
+
+    upload = form.cleaned_data["file"]
+    try:
+        text, how = payslip_reader.text_from(upload)
+        read = payslip_reader.parse(text)
+    except payslip_reader.Unreadable as problem:
+        # Failing to read it is not a reason to lose it. The slip is kept with
+        # its figures empty, and typing them in works from there exactly as
+        # confirming a reading would — which is a far better answer than
+        # sending somebody back to the file picker with nothing.
+        messages.warning(
+            request, f"{problem} The payslip is saved — type its figures in below."
+        )
+        text = ""
+        how = "pdf" if (upload.name or "").lower().endswith(".pdf") else "photo"
+        read = dict.fromkeys(
+            ("period_start", "period_end", "paid_on", "hours", "rate",
+             "gross", "tax", "net", "super")
+        )
+
+    # A slip that names only the day its period ended still tells you when it
+    # started, if the job pays on a cycle — that is what a cycle is.
+    opens = read["period_start"]
+    if opens is None and read["period_end"] and workplace.pays_on_a_cycle:
+        opens = workplace.pay_window(read["period_end"])[0]
+
+    upload.seek(0)
+    slip = Payslip.objects.create(
+        workplace=workplace,
+        file=upload,
+        source=Payslip.Source.PDF if how == "pdf" else Payslip.Source.PHOTO,
+        period_start=opens,
+        period_end=read["period_end"],
+        paid_on=read["paid_on"],
+        hours=read["hours"],
+        rate=read["rate"],
+        gross=read["gross"],
+        tax=read["tax"],
+        net=read["net"],
+        super_amount=read["super"],
+        raw_text=text,
+    )
+    return redirect("timeclock:payslip_detail", pk=slip.pk)
+
+
+@login_required
+def payslip_detail(request, pk):
+    """
+    What the slip says, what your timesheet says, and the gap between them.
+
+    The figures sit in boxes rather than in print, because the reading has to
+    be correctable — and confirming them is a deliberate act, not something
+    that happened while the file uploaded.
+    """
+    slip = _payslip_or_404(request, pk)
+
+    if request.method == "POST":
+        form = PayslipForm(request.POST, instance=slip)
+        if form.is_valid():
+            slip = form.save(commit=False)
+            # Typed over by hand is as good as it gets, and better than what
+            # any reading of a photograph can claim.
+            slip.confirmed = True
+            slip.save()
+            messages.success(
+                request,
+                f"Payslip confirmed. Take-home {_dollars(slip.take_home)}."
+                if slip.take_home is not None else "Payslip saved.",
+            )
+            return redirect("timeclock:payslip_detail", pk=slip.pk)
+    else:
+        form = PayslipForm(instance=slip)
+
+    return render(request, "timeclock/payslip_detail.html", {
+        "slip": slip,
+        "form": form,
+        "check": _reconcile(slip),
+        "withheld": slip.withheld_percent,
+        # Whether saving that percentage would actually change anything.
+        "differs_from_saved": (
+            slip.withheld_percent is not None
+            and slip.workplace.tax_rate != slip.withheld_percent
+        ),
+    })
+
+
+def _dollars(amount):
+    return "—" if amount is None else f"${amount:,.2f}"
+
+
+@login_required
+@require_POST
+def payslip_apply(request, pk):
+    """
+    Teach the workplace what this payslip knows.
+
+    The withheld percentage and the hourly rate come off the paper and onto
+    the job, and from then on every figure MyWork shows for it is after tax
+    rather than before. This is a separate button on purpose: reading a slip
+    is looking something up, and changing what the app believes about a job
+    is a decision.
+    """
+    slip = _payslip_or_404(request, pk)
+    workplace = slip.workplace
+    changed = []
+
+    if slip.withheld_percent is not None and workplace.tax_rate != slip.withheld_percent:
+        workplace.tax_rate = slip.withheld_percent
+        changed.append(f"withholding {slip.withheld_percent}%")
+    if slip.rate is not None and workplace.hourly_rate != slip.rate:
+        workplace.hourly_rate = slip.rate
+        changed.append(f"rate ${slip.rate}")
+
+    if changed:
+        workplace.save(update_fields=["tax_rate", "hourly_rate"])
+        messages.success(
+            request,
+            f"{workplace.name} updated from your payslip — {' and '.join(changed)}. "
+            "Every figure for this job is now after tax.",
+        )
+    else:
+        messages.info(request, f"{workplace.name} already matches this payslip.")
+    return redirect("timeclock:payslip_detail", pk=slip.pk)
+
+
+@login_required
+def payslip_file(request, pk):
+    """
+    The stored file, to whoever it belongs to and nobody else.
+
+    Never linked straight off the media URL. A payslip carries a full name, an
+    address, a tax file figure and often a bank account, and a URL that serves
+    it without asking who is holding it is a URL that can be forwarded.
+    """
+    slip = _payslip_or_404(request, pk)
+    if not slip.file:
+        raise Http404("No file was kept for this payslip.")
+
+    kind, _ = mimetypes.guess_type(slip.file.name)
+    return FileResponse(
+        slip.file.open("rb"),
+        content_type=kind or "application/octet-stream",
+        # Shown, not downloaded: you open it to read a figure back off it.
+        as_attachment=False,
+        filename=f"payslip-{slip.period_end or slip.created_at.date()}"
+                 f"{Path(slip.file.name).suffix}",
+    )
+
+
+@login_required
+@require_POST
+def payslip_delete(request, pk):
+    """Remove a payslip and the file behind it."""
+    slip = _payslip_or_404(request, pk)
+    name = slip.workplace.name
+    if slip.file:
+        slip.file.delete(save=False)
+    slip.delete()
+    messages.success(request, f"Payslip removed from {name}.")
+    return redirect("timeclock:payslips")

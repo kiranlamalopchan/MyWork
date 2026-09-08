@@ -4,6 +4,13 @@
   is titled with the name it belongs to and "Change" opens that workplace.
   `limit.state` is one of ok / close / over and drives the colour, so the bar
   warns before the limit rather than only after it.
+
+  Being paid restarts the counting. The big figure is the hours worked since
+  the money arrived — back to zero on the day it does — while the hours before
+  it stay in the bar as a paler length and stay in the period's total. A cap
+  of 48 hours a fortnight is 48 whether or not somebody paid you halfway
+  through it, so the reset is a place to count from and never a second
+  allowance.
 {% endcomment %}
 <div class="card limit limit--{{ limit.state }}">
   <div class="card__pad">
@@ -11,16 +18,24 @@
       <div>
         <div class="section-label">{{ limit.workplace.name }} · this {{ limit.period_label }}</div>
         <div class="limit__figure">
-          <span class="limit__used" data-tally="{{ limit.used|seconds }}">{{ limit.used|hm|default:"0m" }}</span>
-          <span class="limit__cap">/ {{ limit.cap|hm }}</span>
+          <span class="limit__used" data-tally="{{ limit.since|seconds }}">{{ limit.since|hm|default:"0m" }}</span>
+          {% if limit.paid_at %}
+            <span class="limit__cap">since you were paid</span>
+          {% else %}
+            <span class="limit__cap">/ {{ limit.cap|hm }}</span>
+          {% endif %}
         </div>
       </div>
       <a class="btn btn--ghost btn--sm" href="{% url 'timeclock:workplace_edit' limit.workplace.pk %}">Change</a>
     </div>
 
     <div class="limit__track" role="img"
-         aria-label="{{ limit.percent }} percent of your {{ limit.period_label }} limit at {{ limit.workplace.name }} used">
-      <div class="limit__fill" style="--pct: {{ limit.percent }}%"></div>
+         aria-label="{{ limit.percent }} percent of your {{ limit.period_label }} limit at {{ limit.workplace.name }} used{% if limit.paid_at %}, of which {{ limit.since|hm }} since your last payment{% endif %}">
+      {% if limit.settled_percent %}
+        {# Already paid for, and still counting toward the cap. #}
+        <span class="limit__fill limit__fill--settled" style="--pct: {{ limit.settled_percent }}%"></span>
+      {% endif %}
+      <span class="limit__fill" style="--pct: {{ limit.since_percent }}%"></span>
     </div>
 
     <div class="limit__note">
@@ -38,5 +53,13 @@
         {{ limit.remaining|hm }} remaining
       {% endif %}
     </div>
+
+    {% if limit.paid_at %}
+      <p class="limit__reset">
+        Counting again from your payment on {{ limit.paid_at|date:"j M" }}. The
+        {{ limit.settled|hm }} before it still counts toward this
+        {{ limit.period_label }}’s {{ limit.cap|hm }} — {{ limit.used|hm }} used so far.
+      </p>
+    {% endif %}
   </div>
 </div>

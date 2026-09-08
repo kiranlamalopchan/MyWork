@@ -82,3 +82,20 @@ def decimal_hours(value):
     if not isinstance(value, timedelta):
         return ""
     return f"{max(value.total_seconds(), 0) / 3600:.2f}"
+
+
+@register.filter
+def money(value):
+    """
+    A figure as it is written on a payslip: $1,186.36.
+
+    Thousands separated, because that is how the paper it is being checked
+    against writes it, and a fortnight's gross is long enough for the grouping
+    to be the difference between reading it and counting the digits.
+    """
+    if value is None or value == "":
+        return "—"
+    try:
+        return f"${float(value):,.2f}"
+    except (TypeError, ValueError):
+        return "—"

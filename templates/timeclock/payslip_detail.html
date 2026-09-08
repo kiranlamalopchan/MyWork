@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% load timeclock_extras %}
+{% block title %}Payslip · MyWork{% endblock %}
+
+{% comment %}
+  A payslip, read back.
+
+  The order is the order the questions get asked: what did I actually take
+  home, do the slip's own figures add up, does it match the hours I worked,
+  and only then — should the app learn this job's real withholding from it.
+
+  The figures sit in boxes rather than in print because a reading off a
+  photograph is a guess until somebody who can see the paper says otherwise.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'timeclock:payslips' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Payslips
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">Payslip</h1>
+  <p class="page-sub">
+    <span class="swatch" style="--wp-css: {{ slip.workplace|wp_color }}" aria-hidden="true"></span>
+    {{ slip.workplace.name }}{% if slip.covers_a_period %} ·
+      {{ slip.period_start|date:"j M" }} – {{ slip.period_end|date:"j M Y" }}
+    {% elif slip.period_end %} · to {{ slip.period_end|date:"j M Y" }}{% endif %}
+  </p>
+</div>
+
+{% if not slip.confirmed %}
+  {# Said plainly, and only until it stops being true. #}
+  <div class="callout callout--check">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/>
+    </svg>
+    <span>
+      {% if slip.source == 'PHOTO' %}Read off a photo{% elif slip.source == 'PDF' %}Read out of the PDF{% else %}Not checked yet{% endif %} —
+      check every figure against the paper, then confirm it below.
+    </span>
+  </div>
+{% endif %}
+
+{# ---- What you actually took home ------------------------------------- #}
+<div class="card card__pad">
+  <div class="lead-stat">
+    <div class="lead-stat__value">{% if slip.take_home is not None %}{{ slip.take_home|money }}{% else %}—{% endif %}</div>
+    <div class="lead-stat__label">
+      take-home{% if slip.covers_a_period %} for this period{% endif %}
+      {% if not slip.confirmed %} · unconfirmed{% endif %}
+    </div>
+  </div>
+
+  <div class="ledger">
+    <div class="ledger__row">
+      <span>Gross</span>
+      <span class="ledger__val">{% if slip.gross is not None %}{{ slip.gross|money }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="ledger__row">
+      <span>Tax withheld</span>
+      <span class="ledger__val ledger__val--minus">{% if slip.tax is not None %}−{{ slip.tax|money }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="ledger__row ledger__row--total">
+      <span>Net</span>
+      <span class="ledger__val">{% if slip.net is not None %}{{ slip.net|money }}{% else %}—{% endif %}</span>
+    </div>
+    {% if slip.super_amount is not None %}
+      <div class="ledger__row">
+        <span>Super (paid to your fund, not to you)</span>
+        <span class="ledger__val">{{ slip.super_amount|money }}</span>
+      </div>
+    {% endif %}
+  </div>
+
+  {% comment %}
+    The arithmetic every payslip in the country satisfies. When it holds, the
+    figures were read out of the right column; when it doesn't, one of them
+    is wrong and it is worth knowing that before anything is built on them.
+  {% endcomment %}
+  {% if slip.adds_up is True %}
+    <p class="verdict verdict--ok">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      Gross − tax comes to net. The three figures agree.
+    </p>
+  {% elif slip.adds_up is False %}
+    <p class="verdict verdict--bad">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/></svg>
+      These don't add up — gross − tax isn't net. Check them against the paper.
+    </p>
+  {% endif %}
+</div>
+
+{# ---- Against your own record ------------------------------------------ #}
+{% if check %}
+  <div class="card card__pad">
+    <div class="section-label">Against your timesheet</div>
+
+    <div class="ledger">
+      <div class="ledger__row">
+        <span>They paid for</span>
+        <span class="ledger__val">{% if check.slip_hours %}{{ check.slip_hours|floatformat:"-4" }}h{% else %}—{% endif %}</span>
+      </div>
+      <div class="ledger__row">
+        <span>You recorded</span>
+        <span class="ledger__val">{{ check.recorded_hours|floatformat:"-4" }}h</span>
+      </div>
+      {% if check.gap is not None %}
+        <div class="ledger__row ledger__row--total">
+          <span>Difference</span>
+          <span class="ledger__val{% if check.short %} ledger__val--minus{% endif %}">
+            {% if check.short %}−{% endif %}{{ check.gap|floatformat:"-4" }}h
+          </span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if check.agrees %}
+      <p class="verdict verdict--ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        Matches the {{ check.days }} day{{ check.days|pluralize }} you clocked over this period.
+      </p>
+    {% elif check.short %}
+      <p class="verdict verdict--bad">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/></svg>
+        You recorded more than they paid for{% if check.gap_money %}, worth about {{ check.gap_money|money|cut:"-" }} gross{% endif %}.
+      </p>
+    {% elif check.gap is not None %}
+      <p class="verdict verdict--note">
+        They paid for more than you recorded — a shift you didn't clock, or
+        paid leave.
+      </p>
+    {% endif %}
+
+    {% if check.shifts %}
+      <details class="panel panel--flush">
+        <summary class="panel__head">
+          <span class="panel__title">The {{ check.shifts|length }} shift{{ check.shifts|length|pluralize }} behind it</span>
+          <span class="panel__hint">{{ check.recorded|hm }}</span>
+          <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <ul class="break-list">
+          {% for shift in check.shifts %}
+            <li>
+              <a class="day-shift" href="{% url 'timeclock:shift_detail' shift.pk %}">
+                <span class="shift__bar shift__bar--{{ shift.status|lower }}" aria-hidden="true"></span>
+                <span class="day-shift__body">
+                  <span class="day-shift__where">{{ shift.clock_in|date:"D j M" }}</span>
+                  <span class="shift__times">
+                    <span>{{ shift.clock_in|time:"g:i A" }}</span>
+                    <span class="shift__arrow" aria-hidden="true">→</span>
+                    <span>{{ shift.clock_out|time:"g:i A" }}</span>
+                  </span>
+                </span>
+                <span class="day-shift__worked">{{ shift.worked_duration|hm }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </div>
+{% elif slip.gross %}
+  <div class="card card__pad">
+    <div class="section-label">Against your timesheet</div>
+    <p class="muted text-sm">
+      Fill in the period this slip covers and MyWork will check it against the
+      hours you clocked on those days.
+    </p>
+  </div>
+{% endif %}
+
+{# ---- What this teaches the job ---------------------------------------- #}
+{% if withheld is not None %}
+  <div class="card card__pad">
+    <div class="section-label">Withholding</div>
+    <div class="lead-stat lead-stat--sm">
+      <div class="lead-stat__value">{{ withheld|floatformat:2 }}<span class="lead-stat__unit">%</span></div>
+      <div class="lead-stat__label">of gross withheld on this slip</div>
+    </div>
+
+    {% if differs_from_saved %}
+      <p class="muted text-sm">
+        {{ slip.workplace.name }} is currently set to
+        {% if slip.workplace.tax_rate is not None %}{{ slip.workplace.tax_rate|floatformat:2 }}%{% else %}no withholding at all{% endif %}.
+        Saving this makes every figure MyWork shows for this job after tax
+        instead of before it.
+      </p>
+      <form method="post" action="{% url 'timeclock:payslip_apply' slip.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primary btn--block">
+          Save {{ withheld|floatformat:2 }}%{% if slip.rate %} and {{ slip.rate|money }}/h{% endif %} to {{ slip.workplace.name }}
+        </button>
+      </form>
+    {% else %}
+      <p class="verdict verdict--ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        {{ slip.workplace.name }} already uses this rate.
+      </p>
+    {% endif %}
+
+    <p class="pay-note">
+      Real PAYG is progressive, so a percentage off one slip is right for pays
+      of about this size and drifts when your hours swing a long way. Upload
+      the next slip and it re-checks itself.
+    </p>
+  </div>
+{% endif %}
+
+{# ---- The figures, to correct ------------------------------------------ #}
+<details class="panel"{% if not slip.confirmed %} open{% endif %}>
+  <summary class="panel__head">
+    <span class="panel__title">{% if slip.confirmed %}The figures{% else %}Check the figures{% endif %}</span>
+    <span class="panel__hint">{% if slip.confirmed %}confirmed{% else %}read automatically{% endif %}</span>
+    <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
+  </summary>
+
+  <div class="panel__body">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include "timeclock/_form_fields.html" with form=form %}
+      <button type="submit" class="btn btn--primary btn--block">
+        {% if slip.confirmed %}Save changes{% else %}Confirm these figures{% endif %}
+      </button>
+    </form>
+  </div>
+</details>
+
+{# ---- Where the figures came from --------------------------------------- #}
+<details class="panel">
+  <summary class="panel__head">
+    <span class="panel__title">The slip itself</span>
+    <span class="panel__hint">{{ slip.get_source_display|lower }}</span>
+    <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
+  </summary>
+
+  <div class="panel__body">
+    {% if slip.file %}
+      <a class="daylink" href="{% url 'timeclock:payslip_file' slip.pk %}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 3v5h5"/><path d="M19 21H5V3h9l5 5v13Z"/>
+        </svg>
+        Open the file you uploaded
+      </a>
+    {% endif %}
+
+    {% if slip.raw_text %}
+      {# What was actually read, so a wrong figure can be traced to a wrong word. #}
+      <pre class="rawtext">{{ slip.raw_text }}</pre>
+    {% endif %}
+
+    <form method="post" action="{% url 'timeclock:payslip_delete' slip.pk %}"
+          onsubmit="return confirm('Remove this payslip and the file behind it?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--ghost btn--block btn--danger">Remove this payslip</button>
+    </form>
+  </div>
+</details>
+
+{% endblock %}

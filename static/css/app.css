@@ -1299,17 +1299,22 @@ code, .code {
 .limit__cap { font-size: 14px; color: var(--muted); font-weight: 550; }
 
 .limit__track {
+  display: flex;
   height: 10px;
   border-radius: var(--r-pill);
   background: var(--surface-3);
   overflow: hidden;
 }
+/* Two lengths, laid end to end: what a payment has already closed off, then
+   what has been worked since. The track's own rounding clips both, so no
+   segment needs corners of its own. */
 .limit__fill {
+  flex: none;
   height: 100%;
   width: var(--pct, 0%);
-  border-radius: inherit;
   background: var(--brand);
 }
+.limit__fill--settled { background: color-mix(in srgb, var(--brand) 26%, var(--surface-3)); }
 
 .limit__note {
   display: flex;
@@ -1321,9 +1326,19 @@ code, .code {
 }
 .limit__note svg { width: 16px; height: 16px; flex: none; }
 
+/* Where the count restarted, and what the restart does not excuse. */
+.limit__reset {
+  margin: var(--sp-2) 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .limit--close .limit__fill { background: var(--warn); }
+.limit--close .limit__fill--settled { background: color-mix(in srgb, var(--warn) 26%, var(--surface-3)); }
 .limit--close .limit__note { color: var(--warn); font-weight: 550; }
 .limit--over  .limit__fill { background: var(--danger); }
+.limit--over  .limit__fill--settled { background: color-mix(in srgb, var(--danger) 26%, var(--surface-3)); }
 .limit--over  .limit__note { color: var(--danger); font-weight: 600; }
 .limit--over  { border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 
@@ -2296,6 +2311,10 @@ select, textarea {
    own spacing — this only ever adds a gap, never doubles one.
    -------------------------------------------------------------------------- */
 .container > * + *:not(.searchbar) { margin-top: var(--sp-5); }
+/* The timesheet's filtered half is one element to the container but a stack
+   of cards to the eye, so it keeps the same rhythm inside itself. */
+.sheet > * + * { margin-top: var(--sp-5); }
+.sheet > * { max-width: 100%; }
 
 
 /* --------------------------------------------------------------------------
@@ -3705,3 +3724,400 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .skeleton-page { display: grid; gap: var(--sp-4); }
 .skeleton-page__head { display: grid; gap: var(--sp-2); }
 .skeleton-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+
+/* --------------------------------------------------------------------------
+   30. Pay — what each job still owes
+
+   One card per workplace, and the figure is the card. Everything else on it
+   is context for that number: whose it is, how it was arrived at, and the one
+   button that sets it back to zero.
+   -------------------------------------------------------------------------- */
+.owed + .owed { margin-top: var(--sp-4); }
+
+.owed__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.owed__name {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The hours and what they come to, on one baseline: the money is the same
+   fact in another unit, not a second figure to weigh against the first. */
+.owed__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  flex-wrap: wrap;
+}
+.owed__hours {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+.owed__unit {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  margin-left: 1px;
+}
+.owed__pay {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.owed__meta {
+  margin-top: var(--sp-1);
+  margin-bottom: var(--sp-4);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Settled up: the figure steps back rather than disappearing, so a job you
+   are square with still shows you that you are square with it. */
+.owed--clear .owed__hours,
+.owed--clear .owed__unit { color: var(--muted); }
+.owed--clear .owed__meta { margin-bottom: 0; }
+
+/* The line under the card: what was last settled, and the way back out of it.
+   Quiet, because undoing is the rare half of a rare action. */
+.owed__last {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.owed__last > span { min-width: 0; }
+.owed__last form { flex: none; }
+
+.owed__undo {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--brand);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.owed__undo:hover { text-decoration: underline; }
+
+/* ---- One pay run ---------------------------------------------------------
+   A job on a cycle owes you a list, not a figure: each closed run is its own
+   payment, arriving on its own day. They are stacked as separate blocks so
+   clearing one visibly clears one. */
+.run + .run { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+
+.run__dates {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.run__tag {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--muted);
+}
+
+.run__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin: var(--sp-1) 0 var(--sp-3);
+}
+.run__hours {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.run__unit { font-size: 15px; font-weight: 600; letter-spacing: -.02em; margin-left: 1px; }
+.run__pay { font-size: 16px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.run__note { font-size: 12.5px; color: var(--muted); }
+
+/* The run still going. Nobody is late paying for a fortnight that hasn't
+   finished, so it is stated rather than actioned. */
+.run--open .run__hours,
+.run--open .run__unit { color: var(--text-2); }
+
+/* Which cycle this job is on, beside its name. */
+.owed__cycle {
+  flex: none;
+  margin-left: auto;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---- What a payment covered ---------------------------------------------
+   The unpaid days as they happened, each saying what marking it would clear.
+   The running total is the figure being checked against a payslip, so it sits
+   with the day rather than being worked out in somebody's head. */
+.cover-heading { display: block; margin-top: var(--sp-6); }
+
+.cover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.cover-list > li + li { border-top: 1px solid var(--line); }
+
+.cover {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.cover__day { min-width: 0; }
+.cover__date { display: block; font-size: 14px; font-weight: 600; }
+.cover__times {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cover__figures {
+  grid-column: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.cover__worked {
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.cover__clears { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* The button spans both rows of the day beside it, so one tap sits opposite
+   one day however many lines that day needs. */
+.cover form { grid-column: 2; grid-row: 1 / -1; }
+.cover__pick { white-space: nowrap; }
+
+/* The rarer of the two answers on a pay card. */
+.owed__partly {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 42px;
+  margin-top: var(--sp-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.owed__partly:hover { color: var(--brand); text-decoration: none; }
+.owed__partly svg { width: 13px; height: 13px; }
+
+/* The workplace's colour beside its name in a page heading. */
+.page-sub .swatch { margin-right: 6px; vertical-align: baseline; }
+
+/* Download a month as a PDF. The same quiet action wherever it appears — on
+   the calendar for any month you're looking at, and under a payment for the
+   month it landed in, which is the one you check against the bank. */
+.pdflink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  margin-top: var(--sp-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.pdflink:hover { color: var(--brand); text-decoration: none; }
+.pdflink svg { width: 15px; height: 15px; flex: none; }
+
+/* A card's secondary actions, laid out across rather than down. One on its
+   own takes the whole width; two share it. On a phone too narrow to seat
+   both without squeezing the words away, auto-fit drops them back into a
+   column — which is the right answer at that width, not a failure of this
+   one. */
+.cardlinks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--line);
+}
+.cardlinks .pdflink {
+  min-width: 0;
+  margin-top: 0;
+  padding: 0 var(--sp-2);
+  text-align: center;
+  line-height: 1.35;
+}
+
+
+/* --------------------------------------------------------------------------
+   31. Payslips — the employer's own statement, checked against yours
+
+   The app can only estimate pay; a payslip knows. So these screens are built
+   around one honest distinction: what was read off a photograph, and what a
+   person has since confirmed. Nothing here pretends to certainty it hasn't
+   earned, and the styling says which is which rather than making both look
+   equally solid.
+   -------------------------------------------------------------------------- */
+
+/* Said once, at the top, and only while it is still true. Named callout and
+   not notice: .notice belongs to the board, and two meanings on one class is
+   how a stylesheet starts lying. */
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  border-radius: var(--r-lg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.callout svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.callout--check {
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 550;
+}
+
+/* A verdict on figures that have just been shown: does this hold up. */
+.verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 550;
+  color: var(--muted);
+}
+.verdict svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.verdict--ok  { color: var(--brand); }
+.verdict--bad { color: var(--danger); }
+.verdict--note { color: var(--text-2); font-weight: 500; }
+
+/* The headline figure, at the size of a number you actually read. */
+.lead-stat--sm .lead-stat__value { font-size: 30px; }
+
+/* A panel sitting inside a card that already has its own padding. */
+.panel--flush {
+  margin: var(--sp-3) calc(var(--sp-4) * -1) calc(var(--sp-4) * -1);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+/* What was actually read off the file. Monospaced, scrollable and quiet: it
+   is evidence, not content, and it is here so a wrong figure can be traced
+   back to a wrong word rather than argued with. */
+.rawtext {
+  max-height: 260px;
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3);
+  overflow: auto;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- One payslip in the list -------------------------------------------- */
+.slip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  color: inherit;
+}
+.slip:hover { text-decoration: none; }
+.slip__body { flex: 1; min-width: 0; }
+.slip__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.slip__where {
+  font-weight: 650;
+  font-size: 15px;
+  letter-spacing: -.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slip__net {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.slip__meta { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
+/* Not a warning — a reminder that these figures are still a machine's
+   reading and nobody has looked at the paper yet. */
+.slip__flag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Where somebody's payslip is kept, said where they are about to upload one. */
+.fineprint {
+  margin: var(--sp-4) 0 0;
+  padding: 0 var(--sp-2);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}

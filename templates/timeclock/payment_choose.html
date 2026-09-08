@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load timeclock_extras %}
+{% block title %}What did this payment cover? · MyWork{% endblock %}
+
+{% comment %}
+  For a job that pays on a day of its own choosing, for work up to some
+  earlier point — paid on the Sunday for what you did before it, or on the
+  Monday, depending on the week.
+
+  "Everything up to now" is offered first because it is usually right. Under
+  it, the unpaid days as they actually happened: the record the employer is
+  paying against. Each says what marking it would clear, so the figure can be
+  checked against the payslip before anything is cleared at all.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'timeclock:payments' %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6"/>
+  </svg>
+  Pay
+</a>
+
+<div class="page-head">
+  <h1 class="page-title">What did it cover?</h1>
+  <p class="page-sub">
+    <span class="swatch" style="--wp-css: {{ workplace|wp_color }}" aria-hidden="true"></span>
+    {{ workplace.name }}
+  </p>
+</div>
+
+{% if days %}
+  <form method="post" action="{% url 'timeclock:payment_record' workplace.pk %}"
+        onsubmit="return confirm('Mark everything up to now as paid at {{ workplace.name|escapejs }}?');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--primary btn--block">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+      Everything up to now — {{ state.current.hours|floatformat:1 }}h{% if state.current.pay %} · ${{ state.current.pay.gross|floatformat:2 }}{% endif %}
+    </button>
+  </form>
+
+  <h2 class="section-label cover-heading">Or the last day it covered</h2>
+
+  <ul class="cover-list">
+    {% for row in days %}
+      <li class="cover">
+        <div class="cover__day">
+          <span class="cover__date">{{ row.day|date:"D j M" }}</span>
+          <span class="cover__times">
+            {% for shift in row.shifts %}
+              {{ shift.clock_in|time:"g:i A" }}–{% if shift.clock_out %}{{ shift.clock_out|time:"g:i A" }}{% else %}now{% endif %}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+          </span>
+        </div>
+
+        <div class="cover__figures">
+          <span class="cover__worked">{{ row.worked|hm }}</span>
+          <span class="cover__clears">
+            clears {{ row.clears|hm }}{% if row.clears_pay %} · ${{ row.clears_pay.gross|floatformat:2 }}{% endif %}
+          </span>
+        </div>
+
+        <form method="post" action="{% url 'timeclock:payment_record' workplace.pk %}"
+              onsubmit="return confirm('Paid up to and including {{ row.day|date:"D j M" }}? That clears {{ row.clears|hm }} at {{ workplace.name|escapejs }}.');">
+          {% csrf_token %}
+          <input type="hidden" name="through" value="{{ row.end|date:'Y-m-d' }}">
+          <button type="submit" class="btn btn--sm cover__pick">Paid up to here</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+
+{% else %}
+  <div class="empty">
+    <div class="empty__icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </div>
+    <div class="empty__title">Nothing outstanding</div>
+    <div class="empty__sub">Every shift at {{ workplace.name }} has been paid for.</div>
+    <a class="btn" href="{% url 'timeclock:payments' %}">Back to Pay</a>
+  </div>
+{% endif %}
+
+{% endblock %}

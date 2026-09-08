@@ -14,6 +14,45 @@
   <a class="segmented__item" role="tab" aria-selected="false" href="{% url 'timeclock:calendar' %}">Calendar</a>
 </div>
 
+{% comment %}
+  ---- Workplace filter ----------------------------------------------------
+
+  Above everything it filters rather than buried among it. This control does
+  not move when you use it: tapping a job swaps the totals, the pay, the caps
+  and the shifts underneath it while the row of jobs stays exactly where your
+  thumb left it, so switching between two of them is two taps in one place
+  instead of two page loads and a hunt for the row again.
+
+  Still ordinary links. Without JavaScript each one is a page of its own, and
+  with it the page below is fetched and swapped in — same URL, same result,
+  same thing to bookmark or send to somebody.
+{% endcomment %}
+{% if workplaces %}
+  <div class="chips chips--filter" data-live-filter="sheet">
+    <div class="chips__scroll">
+      <a class="chip chip--link{% if not workplace %} is-on{% endif %}" href="{% url 'timeclock:timesheet' %}">
+        <span class="chip__body"><span class="chip__name">All</span></span>
+      </a>
+      {% for w in workplaces %}
+        <a class="chip chip--link{% if workplace and w.pk == workplace.pk %} is-on{% endif %}"
+           href="?workplace={{ w.pk }}">
+          <span class="chip__body">
+            <span class="swatch swatch--sm" style="--wp-css: {{ w|wp_color }}" aria-hidden="true"></span>
+            <span class="chip__name">{{ w.name }}{% if w.is_archived %} (removed){% endif %}</span>
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+{% comment %}
+  Everything the filter decides. Swapped as one piece when a job is picked,
+  so the figures, the pay, the caps and the shifts can never briefly disagree
+  with each other about which job is being looked at.
+{% endcomment %}
+<div class="sheet" id="sheet" data-live-skeleton="rows">
+
 {# ---- Totals ---------------------------------------------------------- #}
 <div class="summary-grid summary-grid--3">
   <div class="summary-card">
@@ -95,25 +134,6 @@
 {% for limit in summary.limits %}
   {% include "timeclock/_limit_bar.html" with limit=limit %}
 {% endfor %}
-
-{# ---- Workplace filter ------------------------------------------------- #}
-{% if workplaces %}
-  <div class="chips chips--filter">
-    <div class="chips__scroll">
-      <a class="chip chip--link{% if not workplace %} is-on{% endif %}" href="{% url 'timeclock:timesheet' %}">
-        <span class="chip__body"><span class="chip__name">All</span></span>
-      </a>
-      {% for w in workplaces %}
-        <a class="chip chip--link{% if workplace and w.pk == workplace.pk %} is-on{% endif %}"
-           href="?workplace={{ w.pk }}">
-          <span class="chip__body">
-            <span class="chip__name">{{ w.name }}{% if w.is_archived %} (removed){% endif %}</span>
-          </span>
-        </a>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
 
 {# ---- Shifts, grouped by day ------------------------------------------- #}
 {% if days %}
@@ -230,4 +250,5 @@
   </div>
 {% endif %}
 
+</div>
 {% endblock %}

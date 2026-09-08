@@ -128,6 +128,16 @@
     return html + "</ul>";
   }
 
+  function skeletonCard() {
+    return (
+      '<div class="skeleton-card">' +
+      '<span class="skeleton skeleton--line skeleton--w40"></span>' +
+      '<span class="skeleton skeleton--line skeleton--w85"></span>' +
+      '<span class="skeleton skeleton--line skeleton--w70"></span>' +
+      "</div>"
+    );
+  }
+
   function skeletonPage() {
     return (
       '<div class="skeleton-page">' +
@@ -139,11 +149,7 @@
       '<span class="skeleton skeleton--tile"></span>' +
       '<span class="skeleton skeleton--tile"></span>' +
       "</div>" +
-      '<div class="skeleton-card">' +
-      '<span class="skeleton skeleton--line skeleton--w40"></span>' +
-      '<span class="skeleton skeleton--line skeleton--w85"></span>' +
-      '<span class="skeleton skeleton--line skeleton--w70"></span>' +
-      "</div>" +
+      skeletonCard() +
       skeletonRows(3, "skeleton--circle") +
       "</div>"
     );
@@ -901,11 +907,15 @@
     catch (e) { /* private mode — the count-up just plays each time */ }
   }
 
-  function initTally() {
+  function initTally(forceInstant) {
     var els = document.querySelectorAll("[data-tally]");
     if (!els.length) return;
 
+    // `forceInstant` is for figures that replaced other figures rather than
+    // arriving: swapping the timesheet to another job is not an arrival, and
+    // counting every total up again would turn a filter into a wait.
     var instant =
+      forceInstant === true ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
       tallyAlreadyPlayed();
     if (!instant) markTallyPlayed();
@@ -1175,6 +1185,162 @@
      or re-initialised) and shapes stand in until the new page lands. If the
      navigation never happens, the page comes back.
      ---------------------------------------------------------------------- */
+  /* ----------------------------------------------------------------------
+     Live workplace filter
+
+     Two screens ask which job you mean, and on both of them the answer used
+     to cost a page load: the timesheet's row of chips went away and came
+     back, and the clock's picker changed nothing at all until you clocked in
+     or reloaded, so the hours cap under it went on describing the job you had
+     just stopped looking at.
+
+     Now the control stays exactly where your thumb left it and only what
+     depends on it is fetched and swapped. Mark a control with
+     data-live-filter="<id>" and give the region that id; links inside it are
+     followed as URLs, radios inside it name a workplace.
+
+     Progressive enhancement, not a rewrite. The chips are the same links and
+     the radios are the same form fields; with no JavaScript, a broken fetch,
+     or any response that isn't the page we asked for, the browser does it the
+     ordinary way. pushState keeps the address bar honest for the links, so
+     back, refresh, a bookmark and a link sent to somebody all still mean what
+     they say.
+     ---------------------------------------------------------------------- */
+  function initLiveFilter() {
+    if (!window.fetch || !window.DOMParser || !window.history.pushState) return;
+
+    var controls = document.querySelectorAll("[data-live-filter]");
+    for (var i = 0; i < controls.length; i++) {
+      var region = document.getElementById(
+        controls[i].getAttribute("data-live-filter")
+      );
+      if (region) wireLiveFilter(controls[i], region);
+    }
+  }
+
+  function wireLiveFilter(control, region) {
+    // Long enough that a filter which answers immediately — which is nearly
+    // always — never flashes grey on its way to being instant.
+    var WAIT = 250;
+    var rows = region.getAttribute("data-live-skeleton") === "rows";
+    var inFlight = null;
+    var timer = null;
+
+    // Which job a URL is asking for, so a chip lights up on what it means
+    // rather than on the exact string — "page 2 of Fresh Meat" is still Fresh
+    // Meat, and "no workplace at all" is the All chip.
+    function jobIn(url) {
+      try {
+        return new URL(url, window.location.origin).searchParams.get("workplace") || "";
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function markChosen(href) {
+      // Only links need telling. A radio the browser has just checked is
+      // already showing the right thing.
+      var links = control.querySelectorAll("a.chip--link");
+      var want = jobIn(href);
+      for (var i = 0; i < links.length; i++) {
+        links[i].classList.toggle("is-on", jobIn(links[i].href) === want);
+      }
+    }
+
+    function stopWaiting() {
+      clearTimeout(timer);
+      region.removeAttribute("aria-busy");
+    }
+
+    function handOver(href) {
+      // Whatever went wrong, the browser can still do this the ordinary way.
+      stopWaiting();
+      window.location.href = href;
+    }
+
+    function load(href, remember) {
+      if (inFlight) inFlight.abort();
+      var controller = new AbortController();
+      inFlight = controller;
+
+      // The control answers now; the figures land a moment later. That order
+      // is what makes it feel like a switch rather than a request.
+      markChosen(href);
+      region.setAttribute("aria-busy", "true");
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        region.innerHTML = rows ? skeletonRows(4, "skeleton--circle") : skeletonCard();
+      }, WAIT);
+
+      fetch(href, {
+        signal: controller.signal,
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch" },
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error(response.status);
+          return response.text();
+        })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          var next = doc.getElementById(region.id);
+          // Anything but the page we asked for — a sign-in screen, an error —
+          // is the browser's to show, not ours to paste into a card.
+          if (!next) return handOver(href);
+
+          stopWaiting();
+          region.innerHTML = next.innerHTML;
+          // Figures that replaced figures, so they arrive already finished.
+          initTally(true);
+          if (remember === "push") history.pushState({ liveFilter: true }, "", href);
+          if (remember === "replace") history.replaceState({ liveFilter: true }, "", href);
+        })
+        .catch(function (error) {
+          if (error && error.name === "AbortError") return;
+          handOver(href);
+        });
+    }
+
+    // ---- links: the timesheet's chips ----------------------------------
+    // On the control itself rather than on the document, so the cancel is in
+    // before the page-level skeleton handler ever sees the click.
+    control.addEventListener("click", function (event) {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      var link = event.target.closest ? event.target.closest("a.chip--link") : null;
+      if (!link || link.origin !== window.location.origin) return;
+
+      event.preventDefault();
+      // Already on it: nothing to fetch, and nothing to flash either.
+      if (link.href !== window.location.href) load(link.href, "push");
+    });
+
+    // ---- radios: the clock's workplace picker ---------------------------
+    // Picking one is not a navigation, so it replaces the current history
+    // entry rather than stacking one per job you looked at — otherwise the
+    // back button walks you through every choice you tried before clocking in.
+    control.addEventListener("change", function (event) {
+      var radio = event.target;
+      if (!radio || radio.type !== "radio" || !radio.value) return;
+      load(
+        window.location.pathname + "?workplace=" + encodeURIComponent(radio.value),
+        "replace"
+      );
+    });
+
+    // Back and forward move between filters the same way the chips do. The
+    // entry you arrived on is flagged too, or going back to it lands on a
+    // state this ignores and the page keeps showing the job you left.
+    if (control.querySelector("a.chip--link")) {
+      history.replaceState({ liveFilter: true }, "", window.location.href);
+      window.addEventListener("popstate", function (event) {
+        if (!event.state || !event.state.liveFilter) return;
+        load(window.location.href, null);
+      });
+    }
+  }
+
   function initNavSkeleton() {
     var main = document.querySelector("main.container");
     if (!main) return;
@@ -1305,6 +1471,65 @@
     });
   }
 
+  /* ----------------------------------------------------------------------
+     Payslip picker: name the file you chose, and say the reading is running
+
+     Reading a payslip takes a few seconds — OCR on a phone photo is not
+     instant — and a button that looks untouched for four seconds gets pressed
+     again. So the button says what is happening and stops accepting a second
+     press, which is the whole of the feedback this needs.
+     ---------------------------------------------------------------------- */
+  function initPayslipPicker() {
+    var input = document.getElementById("payslip-input");
+    var zone = document.getElementById("payslip-dropzone");
+    if (!input || !zone) return;
+
+    var filename = document.getElementById("payslip-filename");
+    var label = document.getElementById("payslip-label");
+    var submit = document.getElementById("payslip-submit");
+    var form = document.getElementById("payslip-form");
+
+    var isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || "");
+    if (label && isMobile) label.textContent = "Photograph or choose a payslip";
+
+    function showFile(file) {
+      if (!file) return;
+      if (filename) filename.textContent = file.name;
+      zone.classList.add("is-picked");
+    }
+
+    input.addEventListener("change", function () {
+      showFile(input.files && input.files[0]);
+    });
+
+    ["dragenter", "dragover"].forEach(function (type) {
+      zone.addEventListener(type, function (e) {
+        e.preventDefault();
+        zone.classList.add("is-dragover");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (type) {
+      zone.addEventListener(type, function (e) {
+        e.preventDefault();
+        zone.classList.remove("is-dragover");
+      });
+    });
+    zone.addEventListener("drop", function (e) {
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file) return;
+      input.files = e.dataTransfer.files;
+      showFile(file);
+    });
+
+    if (form && submit) {
+      form.addEventListener("submit", function () {
+        if (!input.files || !input.files.length) return;
+        submit.disabled = true;
+        submit.textContent = "Reading it\u2026";
+      });
+    }
+  }
+
   function init() {
     initTheme();
     initCompose();
@@ -1324,8 +1549,10 @@
     initPhotoPicker();
     initAvatarPicker();
     initCsvPicker();
+    initPayslipPicker();
     initRipple();
     initSubmitState();
+    initLiveFilter();
     initNavSkeleton();
     initLiveErrors();
   }

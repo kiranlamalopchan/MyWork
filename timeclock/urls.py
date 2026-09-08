@@ -32,6 +32,24 @@ urlpatterns = [
     path("workplaces/<int:pk>/delete/", views.workplace_delete, name="workplace_delete"),
     path("workplaces/<int:pk>/default/", views.workplace_make_default, name="workplace_default"),
 
+    # What each job still owes, and the button that draws a line under it.
+    path("pay/", views.payments, name="payments"),
+    path("pay/<int:pk>/received/", views.payment_record, name="payment_record"),
+    # When the money covered work up to some earlier day rather than up to now.
+    path("pay/<int:pk>/covers/", views.payment_choose, name="payment_choose"),
+    path("pay/<int:pk>/undo/", views.payment_undo, name="payment_undo"),
+    # A month as a PDF, to check a payment against the line on a bank feed.
+    path("pay/statement/<int:year>/<int:month>/", views.statement, name="statement"),
+
+    # The employer's own statement of what they paid, read and checked
+    # against the hours you recorded for the same days.
+    path("payslips/", views.payslips, name="payslips"),
+    path("pay/<int:pk>/payslip/", views.payslip_upload, name="payslip_upload"),
+    path("payslips/<int:pk>/", views.payslip_detail, name="payslip_detail"),
+    path("payslips/<int:pk>/apply/", views.payslip_apply, name="payslip_apply"),
+    path("payslips/<int:pk>/file/", views.payslip_file, name="payslip_file"),
+    path("payslips/<int:pk>/delete/", views.payslip_delete, name="payslip_delete"),
+
     path("preferences/", views.preferences, name="preferences"),
     path("more/", views.more, name="more"),
 ]
