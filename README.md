@@ -21,6 +21,57 @@ Adding a third app means starting it inside `apps/`, mounting it under its
 own prefix in `mywork/urls.py`, and giving it an entry in
 `mywork/context_processors.py` plus a card on the hub.
 
+## Deploying (PythonAnywhere)
+
+The server runs its own WSGI file, kept in the **Web** tab under *WSGI
+configuration file* — `/var/www/<user>_pythonanywhere_com_wsgi.py`. It is not
+in this repository, so pulling never updates it. It must name a settings
+*module*, not the settings package:
+
+```python
+import os, sys
+
+path = '/home/<user>/MyWork'
+if path not in sys.path:
+    sys.path.insert(0, path)
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'mywork.settings.production'
+os.environ['DJANGO_SECRET_KEY']      = '<a long random string>'
+os.environ['DJANGO_ALLOWED_HOSTS']   = '<user>.pythonanywhere.com'
+
+from django.core.wsgi import get_wsgi_application
+application = get_wsgi_application()
+```
+
+A new secret key:
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
+```
+
+Then, in a Bash console on the server, from `~/MyWork`:
+
+```bash
+git pull
+python manage.py migrate           --settings=mywork.settings.production
+python manage.py collectstatic     --settings=mywork.settings.production --noinput
+```
+
+Both are required, and each fails loudly in its own way if skipped:
+
+- no `migrate` → `OperationalError: no such table: noticeboard_notice`
+- no `collectstatic` → `ValueError: Missing staticfiles manifest entry` on
+  every page, because production serves static files under hashed names and
+  the manifest that maps them is written by `collectstatic`.
+
+Finally **Reload** the web app — Django will not pick up new code or a changed
+WSGI file until you do.
+
+To see the site immediately without setting any of this up,
+`mywork.settings.local` will serve it — but it runs with `DEBUG = True`, which
+shows a full traceback and your settings to anybody who triggers an error. It
+is for a laptop, not for a site with an address.
+
 ## Layout
 
 ```
