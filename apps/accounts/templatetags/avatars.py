@@ -27,6 +27,10 @@ def avatar(user, size="", link=False, me=False, label=None):
             somebody is.
     label — accessible name; omitted (the default) means decorative, which is
             right whenever the person's name is already written beside it.
+
+    A person using MyWork right now gets a dot on their face — except on a
+    `me` avatar, which sits beside your own compose box and would be telling
+    you that you are here.
     """
     profile = Profile.of(user) if user is not None else None
 
@@ -37,4 +41,5 @@ def avatar(user, size="", link=False, me=False, label=None):
         "me_class": " avatar--me" if me else "",
         "link": bool(link and profile),
         "label": label,
+        "live": bool(profile and not me and profile.is_live),
     }

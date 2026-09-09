@@ -53,6 +53,9 @@ MIDDLEWARE = [
     # Must sit after AuthenticationMiddleware: it reads request.user to find
     # which timezone the user's phone reported.
     'apps.timeclock.middleware.UserTimezoneMiddleware',
+    # Also after it, and for the same reason: it records that request.user
+    # was here, which is what puts the live dot on their face on the board.
+    'apps.accounts.middleware.PresenceMiddleware',
 ]
 
 

@@ -19,6 +19,7 @@ connection to draw a thumbnail.
 """
 
 import uuid
+from datetime import timedelta
 from io import BytesIO
 
 from django.conf import settings
@@ -26,6 +27,7 @@ from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from .avatars import hue_for, initial_for
 
@@ -46,6 +48,20 @@ MAX_PHONE = 32
 
 # One line of address — enough for a street, a suburb and a postcode.
 MAX_ADDRESS = 200
+
+# How long after somebody's last page view they still count as here.
+#
+# Presence is measured from requests, so it answers "was this person moving
+# around the app just now?" rather than "is a tab open somewhere?" — a phone
+# in a pocket with the board still on screen is not using it. Five minutes is
+# long enough to cover reading a long thread without going dark, and short
+# enough that the dot means something.
+LIVE_FOR = timedelta(minutes=5)
+
+# A page view only writes last_seen if the stored value is older than this.
+# Without it every request from every person is a write, which on a shared
+# board is a great many writes to answer a question nobody asked precisely.
+SEEN_EVERY = timedelta(seconds=60)
 
 
 def photo_path(instance, filename):
@@ -70,6 +86,10 @@ class Profile(models.Model):
     )
 
     photo = models.ImageField(upload_to=photo_path, blank=True)
+
+    # When they last asked this site for a page. Null until their first one
+    # after this was added, which reads correctly as "not seen".
+    last_seen = models.DateTimeField(null=True, blank=True, db_index=True)
 
     display_name = models.CharField(
         max_length=MAX_DISPLAY_NAME,
@@ -121,6 +141,28 @@ class Profile(models.Model):
     def has_details(self):
         """Whether anything has been filled in beyond the name."""
         return bool(self.phone or self.address or self.user.email)
+
+    @property
+    def is_live(self):
+        """Whether they were moving around the app within the last few minutes."""
+        if self.last_seen is None:
+            return False
+        return timezone.now() - self.last_seen <= LIVE_FOR
+
+    def touch(self):
+        """Record that they are here, at most once a minute.
+
+        Returns whether it wrote. update() rather than save(): it is one
+        statement, it touches one column, and it does not fire the signals
+        that saving a profile fires — none of which have anything to say
+        about somebody loading a page.
+        """
+        now = timezone.now()
+        if self.last_seen is not None and now - self.last_seen < SEEN_EVERY:
+            return False
+        Profile.objects.filter(pk=self.pk).update(last_seen=now)
+        self.last_seen = now
+        return True
 
     @property
     def photo_url(self):

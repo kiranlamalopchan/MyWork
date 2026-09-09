@@ -64,6 +64,23 @@ Both are required, and each fails loudly in its own way if skipped:
   every page, because production serves static files under hashed names and
   the manifest that maps them is written by `collectstatic`.
 
+### Profile photos
+
+Django serves uploaded files itself only while `DEBUG` is on, so on the server
+the web server has to. In the **Web** tab, under *Static files*, add:
+
+| URL | Directory |
+| --- | --- |
+| `/media/avatars/` | `/home/<user>/MyWork/media/avatars` |
+
+Without it every profile photo 404s and each face falls back to its initial.
+
+**Map `/media/avatars/`, not `/media/`.** Payslips live under
+`/media/payslips/`, and a mapping on the parent would serve them straight off
+the disk to anyone with the URL, going around the ownership check in
+`payslip_view`. The filenames are random, which is a second lock and not a
+substitute for the first one.
+
 Finally **Reload** the web app — Django will not pick up new code or a changed
 WSGI file until you do.
 

@@ -2571,6 +2571,49 @@ select, textarea {
 }
 .avatar--me { background: var(--brand); color: var(--brand-ink); }
 
+/* ---- Here now ----------------------------------------------------------
+   A dot on the corner of somebody's face while they are using MyWork.
+
+   It sits half outside the circle with a ring of the page behind it, which is
+   what separates it from the face rather than making it look like part of the
+   picture. The ring is --surface rather than a fixed white so it stays right
+   on a tinted notice and in the dark theme.
+
+   The soft halo is the same green at low opacity, breathing slowly. Slowly is
+   the point: it should read as presence, not as an alert wanting something. */
+.avatar { position: relative; }
+
+.avatar__live {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 3px color-mix(in srgb, #22c55e 45%, transparent);
+  animation: mw-here 3.2s var(--ease) infinite;
+}
+
+/* Sized to the face it hangs off, so it stays a dot rather than becoming a
+   blob on the small ones and a speck on the profile page's 96px circle. */
+.avatar--sm .avatar__live { width: 8px;  height: 8px; box-shadow: 0 0 0 2px var(--surface); }
+.avatar--lg .avatar__live { width: 13px; height: 13px; }
+.avatar--xl .avatar__live { width: 18px; height: 18px; right: 4px; bottom: 4px;
+                            box-shadow: 0 0 0 3px var(--surface),
+                                        0 0 0 4px color-mix(in srgb, #22c55e 45%, transparent); }
+
+@keyframes mw-here {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .72; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar__live { animation: none; }
+}
+
 /* A photo covers the letter but not the colour: the tinted circle stays
    underneath, so it is what you see while the image is still on its way and
    what shows through a transparent corner once it lands. */
