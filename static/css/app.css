@@ -3950,6 +3950,12 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .owed__partly:hover { color: var(--brand); text-decoration: none; }
 .owed__partly svg { width: 13px; height: 13px; }
 
+/* Saying the date outright, for a payment that stopped somewhere no button
+   knows about. The field and its button read as one thing, so the card holds
+   them close rather than at the page's usual rhythm. */
+.cover-date .field { margin-bottom: var(--sp-3); }
+.cover-date .help { margin-top: var(--sp-2); }
+
 /* The workplace's colour beside its name in a page heading. */
 .page-sub .swatch { margin-right: 6px; vertical-align: baseline; }
 

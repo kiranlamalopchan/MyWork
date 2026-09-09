@@ -17,6 +17,7 @@ from . import payslip as payslip_reader
 from .models import (
     Break,
     fortnight_start,
+    PayCycle,
     Payment,
     Payslip,
     Shift,
@@ -27,7 +28,7 @@ from .models import (
     next_month_start,
     week_start,
 )
-from .views import _limit_for, _limits_for
+from .views import _limit_for, _limits_for, _pay_state
 
 
 class ShiftFlowTests(TestCase):
@@ -1845,3 +1846,172 @@ class LiveClockPickerTests(TestCase):
     def test_one_workplace_needs_no_picker_either(self):
         Workplace.objects.filter(pk=self.free.pk).delete()
         self.assertNotIn("data-live-filter", self._page())
+
+
+class PaidUpToADateTests(TestCase):
+    """
+    Naming the date the money stopped at.
+
+    Wages are remembered as "he paid me up to the Saturday" far more often
+    than as a number of hours, so a date is a thing somebody can actually
+    answer. Everything worked on or before it stops being owed, the count
+    starts again from zero the next day, and the timesheet behind the line is
+    untouched — which is why the line can be rubbed out again.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate()
+        self.job = Workplace.objects.create(
+            user=self.user, name="Fresh Meat", hourly_rate=Decimal("26.00")
+        )
+        # Five hours a day, every other day, for a week and a half.
+        self.days = [self.today - timedelta(days=n) for n in (9, 7, 5, 3, 1)]
+        for day in self.days:
+            self._worked(day)
+
+    def _worked(self, day, hours=5, at=9):
+        start = timezone.make_aware(
+            datetime.combine(day, time(at)), timezone.get_current_timezone()
+        )
+        return Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=start, clock_out=start + timedelta(hours=hours),
+            status=Shift.Status.COMPLETED,
+        )
+
+    def _owed(self):
+        job = Workplace.objects.prefetch_related("payments").get(pk=self.job.pk)
+        return _pay_state(job)["worked"]
+
+    def _paid_up_to(self, day):
+        return self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"up_to": day.isoformat()}, follow=True,
+        )
+
+    def test_the_date_is_inclusive(self):
+        # Paid up to the middle day settles that day too, leaving the two
+        # after it. Off by one here clears a shift nobody paid for.
+        self._paid_up_to(self.days[2])
+        self.assertEqual(self._owed(), timedelta(hours=10))
+
+    def test_the_count_starts_again_from_zero_the_next_day(self):
+        self._paid_up_to(self.days[-1])
+        self.assertEqual(self._owed(), timedelta())
+
+        self._worked(self.today)
+        self.assertEqual(self._owed(), timedelta(hours=5))
+
+    def test_the_shifts_behind_the_line_are_untouched(self):
+        self._paid_up_to(self.days[2])
+        self.assertEqual(Shift.objects.filter(workplace=self.job).count(), 5)
+
+    def test_it_can_be_taken_back(self):
+        before = self._owed()
+        self._paid_up_to(self.days[2])
+        self.client.post(reverse("timeclock:payment_undo", args=[self.job.pk]))
+        self.assertEqual(self._owed(), before)
+
+    def test_a_date_with_nothing_before_it_says_so(self):
+        response = self._paid_up_to(self.today - timedelta(days=60))
+
+        self.assertEqual(self._owed(), timedelta(hours=25))
+        self.assertContains(response, "Nothing unpaid at Fresh Meat on or before")
+
+    def test_a_date_that_is_not_a_date_changes_nothing(self):
+        self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"up_to": "the saturday"}, follow=True,
+        )
+        self.assertEqual(self._owed(), timedelta(hours=25))
+
+    def test_the_screen_offers_a_date_box(self):
+        html = self.client.get(
+            reverse("timeclock:payment_choose", args=[self.job.pk])
+        ).content.decode()
+        self.assertIn('name="up_to"', html)
+        self.assertIn("Paid up to and including", html)
+
+
+class PaidUpToADateOnACycleTests(TestCase):
+    """
+    The same date, on a job whose pay runs in fortnights.
+
+    Its run buttons settle a whole run, which is right when a whole run is
+    what was paid for. When the money stopped somewhere inside one — up to the
+    Saturday of a fortnight that runs to the Wednesday — the date has to be
+    sayable outright, and saying it settles whatever it covers however many
+    runs that spans.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate()
+        self.job = Workplace.objects.create(
+            user=self.user, name="AUFS", hourly_rate=Decimal("33.25"),
+            pay_cycle=PayCycle.FORTNIGHT,
+            fortnight_anchor=self.today - timedelta(days=self.today.weekday() + 18),
+        )
+        for n in range(1, 22, 2):
+            self._worked(self.today - timedelta(days=n))
+
+    def _worked(self, day, hours=4):
+        start = timezone.make_aware(
+            datetime.combine(day, time(9)), timezone.get_current_timezone()
+        )
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=start, clock_out=start + timedelta(hours=hours),
+            status=Shift.Status.COMPLETED,
+        )
+
+    def _state(self):
+        job = Workplace.objects.prefetch_related("payments").get(pk=self.job.pk)
+        return _pay_state(job)
+
+    def test_a_date_settles_everything_before_it_whatever_run_it_lands_in(self):
+        cutoff = self.today - timedelta(days=6)
+        self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"up_to": cutoff.isoformat()}, follow=True,
+        )
+
+        left = [
+            shift for shift in Shift.objects.filter(workplace=self.job)
+            if timezone.localtime(shift.clock_in).date() > cutoff
+        ]
+        self.assertEqual(
+            self._state()["worked"],
+            sum((shift.worked_duration for shift in left), timedelta()),
+        )
+
+    def test_a_run_button_still_records_a_run_and_not_a_sweep(self):
+        # The two must stay different: a run says where it started, so paying
+        # a later fortnight first cannot swallow an earlier unpaid one.
+        run = self._state()["due"][0]
+        self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"through": run["end"].isoformat()}, follow=True,
+        )
+        payment = Payment.objects.filter(workplace=self.job).latest("created_at")
+        self.assertIsNotNone(payment.covers_from)
+
+    def test_a_date_records_a_sweep(self):
+        self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"up_to": (self.today - timedelta(days=6)).isoformat()}, follow=True,
+        )
+        payment = Payment.objects.filter(workplace=self.job).latest("created_at")
+        self.assertIsNone(payment.covers_from)
+
+    def test_the_screen_is_open_to_a_job_on_a_cycle(self):
+        response = self.client.get(
+            reverse("timeclock:payment_choose", args=[self.job.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="up_to"')
+        # But not the one-tap sweep: a job with runs has to name what it means.
+        self.assertNotContains(response, "Everything up to now")

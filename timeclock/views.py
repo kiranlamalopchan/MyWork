@@ -1266,14 +1266,24 @@ def payment_record(request, pk):
 
     run = _run_being_paid(request, state)
     if run is None:
-        # Not a failure to parse so much as a run that isn't owed: already
-        # settled, or still being worked. Saying which is more use than
-        # saying the form was wrong.
-        messages.info(
-            request,
-            f"That pay run at {workplace.name} isn't outstanding — it's either "
-            "already marked paid, or it hasn't finished yet.",
-        )
+        picked = (request.POST.get("up_to") or "").strip()
+        if picked:
+            # A date that covers nothing is worth saying back, because the
+            # date is the thing the person chose and probably mistyped.
+            messages.info(
+                request,
+                f"Nothing unpaid at {workplace.name} on or before {picked} — "
+                "the hours you're looking at are all after that day.",
+            )
+        else:
+            # Not a failure to parse so much as a run that isn't owed: already
+            # settled, or still being worked. Saying which is more use than
+            # saying the form was wrong.
+            messages.info(
+                request,
+                f"That pay run at {workplace.name} isn't outstanding — it's either "
+                "already marked paid, or it hasn't finished yet.",
+            )
         return redirect("timeclock:payments")
     if run["hours"] <= 0:
         messages.info(request, f"Nothing outstanding at {workplace.name}.")
@@ -1305,44 +1315,81 @@ def _midnight(day):
     )
 
 
+def _swept_to(workplace, end):
+    """
+    Everything worked before `end` (exclusive), as one stretch to be settled.
+
+    A sweep rather than a run: "I was paid up to here" says nothing about
+    where the money started, only where it stopped, and it settles whatever
+    was outstanding before that — including an older run nobody had got round
+    to paying. Which is what being paid up to a date means.
+    """
+    cutoff = _midnight(end)
+    covered = [shift for shift in _unpaid_shifts(workplace) if shift.clock_in < cutoff]
+    return _run(workplace, covered, end=end) if covered else None
+
+
+def _cut_off_named(request):
+    """
+    The end date the form is asking for, or None if it named no date at all.
+
+    Two ways of saying it, because two different things are doing the asking.
+    A run button and a day in the list send `through`, which is the exclusive
+    end they already speak in. A person picking a date off a calendar means
+    the day itself — "paid up to and including Saturday" — so `up_to` is
+    inclusive and the day after it is what actually gets settled.
+
+    Returns False for a date that will not parse, which is not the same as no
+    date: one is a form to reject and the other is the ordinary case.
+    """
+    if raw := (request.POST.get("up_to") or "").strip():
+        try:
+            return date.fromisoformat(raw) + timedelta(days=1)
+        except ValueError:
+            return False
+
+    if raw := (request.POST.get("through") or "").strip():
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            return False
+
+    return None
+
+
 def _run_being_paid(request, state):
     """
     Which stretch of work the form is settling.
 
-    A job with no cycle has only one, so there is nothing to name. A job with
-    one sends the end date of the run being paid, and it has to be a run that
-    is actually owed — a period still running has not finished being worked,
-    and one already settled must not be settled twice.
+    Named no date, a job with no cycle settles everything up to now — the
+    money is in your hand. A job on a cycle has to say which run, because
+    paying for the fortnight that closed last Wednesday must not also clear
+    the one that has been running since Thursday.
+
+    Named a date, either kind settles everything worked before it. For a job
+    on a cycle the run buttons are tried first, so pressing one still records
+    that run exactly; a date that is not one of them is taken at its word and
+    sweeps up whatever it covers, which may well be more than one run.
     """
-    raw = (request.POST.get("through") or "").strip()
-
-    if not state["scheduled"]:
-        # No cut-off named: the money covered everything, which is the usual
-        # case and the one the card's own button sends.
-        if not raw:
-            return state["current"]
-        try:
-            end = date.fromisoformat(raw)
-        except ValueError:
-            return None
-        # Only the work before that cut-off, priced on its own.
-        cutoff = _midnight(end)
-        covered = [
-            shift
-            for shift in _unpaid_shifts(state["workplace"])
-            if shift.clock_in < cutoff
-        ]
-        return _run(state["workplace"], covered, end=end) if covered else None
-
-    try:
-        end = date.fromisoformat(raw)
-    except ValueError:
+    end = _cut_off_named(request)
+    if end is False:
         return None
 
-    payable = list(state["due"])
-    if state["current"]["payable"]:
-        payable.append(state["current"])
-    return next((run for run in payable if run["end"] == end), None)
+    if end is None:
+        # No cut-off named: the money covered everything, which is the usual
+        # case and the one an irregular job's own button sends. A job on a
+        # cycle has runs to choose between and must name one.
+        return None if state["scheduled"] else state["current"]
+
+    if state["scheduled"]:
+        payable = list(state["due"])
+        if state["current"]["payable"]:
+            payable.append(state["current"])
+        run = next((r for r in payable if r["end"] == end), None)
+        if run is not None:
+            return run
+
+    return _swept_to(state["workplace"], end)
 
 
 @login_required
@@ -1359,14 +1406,16 @@ def payment_choose(request, pk):
     workplace = get_object_or_404(
         Workplace.objects.prefetch_related("payments"), pk=pk, user=request.user
     )
-    if workplace.pays_on_a_cycle:
-        # A job with runs already answers this question with its runs.
-        return redirect("timeclock:payments")
+    days = _unpaid_days(workplace)
 
     return render(request, "timeclock/payment_choose.html", {
         "workplace": workplace,
-        "days": _unpaid_days(workplace),
+        "days": days,
         "state": _pay_state(workplace),
+        # What the date box will accept. Before the oldest unpaid day there is
+        # nothing left to settle, and past today there is nothing yet.
+        "earliest": days[-1]["day"] if days else None,
+        "today": timezone.localdate(),
     })
 
 

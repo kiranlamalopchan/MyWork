@@ -104,6 +104,16 @@
           {% endif %}
         </div>
 
+        {% comment %}
+          A run button settles a whole run. When the money stopped somewhere
+          inside one — an employer paying up to the Saturday of a fortnight
+          that runs to the Wednesday — the date has to be sayable outright.
+        {% endcomment %}
+        <a class="owed__partly" href="{% url 'timeclock:payment_choose' row.workplace.pk %}">
+          It covered work up to a particular date
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </a>
+
       {% else %}
         {% comment %}
           A job that pays when it gets round to it. No periods to divide —
