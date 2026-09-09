@@ -147,16 +147,10 @@
         The two things you do with a card once the money has landed, side by
         side rather than one above the other: one takes the employer's
         paperwork in, the other hands your own record back out. Neither is
-        this card's main action — that is the button above — so neither gets
-        a button's weight, and on a card with no payment yet the upload
-        simply takes the whole width on its own.
+        this card's main action — that is the button above — so it does not
+        get a button's weight.
       {% endcomment %}
       <div class="cardlinks">
-        <a class="pdflink" href="{% url 'timeclock:payslip_upload' row.workplace.pk %}">
-          {% icon "doc" %}
-          Upload payslip
-        </a>
-
         {% if row.last_payment %}
           {% comment %}
             Straight after a payment the figure above it is gone — that is

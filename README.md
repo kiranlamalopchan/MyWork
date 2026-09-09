@@ -75,11 +75,9 @@ the web server has to. In the **Web** tab, under *Static files*, add:
 
 Without it every profile photo 404s and each face falls back to its initial.
 
-**Map `/media/avatars/`, not `/media/`.** Payslips live under
-`/media/payslips/`, and a mapping on the parent would serve them straight off
-the disk to anyone with the URL, going around the ownership check in
-`payslip_view`. The filenames are random, which is a second lock and not a
-substitute for the first one.
+Map `/media/avatars/` rather than `/media/`: the mapping serves whatever is
+under it straight off the disk, with no view and no permission check in the
+way, so it should reach exactly the files that are meant to be public.
 
 Finally **Reload** the web app — Django will not pick up new code or a changed
 WSGI file until you do.
@@ -100,7 +98,7 @@ mywork/              the project: settings, root URLs, hub views
 apps/                the four applications written for this project
   accounts/          who you are: profile, avatar, contact details
   plu/               PLU lookup
-  timeclock/         clocking, timesheets, pay, payslips
+  timeclock/         clocking, timesheets, pay
   noticeboard/       the board both apps share
 templates/           every template, one directory, base.html at its root
 static/              css, js, icons, the web manifest

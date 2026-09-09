@@ -7,18 +7,9 @@ from django.forms import inlineformset_factory
 from django.utils import timezone
 
 from .models import (
-    MAX_MONTH_START_DAY, Break, PaidIn, Payslip, Shift, TimePreference,
+    MAX_MONTH_START_DAY, Break, PaidIn, Shift, TimePreference,
     Workplace, fortnight_runs,
 )
-
-# What a payslip can arrive as. HEIC is missing on purpose: iPhones send JPEG
-# to anything that asks for an upload, and a format the server cannot open
-# would fail after the wait rather than before it.
-PAYSLIP_TYPES = (".pdf", ".jpg", ".jpeg", ".png", ".webp")
-
-# A phone photo of one page. Anything larger is a video, a scan of a whole
-# folder, or a mistake.
-PAYSLIP_MAX_MB = 12
 
 # Phones give a proper date+time spinner for this input type, which beats
 # typing a timestamp into a text box while standing at a time clock.
@@ -144,8 +135,7 @@ class WorkplaceForm(forms.ModelForm):
 
         The field is hidden the moment cash is chosen, but a form can be sent
         without ever seeing that — so the value is dropped here rather than
-        left on the row to reappear if the job is switched back and confuse
-        the next payslip that gets read.
+        left on the row to reappear if the job is switched back.
         """
         cleaned = super().clean()
         if cleaned.get("paid_in") == PaidIn.CASH:
@@ -352,113 +342,3 @@ class TimePreferenceForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _say_which_days(self)
-
-
-class PayslipUploadForm(forms.Form):
-    """
-    The file itself, and nothing else.
-
-    Deliberately one field. Reading the numbers off it is the app's job, and
-    asking somebody to type the figures they are in the middle of uploading
-    would make the upload pointless.
-    """
-
-    file = forms.FileField(
-        label="Payslip",
-        help_text="A PDF from payroll, or a photo of the paper one.",
-        widget=forms.ClearableFileInput(
-            attrs={
-                "accept": ",".join(PAYSLIP_TYPES) + ",image/*",
-                "class": "visually-hidden-input",
-                "id": "payslip-input",
-            }
-        ),
-    )
-
-    def clean_file(self):
-        upload = self.cleaned_data["file"]
-        name = (upload.name or "").lower()
-
-        if not name.endswith(PAYSLIP_TYPES):
-            raise ValidationError(
-                "That has to be a PDF or a photo — "
-                f"{', '.join(t.lstrip('.') for t in PAYSLIP_TYPES)}."
-            )
-        if upload.size > PAYSLIP_MAX_MB * 1024 * 1024:
-            raise ValidationError(
-                f"That file is over {PAYSLIP_MAX_MB}MB. A photo of one page "
-                "is usually well under it."
-            )
-        return upload
-
-
-class PayslipForm(forms.ModelForm):
-    """
-    The figures, for a person to read back off the paper and correct.
-
-    Every one of them is optional. A slip that prints no net, or a photo that
-    cut off the super line, is still worth keeping for the figures it does
-    have — and an empty box is an honest way to say "this was not on it",
-    which a zero would not be.
-    """
-
-    class Meta:
-        model = Payslip
-        fields = [
-            "period_start", "period_end", "paid_on",
-            "hours", "rate", "gross", "tax", "net", "super_amount",
-        ]
-        labels = {
-            "period_start": "Period from",
-            "period_end": "Period to",
-            "paid_on": "Paid on",
-            "hours": "Hours",
-            "rate": "Hourly rate",
-            "gross": "Gross",
-            "tax": "Tax withheld",
-            "net": "Net (take-home)",
-            "super_amount": "Super",
-        }
-        widgets = {
-            "period_start": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "period_end": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "paid_on": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "hours": forms.NumberInput(
-                attrs={"step": "0.0001", "min": "0", "inputmode": "decimal",
-                       "placeholder": "e.g. 51.7834"}
-            ),
-            "rate": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0", "inputmode": "decimal",
-                       "placeholder": "e.g. 33.25"}
-            ),
-            "gross": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0", "inputmode": "decimal",
-                       "placeholder": "e.g. 1721.80"}
-            ),
-            "tax": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0", "inputmode": "decimal",
-                       "placeholder": "e.g. 186.00"}
-            ),
-            "net": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0", "inputmode": "decimal",
-                       "placeholder": "e.g. 1535.80"}
-            ),
-            "super_amount": forms.NumberInput(
-                attrs={"step": "0.01", "min": "0", "inputmode": "decimal",
-                       "placeholder": "e.g. 198.01"}
-            ),
-        }
-
-    def clean(self):
-        cleaned = super().clean()
-        opens, closes = cleaned.get("period_start"), cleaned.get("period_end")
-        if opens and closes and opens > closes:
-            self.add_error("period_end", "The period ends before it starts.")
-
-        gross, tax, net = cleaned.get("gross"), cleaned.get("tax"), cleaned.get("net")
-        # Not an error. A payslip with a rounding cent out of place is still
-        # the real payslip, and refusing to save it would help nobody — but
-        # the page says so, loudly, beside the figure.
-        if gross is not None and tax is not None and net is None:
-            cleaned["net"] = gross - tax
-        return cleaned

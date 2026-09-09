@@ -515,7 +515,6 @@ class Workplace(models.Model):
             ),
             "breaks": sum(s.breaks.count() for s in shifts),
             "payments": self.payments.count(),
-            "payslips": self.payslips.count(),
             "first": days[0] if days else None,
             "last": days[-1] if days else None,
         }
@@ -528,23 +527,15 @@ class Workplace(models.Model):
         Removing a job used to hide it and keep its shifts, so the timesheet
         could go on showing the name each one was worked under. That is a good
         answer to a different question. Asked to remove a workplace, this
-        removes it: the shifts, the breaks inside them, the payments drawn
-        under them and the payslips filed against them, files on disk
-        included. Nothing is left pointing at a job that no longer exists.
+        removes it: the shifts, the breaks inside them and the payments drawn
+        under them. Nothing is left pointing at a job that no longer exists.
 
         There is no undo, which is why the screen in front of it counts every
         one of those things out loud first.
         """
-        # A FileField forgets the row, not the file. These are payslips —
-        # somebody's name, address and bank details — so they go properly.
-        for slip in self.payslips.all():
-            if slip.file:
-                slip.file.delete(save=False)
-
         # Shifts point here with SET_NULL: left alone they would survive as
         # work done nowhere in particular, which is not what removing a job
-        # means. Their breaks cascade from them, as payments and payslips do
-        # from this.
+        # means. Their breaks cascade from them, as payments do from this.
         self.shifts.all().delete()
 
         # If this was the job the clock offered first, that has to go
@@ -785,138 +776,6 @@ class Payment(models.Model):
         return f"{self.hours}h at {self.workplace} to {self.covers_through:%d %b %Y}"
 
 
-def payslip_path(instance, filename):
-    """
-    Where an uploaded payslip lands.
-
-    A random name rather than the one it arrived with. A payslip carries a
-    full name, an address, a tax figure and often a bank account, so the last
-    thing its file should be is guessable — and `payslip-august.pdf` from two
-    different people must not collide. It is served through a view that checks
-    who is asking, never straight off the media URL.
-    """
-    suffix = (filename.rsplit(".", 1)[-1] or "bin").lower()[:5]
-    return f"payslips/{instance.workplace.user_id}/{uuid.uuid4().hex}.{suffix}"
-
-
-class Payslip(models.Model):
-    """
-    An employer's own statement of what they paid you.
-
-    MyWork can only ever estimate pay: it knows the hours you recorded and a
-    rate you typed in. The payslip knows. So one of these is the authority in
-    any disagreement, and it is stored as its own record rather than folded
-    into a Payment — a payment is money arriving, a payslip is the paperwork
-    that says what the money was, and they do not always come together or in
-    that order.
-
-    Every figure is a Decimal off the paper, not a float derived from
-    anything. `confirmed` marks the moment a person read the numbers back and
-    said yes: until then these are a machine's best reading of a photograph,
-    and the difference matters enough to keep on the row.
-    """
-
-    class Source(models.TextChoices):
-        PDF = "PDF", "PDF"
-        PHOTO = "PHOTO", "Photo"
-        TYPED = "TYPED", "Typed in"
-
-    workplace = models.ForeignKey(
-        Workplace, on_delete=models.CASCADE, related_name="payslips"
-    )
-    file = models.FileField(upload_to=payslip_path, blank=True)
-    source = models.CharField(max_length=5, choices=Source.choices, default=Source.TYPED)
-
-    # What it covers. Both ends are optional because plenty of slips print
-    # only "period ending", and half a period is still worth having.
-    period_start = models.DateField(null=True, blank=True)
-    period_end = models.DateField(null=True, blank=True)
-    paid_on = models.DateField(null=True, blank=True)
-
-    # The work. Hours to four places because payroll systems really do print
-    # 51.78335 and rounding it would stop the arithmetic agreeing.
-    hours = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
-    rate = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
-
-    # The money.
-    gross = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    tax = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    net = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    super_amount = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True,
-        verbose_name="Superannuation",
-    )
-
-    # A person has read these figures back off the paper and agreed with them.
-    confirmed = models.BooleanField(default=False)
-    # What came off the file, kept so a reading can be checked against the
-    # words it was taken from rather than believed on trust.
-    raw_text = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-period_end", "-created_at"]
-        indexes = [models.Index(fields=["workplace", "-period_end"])]
-
-    def __str__(self):
-        when = self.period_end or self.paid_on or self.created_at.date()
-        return f"{self.workplace} payslip to {when:%d %b %Y}"
-
-    # ---- what it says --------------------------------------------------
-
-    @property
-    def adds_up(self):
-        """
-        Whether gross − tax comes to net.
-
-        None when one of the three is missing, which is not the same as the
-        three of them disagreeing.
-        """
-        if self.gross is None or self.tax is None or self.net is None:
-            return None
-        return abs(self.gross - self.tax - self.net) <= Decimal("0.02")
-
-    @property
-    def hours_add_up(self):
-        """Whether hours × rate comes to the gross, within half a percent."""
-        if not (self.hours and self.rate and self.gross):
-            return None
-        slack = max(Decimal("0.02"), self.gross * Decimal("0.005"))
-        return abs(self.hours * self.rate - self.gross) <= slack
-
-    @property
-    def withheld_percent(self):
-        """
-        The share of gross withheld, to two places — exactly what the
-        workplace's tax rate field asks for.
-        """
-        if not self.gross or self.gross <= 0 or self.tax is None:
-            return None
-        return (self.tax / self.gross * 100).quantize(Decimal("0.01"))
-
-    @property
-    def take_home(self):
-        """
-        What actually landed, straight off the slip.
-
-        Falls back to gross − tax only when the slip did not print a net, and
-        never to an estimate: the whole point of a payslip is that this figure
-        is not a guess.
-        """
-        if self.net is not None:
-            return self.net
-        if self.gross is not None and self.tax is not None:
-            return self.gross - self.tax
-        return None
-
-    @property
-    def covers_a_period(self):
-        return self.period_start is not None and self.period_end is not None
-
-    @property
-    def needs_checking(self):
-        """Worth a second look before its figures are trusted anywhere else."""
-        return not self.confirmed or self.adds_up is False
 
 
 class Break(models.Model):

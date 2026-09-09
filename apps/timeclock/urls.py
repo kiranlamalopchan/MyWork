@@ -29,7 +29,7 @@ urlpatterns = [
     path("workplaces/", views.workplace_list, name="workplaces"),
     path("workplaces/add/", views.workplace_create, name="workplace_create"),
     path("workplaces/<int:pk>/edit/", views.workplace_edit, name="workplace_edit"),
-    # Removing takes the shifts, breaks, payments and payslips with it, so
+    # Removing takes the shifts, breaks and payments with it, so
     # the screen that counts them comes first and the POST does it.
     path("workplaces/<int:pk>/remove/", views.workplace_confirm_delete, name="workplace_confirm_delete"),
     path("workplaces/<int:pk>/delete/", views.workplace_delete, name="workplace_delete"),
@@ -46,12 +46,6 @@ urlpatterns = [
 
     # The employer's own statement of what they paid, read and checked
     # against the hours you recorded for the same days.
-    path("payslips/", views.payslips, name="payslips"),
-    path("pay/<int:pk>/payslip/", views.payslip_upload, name="payslip_upload"),
-    path("payslips/<int:pk>/", views.payslip_detail, name="payslip_detail"),
-    path("payslips/<int:pk>/apply/", views.payslip_apply, name="payslip_apply"),
-    path("payslips/<int:pk>/file/", views.payslip_file, name="payslip_file"),
-    path("payslips/<int:pk>/delete/", views.payslip_delete, name="payslip_delete"),
 
     path("preferences/", views.preferences, name="preferences"),
     path("more/", views.more, name="more"),

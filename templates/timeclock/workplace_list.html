@@ -55,7 +55,7 @@
             {% comment %}
               To a screen that counts what would go, not to a pop-up that
               can only ask. Removing takes the shifts, the breaks, the
-              payments and the payslips, and there is no undo.
+              payments, and there is no undo.
             {% endcomment %}
             <a class="icon-btn icon-btn--sm icon-btn--danger" title="Remove" aria-label="Remove {{ w.name }}"
                href="{% url 'timeclock:workplace_confirm_delete' w.pk %}">

@@ -130,7 +130,7 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # own CSS/JS) into one directory for the host to serve directly.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Uploads — profile photos and payslips. Kept out of STATIC_ROOT: static files
+# Uploads — profile photos. Kept out of STATIC_ROOT: static files
 # ship with the code and are collected, these arrive from users and are backed
 # up with the database, not with the repository.
 MEDIA_URL = '/media/'

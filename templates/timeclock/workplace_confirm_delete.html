@@ -25,7 +25,7 @@
 </div>
 
 <div class="card card__pad">
-  {% if going.shifts or going.payments or going.payslips %}
+  {% if going.shifts or going.payments %}
     <div class="section-label">What goes with it</div>
 
     <div class="ledger">
@@ -54,12 +54,6 @@
         <div class="ledger__row">
           <span>Payments marked received</span>
           <span class="ledger__val">{{ going.payments }}</span>
-        </div>
-      {% endif %}
-      {% if going.payslips %}
-        <div class="ledger__row">
-          <span>Payslips, and the files behind them</span>
-          <span class="ledger__val">{{ going.payslips }}</span>
         </div>
       {% endif %}
     </div>

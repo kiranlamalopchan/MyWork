@@ -2587,23 +2587,38 @@ select, textarea {
   position: absolute;
   right: -1px;
   bottom: -1px;
-  width: 11px;
-  height: 11px;
+  width: var(--dot);
+  height: var(--dot);
   border-radius: 50%;
   background: #22c55e;
   box-shadow:
-    0 0 0 2px var(--surface),
-    0 0 0 3px color-mix(in srgb, #22c55e 45%, transparent);
+    0 0 0 var(--dot-ring) var(--surface),
+    0 0 0 calc(var(--dot-ring) + 1px) color-mix(in srgb, #22c55e 45%, transparent);
   animation: mw-here 3.2s var(--ease) infinite;
 }
 
-/* Sized to the face it hangs off, so it stays a dot rather than becoming a
-   blob on the small ones and a speck on the profile page's 96px circle. */
-.avatar--sm .avatar__live { width: 8px;  height: 8px; box-shadow: 0 0 0 2px var(--surface); }
-.avatar--lg .avatar__live { width: 13px; height: 13px; }
-.avatar--xl .avatar__live { width: 18px; height: 18px; right: 4px; bottom: 4px;
-                            box-shadow: 0 0 0 3px var(--surface),
-                                        0 0 0 4px color-mix(in srgb, #22c55e 45%, transparent); }
+/* One dot, sized to the face it hangs off.
+
+   Every avatar size names its own, rather than each one overriding width and
+   height and the two rings again — otherwise the ring stops matching the dot
+   the moment either changes, which is how it ends up looking stuck on. The
+   default belongs to the 38px face the board is full of. */
+.avatar     { --dot: 11px; --dot-ring: 2px; }
+.avatar--sm { --dot: 8px;  --dot-ring: 2px; }
+.avatar--md { --dot: 11px; --dot-ring: 2px; }
+.avatar--xl { --dot: 20px; --dot-ring: 3px; }
+
+/* The app bar's is the one avatar with a screen edge beside it, so its dot
+   sits inside the circle rather than half out of it — hanging over the edge
+   is how it gets clipped by the viewport. */
+.avatar--btn { --dot: 9px; --dot-ring: 2px; right: 0; bottom: 0; }
+.avatar--btn .avatar__live { right: 0; bottom: 0; }
+
+/* Your own photo, on your own profile, already has a button in that corner
+   for changing it. The dot moves to the opposite one rather than sitting
+   under the camera — and it stays, because a face is a face and this is
+   still the place you check that MyWork thinks you are here. */
+.photo-menu .avatar__live { bottom: auto; top: 4px; right: 4px; }
 
 @keyframes mw-here {
   0%, 100% { opacity: 1; }
@@ -4219,136 +4234,6 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   line-height: 1.35;
 }
 
-
-/* --------------------------------------------------------------------------
-   31. Payslips — the employer's own statement, checked against yours
-
-   The app can only estimate pay; a payslip knows. So these screens are built
-   around one honest distinction: what was read off a photograph, and what a
-   person has since confirmed. Nothing here pretends to certainty it hasn't
-   earned, and the styling says which is which rather than making both look
-   equally solid.
-   -------------------------------------------------------------------------- */
-
-/* Said once, at the top, and only while it is still true. Named callout and
-   not notice: .notice belongs to the board, and two meanings on one class is
-   how a stylesheet starts lying. */
-.callout {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  margin-bottom: var(--sp-3);
-  border-radius: var(--r-lg);
-  font-size: 13px;
-  line-height: 1.5;
-}
-.callout svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
-.callout--check {
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-weight: 550;
-}
-
-/* A verdict on figures that have just been shown: does this hold up. */
-.verdict {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-2);
-  margin: var(--sp-3) 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 550;
-  color: var(--muted);
-}
-.verdict svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
-.verdict--ok  { color: var(--brand); }
-.verdict--bad { color: var(--danger); }
-.verdict--note { color: var(--text-2); font-weight: 500; }
-
-/* The headline figure, at the size of a number you actually read. */
-.lead-stat--sm .lead-stat__value { font-size: 30px; }
-
-/* A panel sitting inside a card that already has its own padding. */
-.panel--flush {
-  margin: var(--sp-3) calc(var(--sp-4) * -1) calc(var(--sp-4) * -1);
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-}
-
-/* What was actually read off the file. Monospaced, scrollable and quiet: it
-   is evidence, not content, and it is here so a wrong figure can be traced
-   back to a wrong word rather than argued with. */
-.rawtext {
-  max-height: 260px;
-  margin: var(--sp-3) 0 0;
-  padding: var(--sp-3);
-  overflow: auto;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  color: var(--text-2);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* ---- One payslip in the list -------------------------------------------- */
-.slip {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  color: inherit;
-}
-.slip:hover { text-decoration: none; }
-.slip__body { flex: 1; min-width: 0; }
-.slip__top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
-}
-.slip__where {
-  font-weight: 650;
-  font-size: 15px;
-  letter-spacing: -.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.slip__net {
-  flex: none;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.slip__meta { display: block; margin-top: 2px; font-size: 12.5px; color: var(--muted); }
-/* Not a warning — a reminder that these figures are still a machine's
-   reading and nobody has looked at the paper yet. */
-.slip__flag {
-  flex: none;
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 11px;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-/* Where somebody's payslip is kept, said where they are about to upload one. */
-.fineprint {
-  margin: var(--sp-4) 0 0;
-  padding: 0 var(--sp-2);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-  text-align: center;
-}
 
 /* --------------------------------------------------------------------------
    32. Glass — the material the app is made of

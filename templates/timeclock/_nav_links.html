@@ -7,7 +7,7 @@ timesheet pages. Same markup either way, so the two can never disagree.
 One slot per destination and no slot twice. The calendar is not here: it is a
 second view of the timesheet, reached by the List / Calendar toggle that sits
 on both of those pages, and a tab as well would have been two ways to the same
-screen. Anything past these three — workplaces, payslips, adding a day you
+screen. Anything past these three — workplaces, pay, adding a day you
 forgot — sits behind More.
 {% endcomment %}
 {% with current=request.resolver_match.url_name %}
@@ -26,7 +26,7 @@ forgot — sits behind More.
   <span>Timesheet</span>
 </a>
 
-<a class="tab{% if current == 'more' or current == 'workplaces' or current == 'workplace_create' or current == 'workplace_edit' or current == 'workplace_confirm_delete' or current == 'payments' or current == 'payslips' %} is-active{% endif %}"
+<a class="tab{% if current == 'more' or current == 'workplaces' or current == 'workplace_create' or current == 'workplace_edit' or current == 'workplace_confirm_delete' or current == 'payments' %} is-active{% endif %}"
    href="{% url 'timeclock:more' %}">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>

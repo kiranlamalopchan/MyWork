@@ -1498,66 +1498,6 @@
   }
 
   /* ----------------------------------------------------------------------
-     Payslip picker: name the file you chose, and say the reading is running
-
-     Reading a payslip takes a few seconds — OCR on a phone photo is not
-     instant — and a button that looks untouched for four seconds gets pressed
-     again. So the button says what is happening and stops accepting a second
-     press, which is the whole of the feedback this needs.
-     ---------------------------------------------------------------------- */
-  function initPayslipPicker() {
-    var input = document.getElementById("payslip-input");
-    var zone = document.getElementById("payslip-dropzone");
-    if (!input || !zone) return;
-
-    var filename = document.getElementById("payslip-filename");
-    var label = document.getElementById("payslip-label");
-    var submit = document.getElementById("payslip-submit");
-    var form = document.getElementById("payslip-form");
-
-    var isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || "");
-    if (label && isMobile) label.textContent = "Photograph or choose a payslip";
-
-    function showFile(file) {
-      if (!file) return;
-      if (filename) filename.textContent = file.name;
-      zone.classList.add("is-picked");
-    }
-
-    input.addEventListener("change", function () {
-      showFile(input.files && input.files[0]);
-    });
-
-    ["dragenter", "dragover"].forEach(function (type) {
-      zone.addEventListener(type, function (e) {
-        e.preventDefault();
-        zone.classList.add("is-dragover");
-      });
-    });
-    ["dragleave", "drop"].forEach(function (type) {
-      zone.addEventListener(type, function (e) {
-        e.preventDefault();
-        zone.classList.remove("is-dragover");
-      });
-    });
-    zone.addEventListener("drop", function (e) {
-      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (!file) return;
-      input.files = e.dataTransfer.files;
-      showFile(file);
-    });
-
-    if (form && submit) {
-      form.addEventListener("submit", function () {
-        if (!input.files || !input.files.length) return;
-        submit.disabled = true;
-        submit.textContent = "Reading it\u2026";
-      });
-    }
-  }
-
-
-  /* ----------------------------------------------------------------------
      The tab bar's capsule, which slides.
 
      The bright lozenge behind the current tab used to be a background on the
@@ -1744,7 +1684,6 @@
     initPhotoPicker();
     initAvatarPicker();
     initCsvPicker();
-    initPayslipPicker();
     initRipple();
     initSubmitState();
     initLiveFilter();

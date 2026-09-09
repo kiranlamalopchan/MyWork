@@ -49,21 +49,6 @@
   </li>
 
   <li>
-    <a class="menu-row" href="{% url 'timeclock:payslips' %}">
-      <span class="menu-row__icon">
-        {% icon "doc" %}
-      </span>
-      <span class="menu-row__body">
-        <span class="menu-row__title">Payslips</span>
-        <span class="menu-row__sub">
-          {% if payslip_count %}<span data-tally="{{ payslip_count }}" data-tally-format="int">{{ payslip_count }}</span> uploaded{% if payslips_to_check %} · {{ payslips_to_check }} to check{% endif %}{% else %}Upload one and check it against your hours{% endif %}
-        </span>
-      </span>
-      {% icon "chev" class="result__chev" %}
-    </a>
-  </li>
-
-  <li>
     <a class="menu-row" href="{% url 'timeclock:workplaces' %}">
       <span class="menu-row__icon">
         {% icon "home" %}

@@ -15,14 +15,12 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .forms import WorkplaceForm
-from . import payslip as payslip_reader
 from .models import (
     Break,
     fortnight_start,
     PaidIn,
     PayCycle,
     Payment,
-    Payslip,
     Shift,
     TimePreference,
     Weekday,
@@ -1387,328 +1385,6 @@ class MonthStatementTests(TestCase):
         self.assertIn(settings.LOGIN_URL, response["Location"])
 
 
-# A real payslip's shape: a "this pay" column beside a year-to-date one, with
-# the period and the payment day printed on the same line as each other.
-SAMPLE_SLIP = """
-ASIAN UNITED FOOD SERVICE PTY LTD        ABN 12 345 678 901
-Employee: KIRAN LAMA
-Pay Period: 13/08/2026 to 26/08/2026      Payment Date: 26/08/2026
-
-Description          Units      Rate     This Pay        YTD
-Ordinary Hours     51.78335    33.25     1,721.80     18,940.20
-Gross                                    1,721.80     18,940.20
-PAYG Withholding                           186.00      2,046.00
-NET PAY                                  1,535.80     16,894.20
-Superannuation                             198.01      2,178.11
-"""
-
-
-class PayslipReadingTests(TestCase):
-    """
-    Getting the figures off the paper.
-
-    A payslip almost always prints two columns, and the label sits on a line
-    with both of them. Nothing here trusts column position: the reading that
-    gets believed is the one where gross − tax actually comes to net, which is
-    the same check a person does with a thumb on the page.
-    """
-
-    def test_a_two_column_slip_reads_this_pay_not_the_year(self):
-        read = payslip_reader.parse(SAMPLE_SLIP)
-
-        self.assertEqual(read["gross"], Decimal("1721.80"))
-        self.assertEqual(read["tax"], Decimal("186.00"))
-        self.assertEqual(read["net"], Decimal("1535.80"))
-        self.assertTrue(read["balanced"])
-
-    def test_the_year_to_date_column_printed_first_changes_nothing(self):
-        read = payslip_reader.parse("""
-            Period: 13/08/2026 to 26/08/2026
-                              YTD        This Pay
-            Gross         18940.20        1721.80
-            Tax            2046.00         186.00
-            Net           16894.20        1535.80
-        """)
-        # Both columns balance. A payslip's own pay is never larger than its
-        # year to date, and that is what settles it.
-        self.assertEqual(read["gross"], Decimal("1721.80"))
-        self.assertEqual(read["net"], Decimal("1535.80"))
-
-    def test_a_line_labelled_year_to_date_is_left_out_of_it(self):
-        read = payslip_reader.parse("""
-            Week Ending 26/08/2026
-            Gross 1263.50
-            Tax Withheld 154.00
-            YTD Gross 18940.20 Tax 2046.00
-        """)
-        self.assertEqual(read["gross"], Decimal("1263.50"))
-        self.assertEqual(read["tax"], Decimal("154.00"))
-
-    def test_a_missing_third_figure_is_worked_out_from_the_other_two(self):
-        read = payslip_reader.parse(
-            "Week Ending 26/08/2026\nGross Pay 1263.50\nTax Withheld 154.00"
-        )
-        self.assertEqual(read["net"], Decimal("1109.50"))
-        self.assertTrue(read["balanced"])
-
-    def test_the_period_and_the_payment_day_share_a_line(self):
-        read = payslip_reader.parse(SAMPLE_SLIP)
-
-        self.assertEqual(read["period_start"], date(2026, 8, 13))
-        self.assertEqual(read["period_end"], date(2026, 8, 26))
-        self.assertEqual(read["paid_on"], date(2026, 8, 26))
-
-    def test_a_date_with_nothing_saying_what_it_is_is_ignored(self):
-        # An ABN registration date is not a pay period.
-        read = payslip_reader.parse(
-            "Registered 01/07/1998\nGross 100.00\nTax 10.00\nNet 90.00"
-        )
-        self.assertIsNone(read["period_start"])
-        self.assertIsNone(read["period_end"])
-
-    def test_hours_and_rate_come_off_an_earnings_line(self):
-        read = payslip_reader.parse(
-            "Ordinary Earnings 51.7834 hrs @ $33.2500 $1,721.80\n"
-            "Taxable Earnings 1721.80\nPAYG Tax 186.00\nNET PAY 1535.80"
-        )
-        self.assertEqual(read["hours"], Decimal("51.7834"))
-        self.assertEqual(read["rate"], Decimal("33.2500"))
-        self.assertTrue(read["hours_check"])
-
-    def test_the_withheld_share_is_what_the_tax_field_asks_for(self):
-        self.assertEqual(
-            payslip_reader.withheld_percent(Decimal("1721.80"), Decimal("186.00")),
-            Decimal("10.80"),
-        )
-
-    def test_nothing_legible_is_not_a_payslip(self):
-        with self.assertRaises(payslip_reader.Unreadable):
-            payslip_reader.text_from(
-                SimpleUploadedFile("blank.png", b"", content_type="image/png")
-            )
-
-
-def _slip_pdf(text):
-    """A one-page PDF carrying `text`, the way payroll would email one."""
-    from io import BytesIO
-
-    from reportlab.lib.pagesizes import A4
-    from reportlab.pdfgen import canvas
-
-    buffer = BytesIO()
-    page = canvas.Canvas(buffer, pagesize=A4)
-    page.setFont("Courier", 10)
-    y = 780
-    for line in text.strip().splitlines():
-        page.drawString(40, y, line)
-        y -= 15
-    page.save()
-    return buffer.getvalue()
-
-
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="mywork-test-media-"))
-class PayslipFlowTests(TestCase):
-    """
-    Upload a payslip, read it, check it, and let the job learn from it.
-
-    The order matters: nothing a machine read off a file counts anywhere else
-    in MyWork until a person who can see the paper has confirmed it.
-    """
-
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
-        super().tearDownClass()
-
-    def setUp(self):
-        self.user = User.objects.create_user("kiran", password="pw")
-        self.client.force_login(self.user)
-        self.job = Workplace.objects.create(
-            user=self.user, name="AUFS", hourly_rate=Decimal("30.00")
-        )
-
-    def _upload(self, content=None, name="payslip.pdf", kind="application/pdf"):
-        return self.client.post(
-            reverse("timeclock:payslip_upload", args=[self.job.pk]),
-            {"file": SimpleUploadedFile(
-                name, content if content is not None else _slip_pdf(SAMPLE_SLIP),
-                content_type=kind,
-            )},
-            follow=True,
-        )
-
-    def _worked(self, hours, day):
-        start = timezone.make_aware(
-            datetime.combine(day, time(9)), timezone.get_current_timezone()
-        )
-        Shift.objects.create(
-            user=self.user, workplace=self.job, clock_in=start,
-            clock_out=start + timedelta(hours=hours),
-            status=Shift.Status.COMPLETED,
-        )
-
-    # ---- reading ---------------------------------------------------------
-
-    def test_uploading_a_payslip_reads_its_figures(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        self.assertEqual(slip.gross, Decimal("1721.80"))
-        self.assertEqual(slip.tax, Decimal("186.00"))
-        self.assertEqual(slip.net, Decimal("1535.80"))
-        self.assertEqual(slip.period_start, date(2026, 8, 13))
-        self.assertEqual(slip.source, Payslip.Source.PDF)
-        self.assertTrue(slip.adds_up)
-
-    def test_the_take_home_figure_comes_off_the_slip(self):
-        self._upload()
-        self.assertEqual(Payslip.objects.get().take_home, Decimal("1535.80"))
-
-    def test_nothing_is_trusted_until_a_person_confirms_it(self):
-        response = self._upload()
-        slip = Payslip.objects.get()
-
-        self.assertFalse(slip.confirmed)
-        self.assertTrue(slip.needs_checking)
-        self.assertContains(response, "check every figure against the paper")
-
-    def test_confirming_the_figures_marks_it_checked(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        self.client.post(reverse("timeclock:payslip_detail", args=[slip.pk]), {
-            "period_start": "2026-08-13", "period_end": "2026-08-26",
-            "paid_on": "2026-08-26", "hours": "51.7834", "rate": "33.25",
-            "gross": "1721.80", "tax": "186.00", "net": "1535.80",
-            "super_amount": "198.01",
-        })
-        slip.refresh_from_db()
-
-        self.assertTrue(slip.confirmed)
-        self.assertFalse(slip.needs_checking)
-
-    def test_a_correction_sticks(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        self.client.post(reverse("timeclock:payslip_detail", args=[slip.pk]), {
-            "period_start": "2026-08-13", "period_end": "2026-08-26",
-            "gross": "1800.00", "tax": "200.00", "net": "1600.00",
-        })
-        slip.refresh_from_db()
-        self.assertEqual(slip.gross, Decimal("1800.00"))
-
-    # ---- checking it against your own record -----------------------------
-
-    def test_it_is_checked_against_the_hours_you_recorded(self):
-        self._upload()
-        slip = Payslip.objects.get()
-        # Two eight-hour days inside the period the slip covers.
-        self._worked(8, date(2026, 8, 14))
-        self._worked(8, date(2026, 8, 15))
-
-        html = self.client.get(
-            reverse("timeclock:payslip_detail", args=[slip.pk])
-        ).content.decode()
-
-        self.assertIn("Against your timesheet", html)
-        self.assertIn("You recorded", html)
-        self.assertIn("16h", html)
-
-    def test_being_paid_for_less_than_you_worked_is_said_plainly(self):
-        self._upload()
-        slip = Payslip.objects.get()
-        for day in range(13, 27):
-            self._worked(8, date(2026, 8, day))
-
-        html = self.client.get(
-            reverse("timeclock:payslip_detail", args=[slip.pk])
-        ).content.decode()
-        self.assertIn("You recorded more than they paid for", html)
-
-    # ---- teaching the job ------------------------------------------------
-
-    def test_applying_writes_the_withholding_onto_the_job(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        self.client.post(reverse("timeclock:payslip_apply", args=[slip.pk]))
-        self.job.refresh_from_db()
-
-        self.assertEqual(self.job.tax_rate, Decimal("10.80"))
-        self.assertEqual(self.job.hourly_rate, Decimal("33.25"))
-        # And from then on every figure for this job is after tax.
-        self.assertTrue(self.job.withholds)
-
-    def test_applying_twice_changes_nothing_the_second_time(self):
-        self._upload()
-        slip = Payslip.objects.get()
-        self.client.post(reverse("timeclock:payslip_apply", args=[slip.pk]))
-        self.client.post(reverse("timeclock:payslip_apply", args=[slip.pk]))
-
-        self.job.refresh_from_db()
-        self.assertEqual(self.job.tax_rate, Decimal("10.80"))
-
-    # ---- what may go wrong ------------------------------------------------
-
-    def test_a_file_that_is_not_a_payslip_is_refused(self):
-        response = self._upload(b"hello", name="notes.txt", kind="text/plain")
-
-        self.assertEqual(Payslip.objects.count(), 0)
-        self.assertContains(response, "has to be a PDF or a photo")
-
-    def test_a_file_nothing_can_be_read_from_is_kept_anyway(self):
-        # Losing somebody's payslip because a photo came out badly would be a
-        # worse answer than keeping it with empty boxes to type into.
-        self._upload(_slip_pdf("."), name="blurry.pdf")
-
-        slip = Payslip.objects.get()
-        self.assertIsNone(slip.gross)
-        self.assertTrue(slip.file)
-
-    # ---- whose it is ------------------------------------------------------
-
-    def test_a_stranger_cannot_reach_the_page_or_the_file(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        self.client.force_login(User.objects.create_user("someone", password="pw"))
-        self.assertEqual(
-            self.client.get(reverse("timeclock:payslip_detail", args=[slip.pk])).status_code, 404
-        )
-        self.assertEqual(
-            self.client.get(reverse("timeclock:payslip_file", args=[slip.pk])).status_code, 404
-        )
-
-    def test_the_file_is_served_to_its_owner(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        response = self.client.get(reverse("timeclock:payslip_file", args=[slip.pk]))
-        self.assertEqual(response.status_code, 200)
-
-    def test_signing_out_closes_the_lot(self):
-        self._upload()
-        slip = Payslip.objects.get()
-        self.client.logout()
-
-        for name, args in (
-            ("timeclock:payslips", []),
-            ("timeclock:payslip_detail", [slip.pk]),
-            ("timeclock:payslip_file", [slip.pk]),
-            ("timeclock:payslip_upload", [self.job.pk]),
-        ):
-            response = self.client.get(reverse(name, args=args))
-            self.assertEqual(response.status_code, 302, name)
-
-    def test_removing_it_takes_the_file_with_it(self):
-        self._upload()
-        slip = Payslip.objects.get()
-
-        self.client.post(reverse("timeclock:payslip_delete", args=[slip.pk]))
-        self.assertEqual(Payslip.objects.count(), 0)
-
-
 class LiveFilterTests(TestCase):
     """
     Switching jobs on the timesheet swaps what's below the filter, not the
@@ -2028,7 +1704,7 @@ class WorkplaceRemovalTests(TestCase):
     Removing a workplace removes what was recorded at it.
 
     Every trace: the shifts, the breaks inside them, the payments drawn under
-    them and the payslips filed against them, files on disk included. Nothing
+    them. Nothing
     is left pointing at a job that is gone, and nothing belonging to any other
     job is touched.
     """
@@ -2056,11 +1732,6 @@ class WorkplaceRemovalTests(TestCase):
         Payment.objects.create(
             workplace=self.going, covers_through=timezone.now(), hours=Decimal("5.00")
         )
-        self.slip = Payslip.objects.create(
-            workplace=self.going, gross=Decimal("130.00"), tax=Decimal("13.00"),
-            net=Decimal("117.00"),
-            file=SimpleUploadedFile("slip.pdf", b"%PDF-1.4 payslip", "application/pdf"),
-        )
 
     def _worked(self, workplace, hours):
         start = timezone.now() - timedelta(days=1, hours=hours)
@@ -2077,26 +1748,18 @@ class WorkplaceRemovalTests(TestCase):
 
     # ---- what goes -------------------------------------------------------
 
-    def test_it_takes_the_shifts_the_breaks_the_payments_and_the_payslips(self):
+    def test_it_takes_the_shifts_the_breaks_and_the_payments(self):
         self._remove()
 
         self.assertFalse(Workplace.objects.filter(pk=self.going.pk).exists())
         self.assertFalse(Shift.objects.filter(workplace_id=self.going.pk).exists())
         self.assertEqual(Break.objects.count(), 0)
         self.assertEqual(Payment.objects.count(), 0)
-        self.assertEqual(Payslip.objects.count(), 0)
 
     def test_no_shift_is_left_behind_with_no_workplace(self):
         # SET_NULL would otherwise leave the hours as work done nowhere.
         self._remove()
         self.assertEqual(Shift.objects.filter(workplace__isnull=True).count(), 0)
-
-    def test_the_payslip_file_goes_from_disk_too(self):
-        path = self.slip.file.path
-        self.assertTrue(os.path.exists(path))
-
-        self._remove()
-        self.assertFalse(os.path.exists(path))
 
     def test_the_other_job_is_untouched(self):
         self._remove()
@@ -2118,7 +1781,6 @@ class WorkplaceRemovalTests(TestCase):
         self.assertIn("This cannot be undone", html)
         self.assertIn("What goes with it", html)
         self.assertIn("Payments marked received", html)
-        self.assertIn("Payslips, and the files behind them", html)
 
     def test_looking_at_the_screen_removes_nothing(self):
         self.client.get(
@@ -2499,7 +2161,7 @@ class OneWayInTests(TestCase):
     def test_more_no_longer_offers_a_second_way_in(self):
         html = self.client.get(reverse("timeclock:more")).content.decode()
         titles = re.findall(r'menu-row__title">([^<]+)<', html)
-        self.assertEqual(titles, ["Add a past shift", "Pay", "Payslips", "Workplaces"])
+        self.assertEqual(titles, ["Add a past shift", "Pay", "Workplaces"])
 
     def test_the_cycles_form_lives_on_workplaces(self):
         html = self.client.get(reverse("timeclock:workplaces")).content.decode()

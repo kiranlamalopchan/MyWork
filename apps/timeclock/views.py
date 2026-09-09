@@ -27,12 +27,9 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Profile
 
-from . import payslip as payslip_reader
 from . import statement as statement_pdf
 from .forms import (
     BreakFormSet,
-    PayslipForm,
-    PayslipUploadForm,
     ShiftForm,
     TimePreferenceForm,
     WorkplaceForm,
@@ -42,7 +39,6 @@ from .models import (
     PayCycle,
     Payment,
     Pay,
-    Payslip,
     Shift,
     TimePreference,
     Workplace,
@@ -1358,7 +1354,7 @@ def workplace_delete(request, pk):
     Remove a workplace and everything recorded against it.
 
     No archiving. Asked to remove a job, MyWork removes it — the shifts, the
-    breaks, the payments and the payslips — because a list of jobs quietly
+    breaks and the payments — because a list of jobs quietly
     keeping the one you deleted is a list you stop trusting.
     """
     workplace, clocked_in = _removable(request, pk)
@@ -1377,8 +1373,6 @@ def workplace_delete(request, pk):
     told = [f"{going['shifts']} shift{pluralize(going['shifts'])}"] if going["shifts"] else []
     if going["payments"]:
         told.append(f"{going['payments']} payment{pluralize(going['payments'])}")
-    if going["payslips"]:
-        told.append(f"{going['payslips']} payslip{pluralize(going['payslips'])}")
 
     messages.success(
         request,
@@ -1439,13 +1433,6 @@ def more(request):
     """Menu page for everything that doesn't earn a slot in the tab bar."""
     return render(request, "timeclock/more.html", {
         "workplace_count": Workplace.objects.filter(user=request.user).count(),
-        "payslip_count": Payslip.objects.filter(workplace__user=request.user).count(),
-        "payslips_to_check": sum(
-            1
-            for slip in Payslip.objects.filter(
-                workplace__user=request.user, confirmed=False
-            )
-        ),
         "unpaid_total": unpaid_total(request.user),
     })
 
@@ -1884,273 +1871,3 @@ def _statement_filename(first, workplace):
     """Sorts by date in a downloads folder, and says which job it is for."""
     who = f"-{slugify(workplace.name)}" if workplace else ""
     return f"MyWork-statement{who}-{first:%Y-%m}.pdf"
-
-
-# ---------------------------------------------------------------------------
-#  Payslips — the employer's own statement, checked against yours
-# ---------------------------------------------------------------------------
-
-def _payslip_or_404(request, pk):
-    """One of this user's payslips, by way of the workplace that owns it."""
-    return get_object_or_404(
-        Payslip.objects.select_related("workplace"),
-        pk=pk, workplace__user=request.user,
-    )
-
-
-def _reconcile(payslip):
-    """
-    The payslip against your own record of the same days.
-
-    This is the whole reason for uploading one. The slip says how many hours
-    they paid for; the timesheet says how many you worked. Where those two
-    disagree is the only place a conversation with an employer can start, and
-    it is worth putting a figure and a dollar value on rather than a feeling
-    that the pay looked light.
-
-    None when the slip does not say which days it covers — there is nothing
-    to compare it against until it does.
-    """
-    if not payslip.covers_a_period:
-        return None
-
-    workplace = payslip.workplace
-    start, end = _day_bounds(payslip.period_start, payslip.period_end + timedelta(days=1))
-    shifts = list(
-        _shifts_for(workplace.user).filter(
-            workplace=workplace, status=Shift.Status.COMPLETED,
-            clock_in__gte=start, clock_in__lt=end,
-        ).order_by("clock_in")
-    )
-
-    recorded = _total_worked(shifts)
-    recorded_hours = (
-        Decimal(recorded.total_seconds()) / Decimal(3600)
-    ).quantize(Decimal("0.0001"))
-
-    gap = None if payslip.hours is None else payslip.hours - recorded_hours
-    rate = payslip.rate or workplace.hourly_rate
-    return {
-        "shifts": shifts,
-        "days": len({timezone.localtime(s.clock_in).date() for s in shifts}),
-        "recorded": recorded,
-        "recorded_hours": recorded_hours,
-        "slip_hours": payslip.hours,
-        "gap": gap,
-        # Under an hour and a half either way is a rounding difference and a
-        # break policy, not a shortfall worth chasing.
-        "agrees": None if gap is None else abs(gap) <= Decimal("0.02"),
-        "short": None if gap is None else gap < Decimal("-0.02"),
-        "gap_money": (
-            None if gap is None or rate is None
-            else (gap * rate).quantize(Decimal("0.01"))
-        ),
-    }
-
-
-@login_required
-def payslips(request):
-    """
-    Every payslip you have uploaded, newest first.
-
-    Grouped by nothing and sorted by period, because what you come here for is
-    the last one — and after that, the one from the fortnight somebody is
-    arguing about.
-    """
-    rows = (
-        Payslip.objects.filter(workplace__user=request.user)
-        .select_related("workplace")
-    )
-    places = list(
-        Workplace.objects.filter(user=request.user)
-    )
-    return render(request, "timeclock/payslips.html", {
-        "payslips": rows,
-        "workplaces": places,
-        "unchecked": sum(1 for row in rows if row.needs_checking),
-    })
-
-
-@login_required
-def payslip_upload(request, pk):
-    """
-    Take a payslip for this workplace and read what is on it.
-
-    The reading is never the last word. What comes out of a photograph is a
-    good guess, and it goes straight to a screen that shows every figure in a
-    box you can correct — because "exactly" is a promise only the person
-    holding the paper can make. Nothing is trusted anywhere else in the app
-    until that screen is confirmed.
-    """
-    workplace = get_object_or_404(Workplace, pk=pk, user=request.user)
-
-    if request.method != "POST":
-        return render(request, "timeclock/payslip_upload.html", {
-            "workplace": workplace, "form": PayslipUploadForm(),
-        })
-
-    form = PayslipUploadForm(request.POST, request.FILES)
-    if not form.is_valid():
-        return render(request, "timeclock/payslip_upload.html", {
-            "workplace": workplace, "form": form,
-        })
-
-    upload = form.cleaned_data["file"]
-    try:
-        text, how = payslip_reader.text_from(upload)
-        read = payslip_reader.parse(text)
-    except payslip_reader.Unreadable as problem:
-        # Failing to read it is not a reason to lose it. The slip is kept with
-        # its figures empty, and typing them in works from there exactly as
-        # confirming a reading would — which is a far better answer than
-        # sending somebody back to the file picker with nothing.
-        messages.warning(
-            request, f"{problem} The payslip is saved — type its figures in below."
-        )
-        text = ""
-        how = "pdf" if (upload.name or "").lower().endswith(".pdf") else "photo"
-        read = dict.fromkeys(
-            ("period_start", "period_end", "paid_on", "hours", "rate",
-             "gross", "tax", "net", "super")
-        )
-
-    # A slip that names only the day its period ended still tells you when it
-    # started, if the job pays on a cycle — that is what a cycle is.
-    opens = read["period_start"]
-    if opens is None and read["period_end"] and workplace.pays_on_a_cycle:
-        opens = workplace.pay_window(read["period_end"])[0]
-
-    upload.seek(0)
-    slip = Payslip.objects.create(
-        workplace=workplace,
-        file=upload,
-        source=Payslip.Source.PDF if how == "pdf" else Payslip.Source.PHOTO,
-        period_start=opens,
-        period_end=read["period_end"],
-        paid_on=read["paid_on"],
-        hours=read["hours"],
-        rate=read["rate"],
-        gross=read["gross"],
-        tax=read["tax"],
-        net=read["net"],
-        super_amount=read["super"],
-        raw_text=text,
-    )
-    return redirect("timeclock:payslip_detail", pk=slip.pk)
-
-
-@login_required
-def payslip_detail(request, pk):
-    """
-    What the slip says, what your timesheet says, and the gap between them.
-
-    The figures sit in boxes rather than in print, because the reading has to
-    be correctable — and confirming them is a deliberate act, not something
-    that happened while the file uploaded.
-    """
-    slip = _payslip_or_404(request, pk)
-
-    if request.method == "POST":
-        form = PayslipForm(request.POST, instance=slip)
-        if form.is_valid():
-            slip = form.save(commit=False)
-            # Typed over by hand is as good as it gets, and better than what
-            # any reading of a photograph can claim.
-            slip.confirmed = True
-            slip.save()
-            messages.success(
-                request,
-                f"Payslip confirmed. Take-home {_dollars(slip.take_home)}."
-                if slip.take_home is not None else "Payslip saved.",
-            )
-            return redirect("timeclock:payslip_detail", pk=slip.pk)
-    else:
-        form = PayslipForm(instance=slip)
-
-    return render(request, "timeclock/payslip_detail.html", {
-        "slip": slip,
-        "form": form,
-        "check": _reconcile(slip),
-        "withheld": slip.withheld_percent,
-        # Whether saving that percentage would actually change anything.
-        "differs_from_saved": (
-            slip.withheld_percent is not None
-            and slip.workplace.tax_rate != slip.withheld_percent
-        ),
-    })
-
-
-def _dollars(amount):
-    return "—" if amount is None else f"${amount:,.2f}"
-
-
-@login_required
-@require_POST
-def payslip_apply(request, pk):
-    """
-    Teach the workplace what this payslip knows.
-
-    The withheld percentage and the hourly rate come off the paper and onto
-    the job, and from then on every figure MyWork shows for it is after tax
-    rather than before. This is a separate button on purpose: reading a slip
-    is looking something up, and changing what the app believes about a job
-    is a decision.
-    """
-    slip = _payslip_or_404(request, pk)
-    workplace = slip.workplace
-    changed = []
-
-    if slip.withheld_percent is not None and workplace.tax_rate != slip.withheld_percent:
-        workplace.tax_rate = slip.withheld_percent
-        changed.append(f"withholding {slip.withheld_percent}%")
-    if slip.rate is not None and workplace.hourly_rate != slip.rate:
-        workplace.hourly_rate = slip.rate
-        changed.append(f"rate ${slip.rate}")
-
-    if changed:
-        workplace.save(update_fields=["tax_rate", "hourly_rate"])
-        messages.success(
-            request,
-            f"{workplace.name} updated from your payslip — {' and '.join(changed)}. "
-            "Every figure for this job is now after tax.",
-        )
-    else:
-        messages.info(request, f"{workplace.name} already matches this payslip.")
-    return redirect("timeclock:payslip_detail", pk=slip.pk)
-
-
-@login_required
-def payslip_file(request, pk):
-    """
-    The stored file, to whoever it belongs to and nobody else.
-
-    Never linked straight off the media URL. A payslip carries a full name, an
-    address, a tax file figure and often a bank account, and a URL that serves
-    it without asking who is holding it is a URL that can be forwarded.
-    """
-    slip = _payslip_or_404(request, pk)
-    if not slip.file:
-        raise Http404("No file was kept for this payslip.")
-
-    kind, _ = mimetypes.guess_type(slip.file.name)
-    return FileResponse(
-        slip.file.open("rb"),
-        content_type=kind or "application/octet-stream",
-        # Shown, not downloaded: you open it to read a figure back off it.
-        as_attachment=False,
-        filename=f"payslip-{slip.period_end or slip.created_at.date()}"
-                 f"{Path(slip.file.name).suffix}",
-    )
-
-
-@login_required
-@require_POST
-def payslip_delete(request, pk):
-    """Remove a payslip and the file behind it."""
-    slip = _payslip_or_404(request, pk)
-    name = slip.workplace.name
-    if slip.file:
-        slip.file.delete(save=False)
-    slip.delete()
-    messages.success(request, f"Payslip removed from {name}.")
-    return redirect("timeclock:payslips")
