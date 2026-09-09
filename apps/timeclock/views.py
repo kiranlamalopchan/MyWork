@@ -393,7 +393,7 @@ def _pay_state(workplace):
 
 def unpaid_total(user):
     """Hours owed across every active workplace — what the More row shows."""
-    places = Workplace.objects.filter(user=user, is_archived=False).prefetch_related(
+    places = Workplace.objects.filter(user=user).prefetch_related(
         "payments"
     )
     return sum((_pay_state(w)["worked"] for w in places), timedelta())
@@ -513,7 +513,7 @@ def _limits_for(user, workplace=None):
     return [
         limit
         for w in Workplace.objects.filter(
-            user=user, is_archived=False, hours_limit__isnull=False
+            user=user, hours_limit__isnull=False
         ).prefetch_related("payments")
         if (limit := _limit_for(user, w, today))
     ]
@@ -562,7 +562,7 @@ def _periods_shown(user, workplace=None):
     else:
         cycles = [
             w.pay_cycle
-            for w in Workplace.objects.filter(user=user, is_archived=False)
+            for w in Workplace.objects.filter(user=user)
         ] or [PayCycle.IRREGULAR]
 
     wanted = set()
@@ -573,7 +573,7 @@ def _periods_shown(user, workplace=None):
 
 def _sole_workplace(user):
     """The user's only workplace, or None if they have more than one."""
-    active = list(Workplace.objects.filter(user=user, is_archived=False))
+    active = list(Workplace.objects.filter(user=user))
     return active[0] if len(active) == 1 else None
 
 
@@ -737,7 +737,7 @@ def dashboard(request):
     you read, and the timesheet is one tap away for those.
     """
     workplaces = list(
-        Workplace.objects.filter(user=request.user, is_archived=False)
+        Workplace.objects.filter(user=request.user)
         .prefetch_related("payments")
     )
     shift = Shift.open_for(request.user)
@@ -793,7 +793,7 @@ def clock_in(request):
     picked = request.POST.get("workplace")
     if picked:
         workplace = Workplace.objects.filter(
-            pk=picked, user=request.user, is_archived=False
+            pk=picked, user=request.user
         ).first()
 
     if workplace is None:
@@ -1154,7 +1154,7 @@ def shift_create(request):
     """
     shift = Shift(user=request.user)
     workplaces = list(
-        Workplace.objects.filter(user=request.user, is_archived=False)
+        Workplace.objects.filter(user=request.user)
         .prefetch_related("payments")
     )
 
@@ -1282,7 +1282,7 @@ def workplace_create(request):
             workplace.user = request.user
             # The very first workplace becomes the default; there's nothing
             # else for the clock-in button to pick.
-            first = not Workplace.objects.filter(user=request.user, is_archived=False).exists()
+            first = not Workplace.objects.filter(user=request.user).exists()
             workplace.is_default = False
             workplace.save()
             if form.cleaned_data.get("is_default") or first:
@@ -1297,7 +1297,7 @@ def workplace_create(request):
 
 @login_required
 def workplace_edit(request, pk):
-    workplace = get_object_or_404(Workplace, pk=pk, user=request.user, is_archived=False)
+    workplace = get_object_or_404(Workplace, pk=pk, user=request.user)
 
     if request.method == "POST":
         form = WorkplaceForm(request.POST, instance=workplace, user=request.user)
@@ -1390,7 +1390,7 @@ def workplace_delete(request, pk):
 @require_POST
 @login_required
 def workplace_make_default(request, pk):
-    workplace = get_object_or_404(Workplace, pk=pk, user=request.user, is_archived=False)
+    workplace = get_object_or_404(Workplace, pk=pk, user=request.user)
     workplace.make_default()
     request.session[SESSION_WORKPLACE] = workplace.pk
     messages.success(request, f"{workplace.name} is now your default.")
@@ -1405,7 +1405,7 @@ def workplace_make_default(request, pk):
 def _workplaces_page(request, cycles=None):
     """The Workplaces screen: your jobs, and where your own cycles begin."""
     return render(request, "timeclock/workplace_list.html", {
-        "workplaces": Workplace.objects.filter(user=request.user, is_archived=False),
+        "workplaces": Workplace.objects.filter(user=request.user),
         "cycles": cycles or TimePreferenceForm(instance=TimePreference.for_user(request.user)),
     })
 
@@ -1438,7 +1438,7 @@ def preferences(request):
 def more(request):
     """Menu page for everything that doesn't earn a slot in the tab bar."""
     return render(request, "timeclock/more.html", {
-        "workplace_count": Workplace.objects.filter(user=request.user, is_archived=False).count(),
+        "workplace_count": Workplace.objects.filter(user=request.user).count(),
         "payslip_count": Payslip.objects.filter(workplace__user=request.user).count(),
         "payslips_to_check": sum(
             1
@@ -1460,7 +1460,7 @@ def payments(request):
     them paid first, taking the other's hours with it.
     """
     places = (
-        Workplace.objects.filter(user=request.user, is_archived=False)
+        Workplace.objects.filter(user=request.user)
         .prefetch_related("payments")
     )
     owing = [_pay_state(workplace) for workplace in places]
@@ -1962,7 +1962,7 @@ def payslips(request):
         .select_related("workplace")
     )
     places = list(
-        Workplace.objects.filter(user=request.user, is_archived=False)
+        Workplace.objects.filter(user=request.user)
     )
     return render(request, "timeclock/payslips.html", {
         "payslips": rows,

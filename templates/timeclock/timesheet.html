@@ -38,7 +38,7 @@
            href="?workplace={{ w.pk }}">
           <span class="chip__body">
             <span class="swatch swatch--sm" style="--wp-css: {{ w|wp_color }}" aria-hidden="true"></span>
-            <span class="chip__name">{{ w.name }}{% if w.is_archived %} (removed){% endif %}</span>
+            <span class="chip__name">{{ w.name }}</span>
           </span>
         </a>
       {% endfor %}

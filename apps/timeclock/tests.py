@@ -2154,6 +2154,39 @@ class WorkplaceRemovalTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Workplace.objects.filter(pk=theirs.pk).exists())
 
+    def test_the_default_is_handed_on_rather_than_dying_with_the_job(self):
+        """Removing the job the clock offers first must leave another offered.
+
+        It used to leave a person holding two jobs and no default at all, so
+        the clock opened on nothing in particular.
+        """
+        Workplace.objects.filter(pk=self.going.pk).update(is_default=True)
+        Workplace.objects.filter(pk=self.staying.pk).update(is_default=False)
+
+        Workplace.objects.get(pk=self.going.pk).remove()
+
+        self.assertTrue(Workplace.objects.get(pk=self.staying.pk).is_default)
+
+    def test_the_last_job_of_all_can_still_be_removed(self):
+        """With nothing to hand the default to, it simply goes."""
+        Workplace.objects.filter(pk=self.staying.pk).delete()
+        Workplace.objects.filter(pk=self.going.pk).update(is_default=True)
+
+        Workplace.objects.get(pk=self.going.pk).remove()
+
+        self.assertFalse(Workplace.objects.filter(user=self.user).exists())
+
+    def test_a_removed_name_can_be_used_again(self):
+        """Nothing keeps hold of the name once the job is gone.
+
+        The uniqueness rule was once conditional on an archived flag, for when
+        removing a job hid it instead of deleting it. Removing deletes now, so
+        the name is free the moment it does.
+        """
+        self.going.remove()
+        again = Workplace.objects.create(user=self.user, name="Fresh Meat")
+        self.assertEqual(again.name, "Fresh Meat")
+
     def test_removing_it_forgets_it_as_the_clock_s_last_pick(self):
         # The clock remembers which job you picked. That one is gone.
         self.client.get(reverse("timeclock:dashboard"), {"workplace": self.going.pk})

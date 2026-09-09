@@ -10,8 +10,8 @@ class BreakInline(admin.TabularInline):
 
 @admin.register(Workplace)
 class WorkplaceAdmin(admin.ModelAdmin):
-    list_display = ("name", "user", "is_default", "is_archived", "hourly_rate", "hours_limit", "limit_period")
-    list_filter = ("is_default", "is_archived", "limit_period")
+    list_display = ("name", "user", "is_default", "hourly_rate", "hours_limit", "limit_period")
+    list_filter = ("is_default", "limit_period")
     search_fields = ("name", "user__username")
 
 

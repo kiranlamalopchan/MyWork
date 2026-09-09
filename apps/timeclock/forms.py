@@ -170,7 +170,7 @@ class WorkplaceForm(forms.ModelForm):
 
         # The model's unique constraint would raise IntegrityError at save
         # time; catching it here turns it into a normal field error.
-        clash = Workplace.objects.filter(user=self.user, name__iexact=name, is_archived=False)
+        clash = Workplace.objects.filter(user=self.user, name__iexact=name)
         if self.instance.pk:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
@@ -203,7 +203,7 @@ class ShiftForm(forms.ModelForm):
         self.user = user
         # Only ever offer this user's own workplaces, plus whichever one this
         # shift already points at even if it has since been archived.
-        qs = Workplace.objects.filter(user=user, is_archived=False)
+        qs = Workplace.objects.filter(user=user)
         if self.instance.pk and self.instance.workplace_id:
             qs = qs | Workplace.objects.filter(pk=self.instance.workplace_id)
         self.fields["workplace"].queryset = qs.distinct()

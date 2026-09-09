@@ -286,21 +286,25 @@ class Workplace(models.Model):
         max_length=9, choices=PayCycle.choices, default=PayCycle.IRREGULAR
     )
 
+    # Which job the clock offers first. Exactly one of a person's workplaces
+    # holds it, and remove() hands it on rather than letting it die with the
+    # job it was set on.
     is_default = models.BooleanField(default=False)
-    # Deleting a workplace that has shifts against it archives it instead, so
-    # the timesheet keeps showing the name each shift was actually worked
-    # under. Archived workplaces drop out of the pickers and the list.
-    is_archived = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["name"]
         constraints = [
-            # Archived names are excluded so re-adding a workplace you once
-            # removed isn't blocked by its own history.
+            # Two jobs of the same name would be two identical chips on the
+            # timesheet and two identical options in every picker.
+            #
+            # This was once conditional on a workplace not being archived,
+            # from when removing a job with shifts against it hid the job and
+            # kept the shifts. Removing one now removes it (see remove()), so
+            # there is no archived state left for a name to be held by, and
+            # the condition was excluding a row that can no longer exist.
             models.UniqueConstraint(
                 fields=["user", "name"],
-                condition=Q(is_archived=False),
                 name="uniq_active_workplace_name_per_user",
             )
         ]
@@ -403,7 +407,7 @@ class Workplace(models.Model):
         afterwards sets exactly what you pick, duplicate or not.
         """
         taken = list(
-            Workplace.objects.filter(user=self.user, is_archived=False)
+            Workplace.objects.filter(user=self.user)
             .exclude(pk=self.pk)
             .values_list("color", flat=True)
         )
@@ -542,6 +546,21 @@ class Workplace(models.Model):
         # means. Their breaks cascade from them, as payments and payslips do
         # from this.
         self.shifts.all().delete()
+
+        # If this was the job the clock offered first, that has to go
+        # somewhere rather than nowhere. Removing the default used to leave a
+        # person with jobs and no default at all, so the clock page opened on
+        # nothing in particular until they set one by hand.
+        if self.is_default:
+            heir = (
+                Workplace.objects.filter(user=self.user)
+                .exclude(pk=self.pk)
+                .order_by("name")
+                .first()
+            )
+            if heir is not None:
+                Workplace.objects.filter(pk=heir.pk).update(is_default=True)
+
         self.delete()
 
 
