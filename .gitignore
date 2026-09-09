@@ -3,6 +3,10 @@ __pycache__/
 venv/
 *.log
 
+# Built by `collectstatic` for production to serve. Everything in it is a copy
+# of something already in static/ or in an installed package.
+staticfiles/
+
 # Local database: holds password hashes and session keys, so it is not
 # published. The PLU data itself is versioned as sample_data/plu_items.csv
 # and can be restored through the Import CSV page.

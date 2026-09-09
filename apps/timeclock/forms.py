@@ -7,8 +7,8 @@ from django.forms import inlineformset_factory
 from django.utils import timezone
 
 from .models import (
-    MAX_MONTH_START_DAY, Break, Payslip, Shift, TimePreference, Workplace,
-    fortnight_runs,
+    MAX_MONTH_START_DAY, Break, PaidIn, Payslip, Shift, TimePreference,
+    Workplace, fortnight_runs,
 )
 
 # What a payslip can arrive as. HEIC is missing on purpose: iPhones send JPEG
@@ -58,7 +58,7 @@ class WorkplaceForm(forms.ModelForm):
     class Meta:
         model = Workplace
         fields = [
-            "name", "address", "color", "pay_cycle", "hourly_rate", "tax_rate",
+            "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate", "tax_rate",
             "hours_limit", "limit_period",
             "week_starts_on", "fortnight_anchor", "month_starts_on",
             "is_default",
@@ -68,6 +68,7 @@ class WorkplaceForm(forms.ModelForm):
             "address": "Address (optional)",
             "color": "Colour",
             "pay_cycle": "How this job pays",
+            "paid_in": "How you're paid",
             "hourly_rate": "Hourly rate (optional)",
             "tax_rate": "Tax withheld % (optional)",
             "hours_limit": "Hours limit here (optional)",
@@ -103,6 +104,10 @@ class WorkplaceForm(forms.ModelForm):
                 "On a cycle, the pay run uses the same week / fortnight / month "
                 "settings below — payday is the last day of each run."
             ),
+            "paid_in": (
+                "Cash in hand has no tax to take off, so the withholding "
+                "below drops away and every figure is simply what you earned."
+            ),
             "tax_rate": "From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax.",
             "hours_limit": "Counted against this workplace only. Leave blank for no limit.",
             "week_starts_on": "Used for a weekly limit, and for this job's week totals.",
@@ -122,10 +127,30 @@ class WorkplaceForm(forms.ModelForm):
         # new one opens as "whenever I'm paid" — which is the case that needs
         # no setting up at all.
         self.fields["pay_cycle"].required = False
+        # Nor is how you are handed it: an older client that never saw the
+        # field leaves a workplace as it was rather than failing on it.
+        self.fields["paid_in"].required = False
         _say_which_days(self)
 
     def clean_pay_cycle(self):
         return self.cleaned_data.get("pay_cycle") or self.instance.pay_cycle
+
+    def clean_paid_in(self):
+        return self.cleaned_data.get("paid_in") or self.instance.paid_in
+
+    def clean(self):
+        """
+        A cash job keeps no withholding percentage.
+
+        The field is hidden the moment cash is chosen, but a form can be sent
+        without ever seeing that — so the value is dropped here rather than
+        left on the row to reappear if the job is switched back and confuse
+        the next payslip that gets read.
+        """
+        cleaned = super().clean()
+        if cleaned.get("paid_in") == PaidIn.CASH:
+            cleaned["tax_rate"] = None
+        return cleaned
 
     def clean_color(self):
         """Blank keeps what this workplace already has; a new one is dealt a

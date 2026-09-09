@@ -1,4 +1,4 @@
-{% load humanize avatars %}
+{% load humanize avatars ui %}
 {% comment %}
   One comment, and whatever was said back to it.
 
@@ -79,9 +79,7 @@
              placeholder="Reply to {% if comment.is_mine %}yourself{% else %}{{ comment.author.username }}{% endif %}…"
              aria-label="Write a reply" autocomplete="off">
       <button type="submit" class="reply__send" aria-label="Send reply">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>
-        </svg>
+        {% icon "arrow-right" %}
       </button>
       <a class="reply__cancel" href="#comment-{{ comment.pk }}" aria-label="Cancel reply">Cancel</a>
     </form>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% comment %}
   Serves both jobs: correcting a recorded shift, and typing in a day the clock
   was never started on. The fields are identical either way — only the wording
@@ -8,12 +9,7 @@
 
 {% block content %}
 
-<a class="backlink" href="{% if shift %}{% url 'timeclock:shift_detail' shift.pk %}{% else %}{% url 'timeclock:timesheet' %}{% endif %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  {% if shift %}Back to shift{% else %}Timesheet{% endif %}
-</a>
+<a class="backlink" href="{% if shift %}{% url 'timeclock:shift_detail' shift.pk %}{% else %}{% url 'timeclock:timesheet' %}{% endif %}">{% icon "back" %} {% if shift %}Back to shift{% else %}Timesheet{% endif %}</a>
 
 <div class="page-head">
   <h1 class="page-title">{% if shift %}Edit shift{% else %}Add a shift{% endif %}</h1>
@@ -115,9 +111,7 @@
       </template>
 
       <button type="button" class="btn btn--block" id="add-break">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
+        {% icon "plus" %}
         Add a break
       </button>
     </div>

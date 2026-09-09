@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}PLU {{ item.plu_no }} · MyWork{% endblock %}
 
 {% block content %}
@@ -20,9 +21,7 @@
   </button>
 
   <a class="btn btn--block" href="{% url 'plu:list' %}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="m15 18-6-6 6-6"/>
-    </svg>
+    {% icon "back" %}
     Back to search
   </a>
 </div>

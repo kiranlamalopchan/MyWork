@@ -1,15 +1,10 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}Shift · MyWork{% endblock %}
 
 {% block content %}
 
-<a class="backlink" href="{% url 'timeclock:timesheet' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  Timesheet
-</a>
+<a class="backlink" href="{% url 'timeclock:timesheet' %}">{% icon "back" %} Timesheet</a>
 
 <div class="shift-hero shift-hero--{{ shift.status|lower }}">
   <div class="shift-hero__status">
@@ -62,7 +57,7 @@
 
       {% if shift.pay %}
         <div class="ledger__row ledger__row--faint">
-          <span>Gross pay</span>
+          <span>{% if shift.workplace.in_cash %}Cash in hand{% else %}Gross pay{% endif %}</span>
           <span class="ledger__val">${{ shift.pay.gross|floatformat:2 }}</span>
         </div>
         {% if shift.workplace.withholds %}
@@ -120,9 +115,7 @@
 
 <div class="detail-actions">
   <a class="btn btn--primary" href="{% url 'timeclock:shift_edit' shift.pk %}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-    </svg>
+    {% icon "pencil" %}
     Edit times
   </a>
 
@@ -130,9 +123,7 @@
         onsubmit="return confirm('Delete this shift? This can\'t be undone.');">
     {% csrf_token %}
     <button type="submit" class="btn btn--danger btn--block">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>
-      </svg>
+      {% icon "trash" %}
       Delete shift
     </button>
   </form>

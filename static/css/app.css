@@ -42,6 +42,14 @@
      either theme, so the bar reads as one object hovering over the page
      rather than as another card in the stack. */
   --pill:        #16181d;
+  /* The same pill with the page showing through it. Used only where the
+     browser can blur what is behind it; otherwise --pill stays opaque and
+     the bar simply looks solid.
+
+     72% is where the two demands meet: enough of the page comes through for
+     the lens in §33 to have something to bend, and the captions still read
+     over whatever happens to be passing underneath. */
+  --pill-glass:  rgba(18, 20, 25, .72);
   --pill-ink:    rgba(255, 255, 255, .62);
   --pill-line:   rgba(255, 255, 255, .08);
   --pill-on:     #ffffff;
@@ -55,6 +63,36 @@
   --shadow-1: none;
   --shadow-2: 0 2px 8px rgba(15, 23, 42, .05);
   --shadow-3: 0 16px 40px rgba(15, 23, 42, .12), 0 2px 8px rgba(15, 23, 42, .04);
+
+  /* Glass — see §32. The material every panel is made of, wherever the
+     browser can blur what sits behind it.
+
+     --glass is the material itself, --glass-line the semi-transparent white
+     rim that catches light along the edge, --glass-hi the brighter specular
+     across the top. --amb-* are the three soft washes on the page behind it:
+     glass only reads as glass when there is something to see through it, and
+     a flat grey page gives it nothing. */
+  --glass:        rgba(255, 255, 255, .48);
+  --glass-line:   rgba(255, 255, 255, .75);
+  --glass-hi:     rgba(255, 255, 255, .92);
+  /* The bevel: a glow just inside the lit rim, and the body of the material
+     gathering at the foot of the panel. Named per theme because on a light
+     ground the glow is white and the base is a shadow, and on a dark ground
+     both are lifts of white at different strengths. */
+  --glass-glow:   rgba(255, 255, 255, .70);
+  --glass-base:   rgba(15, 23, 42, .07);
+  --glass-hover:  rgba(255, 255, 255, .55);
+  --glass-blur:   saturate(180%) blur(30px);
+  /* §33: light enough that there is still detail for the lens to bend. */
+  --lens-blur:    saturate(180%) blur(4px);
+  --glass-shadow: 0 8px 32px rgba(15, 23, 42, .09), 0 1px 2px rgba(15, 23, 42, .05);
+
+  /* Turned up from a whisper. Frosted glass can only show what is behind it,
+     and on a near-white page behind a near-white panel there was nothing for
+     it to show — which is why the light theme read as plain cards. */
+  --amb-1: rgba(5, 150, 105, .26);
+  --amb-2: rgba(59, 130, 246, .24);
+  --amb-3: rgba(168, 85, 247, .18);
 
   /* Shape */
   --r-sm: 10px;
@@ -123,6 +161,7 @@
 
     /* Lifted off the dark background rather than sunk into it. */
     --pill:        #1a2540;
+    --pill-glass:  rgba(20, 31, 55, .70);
     --pill-ink:    rgba(232, 237, 245, .60);
     --pill-line:   rgba(255, 255, 255, .10);
     --pill-on:     #e8edf5;
@@ -133,6 +172,21 @@
     --shadow-1: none;
     --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
     --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
+
+    --glass:        rgba(26, 37, 62, .55);
+    --glass-line:   rgba(255, 255, 255, .11);
+    --glass-hi:     rgba(255, 255, 255, .16);
+    --glass-glow:   rgba(255, 255, 255, .10);
+    --glass-base:   rgba(0, 0, 0, .28);
+    --glass-hover:  rgba(255, 255, 255, .06);
+    --glass-blur:   saturate(180%) blur(30px);
+    /* §33: light enough that there is still detail for the lens to bend. */
+    --lens-blur:    saturate(180%) blur(4px);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, .38), 0 1px 2px rgba(0, 0, 0, .28);
+
+    --amb-1: rgba(52, 211, 153, .13);
+    --amb-2: rgba(59, 130, 246, .15);
+    --amb-3: rgba(168, 85, 247, .11);
   }
 }
 
@@ -161,6 +215,7 @@
   --line-strong: #35455f;
 
   --pill:        #1a2540;
+  --pill-glass:  rgba(20, 31, 55, .70);
   --pill-ink:    rgba(232, 237, 245, .60);
   --pill-line:   rgba(255, 255, 255, .10);
   --pill-on:     #e8edf5;
@@ -169,6 +224,21 @@
   --shadow-1: none;
   --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
   --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
+
+  --glass:        rgba(26, 37, 62, .55);
+  --glass-line:   rgba(255, 255, 255, .11);
+  --glass-hi:     rgba(255, 255, 255, .16);
+  --glass-glow:   rgba(255, 255, 255, .10);
+  --glass-base:   rgba(0, 0, 0, .28);
+  --glass-hover:  rgba(255, 255, 255, .06);
+  --glass-blur:   saturate(180%) blur(30px);
+  /* §33: light enough that there is still detail for the lens to bend. */
+  --lens-blur:    saturate(180%) blur(4px);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, .38), 0 1px 2px rgba(0, 0, 0, .28);
+
+  --amb-1: rgba(52, 211, 153, .13);
+  --amb-2: rgba(59, 130, 246, .15);
+  --amb-3: rgba(168, 85, 247, .11);
 }
 
 /* --------------------------------------------------------------------------
@@ -330,6 +400,12 @@ img { max-width: 100%; height: auto; display: block; }
    the page runs to the bottom edge underneath, and navigation is one dark
    pill you can reach without shifting your grip. Each tab names itself under
    its icon, so which slot does what is readable rather than guessed at.
+
+   It is made of glass, the way the chrome on a phone is: the page blurs
+   through it as it scrolls past, light catches along the top edge, and a
+   shadow falls underneath. That the page keeps moving behind it is the whole
+   point — a solid bar looks pasted on top of the page, a frosted one looks
+   like it is floating above it.
    -------------------------------------------------------------------------- */
 .tabbar {
   position: fixed;
@@ -354,15 +430,61 @@ img { max-width: 100%; height: auto; display: block; }
   gap: 2px;
   padding: 6px;
   border-radius: var(--r-pill);
-  background: var(--pill);
+
+  /* The light along the top of a curved surface. Named once and used by each
+     of the three states below, so the gloss cannot drift apart from itself.
+     It is fixed to the pill rather than to the tabs, which means it stays
+     still when a crowded bar scrolls sideways underneath it. */
+  --sheen: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, .16),
+    rgba(255, 255, 255, .05) 38%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  background: var(--sheen), var(--pill);
   border: 1px solid var(--pill-line);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, .22), 0 2px 6px rgba(2, 6, 23, .14);
+
+  /* Cast below, lit above. The drop shadow puts the bar over the page; the
+     inset hairline is the light catching its top edge. Together they are what
+     makes a flat pill read as something with a thickness to it. */
+  box-shadow:
+    0 8px 24px rgba(2, 6, 23, .22),
+    0 2px 6px rgba(2, 6, 23, .14),
+    inset 0 1px 0 rgba(255, 255, 255, .18),
+    inset 0 -1px 0 rgba(255, 255, 255, .04);
+
   /* More tabs than a narrow phone can hold slide rather than wrap: a pill
      that grows a second row stops being a pill. */
   overflow-x: auto;
   scrollbar-width: none;
 }
 .tabbar__inner::-webkit-scrollbar { display: none; }
+
+/* Frosted, where the browser can frost — every version of iOS Safari can, and
+   so can current Chrome and Firefox. All this swaps is the material: solid
+   for translucent, plus a blur of whatever the page is showing behind it. A
+   browser that can't do it keeps the bar above, opaque and still glossy.
+
+   saturate() is the part that matters. Blur alone drains the colour out of
+   what's underneath and the bar goes grey; pushing saturation back up is how
+   iOS keeps its chrome looking lit rather than fogged. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .tabbar__inner {
+    background: var(--sheen), var(--pill-glass);
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    backdrop-filter: saturate(180%) blur(22px);
+  }
+}
+
+/* Asked for less of this at the system level — iOS calls it Reduce
+   Transparency. The gloss stays; only the see-through goes. */
+@media (prefers-reduced-transparency: reduce) {
+  .tabbar__inner {
+    background: var(--sheen), var(--pill);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
 
 .tab {
   color: var(--muted);
@@ -408,16 +530,24 @@ img { max-width: 100%; height: auto; display: block; }
   white-space: nowrap;
 }
 
-/* Where you are: a filled circle, the one bright thing in the bar. */
+/* Where you are: a filled lozenge, the one bright thing in the bar. Lighter
+   at the top than the bottom by a few percent, with the same lit hairline the
+   pill itself has — enough for the shape to look raised out of the glass
+   rather than printed on it, and not enough to read as a gradient. */
 .tabbar .tab.is-active {
-  background: var(--pill-on);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--pill-on) 92%, #fff),
+    color-mix(in srgb, var(--pill-on) 90%, #000)
+  );
   color: var(--pill-on-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    0 1px 3px rgba(2, 6, 23, .32);
 }
 .tabbar .tab.is-active svg { stroke-width: 2.1; }
 
 /* Sign out is a POST, so it's a form-wrapped button that has to size like a tab */
-.tab-form { flex: none; display: flex; }
-.tab-form .tab { width: 100%; }
 
 /* --------------------------------------------------------------------------
    5. Surfaces
@@ -459,7 +589,6 @@ img { max-width: 100%; height: auto; display: block; }
 
 .muted { color: var(--muted); }
 .text-sm { font-size: 14px; }
-.text-xs { font-size: 13px; }
 
 hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 
@@ -506,12 +635,6 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 .btn[disabled], .btn[aria-disabled="true"] {
   opacity: .5;
   pointer-events: none;
-}
-
-.btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
 }
 
 /* --------------------------------------------------------------------------
@@ -1199,27 +1322,7 @@ code, .code {
   color: var(--brand);
 }
 
-/* ---- Metric strip + summary cards -------------------------------------- */
-.metric-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-2);
-}
-.metric {
-  padding: var(--sp-3) var(--sp-2);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  text-align: center;
-}
-.metric__label { font-size: 11px; color: var(--muted); font-weight: 550; }
-.metric__value {
-  margin-top: 2px;
-  font-size: 16px;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-
+/* ---- Summary cards ------------------------------------------------------ */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2009,7 +2112,6 @@ select, textarea {
   .appbar__nav .tab:hover { background: var(--surface-2); color: var(--text); }
   .appbar__nav .tab.is-active { background: var(--brand-soft); color: var(--brand); }
   .appbar__nav .tab svg { width: 18px; height: 18px; }
-  .appbar__nav .tab-form { flex: none; }
 
   .container { padding-bottom: var(--sp-8); }
 
@@ -2034,6 +2136,16 @@ select, textarea {
    -------------------------------------------------------------------------- */
 
 @keyframes mw-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+/* A notification lands from above and settles, rather than rising into place. */
+@keyframes mw-notify {
+  from { opacity: 0; transform: translateY(-10px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+/* The new-dot breathes, slowly enough to be noticed and not watched. */
+@keyframes mw-ping {
+  0%, 70%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tint) 18%, transparent); }
+  35%           { box-shadow: 0 0 0 7px color-mix(in srgb, var(--tint) 6%, transparent); }
+}
 @keyframes mw-pop  { 0% { opacity: 0; transform: scale(.9); } 60% { transform: scale(1.03); } 100% { opacity: 1; transform: none; } }
 @keyframes mw-sweep { from { transform: translateX(-100%); } to { transform: translateX(400%); } }
 @keyframes mw-dots { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
@@ -2047,7 +2159,6 @@ select, textarea {
 .detail-hero,
 .empty,
 .stat-row,
-.btn-row,
 /* A short cascade, so a screen assembles instead of flashing in as one slab. */
 .app-card:nth-child(2)     { animation-delay: .07s; }
 .card:nth-of-type(2)       { animation-delay: .05s; }
@@ -2328,8 +2439,10 @@ select, textarea {
 .summary-grid,
 .stat-row,
 .app-grid           { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Paid weekly, there is one figure worth showing and it gets the width. */
+.summary-grid--1    { grid-template-columns: minmax(0, 1fr); }
+.summary-grid--2    { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .summary-grid--3,
-.metric-row,
 .tallies            { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cal__grid          { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .detail-actions > * { min-width: 0; }
@@ -2528,22 +2641,77 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 .compose__count.is-close { color: var(--warn); font-weight: 600; }
 
 /* ---- Reading them ------------------------------------------------------- */
-.notices { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+/* Notices sit apart from each other the way notifications do, rather than
+   stacking into one wall of text. */
+.notices { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
 
+/* ---- One notice, arriving ----------------------------------------------
+   Tinted in the colour of whoever sent it, lifted off the page, and dotted
+   while it is still new. --hue comes off the author's name (see Notice.hue),
+   so a person is the same colour on every device with nothing stored.
+
+   This is the one place in MyWork that carries a shadow on purpose. The rule
+   in section 1 is that only things which genuinely float cast one — and a
+   notification is exactly that: something that arrived on top of the page
+   rather than a piece of it.
+   ---------------------------------------------------------------------- */
 .notice {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--sp-3);
-  padding: var(--sp-3);
+  padding: var(--sp-4);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-xl);
   box-shadow: var(--shadow-1);
-  animation: mw-rise var(--dur-3) var(--ease-out) both;
+  /* Slides down and settles, one after another — the way a stack of
+     notifications lands. Section 17 switches this off for anyone who has
+     asked for less motion. */
+  animation: mw-notify var(--dur-3) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
 }
-/* Your own are marked down the edge rather than coloured differently, so the
-   board still reads as one wall. */
-.notice--mine { border-left: 3px solid var(--brand); }
+
+/* Sent by somebody else: their colour, flat, on a card that floats. The hue
+   comes off the name (see hue_for), so a person is the same colour on every
+   device with nothing assigned or stored — one soft wash of it for the card,
+   a stronger one for the edge, and the strongest for the name and the dot. */
+.notice--from {
+  --tint: hsl(var(--hue, 210) 72% 52%);
+  --tint-ink: hsl(var(--hue, 210) 48% 32%);
+  background: color-mix(in srgb, var(--tint) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--tint) 30%, var(--line));
+  box-shadow: var(--shadow-2);
+}
+.notice--from .notice__who { color: var(--tint-ink); }
+/* The face is the app icon of this notification, so it wears the same ring. */
+.notice--from .avatar {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 22%, transparent);
+}
+/* The bubbles and the reply box sit on top of the wash, so they take the
+   card's own surface rather than the grey they use on a plain white one —
+   grey on a colour reads as dirt. */
+.notice--from .comment__body,
+.notice--from .reply__input { background: var(--surface); }
+
+/* Still new, so it is worth a dot — and a little more of its own colour. */
+.notice--new { border-color: color-mix(in srgb, var(--tint) 42%, var(--line)); }
+.notice__dot {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--tint);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tint) 18%, transparent);
+  animation: mw-ping 2.6s var(--ease) infinite;
+}
+
+/* Your own is not news to you: no tint, no dot, no lift — just a quiet rail
+   down the edge so the board still reads as one wall. */
+.notice--mine {
+  border-left: 3px solid var(--brand);
+  padding-left: calc(var(--sp-4) - 2px);
+}
 
 .notice__body { flex: 1; min-width: 0; }
 
@@ -2572,6 +2740,19 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   /* A pasted URL or an unbroken run of characters wraps instead of widening
      the card and, with it, the page. */
   overflow-wrap: anywhere;
+}
+
+/* On a dark card the name needs lifting rather than darkening, and the wash
+   needs a little more of itself to be seen at all. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .notice--from {
+    --tint-ink: hsl(var(--hue, 210) 72% 78%);
+    background: color-mix(in srgb, var(--tint) 14%, var(--surface));
+  }
+}
+:root[data-theme="dark"] .notice--from {
+  --tint-ink: hsl(var(--hue, 210) 72% 78%);
+  background: color-mix(in srgb, var(--tint) 14%, var(--surface));
 }
 
 .notices-empty {
@@ -3073,7 +3254,6 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   gap: var(--sp-3);
   margin-bottom: var(--sp-3);
 }
-.avatar--lg { width: 58px; height: 58px; font-size: 24px; }
 .profile__id { min-width: 0; }
 .profile__name {
   display: flex;
@@ -3176,7 +3356,6 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .profile-id__meta { font-size: 13px; color: var(--muted); }
 
 .profile-id__note { margin-top: var(--sp-2); font-size: 12.5px; color: var(--text-2); }
-.profile-id__note--error { color: var(--danger); }
 
 /* ---- The photo, and what you can do to it -------------------------------
    The circle is the button. Tapping it opens the two decisions there are to
@@ -3788,9 +3967,6 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 
 /* Settled up: the figure steps back rather than disappearing, so a job you
    are square with still shows you that you are square with it. */
-.owed--clear .owed__hours,
-.owed--clear .owed__unit { color: var(--muted); }
-.owed--clear .owed__meta { margin-bottom: 0; }
 
 /* The line under the card: what was last settled, and the way back out of it.
    Quiet, because undoing is the rare half of a rare action. */
@@ -3949,6 +4125,9 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 }
 .owed__partly:hover { color: var(--brand); text-decoration: none; }
 .owed__partly svg { width: 13px; height: 13px; }
+
+/* The span of dates a removal would take with it, said under its own row. */
+.going__when { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
 /* Saying the date outright, for a payment that stopped somewhere no button
    knows about. The field and its button read as one thing, so the card holds
@@ -4126,4 +4305,466 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   line-height: 1.5;
   color: var(--muted);
   text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   32. Glass — the material the app is made of
+
+   Every panel on the page is one sheet of frosted glass over a lit background,
+   the way a Control Center panel is: a translucent fill, a heavy blur of
+   whatever is behind it, a semi-transparent white rim catching the light along
+   the edge, and a soft shadow underneath holding it off the page.
+
+   Three things make it work, and leaving any one out is what makes most
+   attempts at this look like a grey box:
+
+   1. Saturation. Blur on its own drains the colour out of what is underneath
+      and the panel goes flat and dead. Pushing saturation back up past 100% is
+      what keeps glass looking lit rather than fogged.
+   2. Something behind it. Glass over a flat page is just a lighter flat page —
+      there is nothing to see through it. Hence the ambient wash below.
+   3. The rim. The white border is not decoration: an edge is where a real
+      sheet of glass catches the most light, and without it the panel has no
+      thickness and reads as painted on.
+
+   The whole of it is inside @supports, and the plain surfaces defined earlier
+   in this file are what a browser without backdrop-filter keeps. Glass or
+   nothing — never a half-transparent panel with nothing blurred behind it,
+   which is unreadable.
+   -------------------------------------------------------------------------- */
+
+/* The light behind the glass. Fixed rather than scrolled, so it behaves like
+   the wallpaper it is standing in for: the page slides over it and the panels
+   pick up a different part of it as they go, which is the whole reason the
+   blur is worth paying for. Three washes only, well under the page, in the
+   app's own brand green and two colours either side of it. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(74% 54% at 2% -4%,   var(--amb-1), transparent 72%),
+    radial-gradient(68% 50% at 100% 4%,  var(--amb-2), transparent 74%),
+    radial-gradient(58% 42% at 88% 58%,  var(--amb-2), transparent 76%),
+    radial-gradient(84% 58% at 46% 100%, var(--amb-3), transparent 72%);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+
+  /* One material, named once. Everything here is a panel in its own right —
+     something that sits on the page rather than inside another panel. */
+  .card,
+  .app-card,
+  .panel,
+  .summary-card,
+  .alert,
+  .result-list,
+  .shift-list,
+  .notice,
+  .modal__box,
+  .fold--notices > .fold__toggle {
+    background: var(--glass);
+    border-color: var(--glass-line);
+    /* The same edge the tab bar has, at panel scale: a lit rim along the top,
+       a glow just inside it that reads as thickness seen edge-on, and the
+       body of the material gathering along the bottom. Two hairlines made a
+       flat card with a light line on it; this makes a slab of frosted glass. */
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1px 0 var(--glass-hi),
+      inset 0 7px 14px -9px var(--glass-glow),
+      inset 0 -9px 16px -12px var(--glass-base);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+
+  /* A dialog floats higher than a card does, and its shadow has to say so —
+     it is over the page, not part of it. */
+  .modal__box {
+    box-shadow: var(--shadow-3), inset 0 1px 0 var(--glass-hi);
+  }
+
+  /* The two drop-down menus are solid, and have to be.
+
+     An element with backdrop-filter becomes a backdrop root: a descendant's
+     own backdrop-filter can only sample what is painted inside that root
+     behind it. Both of these hang out of one — the app menu out of the
+     frosted app bar, the photo menu out of a glass card — so the part of the
+     menu that overhangs has nothing behind it to blur. The filter returns
+     empty, the translucent fill composites over live page content, and the
+     menu goes see-through with the page legible straight through it.
+
+     No amount of tuning fixes that; the blur cannot run where these sit. So
+     they take the opaque surface instead and keep the rim and the shadow,
+     which is also the right answer on its own terms: a menu is something you
+     have to read over content you don't control. iOS makes its context menus
+     nearly opaque for the same reason.
+
+     The dialog above is not affected — it renders in the top layer, where its
+     own blurred ::backdrop is what sits behind it. */
+  .appmenu__panel,
+  .photo-menu__panel {
+    background: var(--surface);
+    border-color: var(--line);
+    box-shadow: var(--shadow-3);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Alerts keep their colour and take the glass underneath it, rather than
+     losing the one thing that tells you which kind of alert it is. */
+  .alert--success { background: color-mix(in srgb, var(--brand) 16%, var(--glass));  border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+  .alert--error   { background: color-mix(in srgb, var(--danger) 16%, var(--glass)); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+  .alert--warning { background: color-mix(in srgb, var(--warn) 16%, var(--glass));   border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+
+  /* Lifting a hub tile must not put the glass out: :hover outranks the rule
+     above, so the lit edge has to be said again with the bigger shadow. */
+  .app-card:hover {
+    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-hi);
+    border-color: color-mix(in srgb, var(--brand) 40%, var(--glass-line));
+  }
+
+  /* A notice is still washed in the colour of whoever sent it; the colour now
+     sits in the glass instead of on white. Repeated per theme because each
+     theme mixes a different amount, and the dark rules further up the file
+     outrank a bare .notice--from selector. */
+  .notice--from {
+    background: color-mix(in srgb, var(--tint) 9%, var(--glass));
+    border-color: color-mix(in srgb, var(--tint) 32%, var(--glass-line));
+  }
+  .notice--new  { border-color: color-mix(in srgb, var(--tint) 46%, var(--glass-line)); }
+  .notice--mine { border-left-color: var(--brand); }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .notice--from {
+      background: color-mix(in srgb, var(--tint) 14%, var(--glass));
+    }
+  }
+  :root[data-theme="dark"] .notice--from {
+    background: color-mix(in srgb, var(--tint) 14%, var(--glass));
+  }
+
+  /* Glass inside glass is mud: the inner sheet blurs an image that is already
+     blurred and both stop looking like anything. A panel that sits inside
+     another one goes back to being a plain surface — which is what the inner
+     tiles of a Control Center panel are too. */
+  .card .card,
+  .card .panel,
+  .card .summary-card,
+  .card .result-list,
+  .card .shift-list,
+  .modal__box .card,
+  .modal__box .panel,
+  .modal__box .result-list {
+    background: var(--surface);
+    border-color: var(--line);
+    box-shadow: var(--shadow-1);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* A panel deliberately let into the card it sits in keeps having no edges
+     of its own — it is a fold in the card, not a sheet on top of it. */
+  .panel--flush {
+    background: transparent;
+    border-color: transparent;
+    border-top-color: var(--line);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* A row under a finger. The solid grey these used on white would sit on the
+     glass as a dull patch; a wash of white lifts the row out of the sheet
+     instead, which is what the glass is doing to the page in the first place. */
+  .result:hover,
+  .shift:hover,
+  .menu-row:hover,
+  .day__head:hover,
+  .panel__head:hover,
+  .appmenu__item:hover,
+  .photo-menu__item:hover {
+    background: var(--glass-hover);
+  }
+
+  /* That one rule outranks three states declared earlier in the file that
+     each mean something — which app you are in, the item that deletes
+     things, and a row with a finger down on it — so they are said again
+     here rather than quietly lost to a hover. */
+  .appmenu__item.is-on:hover      { background: var(--brand-soft); }
+  .photo-menu__item--danger:hover { background: var(--danger-soft); }
+  .result:active,
+  .shift:active {
+    background: color-mix(in srgb, var(--glass-hover) 55%, var(--line-strong));
+  }
+}
+
+/* Asked for less of this at the system level — iOS calls it Reduce
+   Transparency, and it is the one setting that means it outright. Everything
+   goes back to the solid surfaces defined earlier; the shape, the spacing and
+   the rims stay exactly where they were. */
+@media (prefers-reduced-transparency: reduce) {
+  body::before { display: none; }
+
+  .card,
+  .app-card,
+  .panel,
+  .summary-card,
+  .alert,
+  .result-list,
+  .shift-list,
+  .notice,
+  .modal__box,
+  .fold--notices > .fold__toggle {
+    background: var(--surface);
+    border-color: var(--line);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Said again, because the reset above is a later rule of equal weight and
+     would otherwise take the colour off the two things whose colour is the
+     point of them. */
+  .alert--success { background: var(--brand-soft); }
+  .alert--error   { background: var(--danger-soft); }
+  .alert--warning { background: var(--warn-soft); }
+  .notice--from   { background: color-mix(in srgb, var(--tint) 9%, var(--surface)); }
+}
+
+/* --------------------------------------------------------------------------
+   33. Liquid glass — the floating chrome refracts what passes under it
+
+   §32 makes every panel frosted. This goes one further on the two pieces that
+   float over moving content, and only on those two: what scrolls beneath the
+   app bar and the tab bar is bent as well as blurred, the way it would be
+   through something with a thickness and a curve.
+
+   Four layers, in the order light meets them, and each one has to be its own
+   box because they are filtered differently:
+
+     ::before   the lens        blurs the backdrop, then refracts it
+     ::after    tint + shine    the material's own colour, and the light
+                                caught along its inside edge
+     > *        the content     icons and captions, which must not bend
+
+   The element itself is left transparent and keeps only the border and the
+   drop shadow. If it held a background, that background would sit inside the
+   lens's backdrop and get bent along with the page, and the bar's edges would
+   smear.
+
+   Only these two, deliberately. Refraction shows up where there is something
+   moving behind to refract, and both of these have the whole page sliding
+   underneath them. A card sitting in the page flow has the ambient wash
+   behind it and nothing else — it would pay for a filter per card and bend
+   almost nothing. Apple applies its own version to floating controls for the
+   same reason, not to the sheets of content between them.
+   -------------------------------------------------------------------------- */
+
+/* The filters live in an SVG in base.html; the element carrying them is not
+   meant to be seen, only referenced. */
+.glass-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+
+  /* The wrapper gives up its fill and its blur to the layers below. It keeps
+     the drop shadow, which belongs to the object rather than to the glass. */
+  .appbar,
+  .tabbar__inner {
+    position: relative;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .appbar::before,
+  .appbar::after,
+  .tabbar__inner::before,
+  .tabbar__inner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* 1. The lens. A light blur, not the frosting §32 uses.
+
+     This is the whole trick, and it is counter-intuitive: refraction needs
+     something left to refract. --glass-blur is 30px, and displacing a 30px
+     blur moves a smooth wash around and changes nothing you can see — the
+     detail the bend would have shown was already destroyed. Blurring barely
+     at all leaves edges and colour in the backdrop for the map to push
+     sideways, and the bend becomes the effect instead of the blur.
+
+     Legibility then comes from the tint above rather than from the blur,
+     which is why that layer is the more opaque of the two. */
+  .appbar::before,
+  .tabbar__inner::before {
+    z-index: 0;
+    -webkit-backdrop-filter: var(--lens-blur);
+    backdrop-filter: var(--lens-blur);
+  }
+  .tabbar__inner::before { filter: url(#glass-distortion); }
+  .appbar::before        { filter: url(#glass-distortion-soft); }
+
+  /* 2 + 3. The material's colour, and the light along its inside edge. Two
+     insets, lit from the top left and answering faintly from the bottom
+     right, which is what gives a flat rectangle the look of a bevel. */
+  .appbar::after {
+    z-index: 1;
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    box-shadow: inset 0 -1px 0 var(--glass-hi);
+  }
+
+  /* The bevel, and the reason the bar reads as glass at all.
+
+     The refraction above only shows where something is passing underneath —
+     over the empty half of a page it has a flat wash to bend and bends it
+     into a flat wash. What makes a thick piece of glass recognisable even
+     against nothing is its edge: a bright rim where light enters, a glow
+     just inside it, a darker line at the bottom where the body of the glass
+     sits, and a specular streak across the face.
+
+     All of that is box-shadow and background, so unlike the lens it works in
+     every browser — including the iPhone this was built for. */
+  .tabbar__inner::after {
+    z-index: 1;
+    background:
+      /* the specular streak, low across the upper face */
+      linear-gradient(100deg,
+        transparent 6%,
+        rgba(255, 255, 255, .20) 24%,
+        rgba(255, 255, 255, .05) 40%,
+        transparent 54%),
+      var(--sheen),
+      var(--pill-glass);
+    box-shadow:
+      /* the lit rim, brightest where light lands and fading around */
+      inset 0 1.5px 0 rgba(255, 255, 255, .55),
+      inset 1.5px 0 0 rgba(255, 255, 255, .18),
+      inset -1.5px 0 0 rgba(255, 255, 255, .10),
+      /* the glow just inside the top rim: thickness, seen edge-on */
+      inset 0 9px 18px -9px rgba(255, 255, 255, .38),
+      /* and the body of the glass gathering at the bottom */
+      inset 0 -1.5px 0 rgba(255, 255, 255, .09),
+      inset 0 -12px 22px -12px rgba(2, 6, 23, .40);
+  }
+
+  /* The wrapper's own shadow keeps it off the page; the lit edges moved to
+     the layer above, so they are not said twice. */
+  .tabbar__inner {
+    box-shadow:
+      0 8px 24px rgba(2, 6, 23, .22),
+      0 2px 6px rgba(2, 6, 23, .14);
+  }
+
+  /* 4. The content, which sits above all three and is not filtered. Bending
+     the page behind a caption is the effect; bending the caption is a bug. */
+  .appbar > *,
+  .tabbar__inner > * {
+    position: relative;
+    z-index: 2;
+  }
+}
+
+/* Reduce Transparency takes the lens with everything else: no bend, no blur,
+   and the two bars go back to solid chrome. */
+@media (prefers-reduced-transparency: reduce) {
+  .appbar::before,
+  .tabbar__inner::before { display: none; }
+
+  .appbar::after  { background: var(--surface); }
+  .tabbar__inner::after { background: var(--sheen), var(--pill); }
+}
+
+/* --------------------------------------------------------------------------
+   34. The tab bar's capsule, which slides
+
+   One lozenge that travels between the tabs, instead of one disappearing from
+   under the old tab while another appears under the new. Tapping a tab is
+   still a plain link and the page still loads; the slide happens in the gap
+   before it does, and the page that arrives has drawn its capsule already
+   under the tab you chose, so the movement and the arrival meet rather than
+   contradict each other.
+
+   The capsule is built by JavaScript, which is also what sets .has-slider on
+   the bar. With no JavaScript neither exists, the rule below never matches,
+   and the active tab keeps the background it has in §4 — the bar loses the
+   animation and nothing else.
+   -------------------------------------------------------------------------- */
+
+/* The lozenge moved out of the tab and into the travelling element, so the
+   tab keeps only its ink. */
+.tabbar__inner.has-slider .tab.is-active {
+  background: none;
+  box-shadow: none;
+}
+
+/* Dark ink to light and back as the capsule arrives and leaves. Slower than
+   the slide, so the colour is still settling as the capsule comes to rest
+   rather than snapping ahead of it. */
+.tabbar .tab {
+  transition: color .3s var(--ease);
+}
+
+.tabbar__inner > .tab-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* The same layer as the tabs, and first in the DOM, so they paint over it. */
+  z-index: 2;
+  width: 0;
+  height: 0;
+  /* Matches .tabbar .tab, so the capsule is the shape of what it sits under. */
+  border-radius: 20px;
+  opacity: 0;
+  pointer-events: none;
+
+  /* Exactly what the active tab used to draw for itself. */
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--pill-on) 92%, #fff),
+    color-mix(in srgb, var(--pill-on) 90%, #000)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    0 1px 3px rgba(2, 6, 23, .32);
+
+  /* Its own compositor layer, and this one is not optional.
+
+     The capsule slides directly over the tab bar's lens — a backdrop-filter
+     with an SVG displacement filter on top of it, which is about the most
+     expensive thing on the page to rasterise. Without this the browser has a
+     fair chance of redrawing that lens on every frame of the slide, and the
+     movement stutters. Promoted, the capsule is a texture the compositor
+     moves on its own, and the lens underneath stays cached and untouched. */
+  will-change: transform;
+
+  /* --ease-snap overshoots slightly and settles back, which is what makes a
+     movement read as a thing with weight arriving rather than a value
+     changing. It is the curve the rest of the app already springs on. */
+  transition:
+    transform .38s var(--ease-snap),
+    width .38s var(--ease-snap),
+    height .38s var(--ease-snap),
+    opacity var(--dur-2) var(--ease);
+}
+
+.tabbar__inner > .tab-slider.is-on { opacity: 1; }
+
+/* Put in place rather than moved there: the first paint of a page, a window
+   resize, a web font landing late. None of those are a choice the person
+   made, so none of them should look like one. */
+.tabbar__inner > .tab-slider.is-instant { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tabbar__inner > .tab-slider { transition: opacity var(--dur-1) var(--ease); }
+  .tabbar .tab { transition: none; }
 }

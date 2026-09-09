@@ -13,9 +13,9 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
-from noticeboard.models import Comment, CommentReaction, Notice, Reaction
-from timeclock.models import Shift, Workplace
-from timeclock.views import hours_this_week
+from apps.noticeboard.models import Comment, CommentReaction, Notice, Reaction
+from apps.timeclock.models import Shift, Workplace
+from apps.timeclock.views import hours_this_week
 
 from .forms import PhotoForm, ProfileForm
 from .models import Profile

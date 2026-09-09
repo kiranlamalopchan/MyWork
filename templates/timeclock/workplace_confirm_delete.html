@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load timeclock_extras ui %}
+{% block title %}Remove {{ workplace.name }}? · MyWork{% endblock %}
+
+{% comment %}
+  A screen, not a pop-up.
+
+  Removing a workplace takes everything recorded against it, and there is no
+  undo. What that costs is a list of counts and a span of dates — more than a
+  confirm() can hold, and exactly the thing that separates a decision from a
+  mistake. So it is counted out loud before anything happens, and the button
+  that does it says what it does.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'timeclock:workplaces' %}">{% icon "back" %} Workplaces</a>
+
+<div class="page-head">
+  <h1 class="page-title">Remove {{ workplace.name }}?</h1>
+  <p class="page-sub">
+    <span class="swatch" style="--wp-css: {{ workplace|wp_color }}" aria-hidden="true"></span>
+    This cannot be undone
+  </p>
+</div>
+
+<div class="card card__pad">
+  {% if going.shifts or going.payments or going.payslips %}
+    <div class="section-label">What goes with it</div>
+
+    <div class="ledger">
+      {% if going.shifts %}
+        <div class="ledger__row">
+          <span>
+            Shifts
+            {% if going.first %}
+              <span class="going__when">{{ going.first|date:"j M Y" }} – {{ going.last|date:"j M Y" }}</span>
+            {% endif %}
+          </span>
+          <span class="ledger__val">{{ going.shifts }}</span>
+        </div>
+        <div class="ledger__row">
+          <span>Hours on them</span>
+          <span class="ledger__val">{{ going.worked|hm|default:"0m" }}</span>
+        </div>
+      {% endif %}
+      {% if going.breaks %}
+        <div class="ledger__row">
+          <span>Breaks inside them</span>
+          <span class="ledger__val">{{ going.breaks }}</span>
+        </div>
+      {% endif %}
+      {% if going.payments %}
+        <div class="ledger__row">
+          <span>Payments marked received</span>
+          <span class="ledger__val">{{ going.payments }}</span>
+        </div>
+      {% endif %}
+      {% if going.payslips %}
+        <div class="ledger__row">
+          <span>Payslips, and the files behind them</span>
+          <span class="ledger__val">{{ going.payslips }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <p class="pay-note">
+      All of it is deleted for good. Your other jobs and their hours are
+      untouched — this only ever takes what was recorded at
+      {{ workplace.name }}.
+    </p>
+  {% else %}
+    <p class="muted text-sm" style="margin-top:0">
+      Nothing has been recorded at {{ workplace.name }} yet, so there is
+      nothing to lose with it.
+    </p>
+  {% endif %}
+</div>
+
+<div class="detail-actions">
+  <form method="post" action="{% url 'timeclock:workplace_delete' workplace.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--danger btn--block">
+      {% icon "trash" %}
+      {% if going.shifts %}Remove it and all {{ going.shifts }} shift{{ going.shifts|pluralize }}{% else %}Remove {{ workplace.name }}{% endif %}
+    </button>
+  </form>
+
+  <a class="btn btn--block" href="{% url 'timeclock:workplaces' %}">Keep it</a>
+</div>
+
+{% endblock %}

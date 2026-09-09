@@ -1,4 +1,4 @@
-{% load humanize avatars %}
+{% load humanize avatars ui %}
 {% comment %}
   One notice: who wrote it, what they wrote, what the room made of it, and the
   thread underneath. Rendered by _board.html both above and below the fold, so
@@ -7,7 +7,24 @@
   Takes: notice (decorated by views.decorate), next_url, emoji_choices.
 {% endcomment %}
 
-  <li class="notice{% if notice.is_mine %} notice--mine{% endif %}" id="notice-{{ notice.pk }}">
+  {% comment %}
+    A notice arrives the way a notification does: washed in the colour of
+    whoever sent it, lifted off the page, and with a dot on it while it is
+    still new. The colour comes from the name itself, so a person is the same
+    colour on every device with nothing assigned or stored.
+
+    Your own are the exception and stay plain. A notification is something
+    somebody sent you; what you posted yourself is not news to you, so it gets
+    no tint, no dot and a quiet brand rail down the edge instead.
+  {% endcomment %}
+  <li class="notice{% if notice.is_mine %} notice--mine{% else %} notice--from{% endif %}{% if notice.is_new and not notice.is_mine %} notice--new{% endif %}"
+      style="--hue: {{ notice.hue }}; --i: {% firstof forloop.counter0 "0" %}"
+      id="notice-{{ notice.pk }}">
+
+    {% if notice.is_new and not notice.is_mine %}
+      <span class="notice__dot" role="img" aria-label="New"></span>
+    {% endif %}
+
     <div class="notice__main">
       {% avatar notice.author link=True %}
 
@@ -85,9 +102,7 @@
 
       {% if notice.is_mine %}
         <a class="act act--quiet" href="{% url 'notices:edit' notice.pk %}?next={{ next_url|urlencode }}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-          </svg>
+          {% icon "pencil" %}
           Edit
         </a>
         <form method="post" action="{% url 'notices:delete' notice.pk %}"
@@ -95,9 +110,7 @@
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next_url }}">
           <button type="submit" class="act act--quiet act--danger">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>
-            </svg>
+            {% icon "trash" %}
             Remove
           </button>
         </form>
@@ -135,9 +148,7 @@
         <input class="reply__input" id="say-{{ notice.pk }}" type="text" name="body" maxlength="300"
                placeholder="Write a comment…" aria-label="Write a comment" autocomplete="off">
         <button type="submit" class="reply__send" aria-label="Send comment">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>
-          </svg>
+          {% icon "arrow-right" %}
         </button>
       </form>
     </div>

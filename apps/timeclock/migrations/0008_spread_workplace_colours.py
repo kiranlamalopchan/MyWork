@@ -10,7 +10,7 @@ around the palette in the order they were created, which is the order
 
 from django.db import migrations
 
-from timeclock.models import WORKPLACE_COLORS
+from apps.timeclock.models import WORKPLACE_COLORS
 
 
 def deal_colours(apps, schema_editor):

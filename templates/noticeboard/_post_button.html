@@ -1,11 +1,10 @@
+{% load ui %}
 {% comment %}
   The way onto the board. It links to the full-page composer; app.js catches
   the click and opens the same form in a dialog instead, so the modal is the
   nice path rather than the only one.
 {% endcomment %}
 <a class="post-btn" href="{% url 'notices:compose' %}?next={{ next_url|urlencode }}" data-compose>
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
-    <path d="M12 5v14M5 12h14"/>
-  </svg>
+  {% icon "plus" width="2.6" %}
   <span class="post-btn__label">Post</span>
 </a>

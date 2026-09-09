@@ -989,6 +989,32 @@
   }
 
   /* ----------------------------------------------------------------------
+     Cash in hand — hide the tax question it cannot answer
+
+     Paid cash there is no withholding to state, so a percentage box sitting
+     open underneath is a question with no right answer. It goes the moment
+     cash is chosen and comes back if the job changes, and the server clears
+     the value either way so nothing lingers on the row.
+     ---------------------------------------------------------------------- */
+  function initCashFields() {
+    var paidIn = document.getElementById("id_paid_in");
+    var tax = document.getElementById("id_tax_rate");
+    if (!paidIn || !tax) return;
+
+    var row = tax.closest(".field");
+    if (!row) return;
+
+    function sync() {
+      var cash = paidIn.value === "CASH";
+      row.hidden = cash;
+      if (cash) tax.value = "";
+    }
+
+    paidIn.addEventListener("change", sync);
+    sync();
+  }
+
+  /* ----------------------------------------------------------------------
      Notice composer
      The box grows with what you write, counts down only once the limit is
      within sight, and won't post an empty notice. Without this the textarea
@@ -1530,6 +1556,174 @@
     }
   }
 
+
+  /* ----------------------------------------------------------------------
+     The tab bar's capsule, which slides.
+
+     The bright lozenge behind the current tab used to be a background on the
+     tab itself, so moving between tabs meant one lozenge vanishing and
+     another appearing. It is now a single element that travels: tap a tab and
+     the capsule slides across to it, the way the selected pill in an iOS tab
+     bar moves rather than blinks.
+
+     Tapping a tab is still an ordinary link, and the page still loads. The
+     slide fills the gap before it does — and because the new page draws its
+     capsule already under the tab you chose, the movement and the arrival
+     join up instead of fighting.
+
+     Nothing here is required for the bar to work. Without JavaScript the
+     capsule is never built, .has-slider is never set, and the active tab
+     keeps the background it always had.
+     ---------------------------------------------------------------------- */
+  function initTabSlider() {
+    var bar = document.querySelector(".tabbar__inner");
+    if (!bar) return;
+
+    var tabs = bar.querySelectorAll(".tab");
+    // One tab has nowhere to slide to.
+    if (tabs.length < 2) return;
+
+    var slider = document.createElement("span");
+    slider.className = "tab-slider";
+    slider.setAttribute("aria-hidden", "true");
+    // First child, so that at equal z-index the tabs paint over it.
+    bar.insertBefore(slider, bar.firstChild);
+    bar.classList.add("has-slider");
+
+    function measure(tab) {
+      // getBoundingClientRect rather than offsetLeft: the bar is a scroll
+      // container with padding and a border, and offsetLeft's origin differs
+      // between browsers on exactly that. An absolutely positioned child
+      // starts at the padding box, so the border is what has to come off.
+      var barBox = bar.getBoundingClientRect();
+      var tabBox = tab.getBoundingClientRect();
+      var style = window.getComputedStyle(bar);
+      return {
+        x: tabBox.left - barBox.left - (parseFloat(style.borderLeftWidth) || 0) + bar.scrollLeft,
+        y: tabBox.top - barBox.top - (parseFloat(style.borderTopWidth) || 0) + bar.scrollTop,
+        w: tabBox.width,
+        h: tabBox.height
+      };
+    }
+
+    function place(tab, animate) {
+      if (!tab) {
+        // No tab is current — a page under this app that isn't one of the
+        // three. Nothing to sit under, so the capsule stays away.
+        slider.classList.remove("is-on");
+        return;
+      }
+      var box = measure(tab);
+      if (!box.w) return;
+
+      if (!animate) {
+        slider.classList.add("is-instant");
+      }
+      slider.style.width = box.w + "px";
+      slider.style.height = box.h + "px";
+      slider.style.transform = "translate3d(" + box.x + "px, " + box.y + "px, 0)";
+      slider.classList.add("is-on");
+
+      if (!animate) {
+        // Read back a layout value to commit the position before the
+        // transition is allowed again, or the first move animates from 0,0.
+        void slider.offsetWidth;
+        slider.classList.remove("is-instant");
+      }
+    }
+
+    function current() {
+      return bar.querySelector(".tab.is-active");
+    }
+
+    /* The slide happens on the page you land on, not the one you leave.
+
+       Tapping a tab is a real navigation, and the browser tears the old page
+       down within a few tens of milliseconds — far inside a 420ms transition,
+       which is why animating on the way out produced a jump. There is no
+       amount of tuning that beats that; the animation has to run somewhere it
+       will not be interrupted, and the only such place is the new page.
+
+       So the tab you were on is written down on the way out, and the page
+       that arrives puts the capsule back where it was and slides it to where
+       it now belongs. That is also the honest order of events: the content
+       has changed, and the capsule is catching up with it. */
+    var FROM_KEY = "mywork-tab-from";
+    // A note to the next page, not a preference: it is read once, cleared
+    // immediately, and ignored if it has been sitting there long enough to
+    // belong to some earlier navigation that never landed.
+    var FROM_FRESH = 15000;
+
+    function remember(href) {
+      try {
+        window.sessionStorage.setItem(FROM_KEY, Date.now() + " " + href);
+      } catch (e) { /* private browsing: the capsule simply won't slide */ }
+    }
+
+    function takeRemembered() {
+      var raw = null;
+      try {
+        raw = window.sessionStorage.getItem(FROM_KEY);
+        window.sessionStorage.removeItem(FROM_KEY);
+      } catch (e) { return null; }
+      if (!raw) return null;
+      var cut = raw.indexOf(" ");
+      if (cut < 1) return null;
+      if (Date.now() - Number(raw.slice(0, cut)) > FROM_FRESH) return null;
+      return raw.slice(cut + 1);
+    }
+
+    function tabFor(href) {
+      for (var i = 0; i < tabs.length; i++) {
+        if (tabs[i].href === href) return tabs[i];
+      }
+      return null;
+    }
+
+    var landed = current();
+    var cameFrom = tabFor(takeRemembered() || "");
+
+    if (cameFrom && landed && cameFrom !== landed) {
+      // Put it where it was, let that paint, then move it. Two frames: one
+      // to commit the starting position, one for the transition to have
+      // something to start from.
+      place(cameFrom, false);
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () { place(landed, true); });
+      });
+    } else {
+      place(landed, false);
+    }
+
+    bar.addEventListener("click", function (event) {
+      var tab = event.target.closest ? event.target.closest(".tab") : null;
+      if (!tab || !bar.contains(tab)) return;
+      if (tab.classList.contains("is-active")) return;
+      // Nothing moves here. Where the capsule is now is the whole message
+      // the next page needs.
+      var here = current();
+      if (here) remember(here.href);
+    });
+
+    // A width change is not a selection change, so it must not look like one.
+    var settle = null;
+    window.addEventListener("resize", function () {
+      clearTimeout(settle);
+      settle = setTimeout(function () { place(current(), false); }, 120);
+    });
+
+    // Fonts land after first paint and can change a tab's width underneath
+    // the capsule.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { place(current(), false); });
+    }
+
+    // Coming back to a page the browser kept alive: re-measure, don't animate.
+    window.addEventListener("pageshow", function (event) {
+      if (event.persisted) place(current(), false);
+    });
+  }
+
   function init() {
     initTheme();
     initCompose();
@@ -1539,6 +1733,7 @@
     initAppMenu();
     initTally();
     initPeriodFields();
+    initCashFields();
     initLiveClock();
     initClientClock();
     initBreakRows();
@@ -1553,6 +1748,7 @@
     initRipple();
     initSubmitState();
     initLiveFilter();
+    initTabSlider();
     initNavSkeleton();
     initLiveErrors();
   }

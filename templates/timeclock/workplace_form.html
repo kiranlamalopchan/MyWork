@@ -1,14 +1,10 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}{% if workplace %}Edit workplace{% else %}Add workplace{% endif %} · MyWork{% endblock %}
 
 {% block content %}
 
-<a class="backlink" href="{% url 'timeclock:workplaces' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  Workplaces
-</a>
+<a class="backlink" href="{% url 'timeclock:workplaces' %}">{% icon "back" %} Workplaces</a>
 
 <div class="page-head">
   <h1 class="page-title">{% if workplace %}Edit workplace{% else %}Add workplace{% endif %}</h1>

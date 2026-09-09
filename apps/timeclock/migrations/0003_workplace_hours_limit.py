@@ -10,7 +10,7 @@ job in mind — and can then be adjusted per workplace.
 
 from django.db import migrations, models
 
-import timeclock.models
+import apps.timeclock.models
 
 
 def copy_limits_onto_workplaces(apps, schema_editor):
@@ -72,7 +72,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="workplace",
             name="fortnight_anchor",
-            field=models.DateField(default=timeclock.models._monday_of_this_week),
+            field=models.DateField(default=apps.timeclock.models._monday_of_this_week),
         ),
         migrations.RunPython(copy_limits_onto_workplaces, collapse_limits_back_onto_the_user),
         migrations.RemoveField(model_name="timepreference", name="hours_limit"),

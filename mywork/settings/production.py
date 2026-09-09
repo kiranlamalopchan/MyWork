@@ -1,0 +1,129 @@
+"""A server.
+
+Every value that would be dangerous to guess is read from the environment and
+absent from the repository. The two that cannot be defaulted safely — the
+secret key and the list of hosts allowed to serve the site — raise on import
+rather than falling back, so a misconfigured deployment fails at start-up
+where somebody is watching, instead of at the first request.
+"""
+
+import os
+
+from django.core.exceptions import ImproperlyConfigured
+
+from .base import *  # noqa: F401,F403
+from .base import BASE_DIR
+
+
+def required(name):
+    """An environment variable with no sensible default."""
+    try:
+        return os.environ[name]
+    except KeyError:
+        raise ImproperlyConfigured(
+            f"{name} must be set in the environment to run with "
+            f"mywork.settings.production."
+        ) from None
+
+
+SECRET_KEY = required('DJANGO_SECRET_KEY')
+
+DEBUG = False
+
+# Comma-separated, e.g. "mywork.example.com,www.mywork.example.com".
+ALLOWED_HOSTS = [h.strip() for h in required('DJANGO_ALLOWED_HOSTS').split(',') if h.strip()]
+
+# Django needs the scheme as well as the host to validate a POST's Origin.
+CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS if '*' not in host]
+
+
+# --------------------------------------------------------------------------
+# Database
+#
+# Postgres when it is configured, and the file-backed database otherwise —
+# which is a real deployment for an app this size, on one box, with the file
+# on a backed-up volume. It is a deliberate choice either way rather than an
+# accident: set POSTGRES_DB to move.
+# --------------------------------------------------------------------------
+if os.environ.get('POSTGRES_DB'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ['POSTGRES_DB'],
+            'USER': os.environ.get('POSTGRES_USER', 'mywork'),
+            'PASSWORD': required('POSTGRES_PASSWORD'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+            # One connection held open per worker rather than opened per
+            # request; the handshake costs more than the query on most pages.
+            'CONN_MAX_AGE': 600,
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('SQLITE_PATH', BASE_DIR / 'db.sqlite3'),
+        }
+    }
+
+
+# --------------------------------------------------------------------------
+# Transport security
+#
+# All of this assumes TLS terminates in front of Django, which is how it is
+# almost always deployed. SECURE_PROXY_SSL_HEADER is what lets Django know a
+# request that reached it over plain HTTP arrived over HTTPS at the proxy —
+# only trust it if that proxy is yours and strips the header from the client.
+# --------------------------------------------------------------------------
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+# The session cookie is read by the server, never by page scripts.
+SESSION_COOKIE_HTTPONLY = True
+
+# Start low. A long max-age is a promise the browser will not let you take
+# back, so raise it once certificate renewal has been seen to work.
+SECURE_HSTS_SECONDS = 3600
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+
+# --------------------------------------------------------------------------
+# Static files
+#
+# Hashed filenames, so a stylesheet can be cached forever and still change:
+# app.css becomes app.<hash>.css and the name moves when the content does.
+# --------------------------------------------------------------------------
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage',
+    },
+}
+
+
+# --------------------------------------------------------------------------
+# Logging — to the process's own stderr, for the service manager to collect.
+# --------------------------------------------------------------------------
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+    },
+    'root': {'handlers': ['console'], 'level': 'INFO'},
+    'loggers': {
+        # A 500 is worth a stack trace in the log even though nobody sees a
+        # debug page any more.
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+    },
+}

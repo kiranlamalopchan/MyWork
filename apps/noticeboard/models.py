@@ -15,12 +15,13 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 # The letter and colour somebody wears on the board are the same ones they
 # wear in the app bar and on their profile, so they are defined once, with the
 # person. Re-exported here because the board has always imported them from
 # here, and `Social` below still reads them.
-from accounts.avatars import hue_for, initial_for  # noqa: F401
+from apps.accounts.avatars import hue_for, initial_for  # noqa: F401
 
 # Long enough for a shift swap, a reminder or a phone number; short enough
 # that the board stays a board rather than a forum.
@@ -57,6 +58,15 @@ class Emoji(models.TextChoices):
 
 
 
+# How long something reads as new on the board.
+#
+# Long enough that a board looked at once a day still shows what has arrived
+# since; short enough that "new" is a claim worth making. It is not "unread by
+# you" — nothing here tracks who has read what, and a dot that quietly meant
+# "recent" while looking like "unread" would be the wrong kind of clever.
+FRESH_FOR = timedelta(hours=18)
+
+
 class Social:
     """
     What a notice and a comment have in common: an author to show, and
@@ -76,6 +86,11 @@ class Social:
     @property
     def hue(self):
         return hue_for(self.author.get_username())
+
+    @property
+    def is_new(self):
+        """Whether this landed recently enough to still be worth a dot."""
+        return timezone.now() - self.created_at <= FRESH_FOR
 
     # ---- what other people made of it -----------------------------------
 

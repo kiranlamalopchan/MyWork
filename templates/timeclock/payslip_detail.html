@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}Payslip · MyWork{% endblock %}
 
 {% comment %}
@@ -15,12 +15,7 @@
 
 {% block content %}
 
-<a class="backlink" href="{% url 'timeclock:payslips' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  Payslips
-</a>
+<a class="backlink" href="{% url 'timeclock:payslips' %}">{% icon "back" %} Payslips</a>
 
 <div class="page-head">
   <h1 class="page-title">Payslip</h1>
@@ -35,9 +30,7 @@
 {% if not slip.confirmed %}
   {# Said plainly, and only until it stops being true. #}
   <div class="callout callout--check">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/>
-    </svg>
+    {% icon "alert" %}
     <span>
       {% if slip.source == 'PHOTO' %}Read off a photo{% elif slip.source == 'PDF' %}Read out of the PDF{% else %}Not checked yet{% endif %} —
       check every figure against the paper, then confirm it below.
@@ -83,12 +76,12 @@
   {% endcomment %}
   {% if slip.adds_up is True %}
     <p class="verdict verdict--ok">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      {% icon "check" width="2.4" %}
       Gross − tax comes to net. The three figures agree.
     </p>
   {% elif slip.adds_up is False %}
     <p class="verdict verdict--bad">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/></svg>
+      {% icon "alert" width="2.4" %}
       These don't add up — gross − tax isn't net. Check them against the paper.
     </p>
   {% endif %}
@@ -120,12 +113,12 @@
 
     {% if check.agrees %}
       <p class="verdict verdict--ok">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        {% icon "check" width="2.4" %}
         Matches the {{ check.days }} day{{ check.days|pluralize }} you clocked over this period.
       </p>
     {% elif check.short %}
       <p class="verdict verdict--bad">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/></svg>
+        {% icon "alert" width="2.4" %}
         You recorded more than they paid for{% if check.gap_money %}, worth about {{ check.gap_money|money|cut:"-" }} gross{% endif %}.
       </p>
     {% elif check.gap is not None %}
@@ -140,7 +133,7 @@
         <summary class="panel__head">
           <span class="panel__title">The {{ check.shifts|length }} shift{{ check.shifts|length|pluralize }} behind it</span>
           <span class="panel__hint">{{ check.recorded|hm }}</span>
-          <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          {% icon "chev-down" class="panel__chev" width="2.2" %}
         </summary>
         <ul class="break-list">
           {% for shift in check.shifts %}
@@ -197,7 +190,7 @@
       </form>
     {% else %}
       <p class="verdict verdict--ok">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        {% icon "check" width="2.4" %}
         {{ slip.workplace.name }} already uses this rate.
       </p>
     {% endif %}
@@ -215,9 +208,7 @@
   <summary class="panel__head">
     <span class="panel__title">{% if slip.confirmed %}The figures{% else %}Check the figures{% endif %}</span>
     <span class="panel__hint">{% if slip.confirmed %}confirmed{% else %}read automatically{% endif %}</span>
-    <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6"/>
-    </svg>
+    {% icon "chev-down" class="panel__chev" width="2.2" %}
   </summary>
 
   <div class="panel__body">
@@ -236,9 +227,7 @@
   <summary class="panel__head">
     <span class="panel__title">The slip itself</span>
     <span class="panel__hint">{{ slip.get_source_display|lower }}</span>
-    <svg class="panel__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6"/>
-    </svg>
+    {% icon "chev-down" class="panel__chev" width="2.2" %}
   </summary>
 
   <div class="panel__body">

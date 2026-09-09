@@ -43,6 +43,6 @@ def me(request):
     somehow missing — a template that raises on an attribute has no way to
     fall back to the letter.
     """
-    from accounts.models import Profile
+    from apps.accounts.models import Profile
 
     return {"me": Profile.of(getattr(request, "user", None))}

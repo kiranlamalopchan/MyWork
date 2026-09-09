@@ -1,3 +1,4 @@
+{% load ui %}
 {% comment %}
 Navigation for the PLU Management app. Rendered twice — in the app bar on wide
 screens, in the fixed bottom tab bar on phones — and only ever on PLU pages;
@@ -8,9 +9,7 @@ button in the app bar, so every slot here is a PLU feature.
 
 <a class="tab{% if current == 'list' or current == 'detail' %} is-active{% endif %}"
    href="{% url 'plu:list' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
-  </svg>
+  {% icon "search" %}
   <span>Search</span>
 </a>
 
@@ -25,9 +24,7 @@ button in the app bar, so every slot here is a PLU feature.
 {% if request.user.is_staff %}
   <a class="tab{% if current == 'import' %} is-active{% endif %}"
      href="{% url 'plu:import' %}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-    </svg>
+    {% icon "download" %}
     <span>Import</span>
   </a>
 {% endif %}

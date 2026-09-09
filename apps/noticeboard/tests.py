@@ -2,9 +2,12 @@
 The board's one rule: everybody reads everything, nobody edits anyone else's.
 """
 
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import (
     MAX_BODY, MAX_COMMENT, Comment, CommentReaction, Notice, Reaction,
@@ -704,3 +707,72 @@ class BoardFoldTests(TestCase):
             self.assertLess(html.index(newest.body), fold)
         for older in made[:2]:
             self.assertGreater(html.index(older.body), fold)
+
+
+class NotificationLookTests(TestCase):
+    """
+    A notice arrives the way a notification does.
+
+    The colour comes off the author's name, the card is dotted while it is
+    still new, and what you posted yourself stays plain — it is not news to
+    you. All of it is CSS driven by the classes and the hue set here, so this
+    is what has to hold for the look to hold.
+    """
+
+    def setUp(self):
+        self.me = User.objects.create_user("kiran", password="pw")
+        self.them = User.objects.create_user("sam", password="pw")
+        self.client.force_login(self.me)
+
+    def _post(self, author, body="Roster's up.", days_ago=0):
+        notice = Notice.objects.create(author=author, body=body)
+        if days_ago:
+            Notice.objects.filter(pk=notice.pk).update(
+                created_at=timezone.now() - timedelta(days=days_ago)
+            )
+        return Notice.objects.get(pk=notice.pk)
+
+    def _board(self):
+        return self.client.get(reverse("notices:board")).content.decode()
+
+    def test_something_just_posted_reads_as_new(self):
+        self.assertTrue(self._post(self.them).is_new)
+
+    def test_something_from_days_ago_does_not(self):
+        self.assertFalse(self._post(self.them, days_ago=3).is_new)
+
+    def test_a_notice_from_someone_else_is_tinted_and_dotted(self):
+        notice = self._post(self.them)
+        html = self._board()
+
+        self.assertIn("notice--from", html)
+        self.assertIn("notice--new", html)
+        self.assertIn('class="notice__dot"', html)
+        self.assertIn(f"--hue: {notice.hue}", html)
+
+    def test_your_own_notice_is_neither(self):
+        self._post(self.me)
+        html = self._board()
+
+        self.assertIn("notice--mine", html)
+        self.assertNotIn("notice--from", html)
+        self.assertNotIn('class="notice__dot"', html)
+
+    def test_an_older_notice_keeps_the_colour_but_loses_the_dot(self):
+        self._post(self.them, days_ago=3)
+        html = self._board()
+
+        self.assertIn("notice--from", html)
+        self.assertNotIn("notice--new", html)
+        self.assertNotIn('class="notice__dot"', html)
+
+    def test_the_cards_are_staggered_from_the_first_one(self):
+        # The first row's index is 0, and a template tag that drops falsy
+        # values once left it blank — which is not a number CSS can use.
+        for n in range(3):
+            self._post(self.them, body=f"Notice {n}")
+        html = self._board()
+
+        self.assertIn("--i: 0", html)
+        self.assertIn("--i: 1", html)
+        self.assertIn("--i: 2", html)

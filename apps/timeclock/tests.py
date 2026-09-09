@@ -1,3 +1,5 @@
+import os
+import re
 import shutil
 import tempfile
 import zoneinfo
@@ -17,6 +19,7 @@ from . import payslip as payslip_reader
 from .models import (
     Break,
     fortnight_start,
+    PaidIn,
     PayCycle,
     Payment,
     Payslip,
@@ -28,7 +31,7 @@ from .models import (
     next_month_start,
     week_start,
 )
-from .views import _limit_for, _limits_for, _pay_state
+from .views import SESSION_WORKPLACE, _limit_for, _limits_for, _pay_state
 
 
 class ShiftFlowTests(TestCase):
@@ -136,18 +139,21 @@ class WorkplaceTests(TestCase):
         self.assertFalse(a.is_default)
         self.assertTrue(b.is_default)
 
-    def test_delete_keeps_history_by_archiving(self):
+    def test_removing_a_workplace_takes_its_shifts_with_it(self):
         w = Workplace.objects.create(user=self.user, name="A")
         Shift.objects.create(user=self.user, workplace=w, clock_in=timezone.now())
 
-        self.assertEqual(w.delete_or_archive(), "archived")
-        w.refresh_from_db()
-        self.assertTrue(w.is_archived)
-        self.assertEqual(Shift.objects.filter(workplace=w).count(), 1)
+        w.remove()
 
-    def test_delete_removes_unused_workplace(self):
+        self.assertFalse(Workplace.objects.filter(name="A").exists())
+        # Shifts point at a workplace with SET_NULL, so leaving them would
+        # leave work done nowhere in particular. Removing the job removes it.
+        self.assertEqual(Shift.objects.count(), 0)
+
+    def test_removing_an_unused_workplace(self):
         w = Workplace.objects.create(user=self.user, name="A")
-        self.assertEqual(w.delete_or_archive(), "deleted")
+        w.remove()
+        self.assertFalse(Workplace.objects.filter(pk=w.pk).exists())
         self.assertFalse(Workplace.objects.filter(pk=w.pk).exists())
 
 
@@ -237,7 +243,7 @@ class DashboardViewTests(TestCase):
             clock_out=timezone.now() - timedelta(hours=1),
             status=Shift.Status.COMPLETED,
         )
-        for name in ["timesheet", "workplaces", "workplace_create", "preferences", "more"]:
+        for name in ["timesheet", "workplaces", "workplace_create", "more"]:
             with self.subTest(page=name):
                 self.assertEqual(self.client.get(reverse(f"timeclock:{name}")).status_code, 200)
 
@@ -841,7 +847,6 @@ class NavigationTests(TestCase):
             ("timeclock:workplaces", []),
             ("timeclock:workplace_create", []),
             ("timeclock:workplace_edit", [self.workplace.pk]),
-            ("timeclock:preferences", []),
             ("timeclock:shift_create", []),
             ("timeclock:shift_detail", [self.shift.pk]),
             ("timeclock:shift_edit", [self.shift.pk]),
@@ -2015,3 +2020,601 @@ class PaidUpToADateOnACycleTests(TestCase):
         self.assertContains(response, 'name="up_to"')
         # But not the one-tap sweep: a job with runs has to name what it means.
         self.assertNotContains(response, "Everything up to now")
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="mywork-remove-media-"))
+class WorkplaceRemovalTests(TestCase):
+    """
+    Removing a workplace removes what was recorded at it.
+
+    Every trace: the shifts, the breaks inside them, the payments drawn under
+    them and the payslips filed against them, files on disk included. Nothing
+    is left pointing at a job that is gone, and nothing belonging to any other
+    job is touched.
+    """
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.going = Workplace.objects.create(
+            user=self.user, name="Fresh Meat", hourly_rate=Decimal("26.00")
+        )
+        self.staying = Workplace.objects.create(user=self.user, name="AUFS")
+
+        self.shift = self._worked(self.going, 5)
+        self.shift.breaks.create(
+            break_start=self.shift.clock_in + timedelta(hours=2),
+            break_end=self.shift.clock_in + timedelta(hours=2, minutes=30),
+        )
+        self._worked(self.staying, 3)
+
+        Payment.objects.create(
+            workplace=self.going, covers_through=timezone.now(), hours=Decimal("5.00")
+        )
+        self.slip = Payslip.objects.create(
+            workplace=self.going, gross=Decimal("130.00"), tax=Decimal("13.00"),
+            net=Decimal("117.00"),
+            file=SimpleUploadedFile("slip.pdf", b"%PDF-1.4 payslip", "application/pdf"),
+        )
+
+    def _worked(self, workplace, hours):
+        start = timezone.now() - timedelta(days=1, hours=hours)
+        return Shift.objects.create(
+            user=self.user, workplace=workplace,
+            clock_in=start, clock_out=start + timedelta(hours=hours),
+            status=Shift.Status.COMPLETED,
+        )
+
+    def _remove(self):
+        return self.client.post(
+            reverse("timeclock:workplace_delete", args=[self.going.pk]), follow=True
+        )
+
+    # ---- what goes -------------------------------------------------------
+
+    def test_it_takes_the_shifts_the_breaks_the_payments_and_the_payslips(self):
+        self._remove()
+
+        self.assertFalse(Workplace.objects.filter(pk=self.going.pk).exists())
+        self.assertFalse(Shift.objects.filter(workplace_id=self.going.pk).exists())
+        self.assertEqual(Break.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertEqual(Payslip.objects.count(), 0)
+
+    def test_no_shift_is_left_behind_with_no_workplace(self):
+        # SET_NULL would otherwise leave the hours as work done nowhere.
+        self._remove()
+        self.assertEqual(Shift.objects.filter(workplace__isnull=True).count(), 0)
+
+    def test_the_payslip_file_goes_from_disk_too(self):
+        path = self.slip.file.path
+        self.assertTrue(os.path.exists(path))
+
+        self._remove()
+        self.assertFalse(os.path.exists(path))
+
+    def test_the_other_job_is_untouched(self):
+        self._remove()
+
+        self.assertTrue(Workplace.objects.filter(pk=self.staying.pk).exists())
+        self.assertEqual(Shift.objects.filter(workplace=self.staying).count(), 1)
+
+    def test_it_says_what_it_took(self):
+        response = self._remove()
+        self.assertContains(response, "Removed Fresh Meat and 1 shift")
+
+    # ---- the screen in front of it ---------------------------------------
+
+    def test_the_confirm_screen_counts_what_would_go(self):
+        html = self.client.get(
+            reverse("timeclock:workplace_confirm_delete", args=[self.going.pk])
+        ).content.decode()
+
+        self.assertIn("This cannot be undone", html)
+        self.assertIn("What goes with it", html)
+        self.assertIn("Payments marked received", html)
+        self.assertIn("Payslips, and the files behind them", html)
+
+    def test_looking_at_the_screen_removes_nothing(self):
+        self.client.get(
+            reverse("timeclock:workplace_confirm_delete", args=[self.going.pk])
+        )
+        self.assertTrue(Workplace.objects.filter(pk=self.going.pk).exists())
+
+    def test_the_list_sends_you_to_the_screen_rather_than_a_pop_up(self):
+        html = self.client.get(reverse("timeclock:workplaces")).content.decode()
+        self.assertIn(
+            reverse("timeclock:workplace_confirm_delete", args=[self.going.pk]), html
+        )
+
+    # ---- what it refuses --------------------------------------------------
+
+    def test_a_job_you_are_clocked_in_at_cannot_be_removed(self):
+        Shift.objects.create(
+            user=self.user, workplace=self.going,
+            clock_in=timezone.now(), status=Shift.Status.WORKING,
+        )
+        response = self._remove()
+
+        self.assertTrue(Workplace.objects.filter(pk=self.going.pk).exists())
+        self.assertContains(response, "Clock out first")
+
+    def test_somebody_elses_workplace_is_not_yours_to_remove(self):
+        other = User.objects.create_user("someone", password="pw")
+        theirs = Workplace.objects.create(user=other, name="Theirs")
+
+        response = self.client.post(
+            reverse("timeclock:workplace_delete", args=[theirs.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Workplace.objects.filter(pk=theirs.pk).exists())
+
+    def test_removing_it_forgets_it_as_the_clock_s_last_pick(self):
+        # The clock remembers which job you picked. That one is gone.
+        self.client.get(reverse("timeclock:dashboard"), {"workplace": self.going.pk})
+        self.assertEqual(
+            str(self.client.session.get(SESSION_WORKPLACE)), str(self.going.pk)
+        )
+
+        self._remove()
+        self.assertIsNone(self.client.session.get(SESSION_WORKPLACE))
+
+
+class SummaryFollowsThePayCycleTests(TestCase):
+    """
+    As many totals as you are paid over, and no more.
+
+    Paid weekly, a fortnight's hours answer no question you have. Paid
+    monthly, all three are steps on the way to the figure that arrives. A
+    period you are never paid over is a number with nothing to check it
+    against, so the cards stop where the pay cycle does.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+
+    def _job(self, cycle, name="A"):
+        job = Workplace.objects.create(
+            user=self.user, name=name, hourly_rate=Decimal("30.00"), pay_cycle=cycle
+        )
+        start = timezone.now() - timedelta(hours=6)
+        Shift.objects.create(
+            user=self.user, workplace=job, clock_in=start,
+            clock_out=start + timedelta(hours=5), status=Shift.Status.COMPLETED,
+        )
+        return job
+
+    def _labels(self, workplace=None):
+        params = {"workplace": workplace.pk} if workplace else {}
+        html = self.client.get(reverse("timeclock:timesheet"), params).content.decode()
+        return re.findall(r'summary-card__label">([^<]+)<', html)
+
+    def test_paid_weekly_shows_the_week_alone(self):
+        self._job(PayCycle.WEEK)
+        self.assertEqual(self._labels(), ["This week"])
+
+    def test_paid_fortnightly_shows_the_week_and_the_fortnight(self):
+        self._job(PayCycle.FORTNIGHT)
+        self.assertEqual(self._labels(), ["This week", "This fortnight"])
+
+    def test_paid_monthly_shows_all_three(self):
+        self._job(PayCycle.MONTH)
+        self.assertEqual(self._labels(), ["This week", "This fortnight", "This month"])
+
+    def test_a_job_with_no_cycle_counts_from_the_last_payment(self):
+        # Neither a week nor a fortnight means anything at a job that pays
+        # when it gets round to it. What is owed is the figure that matters,
+        # and it is the one that goes to zero when the money turns up.
+        self._job(PayCycle.IRREGULAR)
+        self.assertEqual(self._labels(), ["Since you were paid"])
+
+    def test_a_job_with_no_cycle_beside_one_that_has_it_shows_the_week(self):
+        # Two jobs were last paid on two different days and cannot share a
+        # starting line, so the shared page falls back to shared periods.
+        self._job(PayCycle.IRREGULAR, name="Butcher")
+        self._job(PayCycle.FORTNIGHT, name="AUFS")
+        self.assertEqual(self._labels(), ["This week", "This fortnight"])
+
+    def test_two_jobs_each_keep_their_own_periods_and_invent_none(self):
+        weekly = self._job(PayCycle.WEEK, name="Weekly")
+        fortnightly = self._job(PayCycle.FORTNIGHT, name="Fortnightly")
+
+        # A week and a fortnight between them, and never a month.
+        self.assertEqual(self._labels(), ["This week", "This fortnight"])
+        self.assertEqual(self._labels(weekly), ["This week"])
+        self.assertEqual(self._labels(fortnightly), ["This week", "This fortnight"])
+
+    def test_a_job_that_pays_whenever_does_not_widen_the_page(self):
+        # The pairing on this machine: one fortnightly job and one that pays
+        # when it gets round to it. The second must not drag in a month card.
+        self._job(PayCycle.FORTNIGHT, name="AUFS")
+        self._job(PayCycle.IRREGULAR, name="Fresh Meat")
+
+        self.assertEqual(self._labels(), ["This week", "This fortnight"])
+
+    def test_the_grid_widens_to_however_many_are_left(self):
+        self._job(PayCycle.WEEK)
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        self.assertIn("summary-grid--1", html)
+
+    def test_the_pay_breakdown_is_written_over_the_period_you_are_paid_in(self):
+        job = self._job(PayCycle.WEEK)
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+
+        self.assertIn("This week\u2019s pay", html)
+        self.assertNotIn("This fortnight\u2019s pay", html)
+
+    def test_a_monthly_job_is_totalled_by_the_month(self):
+        self._job(PayCycle.MONTH)
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        self.assertIn("This month\u2019s pay", html)
+
+
+class ClockScreenIsForClockingTests(TestCase):
+    """
+    The clock screen shows the clock, where you are, and the cap.
+
+    A screen you open to press one button is not the place for figures you
+    read: today's hours and the week's live on the timesheet, one tap away,
+    and repeating them here made a clock into a dashboard. The cap is the
+    exception, because it is the thing you want to know *before* pressing the
+    button rather than after.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.job = Workplace.objects.create(
+            user=self.user, name="Fresh Meat", is_default=True,
+            hours_limit=48, limit_period=Workplace.Period.FORTNIGHT,
+        )
+
+    def _page(self):
+        return self.client.get(reverse("timeclock:dashboard")).content.decode()
+
+    def _clocked_in(self, hours_ago=4):
+        return Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=hours_ago),
+            status=Shift.Status.WORKING,
+        )
+
+    def test_the_three_buttons_are_all_there(self):
+        self.assertIn(reverse("timeclock:clock_in"), self._page())
+
+        self._clocked_in()
+        working = self._page()
+        self.assertIn(reverse("timeclock:start_break"), working)
+        self.assertIn(reverse("timeclock:clock_out"), working)
+
+    def test_the_totals_cards_are_gone(self):
+        self._clocked_in()
+        page = self._page()
+
+        self.assertNotIn("summary-card", page)
+        self.assertNotIn("This week", page)
+
+    def test_the_shift_breakdown_row_is_gone(self):
+        self._clocked_in()
+        self.assertNotIn("metric-row", self._page())
+
+    def test_the_cap_stays(self):
+        self._clocked_in()
+        page = self._page()
+
+        self.assertIn("limit__track", page)
+        self.assertIn("Fresh Meat · this fortnight", page)
+
+    def test_the_break_total_moves_onto_the_dial(self):
+        # It is the one figure the break button produces; losing it would
+        # mean the button reported nothing.
+        shift = self._clocked_in()
+        shift.breaks.create(
+            break_start=shift.clock_in + timedelta(hours=1),
+            break_end=shift.clock_in + timedelta(hours=1, minutes=20),
+        )
+        page = self._page()
+
+        self.assertIn('id="clock-break"', page)
+        self.assertIn("20m", page)
+
+    def test_a_shift_with_no_break_says_nothing_about_breaks(self):
+        self._clocked_in()
+        self.assertNotIn('id="clock-break"', self._page())
+
+
+class CashInHandTests(TestCase):
+    """
+    Paid cash, there is no tax to take off.
+
+    Not "we haven't been told the percentage" — nothing comes out at all. The
+    two look the same on a screen that only knows whether a rate is set, so
+    the job says which it is and every figure follows: no deduction invented,
+    and no setting nagged for that has no answer.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.cash = Workplace.objects.create(
+            user=self.user, name="Butcher", hourly_rate=Decimal("30.00"),
+            paid_in=PaidIn.CASH, pay_cycle=PayCycle.WEEK,
+        )
+        self.banked = Workplace.objects.create(
+            user=self.user, name="AUFS", hourly_rate=Decimal("33.25"),
+            tax_rate=Decimal("10.80"), pay_cycle=PayCycle.WEEK,
+        )
+
+    def _worked(self, workplace, hours=5):
+        start = timezone.now() - timedelta(hours=hours + 1)
+        return Shift.objects.create(
+            user=self.user, workplace=workplace, clock_in=start,
+            clock_out=start + timedelta(hours=hours), status=Shift.Status.COMPLETED,
+        )
+
+    def test_cash_takes_nothing_out(self):
+        pay = self.cash.pay_for(10)
+        self.assertEqual(pay.gross, 300.00)
+        self.assertEqual(pay.tax, 0)
+        self.assertEqual(pay.net, pay.gross)
+
+    def test_a_percentage_left_over_from_before_is_ignored(self):
+        # Switched to cash with a rate already saved: what you are handed is
+        # what you earned, whatever the row still says.
+        Workplace.objects.filter(pk=self.cash.pk).update(tax_rate=Decimal("15.00"))
+        job = Workplace.objects.get(pk=self.cash.pk)
+
+        self.assertFalse(job.withholds)
+        self.assertEqual(job.pay_for(10).tax, 0)
+
+    def test_cash_is_not_the_same_as_a_rate_nobody_has_set(self):
+        unset = Workplace.objects.create(user=self.user, name="Somewhere", hourly_rate=20)
+
+        self.assertFalse(self.cash.withholds)
+        self.assertFalse(unset.withholds)
+        # But only one of them is a job with a tax answer.
+        self.assertTrue(self.cash.in_cash)
+        self.assertFalse(unset.in_cash)
+
+    def test_the_shift_page_says_cash_in_hand_and_shows_no_tax(self):
+        shift = self._worked(self.cash)
+        html = self.client.get(
+            reverse("timeclock:shift_detail", args=[shift.pk])
+        ).content.decode()
+
+        self.assertIn("Cash in hand", html)
+        self.assertNotIn("Tax withheld", html)
+
+    def test_a_cash_week_is_not_nagged_for_a_percentage(self):
+        self._worked(self.cash)
+        html = self.client.get(
+            reverse("timeclock:timesheet"), {"workplace": self.cash.pk}
+        ).content.decode()
+
+        self.assertIn("no tax comes out", html)
+        self.assertNotIn("This is before tax", html)
+
+    def test_a_banked_week_still_shows_its_withholding(self):
+        self._worked(self.banked)
+        html = self.client.get(
+            reverse("timeclock:timesheet"), {"workplace": self.banked.pk}
+        ).content.decode()
+
+        self.assertIn("Tax withheld", html)
+        self.assertNotIn("no tax comes out", html)
+
+    def test_saving_a_job_as_cash_clears_its_withholding(self):
+        # The box is hidden the moment cash is picked, but a form can be sent
+        # without ever seeing that, so the value is dropped server-side too.
+        self.client.post(
+            reverse("timeclock:workplace_edit", args=[self.banked.pk]),
+            {
+                "name": "AUFS", "address": "", "color": self.banked.color,
+                "pay_cycle": PayCycle.WEEK, "paid_in": PaidIn.CASH,
+                "hourly_rate": "33.25", "tax_rate": "10.80",
+                "hours_limit": "", "limit_period": Workplace.Period.FORTNIGHT,
+                "week_starts_on": Weekday.SUNDAY,
+                "fortnight_anchor": timezone.localdate().isoformat(),
+                "month_starts_on": "1",
+            },
+        )
+        self.banked.refresh_from_db()
+
+        self.assertEqual(self.banked.paid_in, PaidIn.CASH)
+        self.assertIsNone(self.banked.tax_rate)
+
+    def test_a_form_that_never_saw_the_field_leaves_the_job_alone(self):
+        self.client.post(
+            reverse("timeclock:workplace_edit", args=[self.cash.pk]),
+            {
+                "name": "Butcher", "address": "", "hourly_rate": "30.00",
+                "hours_limit": "", "limit_period": Workplace.Period.FORTNIGHT,
+                "week_starts_on": Weekday.SUNDAY,
+                "fortnight_anchor": timezone.localdate().isoformat(),
+                "month_starts_on": "1",
+            },
+        )
+        self.cash.refresh_from_db()
+        self.assertEqual(self.cash.paid_in, PaidIn.CASH)
+
+
+class OneWayInTests(TestCase):
+    """
+    One link per thing.
+
+    A workplace already carries how it pays, what it caps you at and which
+    cycle it counts over, so a second page listing every workplace to say the
+    same thing was a second way to reach one thing. The only setting that
+    genuinely spanned every job moved to the foot of the list it belongs with.
+
+    Same rule for the calendar: it is a second view of the timesheet, reached
+    by the toggle that pairs them, so a tab as well would be two ways to one
+    screen.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        Workplace.objects.create(user=self.user, name="AUFS")
+
+    def test_more_no_longer_offers_a_second_way_in(self):
+        html = self.client.get(reverse("timeclock:more")).content.decode()
+        titles = re.findall(r'menu-row__title">([^<]+)<', html)
+        self.assertEqual(titles, ["Add a past shift", "Pay", "Payslips", "Workplaces"])
+
+    def test_the_cycles_form_lives_on_workplaces(self):
+        html = self.client.get(reverse("timeclock:workplaces")).content.decode()
+        self.assertIn("My week &amp; cycles", html)
+        self.assertIn(reverse("timeclock:preferences"), html)
+
+    def test_the_retired_page_hands_you_to_the_one_that_took_it_on(self):
+        response = self.client.get(reverse("timeclock:preferences"))
+        self.assertRedirects(response, reverse("timeclock:workplaces"))
+
+    def test_the_calendar_has_one_way_in_and_not_two(self):
+        # The toggle on the timesheet, and nothing in the tab bar.
+        sheet = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        clock = self.client.get(reverse("timeclock:dashboard")).content.decode()
+        calendar = reverse("timeclock:calendar")
+
+        self.assertEqual(sheet.count(f'href="{calendar}"'), 1)
+        self.assertNotIn(f'href="{calendar}"', clock)
+
+    def test_the_tab_bar_is_three_destinations(self):
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        # Rendered twice — app bar on wide screens, tab bar on phones — from
+        # one template, so the two can never disagree.
+        self.assertEqual(html.count("<span>Clock</span>"), 2)
+        self.assertEqual(html.count("<span>Timesheet</span>"), 2)
+        self.assertEqual(html.count("<span>More</span>"), 2)
+        self.assertNotIn("<span>Calendar</span>", html)
+
+    def test_the_cycles_still_save(self):
+        response = self.client.post(reverse("timeclock:preferences"), {
+            "week_starts_on": Weekday.MONDAY,
+            "fortnight_anchor": "2026-09-07",
+            "month_starts_on": "15",
+        })
+        self.assertRedirects(response, reverse("timeclock:workplaces"))
+        self.assertEqual(TimePreference.for_user(self.user).week_starts_on, Weekday.MONDAY)
+
+
+class SincePaidCardTests(TestCase):
+    """
+    The notepad, as a card.
+
+    Paid whenever the employer gets round to it, there is no week or fortnight
+    to total over — the only span that means anything is the one the payment
+    button clears. The day the money arrives the figure reads zero and starts
+    filling again, which is the whole of how a job like this is kept track of.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate()
+        self.job = Workplace.objects.create(
+            user=self.user, name="Butcher", hourly_rate=Decimal("30.00"),
+            paid_in=PaidIn.CASH, pay_cycle=PayCycle.IRREGULAR,
+        )
+
+    def _worked(self, days_ago, hours=5):
+        start = timezone.make_aware(
+            datetime.combine(self.today - timedelta(days=days_ago), time(9)),
+            timezone.get_current_timezone(),
+        )
+        return Shift.objects.create(
+            user=self.user, workplace=self.job, clock_in=start,
+            clock_out=start + timedelta(hours=hours), status=Shift.Status.COMPLETED,
+        )
+
+    def _card(self):
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        label = re.search(r'summary-card__label">([^<]+)<', html)
+        value = re.search(r'summary-card__value"[^>]*>([^<]+)<', html)
+        sub = re.search(r'summary-card__sub">([^<]*)<', html)
+        return (
+            label.group(1) if label else None,
+            value.group(1) if value else None,
+            sub.group(1) if sub else None,
+        )
+
+    def _paid(self, **post):
+        return self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]), post, follow=True
+        )
+
+    def test_the_card_counts_from_the_last_payment(self):
+        for days in (16, 13, 10):
+            self._worked(days)
+        label, value, _ = self._card()
+
+        self.assertEqual(label, "Since you were paid")
+        self.assertEqual(value, "15h")
+
+    def test_it_says_so_when_nothing_has_been_paid_yet(self):
+        self.assertEqual(self._card()[2], "nothing paid yet")
+
+    def test_being_paid_puts_it_back_to_zero(self):
+        self._worked(10)
+        self._paid()
+        self.assertEqual(self._card()[1], "0m")
+
+    def test_and_it_starts_filling_again(self):
+        self._worked(10)
+        self._paid()
+
+        # Clocked after the money arrived, so it is owed again.
+        after = timezone.now()
+        Shift.objects.create(
+            user=self.user, workplace=self.job, clock_in=after,
+            clock_out=after + timedelta(hours=6), status=Shift.Status.COMPLETED,
+        )
+        self.assertEqual(self._card()[1], "6h")
+
+    def test_undoing_the_payment_puts_the_hours_back(self):
+        self._worked(10)
+        self._worked(8)
+        self._paid()
+        self.client.post(reverse("timeclock:payment_undo", args=[self.job.pk]))
+
+        self.assertEqual(self._card()[1], "10h")
+
+    def test_the_pay_breakdown_is_written_over_the_same_span(self):
+        self._worked(10)
+        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+
+        self.assertIn("Owed since your last payment", html)
+        self.assertNotIn("fortnight\u2019s pay", html)
+        # Cash in hand, so no deduction is invented on it either.
+        self.assertIn("no tax comes out", html)
+
+    def test_a_second_job_gives_the_two_of_them_no_shared_starting_line(self):
+        self._worked(10)
+        Workplace.objects.create(
+            user=self.user, name="AUFS", pay_cycle=PayCycle.FORTNIGHT
+        )
+        labels = re.findall(
+            r'summary-card__label">([^<]+)<',
+            self.client.get(reverse("timeclock:timesheet")).content.decode(),
+        )
+        self.assertEqual(labels, ["This week", "This fortnight"])
+
+    def test_but_filtering_to_it_brings_the_card_back(self):
+        self._worked(10)
+        Workplace.objects.create(
+            user=self.user, name="AUFS", pay_cycle=PayCycle.FORTNIGHT
+        )
+        html = self.client.get(
+            reverse("timeclock:timesheet"), {"workplace": self.job.pk}
+        ).content.decode()
+
+        self.assertEqual(
+            re.findall(r'summary-card__label">([^<]+)<', html), ["Since you were paid"]
+        )

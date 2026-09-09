@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load avatars %}
+{% load avatars ui %}
 {% block title %}Reactions · MyWork{% endblock %}
 
 {% comment %}
@@ -9,12 +9,7 @@
 
 {% block content %}
 
-<a class="backlink" href="{{ back }}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  Back
-</a>
+<a class="backlink" href="{{ back }}">{% icon "back" %} Back</a>
 
 <div class="page-head">
   <h1 class="page-title">{{ total }} reaction{{ total|pluralize }}</h1>

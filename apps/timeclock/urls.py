@@ -29,6 +29,9 @@ urlpatterns = [
     path("workplaces/", views.workplace_list, name="workplaces"),
     path("workplaces/add/", views.workplace_create, name="workplace_create"),
     path("workplaces/<int:pk>/edit/", views.workplace_edit, name="workplace_edit"),
+    # Removing takes the shifts, breaks, payments and payslips with it, so
+    # the screen that counts them comes first and the POST does it.
+    path("workplaces/<int:pk>/remove/", views.workplace_confirm_delete, name="workplace_confirm_delete"),
     path("workplaces/<int:pk>/delete/", views.workplace_delete, name="workplace_delete"),
     path("workplaces/<int:pk>/default/", views.workplace_make_default, name="workplace_default"),
 

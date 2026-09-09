@@ -21,10 +21,11 @@ from django.db.models import Prefetch
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.template.defaultfilters import pluralize
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from accounts.models import Profile
+from apps.accounts.models import Profile
 
 from . import payslip as payslip_reader
 from . import statement as statement_pdf
@@ -38,6 +39,7 @@ from .forms import (
 )
 from .models import (
     color_css,
+    PayCycle,
     Payment,
     Pay,
     Payslip,
@@ -189,6 +191,7 @@ def _period_figures(user, start_date, end_date_exclusive, workplace=None):
     gross = tax = 0.0
     priced = False
     withheld = False
+    all_cash = True
 
     for shift in qs:
         worked += shift.worked_duration
@@ -197,6 +200,7 @@ def _period_figures(user, start_date, end_date_exclusive, workplace=None):
             continue
         priced = True
         withheld = withheld or shift.workplace.withholds
+        all_cash = all_cash and shift.workplace.in_cash
         gross += pay.gross
         tax += pay.tax
 
@@ -204,9 +208,10 @@ def _period_figures(user, start_date, end_date_exclusive, workplace=None):
         return worked, None
 
     money = Pay(round(gross, 2), round(tax, 2), round(gross - tax, 2))
-    # Carried alongside so a screen can tell "nothing withheld" from "we were
-    # never told what is withheld" and prompt for the missing setting.
-    return worked, {"pay": money, "withheld": withheld}
+    # Carried alongside so a screen can tell three things apart: tax we know,
+    # tax nobody has told us about, and cash in hand — which has no tax to be
+    # told about and must not be nagged for one.
+    return worked, {"pay": money, "withheld": withheld, "cash": all_cash}
 
 
 def _period_total(user, start_date, end_date_exclusive, workplace=None):
@@ -258,7 +263,23 @@ def _run(workplace, shifts, start=None, end=None, closed=False):
     worked = sum((shift.worked_duration for shift in shifts), timedelta())
     hours = worked.total_seconds() / 3600
     payday = workplace.payday_for(end) if end else None
+
+    # What the button asks before it draws the line. Written here because the
+    # dates are here; the template has one button for all three cases and no
+    # business reassembling this out of filters.
+    if start and payday:
+        confirm = (
+            f"Mark the {start.day} {start:%b} \u2013 {payday.day} {payday:%b} run "
+            f"at {workplace.name} as paid?"
+        )
+    else:
+        confirm = (
+            f"Mark {hours:.1f}h at {workplace.name} as paid? "
+            "The count starts again from now."
+        )
+
     return {
+        "confirm": confirm,
         "start": start,
         "end": end,
         "payday": payday,
@@ -498,13 +519,117 @@ def _limits_for(user, workplace=None):
     ]
 
 
+# Which totals are worth showing, for each way of being paid.
+#
+# A period you are never paid over is a number with nothing to check it
+# against. Paid weekly, a fortnight's hours answer no question you have; paid
+# monthly, every one of the three is a step on the way to the figure that
+# arrives. So the cards stop where the pay cycle does.
+#
+# A job that pays whenever it likes stops at the week. It has no fortnight and
+# no month of its own — what is owed on it is a running total that ends when
+# somebody hands you money, and that figure lives on the Pay screen. Letting
+# it claim all three periods meant one such job dragged a month card onto a
+# page where nothing was ever paid monthly.
+CYCLE_PERIODS = {
+    PayCycle.WEEK: ("week",),
+    PayCycle.FORTNIGHT: ("week", "fortnight"),
+    PayCycle.MONTH: ("week", "fortnight", "month"),
+    PayCycle.IRREGULAR: ("week",),
+}
+
+# Widest last, so a set of periods can be ordered and its widest read off.
+PERIOD_ORDER = ("week", "fortnight", "month")
+
+PERIOD_LABELS = {"week": "This week", "fortnight": "This fortnight", "month": "This month"}
+
+
+def _periods_shown(user, workplace=None):
+    """
+    Which totals the timesheet should carry.
+
+    Filtered to one job, exactly the periods that job is paid over — pick
+    weekly and you get the week, and nothing else is offered, because nothing
+    else is ever paid to you.
+
+    Unfiltered, the periods of the jobs you actually have, together. Two jobs
+    paid two ways both need their own figure, and neither invents a period
+    nobody is paid over: a weekly job beside a fortnightly one comes to a week
+    and a fortnight, never a month.
+    """
+    if workplace is not None:
+        cycles = [workplace.pay_cycle]
+    else:
+        cycles = [
+            w.pay_cycle
+            for w in Workplace.objects.filter(user=user, is_archived=False)
+        ] or [PayCycle.IRREGULAR]
+
+    wanted = set()
+    for cycle in cycles:
+        wanted.update(CYCLE_PERIODS.get(cycle, CYCLE_PERIODS[PayCycle.IRREGULAR]))
+    return [period for period in PERIOD_ORDER if period in wanted]
+
+
+def _sole_workplace(user):
+    """The user's only workplace, or None if they have more than one."""
+    active = list(Workplace.objects.filter(user=user, is_archived=False))
+    return active[0] if len(active) == 1 else None
+
+
+def _since_paid(workplace):
+    """
+    What has piled up at this job since the money last arrived.
+
+    The notepad, as a card. There is no cycle to total over, so the only span
+    that means anything is the one the payment button clears: everything not
+    yet paid for. The day you are paid it reads zero and starts filling again,
+    which is the whole of how a job like this is kept track of.
+    """
+    state = _pay_state(workplace)
+    run = state["current"]
+    since = state["since"]
+    today = timezone.localdate()
+
+    if since is not None:
+        start = timezone.localtime(since).date()
+        sub = f"since you were paid, {start.day} {start:%b}"
+    else:
+        unpaid = _unpaid_shifts(workplace)
+        start = (
+            min(timezone.localtime(s.clock_in).date() for s in unpaid)
+            if unpaid else today
+        )
+        sub = "nothing paid yet" if not unpaid else f"from {start.day} {start:%b}"
+
+    return {
+        "key": "since_paid",
+        "label": "Since you were paid",
+        "total": run["worked"],
+        "pay": (
+            {
+                "pay": run["pay"],
+                "withheld": workplace.withholds,
+                "cash": workplace.in_cash,
+            }
+            if run["pay"] else None
+        ),
+        "start": start,
+        "end": today,
+        "sub": sub,
+        "pay_title": "Owed since your last payment",
+    }
+
+
 def _summary(user, workplace=None):
     """
-    The week / fortnight / month figures shown as cards on the timesheet.
+    The figures shown as cards on the timesheet.
 
-    Every one of the three runs from a start the user chose. Filtered to a
-    workplace, they follow that job's own cycle so the cards line up with the
-    limit bar underneath them; unfiltered, they follow the account's.
+    Every one runs from a start the user chose. Filtered to a workplace, they
+    follow that job's own cycle so the cards line up with the limit bar
+    underneath them; unfiltered, they follow the account's.
+
+    How many of them there are follows how you are paid — see CYCLE_PERIODS.
     """
     pref = TimePreference.for_user(user)
     cycle = workplace or pref
@@ -523,6 +648,41 @@ def _summary(user, workplace=None):
     # far, the way the week and fortnight cards read.
     month, month_pay = _period_figures(user, m_start, tomorrow, workplace)
 
+    def span(key, label, total, pay, start, end):
+        return {
+            "key": key, "label": label, "total": total, "pay": pay,
+            "start": start, "end": end,
+            "sub": f"from {start.day} {start:%b}",
+            "pay_title": f"{label}\u2019s pay",
+        }
+
+    spans = {
+        "week": span("week", PERIOD_LABELS["week"], week, week_pay,
+                     w_start, w_start + timedelta(days=6)),
+        "fortnight": span("fortnight", PERIOD_LABELS["fortnight"], fortnight,
+                          fortnight_pay, f_start, f_start + timedelta(days=13)),
+        "month": span("month", PERIOD_LABELS["month"], month, month_pay, m_start,
+                      next_month_start(today, cycle.month_starts_on) - timedelta(days=1)),
+    }
+
+    shown = _periods_shown(user, workplace)
+    cards = [spans[key] for key in shown]
+    period = spans[shown[-1]]
+
+    # A job that pays whenever it likes has no week or fortnight worth
+    # showing. The figure that matters there is what has piled up since the
+    # money last arrived — the one that goes to zero the day it arrives again
+    # — so it replaces the cards outright.
+    #
+    # Only ever for one job at a time: two jobs were last paid on two
+    # different days and cannot share a starting line. So it stands in when
+    # the page is looking at a single such job, which includes "All" for
+    # somebody who has only the one.
+    solo = workplace or _sole_workplace(user)
+    if solo is not None and not solo.pays_on_a_cycle:
+        period = _since_paid(solo)
+        cards = [period]
+
     return {
         "today": _period_total(user, today, tomorrow, workplace),
         "week": week,
@@ -537,6 +697,10 @@ def _summary(user, workplace=None):
         "month_pay": month_pay,
         "month_start": m_start,
         "month_end": next_month_start(today, cycle.month_starts_on) - timedelta(days=1),
+        # The cards to draw, and the one the pay breakdown is written over —
+        # the longest of them, which is the period the money arrives in.
+        "cards": cards,
+        "period": period,
         "pref": pref,
         "limits": _limits_for(user, workplace),
     }
@@ -567,6 +731,10 @@ def dashboard(request):
     """
     The clock screen. Shows one of three states — ready to clock in, working,
     or on a break — and the buttons that move between them.
+
+    That, where you are, and the hours cap you are working against. Nothing
+    else: a screen you open to press one button is not the place for figures
+    you read, and the timesheet is one tap away for those.
     """
     workplaces = list(
         Workplace.objects.filter(user=request.user, is_archived=False)
@@ -591,25 +759,16 @@ def dashboard(request):
             if b.break_end:
                 banked_break += b.break_end - b.break_start
 
-    today = timezone.localdate()
-    today_shifts = list(
-        _shifts_for(request.user).filter(
-            clock_in__range=_day_bounds(today, today + timedelta(days=1))
-        )
-    )
-
     return render(request, "timeclock/dashboard.html", {
         "shift": shift,
         "running_break": running_break,
         "workplaces": workplaces,
         "selected_workplace": selected,
-        "today_shifts": today_shifts,
-        # Counts the shift in progress too, so this agrees with the week
-        # figure beside it rather than sitting on 0m all morning.
-        "today_total": _total_worked(today_shifts),
-        "summary": _summary(request.user),
-        # The bar under the clock is for the job in front of you, not a
-        # total of every job.
+        # The one figure the clock screen keeps: the cap you are working
+        # against at the job in front of you, which is what you want to know
+        # before pressing the button rather than after. Today's hours and the
+        # week's live on the timesheet, one tap away, and repeating them here
+        # made a clock into a dashboard.
         "limit": _limit_for(request.user, selected),
         "target_hours": SHIFT_TARGET_HOURS,
         # Flags a shift that's run past the target — nearly always someone who
@@ -1104,8 +1263,14 @@ def shift_delete(request, pk):
 
 @login_required
 def workplace_list(request):
-    workplaces = Workplace.objects.filter(user=request.user, is_archived=False)
-    return render(request, "timeclock/workplace_list.html", {"workplaces": workplaces})
+    """
+    Your jobs — and, at the foot of them, where your own cycles begin.
+
+    One screen for everything about where you work. How a job pays, what it
+    caps you at and which cycle it counts over all live on the job itself, so
+    there is one way in to each of them and no second page repeating the list.
+    """
+    return _workplaces_page(request)
 
 
 @login_required
@@ -1151,20 +1316,74 @@ def workplace_edit(request, pk):
     return render(request, "timeclock/workplace_form.html", {"form": form, "workplace": workplace})
 
 
+def _removable(request, pk):
+    """
+    The workplace being removed, and why it can't be, if it can't be.
+
+    Clocking out first is the one hard stop: removing the job you are standing
+    in the middle of a shift at would delete the shift out from under the
+    running clock.
+    """
+    workplace = get_object_or_404(Workplace, pk=pk, user=request.user)
+    clocked_in = Shift.objects.filter(
+        user=request.user, workplace=workplace, status__in=Shift.OPEN_STATUSES
+    ).exists()
+    return workplace, clocked_in
+
+
+@login_required
+def workplace_confirm_delete(request, pk):
+    """
+    What removing this workplace would take with it.
+
+    A screen rather than a pop-up, because the answer is a list of counts and
+    a pop-up can only hold a sentence. Everything on it is irreversible, so it
+    is worth reading before it is agreed to.
+    """
+    workplace, clocked_in = _removable(request, pk)
+    if clocked_in:
+        messages.error(request, "You're clocked in at that workplace. Clock out first.")
+        return redirect("timeclock:workplaces")
+
+    return render(request, "timeclock/workplace_confirm_delete.html", {
+        "workplace": workplace,
+        "going": workplace.belongings(),
+    })
+
+
 @require_POST
 @login_required
 def workplace_delete(request, pk):
-    workplace = get_object_or_404(Workplace, pk=pk, user=request.user, is_archived=False)
+    """
+    Remove a workplace and everything recorded against it.
 
-    if Shift.objects.filter(user=request.user, workplace=workplace, status__in=Shift.OPEN_STATUSES).exists():
+    No archiving. Asked to remove a job, MyWork removes it — the shifts, the
+    breaks, the payments and the payslips — because a list of jobs quietly
+    keeping the one you deleted is a list you stop trusting.
+    """
+    workplace, clocked_in = _removable(request, pk)
+    if clocked_in:
         messages.error(request, "You're clocked in at that workplace. Clock out first.")
         return redirect("timeclock:workplaces")
 
     name = workplace.name
-    if workplace.delete_or_archive() == "archived":
-        messages.success(request, f"Removed {name}. Its past shifts are still on your timesheet.")
-    else:
-        messages.success(request, f"Deleted {name}.")
+    going = workplace.belongings()
+    workplace.remove()
+
+    # The clock remembers which job you picked last. That one is gone.
+    if str(request.session.get(SESSION_WORKPLACE)) == str(pk):
+        request.session.pop(SESSION_WORKPLACE, None)
+
+    told = [f"{going['shifts']} shift{pluralize(going['shifts'])}"] if going["shifts"] else []
+    if going["payments"]:
+        told.append(f"{going['payments']} payment{pluralize(going['payments'])}")
+    if going["payslips"]:
+        told.append(f"{going['payslips']} payslip{pluralize(going['payslips'])}")
+
+    messages.success(
+        request,
+        f"Removed {name} and {', '.join(told)}." if told else f"Removed {name}.",
+    )
     return redirect("timeclock:workplaces")
 
 
@@ -1183,28 +1402,36 @@ def workplace_make_default(request, pk):
 # ---------------------------------------------------------------------------
 
 @login_required
+def _workplaces_page(request, cycles=None):
+    """The Workplaces screen: your jobs, and where your own cycles begin."""
+    return render(request, "timeclock/workplace_list.html", {
+        "workplaces": Workplace.objects.filter(user=request.user, is_archived=False),
+        "cycles": cycles or TimePreferenceForm(instance=TimePreference.for_user(request.user)),
+    })
+
+
+@login_required
 def preferences(request):
     """
-    The hours-limit screen. Each cap belongs to a workplace and is edited
-    there, so this lists them side by side and keeps only the settings that
-    genuinely span every workplace.
+    Where your own week, fortnight and month begin.
+
+    No screen of its own any more. A workplace already carries how it pays and
+    what it caps you at, so a second page listing every workplace to say the
+    same thing was a second way to reach one thing — and the only setting that
+    genuinely spanned every job was this one. It now sits in a panel at the
+    foot of Workplaces, and this is just where that form posts.
     """
+    if request.method != "POST":
+        return redirect("timeclock:workplaces")
+
     pref = TimePreference.for_user(request.user)
+    form = TimePreferenceForm(request.POST, instance=pref)
+    if not form.is_valid():
+        return _workplaces_page(request, cycles=form)
 
-    if request.method == "POST":
-        form = TimePreferenceForm(request.POST, instance=pref)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Preferences saved.")
-            return redirect("timeclock:preferences")
-    else:
-        form = TimePreferenceForm(instance=pref)
-
-    return render(request, "timeclock/preferences.html", {
-        "form": form,
-        "limits": _limits_for(request.user),
-        "workplaces": Workplace.objects.filter(user=request.user, is_archived=False),
-    })
+    form.save()
+    messages.success(request, "Saved where your week, fortnight and month begin.")
+    return redirect("timeclock:workplaces")
 
 
 @login_required

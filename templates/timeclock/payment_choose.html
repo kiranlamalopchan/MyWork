@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}What did this payment cover? · MyWork{% endblock %}
 
 {% comment %}
@@ -21,12 +21,7 @@
 
 {% block content %}
 
-<a class="backlink" href="{% url 'timeclock:payments' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  Pay
-</a>
+<a class="backlink" href="{% url 'timeclock:payments' %}">{% icon "back" %} Pay</a>
 
 <div class="page-head">
   <h1 class="page-title">What did it cover?</h1>
@@ -42,9 +37,7 @@
           onsubmit="return confirm('Mark everything up to now as paid at {{ workplace.name|escapejs }}?');">
       {% csrf_token %}
       <button type="submit" class="btn btn--primary btn--block">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M20 6 9 17l-5-5"/>
-        </svg>
+        {% icon "check" %}
         Everything up to now — {{ state.current.hours|floatformat:1 }}h{% if state.current.pay %} · ${{ state.current.pay.gross|floatformat:2 }}{% endif %}
       </button>
     </form>
@@ -76,9 +69,7 @@
       </div>
     </div>
     <button type="submit" class="btn btn--primary btn--block">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M20 6 9 17l-5-5"/>
-      </svg>
+      {% icon "check" %}
       Mark paid up to this date
     </button>
   </form>
@@ -117,9 +108,7 @@
 {% else %}
   <div class="empty">
     <div class="empty__icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M20 6 9 17l-5-5"/>
-      </svg>
+      {% icon "check" width="1.8" %}
     </div>
     <div class="empty__title">Nothing outstanding</div>
     <div class="empty__sub">Every shift at {{ workplace.name }} has been paid for.</div>

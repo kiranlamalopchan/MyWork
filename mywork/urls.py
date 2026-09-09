@@ -22,14 +22,14 @@ urlpatterns = [
     path("register/", views.register, name="register"),
     # Your photo and your name — one level up from either app, because they
     # are true of you across the whole of MyWork.
-    path("profile/", include("accounts.urls")),
+    path("profile/", include("apps.accounts.urls")),
 
     # The shared notice board behind the hub
-    path("notices/", include("noticeboard.urls")),
+    path("notices/", include("apps.noticeboard.urls")),
 
     # The two apps
-    path("plu/", include("plu.urls")),
-    path("timesheet/", include("timeclock.urls")),
+    path("plu/", include("apps.plu.urls")),
+    path("timesheet/", include("apps.timeclock.urls")),
 ]
 
 # Uploaded profile photos. In production the web server serves MEDIA_ROOT

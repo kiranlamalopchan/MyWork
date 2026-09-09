@@ -9,7 +9,7 @@ photo while it loads and shows through a transparent PNG.
 
 This lives in `accounts` because it describes a person, not a notice. The
 notice board imported these from its own models for a long time and still can:
-`noticeboard.models` re-exports both names.
+`apps.noticeboard.models` re-exports both names.
 """
 
 

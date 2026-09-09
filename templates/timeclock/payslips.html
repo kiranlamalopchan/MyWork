@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}Payslips · MyWork{% endblock %}
 
 {% comment %}
@@ -11,12 +11,7 @@
 
 {% block content %}
 
-<a class="backlink" href="{% url 'timeclock:more' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  More
-</a>
+<a class="backlink" href="{% url 'timeclock:more' %}">{% icon "back" %} More</a>
 
 <div class="page-head">
   <h1 class="page-title">Payslips</h1>
@@ -68,9 +63,7 @@
           {% if slip.needs_checking %}
             <span class="slip__flag" title="Not confirmed yet">check</span>
           {% endif %}
-          <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6"/>
-          </svg>
+          {% icon "chev" class="result__chev" %}
         </a>
       </li>
     {% endfor %}
@@ -80,9 +73,7 @@
   <div class="card">
     <div class="empty">
       <div class="empty__icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M14 3v5h5"/><path d="M19 21H5V3h9l5 5v13Z"/><path d="M9 13h6M9 17h4"/>
-        </svg>
+        {% icon "doc" width="1.8" %}
       </div>
       <div class="empty__title">No payslips yet</div>
       <div class="empty__sub">

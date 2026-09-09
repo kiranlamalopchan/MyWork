@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}MyWork{% endblock %}
 
 {% block content %}
@@ -16,9 +17,7 @@
 
   <a class="app-card" href="{% url 'plu:list' %}">
     <span class="app-card__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
-      </svg>
+      {% icon "search" width="1.8" %}
     </span>
     <span class="app-card__title">PLU</span>
     <span class="app-card__sub">Product codes</span>
@@ -26,9 +25,7 @@
 
   <a class="app-card" href="{% url 'timeclock:dashboard' %}">
     <span class="app-card__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-      </svg>
+      {% icon "clock" width="1.8" %}
     </span>
     <span class="app-card__title">TimeSheet</span>
     <span class="app-card__sub">Shifts &amp; hours</span>
@@ -45,9 +42,7 @@
 <section class="board" aria-labelledby="board-title">
   <div class="board__head">
     <h2 class="board__title" id="board-title">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 5h16v12H8l-4 4Z"/>
-      </svg>
+      {% icon "chat" %}
       Notice board
     </h2>
     <div class="board__tools">
@@ -63,9 +58,7 @@
   {% if notice_total > notices|length %}
     <a class="board__more" href="{% url 'notices:board' %}">
       See all {{ notice_total }} notices
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="m9 18 6-6-6-6"/>
-      </svg>
+      {% icon "chev" %}
     </a>
   {% endif %}
 </section>

@@ -118,6 +118,21 @@ class LimitPeriod(models.TextChoices):
     MONTH = "MONTH", "Per month"
 
 
+class PaidIn(models.TextChoices):
+    """
+    How the money reaches you, which decides whether tax is part of the story.
+
+    Paid into an account there is a payslip behind it and a percentage taken
+    out, and every figure MyWork shows is worth splitting into gross and
+    take-home. Paid cash in hand there is no withholding to split off: what
+    you are handed is what you earned, and showing "before tax" beside it
+    would be inventing a deduction nobody made.
+    """
+
+    BANK = "BANK", "Into my account, with tax taken out"
+    CASH = "CASH", "Cash in hand"
+
+
 class PayCycle(models.TextChoices):
     """
     How a job pays, which is not the same question as how often you work.
@@ -223,6 +238,13 @@ class Workplace(models.Model):
     hourly_rate = models.DecimalField(
         max_digits=7, decimal_places=2, null=True, blank=True,
         help_text="Optional. Used to estimate pay alongside your hours.",
+    )
+    # Cash in hand or into an account. Cash has no withholding to work out, so
+    # everything about tax drops away for that job rather than sitting there
+    # unanswered — see PaidIn.
+    paid_in = models.CharField(
+        max_length=4, choices=PaidIn.choices, default=PaidIn.BANK,
+        verbose_name="How you're paid",
     )
     # The share of pay this employer withholds. It sits here rather than on
     # the account because withholding is per employer: someone claiming the
@@ -401,9 +423,19 @@ class Workplace(models.Model):
     # ---- pay -----------------------------------------------------------
 
     @property
+    def in_cash(self):
+        return self.paid_in == PaidIn.CASH
+
+    @property
     def withholds(self):
-        """Whether this job's tax is known, as opposed to simply not set."""
-        return self.tax_rate is not None
+        """
+        Whether this job's tax is known, as opposed to simply not set.
+
+        Cash is known: it is nothing. That is a different answer from "nobody
+        has told us yet", and the screens say so differently — one is a fact
+        about the job, the other is a setting still to fill in.
+        """
+        return not self.in_cash and self.tax_rate is not None
 
     def pay_for(self, hours):
         """
@@ -414,7 +446,10 @@ class Workplace(models.Model):
         if self.hourly_rate is None:
             return None
         gross = round(float(self.hourly_rate) * hours, 2)
-        tax = round(gross * float(self.tax_rate or 0) / 100, 2)
+        # Cash in hand: what you are handed is what you earned. No rate is
+        # applied even if one was saved before the job was marked cash.
+        rate = 0 if self.in_cash else float(self.tax_rate or 0)
+        tax = round(gross * rate / 100, 2)
         return Pay(gross, tax, round(gross - tax, 2))
 
     def limit_window(self, day=None):
@@ -459,21 +494,55 @@ class Workplace(models.Model):
             self.is_default = True
             self.save(update_fields=["is_default"])
 
-    @transaction.atomic
-    def delete_or_archive(self):
+    def belongings(self):
         """
-        Remove the workplace, keeping any timesheet history intact.
+        What would go with this workplace if it were removed.
 
-        Returns "deleted" when it was genuinely removed (nothing referenced
-        it) or "archived" when it had shifts and was hidden instead.
+        Counted rather than described, and shown before anything happens: a
+        year of shifts and a figure in hours is the difference between a
+        decision and a mistake, and it is the only chance to tell them apart.
         """
-        if self.shifts.exists():
-            self.is_archived = True
-            self.is_default = False
-            self.save(update_fields=["is_archived", "is_default"])
-            return "archived"
+        shifts = list(self.shifts.prefetch_related("breaks"))
+        days = sorted(timezone.localtime(s.clock_in).date() for s in shifts)
+        return {
+            "shifts": len(shifts),
+            "worked": sum(
+                (s.worked_duration for s in shifts if s.clock_out), timedelta()
+            ),
+            "breaks": sum(s.breaks.count() for s in shifts),
+            "payments": self.payments.count(),
+            "payslips": self.payslips.count(),
+            "first": days[0] if days else None,
+            "last": days[-1] if days else None,
+        }
+
+    @transaction.atomic
+    def remove(self):
+        """
+        Take this workplace and everything recorded against it.
+
+        Removing a job used to hide it and keep its shifts, so the timesheet
+        could go on showing the name each one was worked under. That is a good
+        answer to a different question. Asked to remove a workplace, this
+        removes it: the shifts, the breaks inside them, the payments drawn
+        under them and the payslips filed against them, files on disk
+        included. Nothing is left pointing at a job that no longer exists.
+
+        There is no undo, which is why the screen in front of it counts every
+        one of those things out loud first.
+        """
+        # A FileField forgets the row, not the file. These are payslips —
+        # somebody's name, address and bank details — so they go properly.
+        for slip in self.payslips.all():
+            if slip.file:
+                slip.file.delete(save=False)
+
+        # Shifts point here with SET_NULL: left alone they would survive as
+        # work done nowhere in particular, which is not what removing a job
+        # means. Their breaks cascade from them, as payments and payslips do
+        # from this.
+        self.shifts.all().delete()
         self.delete()
-        return "deleted"
 
 
 class Shift(models.Model):

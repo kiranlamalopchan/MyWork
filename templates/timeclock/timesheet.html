@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}Timesheet · MyWork{% endblock %}
 
 {% block content %}
@@ -53,69 +53,71 @@
 {% endcomment %}
 <div class="sheet" id="sheet" data-live-skeleton="rows">
 
-{# ---- Totals ---------------------------------------------------------- #}
-<div class="summary-grid summary-grid--3">
-  <div class="summary-card">
-    <div class="summary-card__label">This week</div>
-    <div class="summary-card__value" data-tally="{{ summary.week|seconds }}">{{ summary.week|hm|default:"0m" }}</div>
-    <div class="summary-card__sub">from {{ summary.week_start|date:"j M" }}</div>
-    {% if summary.week_pay %}
-      <div class="summary-card__pay">${{ summary.week_pay.pay.net|floatformat:2 }}</div>
-    {% endif %}
-  </div>
-  <div class="summary-card">
-    <div class="summary-card__label">This fortnight</div>
-    <div class="summary-card__value" data-tally="{{ summary.fortnight|seconds }}">{{ summary.fortnight|hm|default:"0m" }}</div>
-    <div class="summary-card__sub">from {{ summary.fortnight_start|date:"j M" }}</div>
-    {% if summary.fortnight_pay %}
-      <div class="summary-card__pay">${{ summary.fortnight_pay.pay.net|floatformat:2 }}</div>
-    {% endif %}
-  </div>
-  <div class="summary-card">
-    <div class="summary-card__label">This month</div>
-    <div class="summary-card__value" data-tally="{{ summary.month|seconds }}">{{ summary.month|hm|default:"0m" }}</div>
-    <div class="summary-card__sub">from {{ summary.month_start|date:"j M" }}</div>
-    {% if summary.month_pay %}
-      <div class="summary-card__pay">${{ summary.month_pay.pay.net|floatformat:2 }}</div>
-    {% endif %}
-  </div>
+{% comment %}
+  ---- Totals --------------------------------------------------------------
+
+  As many as you are paid over, and no more. Paid weekly, a fortnight's hours
+  answer no question you have; paid monthly, all three are steps on the way to
+  the figure that turns up. Paid whenever your employer gets round to it,
+  neither a week nor a fortnight means anything and the only figure worth
+  showing is what has piled up since the money last arrived — the one that
+  goes back to zero the day it arrives again.
+
+  The view decides which — see CYCLE_PERIODS and _since_paid — and the grid
+  widens to fit however many that leaves.
+{% endcomment %}
+<div class="summary-grid summary-grid--{{ summary.cards|length }}">
+  {% for card in summary.cards %}
+    <div class="summary-card">
+      <div class="summary-card__label">{{ card.label }}</div>
+      <div class="summary-card__value" data-tally="{{ card.total|seconds }}">{{ card.total|hm|default:"0m" }}</div>
+      <div class="summary-card__sub">{{ card.sub }}</div>
+      {% if card.pay %}
+        <div class="summary-card__pay">${{ card.pay.pay.net|floatformat:2 }}</div>
+      {% endif %}
+    </div>
+  {% endfor %}
 </div>
 
 {% comment %}
   The pay period, laid out the way a payslip is so the two can be checked
-  against each other line by line. The fortnight is the one that matters:
-  it's the period the money actually arrives in.
+  against each other line by line — and written over the period the money
+  actually arrives in, so a weekly job is totalled by the week and a monthly
+  one by the month rather than everybody being shown a fortnight.
 {% endcomment %}
-{% if summary.fortnight_pay %}
+{% if summary.period.pay %}
   <div class="card">
     <div class="card__pad">
       <div class="pay-head">
-        <h2 class="pay-head__title">This fortnight’s pay</h2>
-        <span class="pay-head__dates">{{ summary.fortnight_start|date:"j M" }} – {{ summary.fortnight_end|date:"j M" }}</span>
+        <h2 class="pay-head__title">{{ summary.period.pay_title }}</h2>
+        <span class="pay-head__dates">{{ summary.period.start|date:"j M" }} – {{ summary.period.end|date:"j M" }}</span>
       </div>
 
       <div class="ledger">
         <div class="ledger__row">
           <span>Hours worked</span>
-          <span class="ledger__val">{{ summary.fortnight|decimal_hours }}</span>
+          <span class="ledger__val">{{ summary.period.total|decimal_hours }}</span>
         </div>
         <div class="ledger__row">
           <span>Gross earnings</span>
-          <span class="ledger__val">${{ summary.fortnight_pay.pay.gross|floatformat:2 }}</span>
+          <span class="ledger__val">${{ summary.period.pay.pay.gross|floatformat:2 }}</span>
         </div>
-        {% if summary.fortnight_pay.withheld %}
+        {% if summary.period.pay.withheld %}
           <div class="ledger__row">
             <span>Tax withheld</span>
-            <span class="ledger__val ledger__val--minus">−${{ summary.fortnight_pay.pay.tax|floatformat:2 }}</span>
+            <span class="ledger__val ledger__val--minus">−${{ summary.period.pay.pay.tax|floatformat:2 }}</span>
           </div>
         {% endif %}
         <div class="ledger__row ledger__row--total">
-          <span>{% if summary.fortnight_pay.withheld %}Take-home{% else %}Total{% endif %}</span>
-          <span class="ledger__val">${{ summary.fortnight_pay.pay.net|floatformat:2 }}</span>
+          <span>{% if summary.period.pay.withheld %}Take-home{% else %}Total{% endif %}</span>
+          <span class="ledger__val">${{ summary.period.pay.pay.net|floatformat:2 }}</span>
         </div>
       </div>
 
-      {% if not summary.fortnight_pay.withheld %}
+      {% if summary.period.pay.cash %}
+        {# Cash in hand: there is no deduction to invent, and nothing to set. #}
+        <p class="pay-note">Cash in hand — no tax comes out, so this is what you earned.</p>
+      {% elif not summary.period.pay.withheld %}
         <p class="pay-note">
           This is before tax. Add the percentage withheld on a payslip to your
           workplace and every figure here becomes take-home.
@@ -150,9 +152,7 @@
         <span class="day__meta">
           <span class="day__count">{{ day.shifts|length }} shift{{ day.shifts|length|pluralize }}</span>
           <span class="day__total" data-tally="{{ day.total|seconds }}">{{ day.total|hm|default:"0m" }}</span>
-          <svg class="day__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m6 9 6 6 6-6"/>
-          </svg>
+          {% icon "chev-down" class="day__chev" width="2.2" %}
         </span>
       </summary>
 
@@ -207,9 +207,7 @@
                 </span>
               </span>
 
-              <svg class="result__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m9 18 6-6-6-6"/>
-              </svg>
+              {% icon "chev" class="result__chev" %}
             </a>
           </li>
         {% endfor %}
@@ -237,9 +235,7 @@
   <div class="card">
     <div class="empty">
       <div class="empty__icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-        </svg>
+        {% icon "clock" width="1.8" %}
       </div>
       <div class="empty__title">No shifts yet</div>
       <div class="empty__sub">

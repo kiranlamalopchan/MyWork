@@ -1,0 +1,12 @@
+{% comment %}
+  Where you are clocked in, or about to be. Three states show it and all three
+  show it the same way, so it is written once.
+
+  Takes: name.
+{% endcomment %}
+<div class="clock__where">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>
+  </svg>
+  {{ name }}
+</div>

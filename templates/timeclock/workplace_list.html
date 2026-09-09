@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}Workplaces · MyWork{% endblock %}
 
 {% block content %}
@@ -31,6 +31,7 @@
               {% if w.is_default %}<span class="chip__tag">Default</span> {% endif %}
               {% if w.address %}{{ w.address }}{% else %}No address{% endif %}
               {% if w.hourly_rate %} · ${{ w.hourly_rate|floatformat:2 }}/hr{% endif %}
+              {% if w.in_cash %} · cash{% elif w.tax_rate %} · {{ w.tax_rate|floatformat:"-2" }}% tax{% endif %}
               {% if w.hours_limit %} · {{ w.hours_limit|floatformat:"-2" }}h/{{ w.period_label }}{% endif %}
             </div>
           </div>
@@ -48,20 +49,18 @@
             {% endif %}
 
             <a class="icon-btn icon-btn--sm" href="{% url 'timeclock:workplace_edit' w.pk %}" title="Edit" aria-label="Edit {{ w.name }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-              </svg>
+              {% icon "pencil" %}
             </a>
 
-            <form method="post" action="{% url 'timeclock:workplace_delete' w.pk %}"
-                  onsubmit="return confirm('Remove {{ w.name|escapejs }}? Past shifts stay on your timesheet.');">
-              {% csrf_token %}
-              <button type="submit" class="icon-btn icon-btn--sm icon-btn--danger" title="Remove" aria-label="Remove {{ w.name }}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>
-                </svg>
-              </button>
-            </form>
+            {% comment %}
+              To a screen that counts what would go, not to a pop-up that
+              can only ask. Removing takes the shifts, the breaks, the
+              payments and the payslips, and there is no undo.
+            {% endcomment %}
+            <a class="icon-btn icon-btn--sm icon-btn--danger" title="Remove" aria-label="Remove {{ w.name }}"
+               href="{% url 'timeclock:workplace_confirm_delete' w.pk %}">
+              {% icon "trash" %}
+            </a>
           </div>
         </div>
       </li>
@@ -71,9 +70,7 @@
   <div class="card">
     <div class="empty">
       <div class="empty__icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/>
-        </svg>
+        {% icon "home" width="1.8" %}
       </div>
       <div class="empty__title">No workplaces yet</div>
       <div class="empty__sub">Add the places you work so shifts can be recorded against them.</div>
@@ -81,11 +78,35 @@
   </div>
 {% endif %}
 
+{% comment %}
+  Where your own week, fortnight and month begin — the only setting that
+  genuinely spans every job, so it sits at the foot of the list of them rather
+  than on a page of its own. Each workplace's own cycle, cap and pay schedule
+  are on that workplace, which is the one way in to any of them.
+{% endcomment %}
+<details class="panel">
+  <summary class="panel__head">
+    <span class="panel__title">My week &amp; cycles</span>
+    <span class="panel__hint">from {{ cycles.instance.get_week_starts_on_display }}</span>
+    {% icon "chev-down" class="panel__chev" width="2.2" %}
+  </summary>
+
+  <div class="panel__body">
+    <p class="muted text-sm" style="margin-top:0">
+      These drive the totals that span every workplace, and the calendar grid.
+      A workplace's own limit uses its own cycle, set on that workplace.
+    </p>
+    <form method="post" action="{% url 'timeclock:preferences' %}" novalidate>
+      {% csrf_token %}
+      {% include "timeclock/_form_fields.html" with form=cycles %}
+      <button type="submit" class="btn btn--primary btn--block">Save cycles</button>
+    </form>
+  </div>
+</details>
+
 <div class="detail-actions">
   <a class="btn btn--primary" href="{% url 'timeclock:workplace_create' %}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-      <path d="M12 5v14M5 12h14"/>
-    </svg>
+    {% icon "plus" %}
     Add workplace
   </a>
 </div>

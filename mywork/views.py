@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import redirect, render
 
-from noticeboard.views import board_context, recent_for_hub
+from apps.noticeboard.views import board_context, recent_for_hub
 
 
 @login_required

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load timeclock_extras %}
+{% load timeclock_extras ui %}
 {% block title %}Pay · MyWork{% endblock %}
 
 {% comment %}
@@ -17,12 +17,7 @@
 
 {% block content %}
 
-<a class="backlink" href="{% url 'timeclock:more' %}">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-  More
-</a>
+<a class="backlink" href="{% url 'timeclock:more' %}">{% icon "back" %} More</a>
 
 <div class="page-head">
   <h1 class="page-title">Pay</h1>
@@ -55,17 +50,7 @@
               <span class="run__hours">{{ run.hours|floatformat:1 }}<span class="run__unit">h</span></span>
               {% if run.pay %}<span class="run__pay">${{ run.pay.gross|floatformat:2 }}</span>{% endif %}
             </div>
-            <form method="post" action="{% url 'timeclock:payment_record' row.workplace.pk %}"
-                  onsubmit="return confirm('Mark the {{ run.start|date:"j M" }} – {{ run.payday|date:"j M" }} run at {{ row.workplace.name|escapejs }} as paid?');">
-              {% csrf_token %}
-              <input type="hidden" name="through" value="{{ run.end|date:'Y-m-d' }}">
-              <button type="submit" class="btn btn--primary btn--block">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
-                Payment received
-              </button>
-            </form>
+            {% include "timeclock/_pay_button.html" with workplace=row.workplace through=run.end confirm=run.confirm %}
           </div>
         {% endfor %}
 
@@ -86,17 +71,7 @@
 
           {% if row.current.payable and row.current.hours %}
             <p class="run__note">Payday was {{ row.current.payday|date:"l j M" }}.</p>
-            <form method="post" action="{% url 'timeclock:payment_record' row.workplace.pk %}"
-                  onsubmit="return confirm('Mark the {{ row.current.start|date:"j M" }} – {{ row.current.payday|date:"j M" }} run at {{ row.workplace.name|escapejs }} as paid?');">
-              {% csrf_token %}
-              <input type="hidden" name="through" value="{{ row.current.end|date:'Y-m-d' }}">
-              <button type="submit" class="btn btn--primary btn--block">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
-                Payment received
-              </button>
-            </form>
+            {% include "timeclock/_pay_button.html" with workplace=row.workplace through=row.current.end confirm=row.current.confirm %}
           {% else %}
             <p class="run__note">
               Still running — you're paid on {{ row.current.payday|date:"l j M" }}.
@@ -111,7 +86,7 @@
         {% endcomment %}
         <a class="owed__partly" href="{% url 'timeclock:payment_choose' row.workplace.pk %}">
           It covered work up to a particular date
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          {% icon "chev" %}
         </a>
 
       {% else %}
@@ -134,16 +109,7 @@
           </p>
 
           {% if row.current.hours %}
-            <form method="post" action="{% url 'timeclock:payment_record' row.workplace.pk %}"
-                  onsubmit="return confirm('Mark {{ row.current.hours|floatformat:1 }}h at {{ row.workplace.name|escapejs }} as paid? The count starts again from now.');">
-              {% csrf_token %}
-              <button type="submit" class="btn btn--primary btn--block">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
-                Payment received
-              </button>
-            </form>
+            {% include "timeclock/_pay_button.html" with workplace=row.workplace confirm=row.current.confirm %}
 
             {% comment %}
               Quieter, because it is the rarer answer — but it is the right one
@@ -152,7 +118,7 @@
             {% endcomment %}
             <a class="owed__partly" href="{% url 'timeclock:payment_choose' row.workplace.pk %}">
               It only covered work up to an earlier day
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              {% icon "chev" %}
             </a>
           {% endif %}
         </div>
@@ -187,9 +153,7 @@
       {% endcomment %}
       <div class="cardlinks">
         <a class="pdflink" href="{% url 'timeclock:payslip_upload' row.workplace.pk %}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M14 3v5h5"/><path d="M19 21H5V3h9l5 5v13Z"/><path d="M9 13h6M9 17h4"/>
-          </svg>
+          {% icon "doc" %}
           Upload payslip
         </a>
 
