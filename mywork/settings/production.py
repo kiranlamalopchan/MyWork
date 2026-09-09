@@ -15,14 +15,48 @@ from .base import *  # noqa: F401,F403
 from .base import BASE_DIR
 
 
+def load_env_file(path):
+    """Read KEY=value lines into the environment, if the file is there.
+
+    The web app and a console are different processes. Variables exported in
+    one are invisible to the other, and the server's WSGI file is read only by
+    the web app — so secrets set there leave `manage.py migrate` unable to
+    start, which is exactly the wall this was written to remove. A file beside
+    the code is read by both.
+
+    A real environment variable always wins: setdefault, not assignment. That
+    keeps a host that injects its own configuration in charge, and makes this
+    a fallback rather than an override.
+
+    Deliberately about ten lines and no dependency. It understands KEY=value,
+    blank lines, # comments and surrounding quotes, which is the whole of what
+    a file like this ever holds.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+# Never committed — see .gitignore.
+load_env_file(BASE_DIR / ".env")
+
+
 def required(name):
     """An environment variable with no sensible default."""
     try:
         return os.environ[name]
     except KeyError:
         raise ImproperlyConfigured(
-            f"{name} must be set in the environment to run with "
-            f"mywork.settings.production."
+            f"{name} is not set. Put it in {BASE_DIR / '.env'} as\n"
+            f"    {name}=...\n"
+            f"or export it, to run with mywork.settings.production."
         ) from None
 
 

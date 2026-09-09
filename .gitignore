@@ -20,3 +20,7 @@ db.sqlite3-shm
 media/
 
 .DS_Store
+
+# The server's secret key and hostnames. Read by mywork/settings/production.py
+# and by manage.py alike, so one file serves the web app and the console.
+.env
