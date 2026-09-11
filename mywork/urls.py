@@ -31,6 +31,10 @@ urlpatterns = [
     # The bell in the app bar, and what is behind it.
     path("notifications/", include("apps.notifications.urls")),
 
+    # Public holidays: the calendar behind the hub's card, and the JSON the
+    # mobile app asks for the next one.
+    path("holidays/", include("apps.holidays.urls")),
+
     # The service worker, served from the root and not from /static/.
     #
     # A worker may only control pages below the path it was served from, so

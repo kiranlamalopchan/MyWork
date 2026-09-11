@@ -42,7 +42,16 @@ def _excerpt(text):
 
 
 def _notice_url(notice, anchor=None):
-    return f"{reverse('notices:board')}#{anchor or f'notice-{notice.pk}'}"
+    """
+    Where a notification about this notice points.
+
+    Both halves matter. `?notice=` tells the board which page to render, so a
+    link to something from last week does not land on today; the anchor tells
+    the browser where on that page to go, and the board highlights whatever it
+    finds there — see initArrival in app.js.
+    """
+    board = reverse("notices:board")
+    return f"{board}?notice={notice.pk}#{anchor or f'notice-{notice.pk}'}"
 
 
 # ---------------------------------------------------------------------------

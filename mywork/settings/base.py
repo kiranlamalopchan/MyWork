@@ -38,6 +38,9 @@ LOCAL_APPS = [
     # The bell: one mailbox every app writes into, and the push subscriptions
     # that carry a line of it to a phone.
     'apps.notifications',
+    # Australian public holidays — the card on the hub, and the API the
+    # mobile app reads it from.
+    'apps.holidays',
 ]
 
 # Split in two so that "which of these did we write?" is answered by reading

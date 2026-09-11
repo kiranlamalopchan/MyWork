@@ -389,3 +389,216 @@ class SweepTests(TestCase):
     def test_two_jobs_do_not_claim_each_other(self):
         self.assertTrue(self.Sweep.claim("one", timedelta(minutes=15)))
         self.assertTrue(self.Sweep.claim("two", timedelta(minutes=15)))
+
+
+class InboxLookTests(TestCase):
+    """
+    The inbox's rendering: one row per kind, grouped by the reader's day.
+
+    A template with five shapes in it is a template where one shape can break
+    without the others noticing, so each kind is rendered here rather than
+    trusting the one that happens to be easiest to make.
+    """
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")
+        self.client.force_login(self.kiran)
+
+    def _inbox(self):
+        return self.client.get(reverse("notifications:inbox")).content.decode()
+
+    def test_every_kind_renders(self):
+        from .models import KIND_ICONS
+
+        for kind in Kind.values:
+            Notification.objects.create(
+                recipient=self.kiran,
+                actor=None if kind == Kind.TIMESHEET else self.sam,
+                kind=kind,
+                title=f"a {kind} happened",
+                body="something worth reading",
+                url="/notices/",
+                emoji="❤️" if kind == Kind.REACTION else "",
+            )
+
+        html = self._inbox()
+        for kind in Kind.values:
+            self.assertIn(f"a {kind} happened", html)
+        # The reaction wears the face somebody left, not a glyph standing in.
+        self.assertIn("note__kind--emoji", html)
+        self.assertIn("❤️", html)
+        # And every other kind wears its own glyph.
+        self.assertTrue(KIND_ICONS[Kind.REPLY])
+
+    def test_a_person_colours_their_own_notification(self):
+        from apps.accounts.avatars import hue_for
+
+        notify(self.kiran, Kind.NOTICE, "sam posted a notice", url="/notices/",
+               actor=self.sam)
+
+        html = self._inbox()
+        self.assertIn("note--from", html)
+        self.assertIn(f"--hue: {hue_for('sam')}", html)
+
+    def test_what_the_app_raises_wears_no_borrowed_colour(self):
+        notify(self.kiran, Kind.TIMESHEET, "You're still clocked in",
+               url="/timesheet/", body="12h at Courtlands.")
+
+        html = self._inbox()
+        self.assertIn("note--app", html)
+        self.assertIn("note__mark", html)
+        # No borrowed colour on the row itself — the app bar's own avatar
+        # carries a hue, so this has to be looked for where it would matter.
+        row = html[html.index('<li class="note'):html.index("</li>")]
+        self.assertNotIn("--hue:", row)
+        # And no second copy of the glyph it already wears as a face.
+        self.assertNotIn("note__kind", row)
+
+    def test_rows_are_grouped_under_the_day_they_arrived(self):
+        fresh = notify(self.kiran, Kind.NOTICE, "today's news", url="/notices/",
+                       actor=self.sam)
+        old = notify(self.kiran, Kind.NOTICE, "old news", url="/notices/",
+                     actor=self.sam)
+        Notification.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+
+        html = self._inbox()
+        self.assertIn("Today", html)
+        self.assertIn("Yesterday", html)
+        # Today's group comes first, because newest is what you came for.
+        self.assertLess(html.index("Today"), html.index("Yesterday"))
+        self.assertLess(html.index("today&#x27;s news"), html.index("old news"))
+        self.assertTrue(fresh.pk)
+
+    def test_read_and_unread_look_different(self):
+        notify(self.kiran, Kind.NOTICE, "sam posted a notice", url="/notices/",
+               actor=self.sam)
+
+        first = self._inbox()
+        self.assertIn("note--unread", first)
+        self.assertIn("note__dot", first)
+
+        # Opening it was the reading of it; the next visit is quiet.
+        second = self._inbox()
+        self.assertNotIn("note--unread", second)
+        self.assertIn("note__chev", second)
+
+
+class TestNotificationCommandTests(TestCase):
+    """
+    The command that fills an inbox so there is something to look at, and
+    takes it away again afterwards.
+    """
+
+    def setUp(self):
+        self.wayne = User.objects.create_user("wayne", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")
+
+    def _run(self, *args):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command("test_notification", *args, stdout=out)
+        return out.getvalue()
+
+    def test_it_notifies_one_person(self):
+        out = self._run("wayne")
+
+        self.assertEqual(Notification.objects.filter(recipient=self.wayne).count(), 1)
+        self.assertIn("Recorded", out)
+
+    def test_an_unknown_name_says_who_there_is(self):
+        from django.core.management.base import CommandError
+
+        with self.assertRaises(CommandError) as caught:
+            self._run("nobody")
+        self.assertIn("wayne", str(caught.exception))
+
+    def test_demo_fills_the_inbox_with_every_kind(self):
+        self._run("wayne", "--demo")
+
+        made = Notification.objects.filter(recipient=self.wayne)
+        self.assertEqual(made.count(), 5)
+        self.assertEqual(set(made.values_list("kind", flat=True)), set(Kind.values))
+        # Spread over more than one day, so the grouping has something to group.
+        days = {timezone.localtime(n.created_at).date() for n in made}
+        self.assertEqual(len(days), 2)
+
+    def test_demo_borrows_other_people_for_their_colour(self):
+        self._run("wayne", "--demo")
+
+        actors = set(
+            Notification.objects.filter(recipient=self.wayne)
+            .exclude(actor=None)
+            .values_list("actor__username", flat=True)
+        )
+        self.assertEqual(actors, {"sam"})
+
+    def test_clear_removes_its_own_and_nothing_else(self):
+        real = notify(self.wayne, Kind.NOTICE, "a real one", url="/notices/",
+                      actor=self.sam)
+        self._run("wayne", "--demo")
+        self.assertEqual(Notification.objects.filter(recipient=self.wayne).count(), 6)
+
+        self._run("wayne", "--clear")
+
+        left = Notification.objects.filter(recipient=self.wayne)
+        self.assertEqual(left.count(), 1)
+        self.assertEqual(left.get().pk, real.pk)
+
+    def test_it_says_when_push_cannot_reach_anybody(self):
+        out = self._run("wayne")
+        self.assertIn("no VAPID keys", out)
+
+    def test_the_demo_inbox_renders(self):
+        self._run("wayne", "--demo")
+        self.client.force_login(self.wayne)
+
+        resp = self.client.get(reverse("notifications:inbox"))
+
+        self.assertContains(resp, "note--from")
+        self.assertContains(resp, "note--app")
+        self.assertContains(resp, "Today")
+        self.assertContains(resp, "Yesterday")
+
+
+class PushSetupHintTests(TestCase):
+    """
+    What the page says when the server has no keys.
+
+    Nothing, to almost everybody: there is no decision to make until push can
+    work. But the person who has to make it work should not be left looking
+    at a page with the feature silently missing from it.
+    """
+
+    def setUp(self):
+        self.wayne = User.objects.create_user("wayne", password="pw")
+        self.boss = User.objects.create_user("boss", password="pw", is_staff=True)
+
+    @override_settings(VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY="")
+    def test_staff_are_told_the_keys_are_missing(self):
+        self.client.force_login(self.boss)
+        resp = self.client.get(reverse("notifications:inbox"))
+
+        self.assertContains(resp, "Push isn't set up yet")
+        self.assertContains(resp, "vapid_keys")
+
+    @override_settings(VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY="")
+    def test_everybody_else_sees_nothing_about_it(self):
+        self.client.force_login(self.wayne)
+        resp = self.client.get(reverse("notifications:inbox"))
+
+        self.assertNotContains(resp, "Push isn't set up yet")
+        self.assertNotContains(resp, "push-setup")
+
+    @override_settings(VAPID_PUBLIC_KEY="pub", VAPID_PRIVATE_KEY="priv")
+    def test_once_the_keys_are_there_the_switch_replaces_the_note(self):
+        self.client.force_login(self.boss)
+        resp = self.client.get(reverse("notifications:inbox"))
+
+        self.assertNotContains(resp, "Push isn't set up yet")
+        self.assertContains(resp, 'id="push-toggle"')

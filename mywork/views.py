@@ -12,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import redirect, render
 
+from apps.holidays.services import card_for_user
 from apps.noticeboard.views import board_context, recent_for_hub
 
 
@@ -24,13 +25,21 @@ def home(request):
 
     Under them, the notice board: the one thing on MyWork that everybody
     shares, so it belongs on the page everybody lands on.
+
+    Above both, the next public holiday — one line of the year everybody wants
+    to know and nobody wants to go looking for, which is the whole argument
+    for it being on the page you land on rather than a screen you navigate to.
     """
     notices, total = recent_for_hub(request.user)
+    holiday_state, holiday = card_for_user(request.user)
+
     return render(request, "home.html", board_context(
         request,
         notices=notices,
         notice_total=total,
         next_url=request.path,
+        holiday=holiday,
+        holiday_state=holiday_state,
     ))
 
 

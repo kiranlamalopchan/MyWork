@@ -8,6 +8,12 @@ import os
 
 from .base import *  # noqa: F401,F403
 from .base import BASE_DIR
+from .env import load_env_file
+
+# The same file the server reads, so anything configured for production is
+# configured here too. Nothing in it is required: a laptop with no .env runs
+# exactly as it did before.
+load_env_file(BASE_DIR / ".env")
 
 # Not a secret. It signs sessions on one developer machine, and production.py
 # refuses to start without a real one, so there is no path by which this value
@@ -33,15 +39,14 @@ DATABASES = {
 # --------------------------------------------------------------------------
 # Web Push
 #
-# Empty unless exported, so notifications are recorded and shown on the bell
-# and nothing is sent. To try the sending half on this machine:
+# Read from .env beside the code, or from the environment — the same two
+# places production looks, so a key that works on the server works here.
 #
-#     python manage.py vapid_keys
-#     export VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_CONTACT_EMAIL=you@example.com
+#     python manage.py vapid_keys >> .env     # then tidy the comment lines out
 #
-# and open the site at http://localhost:8000 — a service worker needs a
+# Open the site at http://localhost:8000 to try it: a service worker needs a
 # secure context, and localhost counts as one where the laptop's LAN IP does
-# not. Testing it from the phone means testing it on the deployed site.
+# not. Testing from the phone means testing on the deployed site.
 # --------------------------------------------------------------------------
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')

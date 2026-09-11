@@ -48,6 +48,17 @@ class Kind(models.TextChoices):
     TIMESHEET = "timesheet", "Timesheet"
 
 
+# The shape each kind wears in the inbox. A reaction has none: the face
+# somebody actually left is better than any icon standing in for it.
+KIND_ICONS = {
+    Kind.NOTICE: "chat",
+    Kind.COMMENT: "chat-lines",
+    Kind.REPLY: "reply",
+    Kind.REACTION: "",
+    Kind.TIMESHEET: "clock",
+}
+
+
 class Notification(models.Model):
     """One thing that happened, addressed to one person."""
 
@@ -111,6 +122,26 @@ class Notification(models.Model):
     @property
     def is_unread(self):
         return self.read_at is None
+
+    @property
+    def icon(self):
+        """The glyph for this kind, or "" when the emoji speaks for it."""
+        return KIND_ICONS.get(self.kind, "bell")
+
+    @property
+    def hue(self):
+        """
+        The colour of whoever caused it — the same one they wear on the board
+        and in the app bar, so a person is one colour everywhere in MyWork.
+
+        Nobody behind it means the app itself spoke, and that takes the
+        brand's own hue rather than borrowing somebody's.
+        """
+        if self.actor_id is None:
+            return None
+        from apps.accounts.avatars import hue_for
+
+        return hue_for(self.actor.get_username())
 
     # ---- making one -----------------------------------------------------
 

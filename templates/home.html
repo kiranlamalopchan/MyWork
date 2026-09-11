@@ -5,6 +5,22 @@
 {% block content %}
 
 {% comment %}
+  The next public holiday, above everything.
+
+  It is the one thing on this page that is true of the whole year rather than
+  of right now, and the one thing people open an app to check and then close
+  it again. Putting it above the tiles means that check costs nothing: you see
+  it on the way in, without choosing to go and look.
+
+  Absent entirely when there is nothing stored, rather than showing a card
+  with a shrug in it — the hub is not the place to explain that a management
+  command has not been run.
+{% endcomment %}
+{% if holiday %}
+  {% include "holidays/_card.html" %}
+{% endif %}
+
+{% comment %}
   The hub. Two apps, two tiles, side by side even on the narrowest phone —
   the choice is the whole page, so nothing else competes for the tap. Picking
   one hands navigation over to that app and its own tab bar takes over.

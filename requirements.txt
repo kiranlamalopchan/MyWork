@@ -4,3 +4,5 @@ pytesseract>=0.3.10
 reportlab>=4.0
 # Web Push, for notifications that arrive with the app closed.
 pywebpush>=2.0
+# Australian public holidays, national and per-state.
+holidays>=0.60

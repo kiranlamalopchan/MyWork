@@ -23,6 +23,9 @@ from .models import (
     Comment, CommentReaction, Emoji, Notice, Reaction,
 )
 
+# How many notices a page of the board carries.
+PER_PAGE = 20
+
 # How many notices the hub shows before pointing at the full board. The board
 # is what you read on the way past the apps, so it is deliberately two: the
 # hub fetches two rather than fetching more and hiding the rest, which is the
@@ -126,6 +129,26 @@ def _safe_next(request, fallback):
     return fallback
 
 
+def _page_holding(pk):
+    """
+    Which page of the board a given notice is on, or None if there is no such
+    notice.
+
+    A notification points at one thing and has to land on it. The board is
+    paginated, so a link to a notice from last week is a link to an anchor
+    that is not on the page — you arrive at the top of today and never learn
+    what you were told about. Counting how many notices are newer than this
+    one says which page it fell onto, and the count moves as the board does,
+    so the link keeps working as the notice sinks.
+    """
+    try:
+        notice = Notice.objects.only("created_at").get(pk=pk)
+    except (Notice.DoesNotExist, ValueError, TypeError):
+        return None
+    newer = Notice.objects.filter(created_at__gt=notice.created_at).count()
+    return newer // PER_PAGE + 1
+
+
 @login_required
 def board(request, form=None):
     """
@@ -134,8 +157,13 @@ def board(request, form=None):
     `form` is passed in by the create view when a post failed validation, so
     the writer gets their text back with the error on it instead of an empty
     box and a lost sentence.
+
+    `?notice=<pk>` is how a notification arrives: it asks for whichever page
+    that notice is on rather than the first. An explicit `?page=` still wins,
+    because that is somebody paging by hand and their choice outranks a link's.
     """
-    page_obj = Paginator(Notice.visible(), 20).get_page(request.GET.get("page"))
+    page = request.GET.get("page") or _page_holding(request.GET.get("notice"))
+    page_obj = Paginator(Notice.visible(), PER_PAGE).get_page(page)
     decorate(page_obj.object_list, request.user)
 
     return render(request, "noticeboard/board.html", board_context(

@@ -3256,6 +3256,39 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   100%    { box-shadow: var(--shadow-1); }
 }
 
+/* ---- Arriving from a notification ---------------------------------------
+
+   A different job from the flash above, and so a different mark. That one is
+   for coming back to something you were already looking at: a blink is
+   enough, because you know what you left. This one is for opening the app
+   from a lock screen after being away, onto a board full of other people's
+   notices, where the only question is which of them this was about.
+
+   So it holds. Three seconds of a brand ring and a wash that fades out on its
+   own, long enough to follow the scroll with your eyes and find the thing,
+   short enough that the board is not left wearing a highlight nobody asked
+   to keep. app.js hangs the class on and takes it off again.
+   -------------------------------------------------------------------------- */
+.notice.is-arrived {
+  animation: mw-arrived 3.4s var(--ease) both;
+}
+@keyframes mw-arrived {
+  0%, 70% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 75%, transparent), var(--shadow-2);
+  }
+  100% { box-shadow: var(--shadow-1); }
+}
+
+
+/* Reduced motion still gets the mark — it is information, not decoration.
+   What it loses is the fade, which is the part that moves. */
+@media (prefers-reduced-motion: reduce) {
+  .notice.is-arrived {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 70%, transparent), var(--shadow-2);
+  }
+}
+
 /* ---- Who reacted, and who wrote it -------------------------------------
    Two pages behind the board: the list of names under a tally, and the
    person behind a name. Both are read once and left, so they are plain
@@ -3348,6 +3381,42 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 @keyframes mw-flag-soft {
   0%, 60% { background: var(--brand-soft); }
   100%    { background: var(--surface-2); }
+}
+
+/* The same comment, arrived at from a notification rather than returned to.
+
+   This has to sit *after* the :target rule above, and that is not an accident
+   of where it was typed. Both selectors carry the same weight, and arriving
+   from a notification means arriving at an anchor — so :target is always live
+   at the same moment this is, and whichever is written last is the one that
+   shows. Moving this block above the rule it is meant to override silently
+   turns the mark back into the brief flash it is not.
+
+   The ring goes round the bubble rather than the notice holding it. Ringing
+   the whole card would point at the wrong thing entirely: the notice is the
+   context, the comment is what you were told about.
+   -------------------------------------------------------------------------- */
+.comment.is-arrived > .comment__col > .comment__body {
+  animation: mw-arrived-soft 3.4s var(--ease) both;
+}
+@keyframes mw-arrived-soft {
+  /* Held flat to 70% rather than easing from the first frame: the mark has a
+     job to do while your eye is still travelling down the page after the
+     scroll, and a highlight that has begun fading before you have found it is
+     a highlight that was never really there. */
+  0%, 70% {
+    background: color-mix(in srgb, var(--brand) 26%, var(--surface-2));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 70%, transparent);
+  }
+  100% { background: var(--surface-2); box-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comment.is-arrived > .comment__col > .comment__body {
+    animation: none;
+    background: color-mix(in srgb, var(--brand) 26%, var(--surface-2));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 70%, transparent);
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -4749,6 +4818,22 @@ body::before {
   gap: var(--sp-4);
   margin-bottom: var(--sp-4);
 }
+.push-setup__mark {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.push-setup__mark svg { width: 19px; height: 19px; }
+.push-setup.is-on .push-setup__mark {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
 .push-setup__text { flex: 1 1 auto; min-width: 0; }
 .push-setup__title { font-weight: 600; font-size: 15px; }
 .push-setup__status {
@@ -4759,33 +4844,92 @@ body::before {
 }
 .push-setup .btn { flex: none; }
 
+/* The setup note nobody but staff sees: amber, because it is a job somebody
+   has to do rather than a state of the app. */
+.push-setup--todo {
+  border-color: color-mix(in srgb, var(--warn) 30%, var(--line));
+  background: color-mix(in srgb, var(--warn) 5%, var(--surface));
+}
+.push-setup--todo .push-setup__mark { background: var(--warn-soft); color: var(--warn); }
+.push-setup--todo code {
+  padding: 1px 5px;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 /* On, and saying so in the one colour the app uses for "this is live". */
 .push-setup.is-on { border-color: var(--brand-soft); }
 .push-setup.is-on .push-setup__status { color: var(--brand-strong); }
 
-/* ---- The list ----------------------------------------------------------- */
+/* ---- The list -----------------------------------------------------------
 
-.notes {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--sp-2);
+   A notification about a notice is dressed like the notice it is about: the
+   colour of whoever caused it, a lift off the page, a dot while it is unread,
+   and the same staggered arrival the board uses. The vocabulary is section
+   24's (.notice), borrowed rather than reinvented — a person is one colour
+   everywhere in MyWork, and two different-looking cards about the same event
+   would be two things to learn instead of one.
+   ---------------------------------------------------------------------- */
+
+/* The day a run of notifications belongs to.
+
+   Not sticky, and that was a mistake worth recording. A pill that follows you
+   down the page needs something to sit against, and MyWork's app bar scrolls
+   away with the content — so it had nothing to anchor to and simply hovered
+   over whatever was underneath, landing square on the first face in the list.
+   A label that obscures the thing it is labelling is worse than one you have
+   to scroll back to find. It stays where it was written. */
+.notes__day {
+  width: max-content;
+  margin: var(--sp-5) 0 var(--sp-2);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
+.notes__day:first-of-type { margin-top: var(--sp-2); }
+
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
 
 .note {
-  border-radius: var(--r-md);
+  position: relative;
+  border-radius: var(--r-lg);
   background: var(--surface);
   border: 1px solid var(--line);
   overflow: hidden;
+  /* Lands rather than appears, one after another — the same arrival the
+     board's notices use. Section 17 switches it off on request. */
+  animation: mw-notify var(--dur-3) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
 }
 
-/* Unread carries a wash of the brand and a dot, the same two signals a new
-   notice wears on the board — one vocabulary for "this is new to you"
-   wherever it appears. */
-.note--unread {
-  background: linear-gradient(to right, var(--brand-soft), transparent 60%), var(--surface);
-  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+/* Unread, and from a person: washed in their colour. Read rows keep the plain
+   surface — what you have already seen should stop asking for attention. */
+.note--unread.note--from {
+  --tint: hsl(var(--hue, 210) 72% 52%);
+  --tint-ink: hsl(var(--hue, 210) 48% 32%);
+  background: color-mix(in srgb, var(--tint) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--tint) 32%, var(--line));
+  box-shadow: var(--shadow-2);
+}
+.note--unread.note--from .note__title { color: var(--tint-ink); }
+.note--unread.note--from .avatar {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 22%, transparent);
+}
+
+/* Nobody caused it — the app spoke. It takes the brand rather than borrowing
+   somebody else's colour. */
+.note--unread.note--app {
+  background: color-mix(in srgb, var(--brand) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+  box-shadow: var(--shadow-2);
 }
 
 .note__link {
@@ -4796,38 +4940,75 @@ body::before {
   color: inherit;
   text-decoration: none;
 }
-.note__link:hover { background: var(--surface-2); text-decoration: none; }
-.note__link:active { background: var(--surface-3); }
+.note__link:hover { text-decoration: none; }
+.note:hover { border-color: var(--line-strong); }
+.note__link:active { transform: scale(.995); }
 
-/* What the app itself raised, rather than a person: no face to show, so it
-   wears the app's own quiet mark instead of a blank circle. */
+/* ---- The face, and the badge on its corner ---- */
+
+.note__face { position: relative; flex: none; }
+
+/* What the app itself raises has no face to show, so it wears the app's own
+   quiet mark in the same circle. */
 .note__mark {
-  flex: none;
   width: 40px;
   height: 40px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--muted);
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-3));
+  color: var(--brand-strong);
 }
 .note__mark svg { width: 20px; height: 20px; }
 
-.note__body {
-  flex: 1 1 auto;
-  min-width: 0;
+/* Which kind of thing it is, small, on the corner of the face — the way a
+   messaging app badges an avatar. The ring is the page's own background, so
+   the badge reads as sitting on top of the face rather than cut into it. */
+.note__kind {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 19px;
+  height: 19px;
   display: grid;
-  gap: 2px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--pill);
+  color: #fff;
+  box-shadow: 0 0 0 2.5px var(--surface);
 }
-.note__title { font-weight: 600; font-size: 15px; line-height: 1.3; }
-.note__emoji { margin-left: 4px; }
+.note__kind svg { width: 11px; height: 11px; }
 
-/* Two lines of what was written, and then an ellipsis. The notification is
-   the nudge; the thing it points at is where you read the rest. */
+/* A reaction shows the face somebody actually left. No dark disc behind it:
+   an emoji is already a picture, and a second circle around it only makes it
+   smaller and harder to read. */
+.note__kind--emoji {
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.note--unread.note--from .note__kind { background: var(--tint); }
+.note--unread.note--from .note__kind--emoji { background: var(--surface); }
+
+/* ---- What it says ---- */
+
+.note__body { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+
+.note__title {
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  line-height: 1.35;
+}
+
+/* Two lines of what was written, then an ellipsis. The notification is the
+   nudge; the thing it points at is where you read the rest. */
 .note__text {
   color: var(--text-2);
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -4835,17 +5016,455 @@ body::before {
 }
 .note__when { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
+/* Unread gets the board's own dot, pulse and all. Read gets a chevron in its
+   place, so the row keeps its shape and the column does not jump. */
 .note__dot {
   flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
+  width: 9px;
+  height: 9px;
+  margin-top: 7px;
   border-radius: 999px;
-  background: var(--brand);
+  background: var(--tint, var(--brand));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tint, var(--brand)) 18%, transparent);
+  animation: mw-ping 2.6s var(--ease) infinite;
+}
+.note__chev { flex: none; width: 18px; height: 18px; margin-top: 5px; color: var(--line-strong); }
+
+/* On a dark card the name lifts rather than darkens, and the wash needs a
+   little more of itself to be seen at all — the same correction section 24
+   makes for a notice. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .note--unread.note--from {
+    --tint-ink: hsl(var(--hue, 210) 72% 78%);
+    background: color-mix(in srgb, var(--tint) 15%, var(--surface));
+  }
+}
+:root[data-theme="dark"] .note--unread.note--from {
+  --tint-ink: hsl(var(--hue, 210) 72% 78%);
+  background: color-mix(in srgb, var(--tint) 15%, var(--surface));
 }
 
-.note__chev { flex: none; width: 18px; height: 18px; color: var(--muted); margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .note { animation: none; }
+  .note__dot { animation: none; }
+}
 
+/* ---- Nothing here yet ---------------------------------------------------
+   An inbox is empty far longer than it is full, so this is the page, not a
+   placeholder for one. Centred on a single column: a mark, a line that says
+   what will arrive, and the way to the place it arrives from.
+
+   Its own class rather than the board's `.notices-empty`, which is a dashed
+   outline sized for sitting under a list of notices. This one stands alone.
+   -------------------------------------------------------------------------- */
+.blank {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-5);
+}
+
+.blank__icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  /* A wash rather than a fill: the mark is the quietest thing here, and a
+     solid brand circle would read as a button to press. */
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
+  color: var(--brand-strong);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand) 6%, transparent);
+}
+.blank__icon svg { width: 28px; height: 28px; }
+
+.blank__title {
+  margin: var(--sp-1) 0 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+}
+
+.blank__text {
+  /* Held to a short measure and centred: two tidy lines read as a sentence
+     somebody wrote, where the same words across the full card read as a
+     paragraph somebody forgot to finish. */
+  max-width: 34ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.blank__act { margin-top: var(--sp-2); }
+
+@media (max-width: 380px) {
+  .blank { padding: var(--sp-6) var(--sp-4); }
+  .blank__icon { width: 56px; height: 56px; }
+  .blank__icon svg { width: 24px; height: 24px; }
+}
+
+/* ---- Phones: the switch gets its own line ------------------------------
+   Beside three wrapped lines of text, "Turn on" is a button squeezed into
+   whatever is left — the one thing on the page somebody came to press, and
+   the narrowest target on it. Given the full width it is unmissable and
+   comfortably thumb-sized, which is the right trade on a phone even though
+   it costs a row of height.
+   -------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  /* The bell beside the words is decoration, and on a phone it is decoration
+     that costs the sentence a whole extra line — which then squeezes the one
+     button on the page. The heading already says what the card is. */
+  .push-setup__mark { display: none; }
+  .push-setup .btn { min-height: 44px; }
+}
+
+/* ---- Narrow phones ------------------------------------------------------
+   At 320px the title wraps twice and the text has nowhere to go. A smaller
+   face and tighter padding buys back about thirty pixels of line, which is
+   the difference between two lines and three. */
+@media (max-width: 380px) {
+  .note__link { padding: var(--sp-3); gap: var(--sp-2); }
+  .note .avatar--md { width: 34px; height: 34px; font-size: 14px; }
+  .note__mark { width: 34px; height: 34px; }
+  .note__mark svg { width: 17px; height: 17px; }
+  .note__kind { width: 17px; height: 17px; }
+  .note__title { font-size: 14px; }
+  .note__text { font-size: 13.5px; }
+}
+
+/* ---- iPad, and a phone turned on its side -------------------------------
+   Once there is more width than a phone held upright, stacking the time under
+   the text wastes the room and stretches every line across the whole slab.
+   The time moves out to its own column — a list of times is read downward —
+   and the words are held to a readable measure rather than running the full
+   width of an iPad, which is about twice as far as an eye tracks comfortably.
+   -------------------------------------------------------------------------- */
 @media (min-width: 720px) {
-  .note__link { padding: var(--sp-4) var(--sp-5); }
+  .note__link { padding: var(--sp-4) var(--sp-5); align-items: center; }
+
+  .note__body {
+    /* 66ch is the measure, not the column: the time is pushed to the far
+       edge by the 1fr beside it, so the row still uses the whole width while
+       the sentence stops where it becomes tiring. */
+    grid-template-columns: minmax(0, 66ch) 1fr;
+    grid-template-areas:
+      "title when"
+      "text  when";
+    column-gap: var(--sp-5);
+    align-items: baseline;
+  }
+  .note__title { grid-area: title; }
+  .note__text  { grid-area: text; }
+  .note__when  {
+    grid-area: when;
+    justify-self: end;
+    margin-top: 0;
+    align-self: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* With the row centred, the dot and chevron centre with it. */
+  .note__dot, .note__chev { margin-top: 0; align-self: center; }
+}
+
+/* ---- A phone on its side ------------------------------------------------
+   Three hundred and ninety pixels of height, and the heading, the back link
+   and the switch between them took all of it: one notification on screen,
+   and it was cut in half. Everything above the list is sized for a phone held
+   upright, so in a short window it all gives back what it can.
+
+   Scoped to .inbox rather than written against .page-head and .page-title,
+   which belong to every screen in MyWork. This is a fix for one page in one
+   shape of window, not a new opinion about headings.
+   -------------------------------------------------------------------------- */
+@media (max-height: 520px) and (orientation: landscape) {
+  .inbox .backlink { margin-bottom: var(--sp-1); }
+  .inbox .page-head { margin-bottom: var(--sp-3); padding-top: 0; }
+  .inbox .page-title { font-size: 22px; }
+
+  .inbox .push-setup { padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); }
+  .inbox .push-setup__mark { display: none; }
+
+  .inbox .notes__day { margin: var(--sp-3) 0 var(--sp-1); }
+  .inbox .note__link { padding: var(--sp-3) var(--sp-4); }
+  /* One line of the body rather than two: in this shape the list is being
+     scanned for which notification to open, not read. */
+  .inbox .note__text { -webkit-line-clamp: 1; }
+}
+
+/* --------------------------------------------------------------------------
+   36. Public holidays — the next one, on the way in
+
+   A date is read as one object: the month and the numeral together, in a tile,
+   the way every calendar and every ticket prints it. Everything else hangs off
+   that tile — what the day is called, which weekday it falls on, and the only
+   number anybody actually came for, which is how many sleeps away it is.
+
+   It sits above the app tiles on the hub and is the first thing on the page,
+   so it is deliberately quiet: one accent, one pill, no shadow. A card that
+   shouted would make the two apps beneath it look like an afterthought.
+   -------------------------------------------------------------------------- */
+.holiday {
+  display: block;
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+.holiday:hover { text-decoration: none; border-color: var(--line-strong); }
+.holiday:active { transform: scale(.995); }
+
+/* ---- The line above: what this is, and whose it is ---- */
+
+.holiday__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.holiday__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.holiday__kicker svg { width: 14px; height: 14px; }
+
+/* National in the brand colour, a state's own in amber: the difference
+   matters on a board where not everybody is in the same state, and it is the
+   kind of thing you want to catch without reading. */
+.holiday__pill {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.holiday__pill--national { background: var(--brand-soft); color: var(--brand-strong); }
+
+/* ---- The date tile, and what it is ---- */
+
+.holiday__body {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+}
+
+.holiday__date {
+  flex: none;
+  width: 64px;
+  padding: var(--sp-2) 0 10px;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
+}
+.holiday__month {
+  color: var(--brand-strong);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .08em;
+}
+.holiday__day {
+  /* The one big number on the hub. Tabular so a 9 and a 25 sit on the same
+     baseline width and the tile never changes shape between months. */
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.holiday__what { min-width: 0; display: grid; gap: 2px; }
+.holiday__name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  overflow-wrap: anywhere;
+}
+.holiday__weekday { color: var(--muted); font-size: 14px; }
+
+/* ---- The line below: the countdown, and the way in ---- */
+
+.holiday__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.holiday__countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 650;
+}
+.holiday__countdown svg { width: 14px; height: 14px; }
+.holiday__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--brand-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+.holiday__more svg { width: 15px; height: 15px; }
+
+/* ---- The calendar behind it ---------------------------------------------
+
+   Built for a phone held in one hand and nothing else. A year of one state's
+   holidays is fifteen rows that all look alike, so the page folds into months
+   and opens only the one you are in: the headings are the navigation, and
+   everything below them is sized to a thumb rather than a mouse.
+   ------------------------------------------------------------------------- */
+
+/* The picker stacks on the narrowest phones — a label, a select and a 44px
+   tap target do not fit on one line at 320px without shaving the select to
+   nothing. */
+.holiday-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.holiday-pick__label { flex: none; color: var(--muted); font-size: 13px; font-weight: 600; }
+.holiday-pick__select {
+  flex: 1 1 12rem;
+  min-width: 0;
+  min-height: 44px;
+}
+
+/* ---- One month, folded ---- */
+
+/* Months run together as one list, separated by a hairline rather than by
+   air — the headings are the page's navigation, and navigation you have to
+   scroll between is not navigation. */
+.hmonths { display: grid; }
+.hmonth { padding-bottom: var(--sp-1); }
+.hmonth + .hmonth { padding-top: var(--sp-1); border-top: 1px solid var(--line); }
+
+.hmonth__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  /* The whole heading is the tap target, and it clears 44px on its own. */
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-2) var(--ease);
+}
+.hmonth__head::-webkit-details-marker { display: none; }
+.hmonth__head:hover { background: var(--surface-2); }
+.hmonth__head:active { background: var(--surface-3); }
+.hmonth[open] .hmonth__head { margin-bottom: var(--sp-1); }
+
+.hmonth__name {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+/* The list crosses a new year somewhere in the middle, so the year is always
+   written — quietly, because eleven of the twelve headings share one. */
+.hmonth__year { margin-left: 5px; color: var(--muted); font-size: 13px; font-weight: 550; }
+
+.hmonth__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  color: var(--muted);
+}
+/* The count is what a shut month gains over an open one, so it steps back
+   once the dates it was standing in for are on screen. Hidden rather than
+   removed, so the chevron keeps its place instead of jumping right. */
+.hmonth__count { font-size: 12px; transition: opacity var(--dur-2) var(--ease); }
+.hmonth[open] .hmonth__count { opacity: 0; }
+
+.hmonth__chev {
+  flex: none;
+  width: 16px; height: 16px;
+  transition: transform var(--dur-2) var(--ease);
+}
+.hmonth[open] .hmonth__chev { transform: rotate(180deg); }
+
+/* Opening one drops its dates in rather than snapping them into place. */
+.hmonth[open] .holidays { animation: mw-rise var(--dur-3) var(--ease-out) both; }
+
+/* ---- The dates inside it ---- */
+
+.holidays { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+
+.holiday-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.holiday-row__what {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.holiday-row__name {
+  font-weight: 650;
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Weekday, countdown and scope on one line that is allowed to become two.
+   A name like "Friday before the AFL Grand Final" eats a 320px row on its
+   own; letting the pill wrap under it beats squeezing it to nothing. */
+.holiday-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--sp-2);
+}
+.holiday-row__when { color: var(--muted); font-size: 12.5px; }
+
+/* The tile again, smaller, so a list of dates reads the same way the card
+   does rather than inventing a second shape for the same thing. */
+.holiday__date--sm { width: 48px; padding: 5px 0 7px; }
+.holiday__date--sm .holiday__month { font-size: 9.5px; }
+.holiday__date--sm .holiday__day { font-size: 19px; }
+
+/* Tablets and up — the only place the year ahead gets more room, and all it
+   buys is a slightly larger heading. Everything else was already right. */
+@media (min-width: 720px) {
+  .holiday { padding: var(--sp-5); }
+  .holiday__name { font-size: 20px; }
+  .hmonth__name { font-size: 16px; }
 }

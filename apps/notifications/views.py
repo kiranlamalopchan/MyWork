@@ -8,13 +8,14 @@ than a form somebody submitted — there is no page to render back to.
 """
 
 import json
+from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
 from .models import Notification, PushSubscription
@@ -47,12 +48,50 @@ def inbox(request):
     return render(request, "notifications/inbox.html", {
         "page_obj": page_obj,
         "notifications": page_obj,
+        "days": _by_day(page_obj.object_list),
         "section_title": "Notifications",
         # The switch at the top of the page only appears where it could do
         # something: no keys configured, no offer to turn anything on.
         "push_available": configured(),
+        # …which, on a server where nobody has got round to the keys yet, is
+        # a feature that is simply absent with nothing to say why. Harmless
+        # for everyone else, baffling for whoever is trying to set it up —
+        # so they, and only they, are told where it went.
+        "push_needs_setup": not configured() and request.user.is_staff,
         "devices": PushSubscription.objects.filter(user=request.user).count(),
     })
+
+
+def _by_day(notifications):
+    """
+    The page's rows split into days, newest first.
+
+    A list of notifications is read as "what happened while I was away", and
+    the answer is easier to take in when today is visibly today. Grouped here
+    rather than in the template because the day a notification belongs to is
+    the reader's day — `localtime` against the timezone their phone reported,
+    not the server's idea of midnight.
+    """
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+
+    days, current = [], None
+    for notification in notifications:
+        day = timezone.localtime(notification.created_at).date()
+        if current is None or current["date"] != day:
+            if day == today:
+                label = "Today"
+            elif day == yesterday:
+                label = "Yesterday"
+            elif day.year == today.year:
+                label = formats.date_format(day, "j F")
+            else:
+                label = formats.date_format(day, "j F Y")
+            current = {"date": day, "label": label, "items": []}
+            days.append(current)
+        current["items"].append(notification)
+
+    return days
 
 
 @login_required

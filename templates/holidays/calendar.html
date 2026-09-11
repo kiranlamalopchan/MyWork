@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Public holidays · MyWork{% endblock %}
+
+{% comment %}
+  The year ahead, for one state.
+
+  The hub's card answers "when is the next one"; this answers "and then?" —
+  and on a phone that answer is fifteen near-identical rows, which is a scroll
+  rather than a calendar. So it folds: one <details> per month, shut except
+  the month you are standing in, each heading still saying how many dates are
+  inside it. Thumbing to April costs one flick instead of ten, and opening a
+  month costs a tap and no page load.
+
+  The state picker is a GET form: changing state is a different page, not a
+  setting, and it should be linkable and go in the back button.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'home' %}">{% icon "back" %} MyWork</a>
+
+<div class="page-head">
+  <h1 class="page-title">Public holidays</h1>
+  <p class="page-sub">
+    {{ state_label }}{% if total %} · {{ total }} date{{ total|pluralize }} ahead{% endif %}
+  </p>
+</div>
+
+<form class="holiday-pick" method="get" action="{% url 'holidays:calendar' %}">
+  <label class="holiday-pick__label" for="state">Show</label>
+  <select class="input holiday-pick__select" name="state" id="state"
+          onchange="this.form.submit()">
+    {% for value, label in states %}
+      <option value="{{ value }}" {% if value == state %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  {# Works with no JavaScript: the select submits itself only if there is any. #}
+  <noscript><button type="submit" class="btn">Show</button></noscript>
+</form>
+
+{% if months %}
+  {% comment %}
+    The first month opens because it holds the next holiday — the one the hub
+    card was already telling you about, so the page you land on continues that
+    sentence rather than making you go looking for it.
+  {% endcomment %}
+  {% comment %}
+    One wrapper around the lot, deliberately: .container gives every direct
+    child of the page a 20px top margin, which between a dozen shut headings
+    is a list with holes in it rather than a list.
+  {% endcomment %}
+  <div class="hmonths">
+  {% for group in months %}
+    <details class="hmonth"{% if forloop.first %} open{% endif %}>
+      <summary class="hmonth__head">
+        <span class="hmonth__name">
+          {{ group.label }}
+          <span class="hmonth__year">{{ group.year }}</span>
+        </span>
+        <span class="hmonth__meta">
+          {# What a shut month is standing in for. #}
+          <span class="hmonth__count">{{ group.count }} date{{ group.count|pluralize }}</span>
+          {% icon "chev-down" class="hmonth__chev" width="2.2" %}
+        </span>
+      </summary>
+
+      <ul class="holidays">
+        {% for card in group.cards %}
+          <li class="holiday-row">
+            {% comment %}
+              The tile is the same shape the hub card uses, smaller — a list of
+              dates should read the way the one date did, not invent a second
+              language for it. It is decoration to a screen reader, which gets
+              the whole date spelled out in the line below instead.
+            {% endcomment %}
+            <span class="holiday__date holiday__date--sm" aria-hidden="true">
+              <span class="holiday__month">{{ card.month_short }}</span>
+              <span class="holiday__day">{{ card.day_number }}</span>
+            </span>
+
+            <span class="holiday-row__what">
+              <span class="holiday-row__name">{{ card.name }}</span>
+              <span class="sr-only">{{ card.day|date:"l j F Y" }}</span>
+              {% comment %}
+                Weekday, countdown and scope share one wrapping line. At 320px
+                a long name — "Friday before the AFL Grand Final" — pushes the
+                pill onto its own row instead of crushing it to three letters
+                and an ellipsis.
+              {% endcomment %}
+              <span class="holiday-row__meta">
+                <span class="holiday-row__when">{{ card.weekday }} · {{ card.countdown }}</span>
+                <span class="holiday__pill{% if card.is_national %} holiday__pill--national{% endif %}">
+                  {{ card.scope }}
+                </span>
+              </span>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endfor %}
+  </div>
+{% else %}
+  <div class="card blank">
+    <span class="blank__icon" aria-hidden="true">{% icon "calendar" %}</span>
+    <h2 class="blank__title">No dates stored</h2>
+    <p class="blank__text">
+      Nobody has loaded the calendar for {{ state_label }} yet. A staff member
+      can run <code>manage.py sync_holidays</code> to fill it in.
+    </p>
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -776,3 +776,90 @@ class NotificationLookTests(TestCase):
         self.assertIn("--i: 0", html)
         self.assertIn("--i: 1", html)
         self.assertIn("--i: 2", html)
+
+
+class NotificationLandingTests(TestCase):
+    """
+    Where a notification puts you.
+
+    A link that lands on the top of the board when it was about something from
+    last week is a link that failed, so what is tested here is the arriving
+    rather than the sending: the right page, and an anchor that is on it.
+    """
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")
+        self.client.force_login(self.kiran)
+
+    def test_a_notification_names_the_page_as_well_as_the_anchor(self):
+        from apps.noticeboard import notify
+
+        notice = Notice.objects.create(author=self.sam, body="Fridge is fixed.")
+        notify.notice_posted(notice)
+
+        from apps.notifications.models import Notification
+
+        url = Notification.objects.filter(recipient=self.kiran).get().url
+        self.assertIn(f"notice={notice.pk}", url)
+        self.assertIn(f"#notice-{notice.pk}", url)
+
+    def test_the_board_opens_on_the_page_holding_the_notice(self):
+        from apps.noticeboard.views import PER_PAGE
+
+        # A page and a half of notices, so the oldest is not on page one.
+        made = [
+            Notice.objects.create(author=self.sam, body=f"notice {n}")
+            for n in range(PER_PAGE + 5)
+        ]
+        oldest = made[0]
+
+        resp = self.client.get(reverse("notices:board"), {"notice": oldest.pk})
+
+        self.assertEqual(resp.context["page_obj"].number, 2)
+        self.assertContains(resp, f'id="notice-{oldest.pk}"')
+
+    def test_paging_by_hand_beats_the_link(self):
+        from apps.noticeboard.views import PER_PAGE
+
+        made = [
+            Notice.objects.create(author=self.sam, body=f"notice {n}")
+            for n in range(PER_PAGE + 5)
+        ]
+
+        resp = self.client.get(
+            reverse("notices:board"), {"notice": made[0].pk, "page": 1}
+        )
+        self.assertEqual(resp.context["page_obj"].number, 1)
+
+    def test_a_notice_that_has_since_been_deleted_lands_on_page_one(self):
+        Notice.objects.create(author=self.sam, body="still here")
+
+        resp = self.client.get(reverse("notices:board"), {"notice": 9999})
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["page_obj"].number, 1)
+
+    def test_rubbish_in_the_link_is_not_an_error_page(self):
+        Notice.objects.create(author=self.sam, body="still here")
+
+        for junk in ["", "abc", "-1", "1.5"]:
+            with self.subTest(notice=junk):
+                resp = self.client.get(reverse("notices:board"), {"notice": junk})
+                self.assertEqual(resp.status_code, 200)
+
+    def test_the_comment_you_were_told_about_is_rendered_on_that_page(self):
+        notice = Notice.objects.create(author=self.kiran, body="Anyone free Friday?")
+        comment = Comment.objects.create(
+            notice=notice, author=self.sam, body="I can cover it."
+        )
+        from apps.noticeboard import notify
+
+        notify.comment_posted(comment)
+
+        from apps.notifications.models import Notification
+
+        url = Notification.objects.filter(recipient=self.kiran).get().url
+        resp = self.client.get(url.split("#")[0])
+
+        self.assertContains(resp, f'id="comment-{comment.pk}"')

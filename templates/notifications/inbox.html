@@ -5,16 +5,24 @@
 {% comment %}
   Everything that has been said to you, newest first.
 
-  Opening this page is what marks it read — the rows that were unread when you
-  arrived still show as unread, because that is what you came to see, and the
-  bell is empty by the time you come back.
+  A notification about a notice is made to look like the notice it is about:
+  washed in the colour of whoever caused it, lifted off the page, dotted while
+  it is still unread, and arriving one after another down the screen. That
+  vocabulary belongs to the board (see noticeboard/_notice.html) and is
+  borrowed here on purpose — a person is the same colour everywhere in MyWork,
+  and the thing that tells you about a notice should look related to it.
 
-  The switch at the top is the only part that needs JavaScript, and it is
-  hidden until notifications.js has worked out what to offer: a browser that
-  cannot subscribe should show nothing rather than a button that does nothing.
+  Opening this page is what marks it read. The rows that were unread when you
+  arrived still show as unread, because that is what you came to see; it is the
+  next visit that comes back quiet.
+
+  The switch at the top is the only part that needs JavaScript, and it stays
+  hidden until notifications.js has worked out what it can honestly offer.
 {% endcomment %}
 
 {% block content %}
+
+<div class="inbox">
 
 <a class="backlink" href="{% url 'home' %}">{% icon "back" %} MyWork</a>
 
@@ -24,43 +32,91 @@
 
 {% if push_available %}
   <div class="card card__pad push-setup" id="push-setup" hidden>
+    <span class="push-setup__mark" aria-hidden="true">{% icon "bell" %}</span>
     <div class="push-setup__text">
       <span class="push-setup__title">On this device</span>
       <p class="push-setup__status" id="push-status"></p>
     </div>
     <button type="button" class="btn" id="push-toggle" hidden></button>
   </div>
+{% elif push_needs_setup %}
+  {% comment %}
+    Staff only, and only while the keys are missing. Everybody else sees
+    nothing at all, which is right — there is no decision for them to make
+    until the server can actually send.
+  {% endcomment %}
+  <div class="card card__pad push-setup push-setup--todo">
+    <span class="push-setup__mark" aria-hidden="true">{% icon "alert" %}</span>
+    <div class="push-setup__text">
+      <span class="push-setup__title">Push isn't set up yet</span>
+      <p class="push-setup__status">
+        Notifications are recorded and counted here, but nothing can reach a
+        phone until this server has its keys. Run
+        <code>python manage.py vapid_keys</code>, put the three lines in
+        <code>.env</code>, and reload the web app.
+      </p>
+    </div>
+  </div>
 {% endif %}
 
-{% if notifications %}
-  <ul class="notes">
-    {% for note in notifications %}
-      <li class="note{% if note.was_unread %} note--unread{% endif %}">
-        <a class="note__link" href="{% url 'notifications:go' note.pk %}">
-          {% if note.actor %}
-            {% avatar note.actor size="md" %}
-          {% else %}
-            {# Nobody did this — it is the app itself, so it wears its own mark. #}
-            <span class="note__mark" aria-hidden="true">{% icon "clock" %}</span>
-          {% endif %}
+{% if days %}
+  {% for day in days %}
+    <h2 class="notes__day">{{ day.label }}</h2>
 
-          <span class="note__body">
-            <span class="note__title">
-              {{ note.title }}
-              {% if note.emoji %}<span class="note__emoji">{{ note.emoji }}</span>{% endif %}
-            </span>
-            {% if note.body %}<span class="note__text">{{ note.body }}</span>{% endif %}
-            <span class="note__when" title="{{ note.created_at }}">
-              {{ note.created_at|naturaltime }}
-            </span>
-          </span>
+    <ul class="notes">
+      {% for note in day.items %}
+        {% comment %}
+          --hue is the colour of whoever caused it; --i staggers the arrival so
+          the list lands rather than appears. A notification with nobody behind
+          it — a timesheet reminder — has no hue and stays plain.
+        {% endcomment %}
+        <li class="note{% if note.was_unread %} note--unread{% endif %}{% if note.hue %} note--from{% else %} note--app{% endif %}"
+            style="{% if note.hue %}--hue: {{ note.hue }};{% endif %} --i: {{ forloop.counter0 }}">
+          <a class="note__link" href="{% url 'notifications:go' note.pk %}">
 
-          {% if note.was_unread %}<span class="note__dot" role="img" aria-label="Unread"></span>{% endif %}
-          {% icon "chev" class="note__chev" %}
-        </a>
-      </li>
-    {% endfor %}
-  </ul>
+            <span class="note__face">
+              {% if note.actor %}
+                {% avatar note.actor size="md" %}
+
+                {% comment %}
+                  What kind of thing this is, on the corner of the face — the
+                  emoji itself where somebody left one, because the face they
+                  actually chose says it better than any icon standing in for
+                  it.
+
+                  Only ever over a person. What the app raises already wears
+                  its own glyph in the circle, and badging that with a second
+                  copy of the same shape says nothing twice.
+                {% endcomment %}
+                {% if note.emoji %}
+                  <span class="note__kind note__kind--emoji" aria-hidden="true">{{ note.emoji }}</span>
+                {% elif note.icon %}
+                  <span class="note__kind" aria-hidden="true">{% icon note.icon %}</span>
+                {% endif %}
+              {% else %}
+                {# Nobody did this — the app spoke, so it wears its own mark. #}
+                <span class="note__mark" aria-hidden="true">{% icon "clock" %}</span>
+              {% endif %}
+            </span>
+
+            <span class="note__body">
+              <span class="note__title">{{ note.title }}</span>
+              {% if note.body %}<span class="note__text">{{ note.body }}</span>{% endif %}
+              <span class="note__when" title="{{ note.created_at }}">
+                {{ note.created_at|naturaltime }}
+              </span>
+            </span>
+
+            {% if note.was_unread %}
+              <span class="note__dot" role="img" aria-label="Unread"></span>
+            {% else %}
+              {% icon "chev" class="note__chev" %}
+            {% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
 
   {% if page_obj.paginator.num_pages > 1 %}
     <nav class="pager" aria-label="Pagination">
@@ -78,14 +134,27 @@
     </nav>
   {% endif %}
 {% else %}
-  <div class="card empty">
-    <span class="empty__icon">{% icon "bell" %}</span>
-    <p class="empty__title">Nothing yet</p>
-    <p class="empty__sub">
-      When somebody posts to the board, answers you, or reacts to something you
-      wrote, it turns up here.
+  {% comment %}
+    The page most people see first, and for a while the only one they see.
+
+    So it is not a shrug. It says what will land here, and offers the two
+    things worth doing about it: go and read the board, and — where push can
+    actually work — switch it on so the next one finds you instead.
+  {% endcomment %}
+  <div class="card blank">
+    <span class="blank__icon" aria-hidden="true">{% icon "bell" %}</span>
+    <h2 class="blank__title">Nothing yet</h2>
+    <p class="blank__text">
+      When somebody posts to the board, answers you, or reacts to something
+      you wrote, it turns up here.
     </p>
+    <a class="btn btn--primary blank__act" href="{% url 'notices:board' %}">
+      {% icon "chat-lines" %}
+      Open the board
+    </a>
   </div>
 {% endif %}
+
+</div>
 
 {% endblock %}

@@ -28,6 +28,70 @@
   }
 
   /* ----------------------------------------------------------------------
+     Arriving from a notification
+
+     Tapping a notification on a lock screen lands you on the board at an
+     anchor — a notice, or one comment inside somebody's thread. Two things
+     then have to happen that the browser will not do on its own.
+
+     The thing may be folded away. A thread keeps its newest few comments
+     open and hides the rest behind "View 3 previous comments", and an anchor
+     pointing into a closed <details> scrolls to nothing. Every fold above the
+     target is opened first.
+
+     And it has to be obvious which one it was. The board already flashes
+     briefly on :target, which is right when you have just reacted and been
+     sent back — you know what you were looking at. Arriving from a
+     notification is the opposite: you have been away, the page is full of
+     other people's notices, and the whole question is which one this is
+     about. So it gets a longer, louder mark of its own, and the page scrolls
+     it to the middle rather than jamming it under the app bar.
+
+     Runs on load and on hashchange. The second matters because a
+     notification tapped while MyWork is already open navigates the tab it
+     finds (see sw.js), and :target does not re-animate for that.
+     ---------------------------------------------------------------------- */
+  function initArrival() {
+    function land() {
+      var id = window.location.hash.slice(1);
+      if (!id) return;
+
+      var target = document.getElementById(id);
+      if (!target) return;
+
+      /* Open everything it is hidden inside, innermost first. A reply nested
+         under a folded comment is two deep. */
+      var box = target.closest ? target.closest("details") : null;
+      while (box) {
+        box.open = true;
+        box = box.parentElement && box.parentElement.closest
+          ? box.parentElement.closest("details")
+          : null;
+      }
+
+      /* Re-triggering an animation means taking the class off, letting the
+         browser notice, and putting it back — otherwise a second arrival at
+         the same comment does nothing at all. */
+      target.classList.remove("is-arrived");
+      void target.offsetWidth;
+      target.classList.add("is-arrived");
+
+      var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+
+      window.setTimeout(function () {
+        target.classList.remove("is-arrived");
+      }, 4000);
+    }
+
+    /* On load the anchor is already applied, but the fold above it may not
+       have finished laying out; a frame's wait is enough and avoids
+       scrolling to the wrong place. */
+    if (window.location.hash) window.requestAnimationFrame(land);
+    window.addEventListener("hashchange", land);
+  }
+
+  /* ----------------------------------------------------------------------
      Sticky search bar: draw a hairline only once it's actually stuck
      ---------------------------------------------------------------------- */
   function initStickyBar() {
@@ -1666,6 +1730,7 @@
 
   function init() {
     initTheme();
+    initArrival();
     initCompose();
     initComposeModal();
     initReactions();
