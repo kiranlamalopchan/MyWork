@@ -72,7 +72,9 @@
         {% endcomment %}
         <li class="note{% if note.was_unread %} note--unread{% endif %}{% if note.hue %} note--from{% else %} note--app{% endif %}"
             style="{% if note.hue %}--hue: {{ note.hue }};{% endif %} --i: {{ forloop.counter0 }}">
-          <a class="note__link" href="{% url 'notifications:go' note.pk %}">
+          {# data-full-load: `go` redirects to an anchor on the board, and a #}
+          {# fetch drops the anchor. A real navigation keeps it.            #}
+          <a class="note__link" href="{% url 'notifications:go' note.pk %}" data-full-load>
 
             <span class="note__face">
               {% if note.actor %}

@@ -115,8 +115,10 @@
         have to open something to see is a count that does not work, and the
         whole job of a bell is to be visible without being opened.
       {% endcomment %}
+      {# data-no-cache: opening the inbox is what marks it read, so it is a #}
+      {# fresh request every time and never fetched before it is tapped.     #}
       <a class="icon-btn bell{% if unread_notifications %} bell--unread{% endif %}"
-         href="{% url 'notifications:inbox' %}"
+         href="{% url 'notifications:inbox' %}" data-no-cache
          aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}">
         {% icon "bell" %}
         {% if unread_notifications %}<span class="bell__count">{{ unread_badge }}</span>{% endif %}

@@ -267,4 +267,17 @@
   } else {
     init();
   }
+
+  /* app.js swaps the body in place when a link is tapped (soft navigation)
+     and says so with this event. The switch and the badge belong to the
+     page, so they are set up again for the new one; the subscription
+     refresh is about the device and has already run. Keyed on the body
+     itself so the event for the page that is already set up does nothing. */
+  var seenBody = document.body;
+  document.addEventListener("mywork:page", function () {
+    if (document.body === seenBody) return;
+    seenBody = document.body;
+    initToggle();
+    initBadge();
+  });
 })();

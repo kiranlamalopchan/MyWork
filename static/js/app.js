@@ -5,6 +5,76 @@
   "use strict";
 
   /* ----------------------------------------------------------------------
+     Page lifecycle
+
+     There used to be one page per document: a tap loaded a new document,
+     and everything this file had set up — timers, listeners on window, a
+     half-finished fetch — went with the old one. Soft navigation (the last
+     section of this file) keeps the document and swaps only the body, so a
+     page now has an end that is not the document's end, and anything wired
+     to something longer-lived than the body has to be undone then.
+
+     Two kinds of initialiser follow from that. The ones in initOnce() listen
+     on the document itself and find their elements at event time, so they
+     are set up once and are never stale. The ones in initPage() belong to
+     the body on screen; they run again for every page, and anything they
+     attach beyond the body they attach through these helpers, which undo it
+     when the page is left. An initialiser that only touches elements inside
+     the body needs none of this — those listeners go when the body does.
+     ---------------------------------------------------------------------- */
+  var leaving = [];
+
+  /* Something to undo when this page is left. */
+  function onLeave(fn) {
+    leaving.push(fn);
+  }
+
+  /* addEventListener that is undone when the page is left — for window,
+     document, a MediaQueryList, anything that outlives the body. */
+  function listen(target, type, fn, options) {
+    target.addEventListener(type, fn, options);
+    onLeave(function () { target.removeEventListener(type, fn, options); });
+  }
+
+  /* setInterval that stops when the page is left. */
+  function every(fn, ms) {
+    var id = setInterval(fn, ms);
+    onLeave(function () { clearInterval(id); });
+  }
+
+  function leavePage() {
+    var undo = leaving;
+    leaving = [];
+    for (var i = 0; i < undo.length; i++) {
+      try { undo[i](); } catch (e) { /* one failed teardown must not stop the rest */ }
+    }
+  }
+
+  /* Popstate handlers that belong to the page on screen — a filter whose
+     choices are history entries (see wireLiveFilter). Held here rather than
+     on window so they go with the page, and so soft navigation can tell a
+     step within the page from a step to another one. */
+  var historyOwners = [];
+
+  function ownHistory(fn) {
+    historyOwners.push(fn);
+    onLeave(function () {
+      historyOwners = historyOwners.filter(function (other) { return other !== fn; });
+    });
+  }
+
+  /* The address of the page on screen — path and query — as soft navigation
+     knows it. Two things in this file rewrite the address without leaving
+     the page (the live search, the live filter); they say so here, so that a
+     step through history can be told apart from a jump to an anchor. */
+  var shown = null;
+
+  function noteAddress() {
+    shown = { key: location.pathname + location.search, pathname: location.pathname };
+  }
+  noteAddress();
+
+  /* ----------------------------------------------------------------------
      Theme toggle
      The initial value is applied by an inline script in <head> so there's no
      flash of the wrong palette; this only handles the button.
@@ -47,48 +117,49 @@
      about. So it gets a longer, louder mark of its own, and the page scrolls
      it to the middle rather than jamming it under the app bar.
 
-     Runs on load and on hashchange. The second matters because a
-     notification tapped while MyWork is already open navigates the tab it
-     finds (see sw.js), and :target does not re-animate for that.
+     Runs on load, on hashchange, and when a soft navigation lands on an
+     anchor — which fires neither. hashchange matters because a notification
+     tapped while MyWork is already open navigates the tab it finds (see
+     sw.js), and :target does not re-animate for that.
      ---------------------------------------------------------------------- */
-  function initArrival() {
-    function land() {
-      var id = window.location.hash.slice(1);
-      if (!id) return;
+  function landOnHash() {
+    var id = window.location.hash.slice(1);
+    if (!id) return;
 
-      var target = document.getElementById(id);
-      if (!target) return;
+    var target = document.getElementById(id);
+    if (!target) return;
 
-      /* Open everything it is hidden inside, innermost first. A reply nested
-         under a folded comment is two deep. */
-      var box = target.closest ? target.closest("details") : null;
-      while (box) {
-        box.open = true;
-        box = box.parentElement && box.parentElement.closest
-          ? box.parentElement.closest("details")
-          : null;
-      }
-
-      /* Re-triggering an animation means taking the class off, letting the
-         browser notice, and putting it back — otherwise a second arrival at
-         the same comment does nothing at all. */
-      target.classList.remove("is-arrived");
-      void target.offsetWidth;
-      target.classList.add("is-arrived");
-
-      var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      target.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
-
-      window.setTimeout(function () {
-        target.classList.remove("is-arrived");
-      }, 4000);
+    /* Open everything it is hidden inside, innermost first. A reply nested
+       under a folded comment is two deep. */
+    var box = target.closest ? target.closest("details") : null;
+    while (box) {
+      box.open = true;
+      box = box.parentElement && box.parentElement.closest
+        ? box.parentElement.closest("details")
+        : null;
     }
 
+    /* Re-triggering an animation means taking the class off, letting the
+       browser notice, and putting it back — otherwise a second arrival at
+       the same comment does nothing at all. */
+    target.classList.remove("is-arrived");
+    void target.offsetWidth;
+    target.classList.add("is-arrived");
+
+    var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+
+    window.setTimeout(function () {
+      target.classList.remove("is-arrived");
+    }, 4000);
+  }
+
+  function initArrival() {
     /* On load the anchor is already applied, but the fold above it may not
        have finished laying out; a frame's wait is enough and avoids
        scrolling to the wrong place. */
-    if (window.location.hash) window.requestAnimationFrame(land);
-    window.addEventListener("hashchange", land);
+    if (window.location.hash) window.requestAnimationFrame(landOnHash);
+    window.addEventListener("hashchange", landOnHash);
   }
 
   /* ----------------------------------------------------------------------
@@ -105,9 +176,11 @@
     sentinel.style.cssText = "position:absolute;height:1px;width:1px;";
     bar.parentNode.insertBefore(sentinel, bar);
 
-    new IntersectionObserver(function (entries) {
+    var watcher = new IntersectionObserver(function (entries) {
       bar.classList.toggle("is-stuck", !entries[0].isIntersecting);
-    }).observe(sentinel);
+    });
+    watcher.observe(sentinel);
+    onLeave(function () { watcher.disconnect(); });
   }
 
   /* ----------------------------------------------------------------------
@@ -371,6 +444,7 @@
       if (!window.history || !window.history.replaceState) return;
       var url = window.location.pathname + (query ? "?q=" + encodeURIComponent(query) : "");
       window.history.replaceState(null, "", url);
+      noteAddress();
     }
 
     function syncClear() {
@@ -403,6 +477,12 @@
         input.focus();
       });
     }
+
+    // Left mid-search: the list the answer was for is gone.
+    onLeave(function () {
+      clearTimeout(timer);
+      if (inFlight) inFlight.abort();
+    });
 
     syncClear();
   }
@@ -505,10 +585,13 @@
 
     // Honour the setting being flipped mid-session.
     if (reduced.addEventListener) {
-      reduced.addEventListener("change", function (e) {
+      listen(reduced, "change", function (e) {
         if (e.matches) pause();
       });
     }
+
+    // The box goes with the page; the typing must not carry on without it.
+    onLeave(stop);
   }
 
   /* ----------------------------------------------------------------------
@@ -729,14 +812,13 @@
     }
 
     paint();
-    var timer = setInterval(paint, 1000);
+    every(paint, 1000);
 
     // A phone that's been asleep comes back with a stale face; repaint the
     // moment it's visible again rather than waiting for the next tick.
-    document.addEventListener("visibilitychange", function () {
+    listen(document, "visibilitychange", function () {
       if (!document.hidden) paint();
     });
-    window.addEventListener("pagehide", function () { clearInterval(timer); });
   }
 
   /* ----------------------------------------------------------------------
@@ -899,32 +981,33 @@
   /* Any <details> marked data-dismiss behaves like a menu: a click outside or
      an Escape shuts it. Written once because there are two of them now — the
      app switcher in the bar, and the one on your own photo — and a second
-     copy is a second thing to forget when a third arrives. */
+     copy is a second thing to forget when a third arrives.
+
+     The menus are looked up when something happens rather than when the page
+     loads, so they are always the ones on screen: bound once, for every page
+     this document will show. */
   function initAppMenu() {
-    var menus = document.querySelectorAll("details[data-dismiss]");
-    if (!menus.length) return;
+    function menus() {
+      return document.querySelectorAll("details[data-dismiss]");
+    }
 
     document.addEventListener("click", function (event) {
-      menus.forEach(function (menu) {
-        if (!menu.open || menu.contains(event.target)) return;
-        menu.open = false;
+      menus().forEach(function (menu) {
+        if (!menu.open) return;
+        // Picking something closes it too: a real page load would otherwise
+        // leave the panel open behind the new page in bfcache.
+        var picked = event.target.closest && event.target.closest("a");
+        if (!menu.contains(event.target) || picked) menu.open = false;
       });
     });
 
     document.addEventListener("keydown", function (event) {
       if (event.key !== "Escape") return;
-      menus.forEach(function (menu) {
+      menus().forEach(function (menu) {
         if (!menu.open) return;
         menu.open = false;
         var btn = menu.querySelector("summary");
         if (btn) btn.focus();
-      });
-    });
-
-    // Navigating away leaves the panel open behind the new page in bfcache.
-    menus.forEach(function (menu) {
-      menu.querySelectorAll("a").forEach(function (link) {
-        link.addEventListener("click", function () { menu.open = false; });
       });
     });
   }
@@ -1166,18 +1249,19 @@
      closes the one you left open when you move on.
      ---------------------------------------------------------------------- */
   function initReactions() {
-    var pickers = document.querySelectorAll("details.react");
-    if (!pickers.length) return;
+    function pickers() {
+      return document.querySelectorAll("details.react");
+    }
 
     document.addEventListener("click", function (event) {
-      pickers.forEach(function (picker) {
+      pickers().forEach(function (picker) {
         if (picker.open && !picker.contains(event.target)) picker.open = false;
       });
     });
 
     document.addEventListener("keydown", function (event) {
       if (event.key !== "Escape") return;
-      pickers.forEach(function (picker) { picker.open = false; });
+      pickers().forEach(function (picker) { picker.open = false; });
     });
   }
 
@@ -1262,19 +1346,6 @@
     });
   }
 
-  /* ----------------------------------------------------------------------
-     Page skeletons
-     Every screen here is rendered by the server, so most of the time there is
-     no gap to fill: you tap, the page arrives, and a placeholder would only
-     have flickered. On a phone on mobile data there is a gap, and that is the
-     one this fills — the old page stops being the answer the moment you tap,
-     and sitting on it for two seconds looks like the tap missed.
-
-     So nothing is shown for the first fraction of a second. Past that, the
-     page's own content is set aside (the nodes themselves, so nothing is lost
-     or re-initialised) and shapes stand in until the new page lands. If the
-     navigation never happens, the page comes back.
-     ---------------------------------------------------------------------- */
   /* ----------------------------------------------------------------------
      Live workplace filter
 
@@ -1384,6 +1455,7 @@
           initTally(true);
           if (remember === "push") history.pushState({ liveFilter: true }, "", href);
           if (remember === "replace") history.replaceState({ liveFilter: true }, "", href);
+          noteAddress();
         })
         .catch(function (error) {
           if (error && error.name === "AbortError") return;
@@ -1421,20 +1493,39 @@
 
     // Back and forward move between filters the same way the chips do. The
     // entry you arrived on is flagged too, or going back to it lands on a
-    // state this ignores and the page keeps showing the job you left.
+    // state this ignores and the page keeps showing the job you left. The
+    // handler is the page's, not the window's: soft navigation hands it
+    // only the steps that stay within this page, and drops it on leaving.
     if (control.querySelector("a.chip--link")) {
       history.replaceState({ liveFilter: true }, "", window.location.href);
-      window.addEventListener("popstate", function (event) {
-        if (!event.state || !event.state.liveFilter) return;
-        load(window.location.href, null);
-      });
+      ownHistory(function () { load(window.location.href, null); });
     }
+
+    // Left mid-swap: the region the answer was for is gone.
+    onLeave(function () {
+      clearTimeout(timer);
+      if (inFlight) inFlight.abort();
+    });
   }
 
-  function initNavSkeleton() {
-    var main = document.querySelector("main.container");
-    if (!main) return;
+  /* ----------------------------------------------------------------------
+     Page skeleton
+     Every screen here is rendered by the server, so most of the time there is
+     no gap to fill: you tap, the page arrives, and a placeholder would only
+     have flickered. On a phone on mobile data there is a gap, and that is the
+     one this fills — the old page stops being the answer the moment you tap,
+     and sitting on it for two seconds looks like the tap missed.
 
+     So nothing is shown for the first fraction of a second. Past that, the
+     page's own content is set aside (the nodes themselves, so nothing is lost
+     or re-initialised) and shapes stand in until the new page lands. If the
+     navigation never happens, the page comes back.
+
+     One controller for both kinds of leaving: a form posting or a link the
+     browser follows (initNavSkeleton, below) and a link soft navigation
+     follows itself. Either arms it; whichever page lands resolves it.
+     ---------------------------------------------------------------------- */
+  var pageSkeleton = (function () {
     // Long enough that a quick navigation never flashes a skeleton.
     var WAIT = 400;
     // A navigation that never lands — offline, or cancelled in a way the page
@@ -1444,31 +1535,56 @@
     var timer = null;
     var giveUp = null;
     var parked = null;
+    var host = null;
 
     function show() {
       if (parked) return;
+      host = document.querySelector("main.container");
+      if (!host) return;
       parked = document.createDocumentFragment();
-      while (main.firstChild) parked.appendChild(main.firstChild);
-      main.innerHTML = skeletonPage();
-      main.setAttribute("aria-busy", "true");
+      while (host.firstChild) parked.appendChild(host.firstChild);
+      host.innerHTML = skeletonPage();
+      host.setAttribute("aria-busy", "true");
       giveUp = setTimeout(restore, GIVE_UP);
     }
 
+    /* The page's own content back: the navigation did not happen. */
     function restore() {
       clearTimeout(timer);
       clearTimeout(giveUp);
       if (!parked) return;
-      main.innerHTML = "";
-      main.appendChild(parked);
-      main.removeAttribute("aria-busy");
+      // Only into the page it came from, if that is still the one on screen.
+      if (host && host.isConnected) {
+        host.innerHTML = "";
+        host.appendChild(parked);
+        host.removeAttribute("aria-busy");
+      }
       parked = null;
+      host = null;
     }
 
+    /* Start waiting. The skeleton appears only if the wait turns out long. */
     function arm() {
       clearTimeout(timer);
       timer = setTimeout(show, WAIT);
     }
 
+    /* The navigation landed and brought a whole body with it: nothing to put
+       back, and nothing left to wait for. */
+    function reset() {
+      clearTimeout(timer);
+      clearTimeout(giveUp);
+      parked = null;
+      host = null;
+    }
+
+    return { arm: arm, restore: restore, reset: reset };
+  })();
+
+  /* The navigations the browser makes itself. Soft navigation has already
+     cancelled the clicks it takes, so what reaches here is a real page load —
+     a form, or a link that opted out. */
+  function initNavSkeleton() {
     document.addEventListener("click", function (event) {
       // Anything the browser won't treat as a plain navigation is not one:
       // new tabs, downloads, modified clicks, and anything already handled.
@@ -1486,7 +1602,7 @@
       if (link.pathname === window.location.pathname &&
           link.search === window.location.search) return;
 
-      arm();
+      pageSkeleton.arm();
     });
 
     document.addEventListener("submit", function (event) {
@@ -1496,19 +1612,18 @@
       if (event.defaultPrevented) return;
       var form = event.target;
       if (form.getAttribute && form.getAttribute("target")) return;
-      arm();
+      pageSkeleton.arm();
     });
 
-    // Leaving for real: the timers go with the page.
+    // Leaving for real: nothing left to wait for.
     window.addEventListener("pagehide", function () {
-      clearTimeout(timer);
-      clearTimeout(giveUp);
+      pageSkeleton.reset();
     });
 
     // Back button onto a page the browser kept: it comes back mid-skeleton,
     // so put its content back.
     window.addEventListener("pageshow", function (event) {
-      if (event.persisted) restore();
+      if (event.persisted) pageSkeleton.restore();
     });
   }
 
@@ -1711,31 +1826,410 @@
 
     // A width change is not a selection change, so it must not look like one.
     var settle = null;
-    window.addEventListener("resize", function () {
+    listen(window, "resize", function () {
       clearTimeout(settle);
       settle = setTimeout(function () { place(current(), false); }, 120);
     });
 
     // Fonts land after first paint and can change a tab's width underneath
-    // the capsule.
+    // the capsule. Unless the page has gone by then.
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(function () { place(current(), false); });
+      document.fonts.ready.then(function () {
+        if (bar.isConnected) place(current(), false);
+      });
     }
 
     // Coming back to a page the browser kept alive: re-measure, don't animate.
-    window.addEventListener("pageshow", function (event) {
+    listen(window, "pageshow", function (event) {
       if (event.persisted) place(current(), false);
     });
   }
 
-  function init() {
-    initTheme();
+  /* ----------------------------------------------------------------------
+     Soft navigation — the next page arrives instead of the site reloading
+
+     Every screen is rendered by the server, and until now every tap on a
+     link was a full page load: the browser tore the document down, fetched
+     the next one, parsed the stylesheet again, ran this file again and
+     painted from nothing. On a phone that is a blank quarter-second at best,
+     and on mobile data it is the gap the skeleton above stands in.
+
+     Now a tap fetches the next page's HTML and swaps its <body> in for this
+     one. Same document, same stylesheet, nothing re-parsed but the page
+     itself — and the address bar, the title and the back button all still
+     mean what they say: pushState records the move, popstate reverses it,
+     and a page you step back to is drawn again from the copy already fetched.
+
+     Two things make it feel instant rather than merely quick. The fetch
+     starts when a finger lands on a link, not when it lifts — the hundred
+     milliseconds between touchstart and click is most of a round trip on a
+     decent connection — and on a mouse it starts on hover. And a page
+     fetched in the last minute is not fetched again.
+
+     Progressive enhancement throughout. Anything the browser would not treat
+     as a plain same-site navigation is left to it — modified clicks, new
+     tabs, downloads, other origins, forms — and so is anything the response
+     turns out not to be: a file, an error, or a page built for different
+     stylesheets or scripts than this one (a deploy has landed, and only a
+     real load picks that up). Two attributes let a template opt a link out:
+
+       data-full-load   a real navigation, always. For a link that redirects
+                        to an anchor, which fetch cannot see.
+       data-no-cache    never prefetched and never served from the cache.
+                        For a page whose GET does something — the inbox
+                        marks itself read.
+
+     Scripts in the fetched page are not run. Nothing here needs any beyond
+     the two base.html loads, and the page's own initialisers are run again
+     by hand (initPage); notifications.js hears about it as mywork:page.
+     ---------------------------------------------------------------------- */
+  function initSoftNav() {
+    var supported = !!(window.fetch && window.DOMParser && window.Promise &&
+      window.history.pushState && window.URL && "isConnected" in document.body);
+
+    // How long a fetched page may stand in for itself: when tapped, and
+    // when stepped back to. The second is longer because back means "what
+    // I was just looking at", not "what is there now" — the same bargain a
+    // browser's own back-forward cache makes.
+    var FRESH = 60 * 1000;
+    var KEEP = 5 * 60 * 1000;
+    // Hover intent before a mouse prefetches; how long a finger must stay
+    // still before it counts as a tap rather than the start of a scroll.
+    var HOVER = 65;
+    var TOUCH = 80;
+    var MAX_CACHE = 20;
+
+    // Paths that are never ours to render: other software's pages, files.
+    var NOT_A_PAGE = /^\/(admin|static|media)\/|^\/sw\.js$/;
+
+    var cache = {};      // url (no hash) -> { promise, html, url, redirected, at }
+    var scrolls = {};    // path+search -> scrollY when last left
+    var active = null;   // the navigation being awaited, if any
+
+    /* A step back or forward can mean three things; told apart here so the
+       page's own handlers only ever see their own. */
+    window.addEventListener("popstate", function (event) {
+      var state = event.state;
+      // A filter changing within the page it belongs to — that page's
+      // business, if it is still on screen to deal with it.
+      if (state && state.liveFilter && historyOwners.length &&
+          location.pathname === shown.pathname) {
+        historyOwners.slice().forEach(function (fn) { fn(); });
+        noteAddress();
+        return;
+      }
+      // An anchor within the page only moves the scroll; hashchange has it.
+      if (location.pathname + location.search === shown.key) return;
+      if (!supported) return;
+      go(location.href, KEEP, "pop");
+    });
+
+    if (!supported) return;
+
+    // Scroll is put back by hand on popstate (below), after the right page is
+    // on screen. Left to the browser it would happen first, on the wrong one.
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    keepScrollAcrossReload();
+
+    // ---- which links -------------------------------------------------------
+
+    function isPage(link) {
+      var href = link.getAttribute("href") || "";
+      if (!href || href.charAt(0) === "#") return false;
+      if (link.hasAttribute("download") || link.hasAttribute("data-full-load")) return false;
+      if (link.target && link.target !== "_self") return false;
+      if (link.origin !== location.origin) return false;
+      if (NOT_A_PAGE.test(link.pathname)) return false;
+      // An anchor on this page is a scroll, not a navigation.
+      if (link.hash && link.pathname === location.pathname &&
+          link.search === location.search) return false;
+      return true;
+    }
+
+    function linkIn(event) {
+      var link = event.target.closest ? event.target.closest("a[href]") : null;
+      return link && isPage(link) ? link : null;
+    }
+
+    function split(href) {
+      var cut = href.indexOf("#");
+      return cut < 0 ? [href, ""] : [href.slice(0, cut), href.slice(cut)];
+    }
+
+    // ---- fetching ----------------------------------------------------------
+
+    function fetchPage(url) {
+      var entry = { at: Date.now(), html: null, url: url, redirected: false };
+      entry.promise = fetch(url, {
+        credentials: "same-origin",
+        headers: { Accept: "text/html" },
+      })
+        .then(function (response) {
+          var type = response.headers.get("Content-Type") || "";
+          var landed = new URL(response.url || url, location.href);
+          // Not a page of ours to draw: an error, a file, somewhere else.
+          if (!response.ok || type.indexOf("text/html") < 0 ||
+              landed.origin !== location.origin) {
+            throw new Error("not a page");
+          }
+          return response.text().then(function (html) {
+            entry.html = html;
+            entry.url = split(landed.href)[0];
+            entry.redirected = response.redirected;
+            entry.at = Date.now();
+            return entry;
+          });
+        })
+        .catch(function (error) {
+          if (cache[url] === entry) delete cache[url];
+          throw error;
+        });
+      cache[url] = entry;
+      prune();
+      return entry.promise;
+    }
+
+    /* The page at `url`: from the cache if it is younger than `maxAge`, or
+       already on its way, otherwise fetched now. */
+    function pageAt(url, maxAge) {
+      var hit = cache[url];
+      if (hit && (hit.html === null || Date.now() - hit.at < maxAge)) return hit.promise;
+      return fetchPage(url);
+    }
+
+    function prune() {
+      var keys = Object.keys(cache);
+      if (keys.length <= MAX_CACHE) return;
+      keys.sort(function (a, b) { return cache[a].at - cache[b].at; });
+      delete cache[keys[0]];
+    }
+
+    function prefetch(link) {
+      if (!isPage(link) || link.hasAttribute("data-no-cache")) return;
+      // Someone who has asked for less data gets exactly what they tap on.
+      if (navigator.connection && navigator.connection.saveData) return;
+      var url = split(link.href)[0];
+      if (url === split(location.href)[0]) return;
+      var hit = cache[url];
+      if (hit && (hit.html === null || Date.now() - hit.at < FRESH)) return;
+      fetchPage(url).catch(function () { /* the tap, if it comes, will try again */ });
+    }
+
+    // ---- rendering ---------------------------------------------------------
+
+    /* The stylesheet and scripts a page was built for. */
+    function assets(root) {
+      var urls = [];
+      root.querySelectorAll('link[rel="stylesheet"][href], script[src]').forEach(function (el) {
+        urls.push(el.getAttribute("href") || el.getAttribute("src"));
+      });
+      return urls.sort().join(" ");
+    }
+
+    function copyMeta(doc, name) {
+      var from = doc.querySelector('meta[name="' + name + '"]');
+      var to = document.querySelector('meta[name="' + name + '"]');
+      if (from && to) to.setAttribute("content", from.getAttribute("content") || "");
+    }
+
+    /* scrollTo without the smooth scrolling the stylesheet asks for: a new
+       page starts at the top, it does not glide there. Asked for outright,
+       because an inline scroll-behavior on <html> is not enough — Chrome's
+       window.scrollTo still reads the stylesheet's. Setting scrollTop does
+       honour the inline value, so that is the fallback for a browser that
+       does not know "instant". */
+    function jumpTo(y) {
+      try {
+        window.scrollTo({ top: y, left: 0, behavior: "instant" });
+      } catch (e) {
+        var root = document.scrollingElement || document.documentElement;
+        var was = root.style.scrollBehavior;
+        root.style.scrollBehavior = "auto";
+        root.scrollTop = y;
+        root.style.scrollBehavior = was;
+      }
+    }
+
+    /* Where the keyboard and a screen reader are after the swap. A real load
+       starts them at the top of the new page; a swap would leave them on
+       nothing, so the page itself is given focus — or its autofocus field. */
+    function settleFocus() {
+      var main = document.querySelector("main.container");
+      var target = document.querySelector("[autofocus]") || main;
+      if (!target) return;
+      if (target === main) main.setAttribute("tabindex", "-1");
+      try { target.focus({ preventScroll: true }); } catch (e) { target.focus(); }
+    }
+
+    /* Put a fetched page on screen. False means "not something to draw
+       here" and the caller lets the browser make the trip instead. */
+    function render(entry, hash, mode) {
+      var doc = new DOMParser().parseFromString(entry.html, "text/html");
+      if (!doc.body || !doc.querySelector("main.container")) return false;
+      // Built for other CSS or JS than this document has: a deploy landed
+      // between then and now, and only a real load picks that up.
+      if (assets(doc) !== assets(document)) return false;
+
+      leavePage();
+      pageSkeleton.reset();
+
+      document.title = doc.title;
+      copyMeta(doc, "unread-count");
+      // Adopted rather than re-parsed from a string, and its scripts have
+      // already "started" as far as the browser is concerned: they do not run.
+      document.documentElement.replaceChild(document.adoptNode(doc.body), document.body);
+
+      // A redirect went somewhere else; the anchor was for where we asked.
+      if (entry.redirected) hash = "";
+      if (mode === "push") {
+        history.pushState({ soft: true }, "", entry.url + hash);
+      } else if (mode === "pop" && entry.url !== split(location.href)[0]) {
+        // The entry keeps its anchor; a redirect only corrects its address.
+        history.replaceState(history.state, "", entry.url + location.hash);
+      }
+      noteAddress();
+
+      if (mode === "pop") jumpTo(scrolls[shown.key] || 0);
+      else if (location.hash) window.requestAnimationFrame(landOnHash);
+      else jumpTo(0);
+
+      initPage();
+      settleFocus();
+      return true;
+    }
+
+    function handOver(href) {
+      window.location.href = href;
+    }
+
+    /* Go to `href`: the navigation proper. */
+    function go(href, maxAge, mode) {
+      var parts = split(href);
+      var job = {};
+      active = job;
+
+      // Where this page was left, for when it is stepped back to.
+      scrolls[shown.key] = window.scrollY;
+      pageSkeleton.arm();
+
+      pageAt(parts[0], maxAge).then(function (entry) {
+        if (active !== job) return;   // a later tap took over
+        active = null;
+        if (!render(entry, parts[1], mode)) handOver(href);
+      }, function () {
+        if (active !== job) return;
+        active = null;
+        handOver(href);
+      });
+    }
+
+    // ---- the tap -----------------------------------------------------------
+
+    document.addEventListener("click", function (event) {
+      // Anything the browser would not treat as a plain navigation is not
+      // one: new tabs, modified clicks, and anything already handled — the
+      // compose button, the filter chips.
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      var link = linkIn(event);
+      if (!link) return;
+
+      event.preventDefault();
+      go(link.href, link.hasAttribute("data-no-cache") ? 0 : FRESH, "push");
+    });
+
+    // ---- the moment before the tap -----------------------------------------
+
+    var hoverLink = null;
+    var hoverTimer = null;
+    document.addEventListener("mouseover", function (event) {
+      var link = event.target.closest ? event.target.closest("a[href]") : null;
+      if (!link || link === hoverLink) return;
+      clearTimeout(hoverTimer);
+      hoverLink = link;
+      hoverTimer = setTimeout(function () { prefetch(link); }, HOVER);
+    });
+    document.addEventListener("mouseout", function (event) {
+      if (!hoverLink || !hoverLink.contains(event.target)) return;
+      // Moving between the link's own children is not leaving it.
+      if (event.relatedTarget && hoverLink.contains(event.relatedTarget)) return;
+      clearTimeout(hoverTimer);
+      hoverLink = null;
+    });
+
+    // A mouse button going down is a decision made.
+    document.addEventListener("mousedown", function (event) {
+      if (event.button !== 0) return;
+      var link = event.target.closest ? event.target.closest("a[href]") : null;
+      if (link) prefetch(link);
+    });
+
+    // A finger landing might be a tap or the start of a scroll. One that
+    // has not moved after a moment is a tap; one that moves is not.
+    var touchTimer = null;
+    document.addEventListener("touchstart", function (event) {
+      clearTimeout(touchTimer);
+      var link = event.target.closest ? event.target.closest("a[href]") : null;
+      if (!link) return;
+      touchTimer = setTimeout(function () { prefetch(link); }, TOUCH);
+    }, { passive: true });
+    document.addEventListener("touchmove", function () {
+      clearTimeout(touchTimer);
+    }, { passive: true });
+
+    // ---- reloads -----------------------------------------------------------
+
+    /* With scroll restoration set to manual, a reload — or arriving back at
+       this document from another one, when the browser did not keep it —
+       would start at the top. Write the position down on the way out and
+       put it back on the way in, for exactly those two arrivals. */
+    function keepScrollAcrossReload() {
+      var KEY = "mywork-scroll";
+
+      window.addEventListener("pagehide", function () {
+        try {
+          sessionStorage.setItem(KEY, location.href + " " + window.scrollY);
+        } catch (e) { /* private browsing: a reload starts at the top */ }
+      });
+
+      var raw = null;
+      try {
+        raw = sessionStorage.getItem(KEY);
+        sessionStorage.removeItem(KEY);
+      } catch (e) { return; }
+      if (!raw) return;
+
+      var cut = raw.lastIndexOf(" ");
+      if (raw.slice(0, cut) !== location.href) return;
+
+      var arrival = performance.getEntriesByType &&
+        performance.getEntriesByType("navigation")[0];
+      if (!arrival || (arrival.type !== "reload" && arrival.type !== "back_forward")) return;
+      jumpTo(Number(raw.slice(cut + 1)) || 0);
+    }
+  }
+
+  /* ----------------------------------------------------------------------
+     Start-up
+     Once for the document, then once for every page it shows. Soft
+     navigation goes first: its click handler must have cancelled a tap
+     before the skeleton's sees it, and listeners fire in the order they
+     were added.
+     ---------------------------------------------------------------------- */
+  function initOnce() {
+    initSoftNav();
     initArrival();
-    initCompose();
-    initComposeModal();
     initReactions();
     initCommentBoxes();
     initAppMenu();
+    initRipple();
+    initNavSkeleton();
+  }
+
+  function initPage() {
+    initTheme();
+    initCompose();
+    initComposeModal();
     initTally();
     initPeriodFields();
     initCashFields();
@@ -1749,12 +2243,21 @@
     initPhotoPicker();
     initAvatarPicker();
     initCsvPicker();
-    initRipple();
     initSubmitState();
     initLiveFilter();
     initTabSlider();
-    initNavSkeleton();
     initLiveErrors();
+
+    // For anything outside this file with a page to set up — notifications.js
+    // has the switch on the inbox and the number on the icon.
+    if (typeof CustomEvent === "function") {
+      document.dispatchEvent(new CustomEvent("mywork:page"));
+    }
+  }
+
+  function init() {
+    initOnce();
+    initPage();
   }
 
   if (document.readyState === "loading") {

@@ -237,6 +237,21 @@ string references like `"accounts.Profile"` resolve through it. And templates
 are addressed by the path under `templates/`, not by the app's module path, so
 `timeclock/shifts.html` did not move when `timeclock` did.
 
+One thing about the front end. Every page is rendered by Django, but tapping
+a link does not reload the site: `static/js/app.js` fetches the next page —
+starting the moment a finger lands on the link — and swaps its `<body>` in
+place, so the stylesheet and scripts are parsed once per visit rather than
+once per tap. Forms, downloads, other origins, modified clicks and anything
+that isn't an HTML page are left to the browser, and a page whose CSS or JS
+hashes differ from the document's (a deploy landed) gets a real load. Two
+attributes opt a link out: `data-full-load` (always a real navigation) and
+`data-no-cache` (never prefetched or reused — for a page whose GET does
+something, like the inbox marking itself read). Anything that sets a page up
+belongs in `initPage()`, which runs for every page; anything wired to
+`window` or `document` there goes through `listen()` / `every()` so it is
+undone when the page is left. See the comments at the top and bottom of
+`app.js`.
+
 ## Settings
 
 `DJANGO_SETTINGS_MODULE` chooses; nothing imports one settings module from

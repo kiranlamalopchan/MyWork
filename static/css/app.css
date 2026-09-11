@@ -392,6 +392,9 @@ img { max-width: 100%; height: auto; display: block; }
     calc(var(--tabbar-h) + var(--safe-b) + var(--sp-6))
     max(var(--sp-4), var(--safe-l));
 }
+/* Soft navigation hands focus to the page after a swap, for keyboards and
+   screen readers. That is a place to start from, not a thing to outline. */
+.container:focus { outline: none; }
 
 /* --------------------------------------------------------------------------
    4. Bottom tab bar (phones) — a floating pill within thumb reach
