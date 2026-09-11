@@ -21,6 +21,7 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.db import models
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 # How far ahead "upcoming" reaches on the calendar page. A year is enough that
 # the list always has something in it and short enough that it stays a list
@@ -116,7 +117,7 @@ class PublicHoliday(models.Model):
         most relevant answer there is, and a card that skipped to the next one
         would be the only thing on the phone that did not know it was Christmas.
         """
-        today = today or date.today()
+        today = today or timezone.localdate()
         return (
             cls.visible_to(state)
             .filter(date__gte=today)
@@ -129,7 +130,7 @@ class PublicHoliday(models.Model):
         cls, state: str, today: date | None = None, horizon: timedelta = HORIZON
     ) -> QuerySet[PublicHoliday]:
         """The next year of them, for the full calendar behind the card."""
-        today = today or date.today()
+        today = today or timezone.localdate()
         return (
             cls.visible_to(state)
             .filter(date__gte=today, date__lte=today + horizon)

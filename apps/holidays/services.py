@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import date
 from itertools import groupby
 
+from django.utils import timezone
+
 from .models import HolidayPreference, PublicHoliday, State
 
 
@@ -69,7 +71,7 @@ class HolidayCard:
         before it" is what somebody reads off this, and an hours-based answer
         would say 0 days at breakfast on Christmas Eve.
         """
-        return max((self.day - (today or date.today())).days, 0)
+        return max((self.day - (today or timezone.localdate())).days, 0)
 
     def countdown(self, today: date | None = None) -> str:
         """The same number in words, because "In 0 days" is not a sentence."""

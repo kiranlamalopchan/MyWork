@@ -8,11 +8,13 @@ package says. The other is the formatting, because every string on the card is
 built on the server and a mobile client has no way to correct it.
 """
 
-from datetime import date
+from datetime import date, datetime, timezone as dt_timezone
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import HolidayPreference, PublicHoliday, State
 from .services import HolidayCard, by_month, card_for_user, next_card
@@ -127,6 +129,20 @@ class NextHolidayTests(TestCase):
         with self.assertNumQueries(1):
             PublicHoliday.next_for(State.NSW, today=date(2026, 12, 23))
 
+    def test_default_date_uses_the_active_timezone(self):
+        PublicHoliday.objects.create(
+            date=date(2026, 12, 24), name="Christmas Eve", state=State.NATIONAL
+        )
+
+        with timezone.override("Australia/Darwin"):
+            with patch(
+                "django.utils.timezone.now",
+                return_value=datetime(2026, 12, 24, 14, 30, tzinfo=dt_timezone.utc),
+            ):
+                found = PublicHoliday.next_for(State.NSW)
+
+        self.assertEqual(found.date, date(2026, 12, 25))
+
 
 class CardTests(TestCase):
     """The strings the phone is handed."""
@@ -157,6 +173,14 @@ class CardTests(TestCase):
 
     def test_a_holiday_in_the_past_never_counts_backwards(self):
         self.assertEqual(self.card.days_remaining(date(2026, 12, 26)), 0)
+
+    def test_default_countdown_uses_the_active_timezone(self):
+        with timezone.override("Australia/Darwin"):
+            with patch(
+                "django.utils.timezone.now",
+                return_value=datetime(2026, 12, 24, 14, 30, tzinfo=dt_timezone.utc),
+            ):
+                self.assertEqual(self.card.countdown(), "Today")
 
     def test_the_payload_is_what_the_app_needs(self):
         payload = self.card.as_payload(today=date(2026, 12, 18))

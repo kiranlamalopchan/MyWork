@@ -23,6 +23,7 @@ from datetime import date
 
 import holidays as holidays_pkg
 from django.db import transaction
+from django.utils import timezone
 
 from .models import PublicHoliday, State
 
@@ -42,7 +43,7 @@ class Entry:
 
 def years_from(today: date | None = None, ahead: int = DEFAULT_YEARS_AHEAD) -> list[int]:
     """This year and the next few."""
-    start = (today or date.today()).year
+    start = (today or timezone.localdate()).year
     return list(range(start, start + ahead + 1))
 
 
