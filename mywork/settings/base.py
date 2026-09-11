@@ -35,6 +35,9 @@ LOCAL_APPS = [
     'apps.plu',
     'apps.timeclock',
     'apps.noticeboard',
+    # The bell: one mailbox every app writes into, and the push subscriptions
+    # that carry a line of it to a phone.
+    'apps.notifications',
 ]
 
 # Split in two so that "which of these did we write?" is answered by reading
@@ -56,6 +59,10 @@ MIDDLEWARE = [
     # Also after it, and for the same reason: it records that request.user
     # was here, which is what puts the live dot on their face on the board.
     'apps.accounts.middleware.PresenceMiddleware',
+    # Last, because it is the only one that may do real work: roughly four
+    # times an hour it runs the timesheet reminders, which is how they run at
+    # all on a host whose scheduler offers one task a day.
+    'apps.timeclock.middleware.ReminderSweepMiddleware',
 ]
 
 
@@ -82,6 +89,8 @@ TEMPLATES = [
                 'mywork.context_processors.section',
                 # The signed-in user's own photo and name, for the app bar.
                 'mywork.context_processors.me',
+                # What is waiting for them, for the bell beside it.
+                'apps.notifications.context_processors.notifications',
             ],
             # Tags belonging to the project rather than to any one app: the
             # icon set and the backlink, used by all four. Registered here so
@@ -135,6 +144,27 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # up with the database, not with the repository.
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# --------------------------------------------------------------------------
+# Web Push
+#
+# Off unless configured, which is the only default this file can honestly
+# have: the keys are secrets, and secrets belong where the environment is
+# read. An empty public key is what tells the page not to offer a switch that
+# could not do anything, so a laptop with none set behaves correctly rather
+# than half-working.
+#
+# Generate a pair with `python manage.py vapid_keys` and put them in .env;
+# production.py reads them there. They are the identity of this site to every
+# push service, so changing them later invalidates every subscription already
+# handed out and everybody has to turn notifications on again.
+# --------------------------------------------------------------------------
+VAPID_PUBLIC_KEY = ''
+VAPID_PRIVATE_KEY = ''
+# Where a push service writes if this site starts misbehaving. They all
+# require one, and all of them require it to be an address.
+VAPID_CONTACT_EMAIL = ''
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -16,6 +16,19 @@
   <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'img/icon-180.png' %}">
 
+  {% if request.user.is_authenticated %}
+    {% comment %}
+      What notifications.js needs and cannot work out for itself: the key a
+      browser must have to subscribe (empty when the server has none, which
+      is how the page knows not to offer a switch), a CSRF token for the two
+      JSON endpoints, and the unread count — read here so the number on the
+      home-screen icon comes from the same place as the number on the bell.
+    {% endcomment %}
+    <meta name="vapid-key" content="{{ vapid_public_key }}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="unread-count" content="{{ unread_notifications }}">
+  {% endif %}
+
   <title>{% block title %}MyWork{% endblock %}</title>
 
   {# Applied before first paint so the correct palette is up immediately. #}
@@ -94,6 +107,21 @@
     {% endif %}
 
     {% if request.user.is_authenticated %}
+      {% comment %}
+        Anything waiting for you.
+
+        A link rather than a menu, because there is only one thing to do with
+        it. It sits beside your face and not inside that menu: a count you
+        have to open something to see is a count that does not work, and the
+        whole job of a bell is to be visible without being opened.
+      {% endcomment %}
+      <a class="icon-btn bell{% if unread_notifications %} bell--unread{% endif %}"
+         href="{% url 'notifications:inbox' %}"
+         aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}">
+        {% icon "bell" %}
+        {% if unread_notifications %}<span class="bell__count">{{ unread_badge }}</span>{% endif %}
+      </a>
+
       {% comment %}
         You, and everything that is about you rather than about the page:
         your profile, which app you're in, and signing out. It wears your own
@@ -197,6 +225,11 @@
 {% endif %}
 
 <script src="{% static 'js/app.js' %}" defer></script>
+{% if request.user.is_authenticated %}
+  {# Permission, the subscription, and the number on the icon. Everything the #}
+  {# bell above shows is already rendered without it. #}
+  <script src="{% static 'js/notifications.js' %}" defer></script>
+{% endif %}
 {% block body_extra %}{% endblock %}
 </body>
 </html>

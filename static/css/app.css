@@ -4696,3 +4696,156 @@ body::before {
   .tabbar__inner > .tab-slider { transition: opacity var(--dur-1) var(--ease); }
   .tabbar .tab { transition: none; }
 }
+
+/* --------------------------------------------------------------------------
+   35. Notifications — the bell, and the list behind it
+   -------------------------------------------------------------------------- */
+
+/* The bell sits in the app bar between the page and your face. It is an
+   anchor wearing .icon-btn, so it inherits the shape of the theme toggle
+   beside it and only has to add the count. */
+.bell {
+  position: relative;
+  text-decoration: none;
+}
+.bell:hover { text-decoration: none; }
+
+/* Unread is a colour before it is a number: the badge is read at a glance
+   from across a room, the digit in it only once you look. */
+.bell--unread { color: var(--brand); border-color: var(--brand-soft); }
+
+.bell__count {
+  position: absolute;
+  /* Just off the bell's shoulder, clear of the 44px tap target's edges so it
+     is never the thing under a thumb. */
+  top: 3px;
+  right: 3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  /* A ring in the bar's own colour, so the badge reads as sitting on top of
+     the button rather than punched out of it. */
+  box-shadow: 0 0 0 2px var(--surface-2);
+  pointer-events: none;
+}
+
+/* ---- The switch at the top of the inbox --------------------------------- */
+
+/* Hidden in the markup and shown by notifications.js once it knows what it
+   can offer. A switch that appears a moment late is better than one that is
+   there from the start and turns out to do nothing. */
+.push-setup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.push-setup__text { flex: 1 1 auto; min-width: 0; }
+.push-setup__title { font-weight: 600; font-size: 15px; }
+.push-setup__status {
+  margin-top: var(--sp-1);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.push-setup .btn { flex: none; }
+
+/* On, and saying so in the one colour the app uses for "this is live". */
+.push-setup.is-on { border-color: var(--brand-soft); }
+.push-setup.is-on .push-setup__status { color: var(--brand-strong); }
+
+/* ---- The list ----------------------------------------------------------- */
+
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.note {
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+/* Unread carries a wash of the brand and a dot, the same two signals a new
+   notice wears on the board — one vocabulary for "this is new to you"
+   wherever it appears. */
+.note--unread {
+  background: linear-gradient(to right, var(--brand-soft), transparent 60%), var(--surface);
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+}
+
+.note__link {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  color: inherit;
+  text-decoration: none;
+}
+.note__link:hover { background: var(--surface-2); text-decoration: none; }
+.note__link:active { background: var(--surface-3); }
+
+/* What the app itself raised, rather than a person: no face to show, so it
+   wears the app's own quiet mark instead of a blank circle. */
+.note__mark {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.note__mark svg { width: 20px; height: 20px; }
+
+.note__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.note__title { font-weight: 600; font-size: 15px; line-height: 1.3; }
+.note__emoji { margin-left: 4px; }
+
+/* Two lines of what was written, and then an ellipsis. The notification is
+   the nudge; the thing it points at is where you read the rest. */
+.note__text {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.note__when { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.note__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+
+.note__chev { flex: none; width: 18px; height: 18px; color: var(--muted); margin-top: 4px; }
+
+@media (min-width: 720px) {
+  .note__link { padding: var(--sp-4) var(--sp-5); }
+}

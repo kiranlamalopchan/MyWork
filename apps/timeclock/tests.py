@@ -409,10 +409,17 @@ class ClientClockTests(TestCase):
         self.workplace = Workplace.objects.create(user=self.user, name="Courtlands")
         self.client.force_login(self.user)
 
-    def _stamp(self, moment, offset="+10:00"):
-        """Format a moment the way app.js does: local wall time + offset."""
-        tz = zoneinfo.ZoneInfo("Australia/Sydney")
-        return moment.astimezone(tz).strftime("%Y-%m-%dT%H:%M:%S") + offset
+    SYDNEY = zoneinfo.ZoneInfo("Australia/Sydney")
+
+    def _stamp(self, moment):
+        """
+        Format a moment the way app.js does: the phone's own wall time with
+        the phone's own UTC offset on the end.
+
+        The offset comes from the zone rather than being written down, so this
+        is right in August (+10:00) and in January (+11:00) alike.
+        """
+        return moment.astimezone(self.SYDNEY).isoformat()
 
     def test_clock_in_uses_the_phones_timestamp(self):
         phone_moment = timezone.now() - timedelta(minutes=17)
@@ -440,18 +447,33 @@ class ClientClockTests(TestCase):
         self.assertEqual(pref.timezone_name, "Australia/Sydney")
 
     def test_offset_is_honoured_not_the_wall_clock_digits(self):
-        # 09:00 in Sydney (+10) is the same instant as 23:00 UTC the day
-        # before — the offset has to be read, not ignored.
+        """
+        09:00 in Sydney is 23:00 UTC the day before. The offset on the end of
+        the string has to be read; taking the digits and calling them UTC
+        files the shift ten hours out.
+
+        Anchored to now rather than to a date written down. A fixed date is a
+        test with a fuse in it: `_client_now` discards any stamp more than
+        CLIENT_CLOCK_TOLERANCE_HOURS from the server's clock, so a written-down
+        date silently stops testing the offset the day it goes stale, and
+        starts testing the fallback instead — which is the next test's job.
+        """
+        moment = (timezone.now() - timedelta(minutes=5)).replace(microsecond=0)
+
         self.client.post(reverse("timeclock:clock_in"), {
             "workplace": self.workplace.pk,
-            "client_time": "2026-09-07T09:00:00+10:00",
+            "client_time": self._stamp(moment),
             "client_tz": "Australia/Sydney",
         })
+
         shift = Shift.open_for(self.user)
-        self.assertEqual(
-            shift.clock_in.astimezone(zoneinfo.ZoneInfo("UTC")).isoformat(),
-            "2026-09-06T23:00:00+00:00",
-        )
+        self.assertEqual(shift.clock_in, moment)
+
+        # And emphatically not the wall-clock digits read as UTC, which is
+        # where ignoring the offset lands you — ten or eleven hours away.
+        local = moment.astimezone(self.SYDNEY)
+        digits_as_utc = local.replace(tzinfo=zoneinfo.ZoneInfo("UTC"))
+        self.assertNotEqual(shift.clock_in, digits_as_utc)
 
     def test_absurd_phone_clock_falls_back_to_the_server(self):
         self.client.post(reverse("timeclock:clock_in"), {
@@ -2313,3 +2335,224 @@ class SincePaidCardTests(TestCase):
         self.assertEqual(
             re.findall(r'summary-card__label">([^<]+)<', html), ["Since you were paid"]
         )
+
+
+class ReminderTests(TestCase):
+    """
+    The two things TimeSheet notices on its own.
+
+    Both are raised by a scheduled task rather than by a request, so both are
+    tested the way that task runs them — and the thing worth testing about a
+    task that runs every twenty minutes is that running it again changes
+    nothing.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.job = Workplace.objects.create(user=self.user, name="Courtlands")
+
+    # ---- a shift nobody clocked out of ----------------------------------
+
+    def test_a_very_long_open_shift_raises_a_reminder(self):
+        from apps.notifications.models import Kind, Notification
+        from .notify import open_shift_reminders
+
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=12),
+        )
+
+        open_shift_reminders()
+
+        told = Notification.objects.get(recipient=self.user)
+        self.assertEqual(told.kind, Kind.TIMESHEET)
+        self.assertIn("still clocked in", told.title)
+        self.assertIn("Courtlands", told.body)
+
+    def test_an_ordinary_shift_is_left_alone(self):
+        from apps.notifications.models import Notification
+        from .notify import open_shift_reminders
+
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=6),
+        )
+
+        open_shift_reminders()
+
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_running_the_task_again_does_not_repeat_itself(self):
+        from apps.notifications.models import Notification
+        from .notify import open_shift_reminders
+
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=12),
+        )
+
+        open_shift_reminders()
+        open_shift_reminders()
+        open_shift_reminders()
+
+        self.assertEqual(Notification.objects.count(), 1)
+
+    def test_a_closed_shift_is_not_still_clocked_in(self):
+        from apps.notifications.models import Notification
+        from .notify import open_shift_reminders
+
+        start = timezone.now() - timedelta(hours=14)
+        shift = Shift.objects.create(user=self.user, workplace=self.job, clock_in=start)
+        shift.clock_out_now(when=start + timedelta(hours=13))
+
+        open_shift_reminders()
+
+        self.assertEqual(Notification.objects.count(), 0)
+
+    # ---- a cap coming up ------------------------------------------------
+
+    def _worked(self, hours, day=None):
+        """A finished shift of `hours`, ending today unless told otherwise."""
+        end = timezone.now() if day is None else day
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=end - timedelta(hours=hours), clock_out=end,
+            status=Shift.Status.COMPLETED,
+        )
+
+    def test_nothing_is_said_while_there_is_room_left(self):
+        from apps.notifications.models import Notification
+        from .notify import limit_reminders
+
+        self.job.hours_limit = 38
+        self.job.save()
+        self._worked(10)
+
+        limit_reminders()
+
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_the_last_tenth_of_a_cap_is_worth_saying(self):
+        from apps.notifications.models import Notification
+        from .notify import limit_reminders
+
+        self.job.hours_limit = 10
+        self.job.save()
+        self._worked(9.5)
+
+        limit_reminders()
+
+        told = Notification.objects.get(recipient=self.user)
+        self.assertIn("Close to your", told.title)
+        self.assertIn("Courtlands", told.title)
+
+    def test_going_over_says_so_once_however_often_it_runs(self):
+        from apps.notifications.models import Notification
+        from .notify import limit_reminders
+
+        self.job.hours_limit = 8
+        self.job.save()
+        self._worked(9)
+
+        limit_reminders()
+        limit_reminders()
+
+        told = Notification.objects.get(recipient=self.user)
+        self.assertIn("Over your", told.title)
+
+    def test_crossing_from_close_to_over_is_a_second_thing_to_say(self):
+        from apps.notifications.models import Notification
+        from .notify import limit_reminders
+
+        self.job.hours_limit = 10
+        self.job.save()
+        self._worked(9.5)
+        limit_reminders()
+
+        self._worked(1)
+        limit_reminders()
+
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 2)
+
+    def test_a_workplace_with_no_cap_is_never_reminded(self):
+        from apps.notifications.models import Notification
+        from .notify import limit_reminders
+
+        self._worked(60)
+
+        limit_reminders()
+
+        self.assertEqual(Notification.objects.count(), 0)
+
+    # ---- the command itself ---------------------------------------------
+
+    def test_the_management_command_runs_both(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from apps.notifications.models import Notification
+
+        self.job.hours_limit = 8
+        self.job.save()
+        self._worked(9)
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=12),
+        )
+
+        out = StringIO()
+        call_command("timesheet_reminders", stdout=out)
+
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 2)
+        self.assertIn("2 reminder(s) raised", out.getvalue())
+
+
+class ReminderSweepTests(TestCase):
+    """
+    The reminders running off the back of a page load, which is how they run
+    at all on a host whose scheduler offers one task a day.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.job = Workplace.objects.create(user=self.user, name="Courtlands")
+        self.client.force_login(self.user)
+
+    def test_a_page_load_runs_the_reminders(self):
+        from apps.notifications.models import Notification
+
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=12),
+        )
+
+        self.client.get(reverse("home"))
+
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 1)
+
+    def test_the_next_page_load_does_not_run_them_again(self):
+        from apps.notifications.models import Notification, Sweep
+
+        Shift.objects.create(
+            user=self.user, workplace=self.job,
+            clock_in=timezone.now() - timedelta(hours=12),
+        )
+
+        for _ in range(5):
+            self.client.get(reverse("home"))
+
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 1)
+        self.assertEqual(Sweep.objects.filter(name="timesheet-reminders").count(), 1)
+
+    def test_a_broken_sweep_does_not_break_the_page(self):
+        """
+        The sweep hangs off every page in MyWork, so it has to fail quietly.
+        """
+        from unittest.mock import patch
+
+        with patch("apps.timeclock.notify.run_all", side_effect=RuntimeError("boom")):
+            with self.assertLogs("apps.timeclock.middleware", level="ERROR"):
+                resp = self.client.get(reverse("home"))
+
+        self.assertEqual(resp.status_code, 200)

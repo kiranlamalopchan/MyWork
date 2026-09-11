@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from . import notify
 from .forms import CommentForm, NoticeForm
 from .models import (
     Comment, CommentReaction, Emoji, Notice, Reaction,
@@ -175,6 +176,10 @@ def notice_create(request):
     notice.author = request.user
     notice.save()
 
+    # After the save, never inside it: a board that wouldn't accept a notice
+    # because a push service was down would be the wrong way round.
+    notify.notice_posted(notice)
+
     messages.success(request, "Posted to the board.")
     return redirect(_safe_next(request, reverse("notices:board")))
 
@@ -231,15 +236,20 @@ def notice_react(request, pk):
     # Reacting to other people's notices is the point, so this is the whole
     # board — not the editable-by-you slice the writing views use.
     notice = get_object_or_404(Notice, pk=pk)
-    Reaction.toggle(notice, request.user, request.POST.get("emoji", ""))
+    # What they are left with: an emoji, or None if that tap took it back.
+    left = Reaction.toggle(notice, request.user, request.POST.get("emoji", ""))
+    notify.notice_reacted(notice, request.user, left)
     return redirect(_back_to(request, notice))
 
 
 @require_POST
 @login_required
 def comment_react(request, pk):
-    comment = get_object_or_404(Comment.objects.select_related("notice"), pk=pk)
-    CommentReaction.toggle(comment, request.user, request.POST.get("emoji", ""))
+    comment = get_object_or_404(
+        Comment.objects.select_related("notice", "author"), pk=pk
+    )
+    left = CommentReaction.toggle(comment, request.user, request.POST.get("emoji", ""))
+    notify.comment_reacted(comment, request.user, left)
     return redirect(_back_to(request, comment.notice, anchor=f"comment-{comment.pk}"))
 
 
@@ -266,6 +276,8 @@ def comment_create(request, pk):
     comment.parent = parent
     comment.author = request.user
     comment.save()
+
+    notify.comment_posted(comment)
 
     return redirect(_back_to(request, notice, anchor=f"comment-{comment.pk}"))
 

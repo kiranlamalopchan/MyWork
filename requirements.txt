@@ -2,3 +2,5 @@ Django>=4.2,<6.0
 Pillow>=10.0
 pytesseract>=0.3.10
 reportlab>=4.0
+# Web Push, for notifications that arrive with the app closed.
+pywebpush>=2.0

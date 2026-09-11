@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load humanize avatars ui %}
+{% block title %}Notifications · MyWork{% endblock %}
+
+{% comment %}
+  Everything that has been said to you, newest first.
+
+  Opening this page is what marks it read — the rows that were unread when you
+  arrived still show as unread, because that is what you came to see, and the
+  bell is empty by the time you come back.
+
+  The switch at the top is the only part that needs JavaScript, and it is
+  hidden until notifications.js has worked out what to offer: a browser that
+  cannot subscribe should show nothing rather than a button that does nothing.
+{% endcomment %}
+
+{% block content %}
+
+<a class="backlink" href="{% url 'home' %}">{% icon "back" %} MyWork</a>
+
+<div class="page-head">
+  <h1 class="page-title">Notifications</h1>
+</div>
+
+{% if push_available %}
+  <div class="card card__pad push-setup" id="push-setup" hidden>
+    <div class="push-setup__text">
+      <span class="push-setup__title">On this device</span>
+      <p class="push-setup__status" id="push-status"></p>
+    </div>
+    <button type="button" class="btn" id="push-toggle" hidden></button>
+  </div>
+{% endif %}
+
+{% if notifications %}
+  <ul class="notes">
+    {% for note in notifications %}
+      <li class="note{% if note.was_unread %} note--unread{% endif %}">
+        <a class="note__link" href="{% url 'notifications:go' note.pk %}">
+          {% if note.actor %}
+            {% avatar note.actor size="md" %}
+          {% else %}
+            {# Nobody did this — it is the app itself, so it wears its own mark. #}
+            <span class="note__mark" aria-hidden="true">{% icon "clock" %}</span>
+          {% endif %}
+
+          <span class="note__body">
+            <span class="note__title">
+              {{ note.title }}
+              {% if note.emoji %}<span class="note__emoji">{{ note.emoji }}</span>{% endif %}
+            </span>
+            {% if note.body %}<span class="note__text">{{ note.body }}</span>{% endif %}
+            <span class="note__when" title="{{ note.created_at }}">
+              {{ note.created_at|naturaltime }}
+            </span>
+          </span>
+
+          {% if note.was_unread %}<span class="note__dot" role="img" aria-label="Unread"></span>{% endif %}
+          {% icon "chev" class="note__chev" %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pager" aria-label="Pagination">
+      {% if page_obj.has_previous %}
+        <a class="btn" href="?page={{ page_obj.previous_page_number }}" rel="prev">Newer</a>
+      {% else %}
+        <span class="btn" aria-disabled="true">Newer</span>
+      {% endif %}
+      <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="btn" href="?page={{ page_obj.next_page_number }}" rel="next">Older</a>
+      {% else %}
+        <span class="btn" aria-disabled="true">Older</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <div class="card empty">
+    <span class="empty__icon">{% icon "bell" %}</span>
+    <p class="empty__title">Nothing yet</p>
+    <p class="empty__sub">
+      When somebody posts to the board, answers you, or reacts to something you
+      wrote, it turns up here.
+    </p>
+  </div>
+{% endif %}
+
+{% endblock %}

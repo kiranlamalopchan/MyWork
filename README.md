@@ -17,9 +17,17 @@ entirely to that app.
 - Save workplaces and pick which one a shift belongs to
 - Set a weekly or fortnightly hours limit and track against it
 
+**Notifications** (`apps.notifications`, mounted at `/notifications/`)
+- A bell in the app bar with a count, and the inbox behind it
+- Web Push, so a notification arrives with the app closed
+- Raised by the board (new notice, comment, reply, reaction) and by
+  TimeSheet (a forgotten clock-out, an hours cap coming up)
+
 Adding a third app means starting it inside `apps/`, mounting it under its
 own prefix in `mywork/urls.py`, and giving it an entry in
-`mywork/context_processors.py` plus a card on the hub.
+`mywork/context_processors.py` plus a card on the hub. To have it notify
+people, give it a `notify.py` and call `apps.notifications.notify.notify()` —
+see [Notifications](#notifications).
 
 ## Deploying (PythonAnywhere)
 
@@ -87,6 +95,122 @@ To see the site immediately without setting any of this up,
 shows a full traceback and your settings to anybody who triggers an error. It
 is for a laptop, not for a site with an address.
 
+## Notifications
+
+The bell, the inbox and the count on them are plain Django and need no setup:
+every event is recorded whether or not anything can be delivered. What needs
+setting up is the *push* half — the part that reaches a phone with the app
+closed.
+
+### Keys
+
+Web Push identifies this site to every browser's push service with a keypair
+(VAPID). Generate one, once:
+
+```bash
+python manage.py vapid_keys
+```
+
+and put the three lines it prints in `.env` beside the code — the same file
+`production.py` already reads its secret key from:
+
+```
+VAPID_PRIVATE_KEY=...
+VAPID_PUBLIC_KEY=...
+VAPID_CONTACT_EMAIL=you@example.com
+```
+
+Then **Reload** the web app. With no keys set, MyWork runs exactly as before
+and simply never interrupts anyone — the inbox says so rather than offering a
+switch that cannot work.
+
+The pair is not rotated casually: a browser subscribes to a specific public
+key, so replacing it invalidates every subscription already granted and
+everybody has to turn notifications back on.
+
+### Turning it on, as a user
+
+Open the bell, then **Turn on**, and accept the browser's prompt. The prompt
+has to come from that tap — asking on page load is how a browser learns to
+refuse on your behalf permanently.
+
+**On an iPhone this only works from the Home Screen.** Safari in a tab cannot
+subscribe at all; iOS 16.4 or newer, opened from an icon added with *Share ->
+Add to Home Screen*, can. The inbox says this instead of showing a dead
+button.
+
+### Reminders
+
+The two TimeSheet reminders are the only things not raised by the request that
+caused them — nothing happening is the thing worth saying — so they need
+something periodic to notice. **This needs no setup: it already runs.**
+
+`ReminderSweepMiddleware` runs them off the back of ordinary page loads. Every
+request asks one indexed question — "has this run in the last fifteen
+minutes?" — and the rare one that finds it has not runs the sweep. The claim
+is a single conditional UPDATE, so several workers answering requests at the
+same moment cannot both start it.
+
+This is deliberate rather than clever, and it is because of the host. A free
+PythonAnywhere account gets **one scheduled task, once a day**. A clock-out
+forgotten at four in the afternoon would go unmentioned until that task ran
+in the evening, which is late enough to be an accusation rather than a
+reminder. Riding on traffic instead means a reminder within about fifteen
+minutes for as long as anybody is using MyWork.
+
+What it cannot do is fire at three in the morning with nobody around. So point
+the one daily task at the same work as a backstop — **Tasks** tab, at a time
+that suits:
+
+```bash
+cd ~/MyWork && python manage.py timesheet_reminders --quiet --settings=mywork.settings.production
+```
+
+On a paid account the same task can run hourly, and on any account running it
+by hand is harmless: every reminder is keyed to the shift or the pay period it
+is about, so a second run rewrites the line it already sent rather than
+sending another one, and a phone is only buzzed again about the same forgotten
+clock-out after three hours.
+
+### If nothing arrives
+
+In order of how often it is the answer:
+
+1. **No keys, or the site was not reloaded** after adding them.
+2. **The iPhone is in Safari rather than on the Home Screen** — see above.
+3. **The subscription is stale.** Django Admin -> Push subscriptions shows
+   whether that person has a row at all. Opening any page re-registers it, so
+   "load the site once, then try again" resolves most of these.
+4. **They are using Firefox.** See below.
+
+### Free accounts and the allowlist
+
+A free PythonAnywhere account can only make outbound HTTPS requests to hosts
+on [its allowlist](https://www.pythonanywhere.com/whitelist/), which matters
+here because sending a push *is* an outbound request. Two wildcard entries
+cover the services that matter:
+
+| Browser | Push service | Free account |
+| --- | --- | --- |
+| Chrome, Edge, Android | `fcm.googleapis.com` | yes, via `.googleapis.com` |
+| Safari, iPhone | `web.push.apple.com` | yes, via `.apple.com` |
+| Firefox | `updates.push.services.mozilla.com` | **no** |
+
+So push works on a free account for every browser but Firefox, where the bell
+and the inbox still work and nothing reaches the lock screen. PythonAnywhere
+take requests to add hosts if that becomes worth doing.
+
+To confirm it on your own account, from a Bash console on the server:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" https://fcm.googleapis.com/fcm/send/test
+```
+
+Any status code back — 400 and 404 included — means outbound works.
+
+Notifications are recorded either way, so the bell is always right even when
+the push is not arriving. That is the point of keeping the two apart.
+
 ## Layout
 
 ```
@@ -100,6 +224,7 @@ apps/                the four applications written for this project
   plu/               PLU lookup
   timeclock/         clocking, timesheets, pay
   noticeboard/       the board both apps share
+  notifications/     the bell: one mailbox, and Web Push to carry it
 templates/           every template, one directory, base.html at its root
 static/              css, js, icons, the web manifest
 ```

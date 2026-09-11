@@ -103,6 +103,19 @@ else:
 
 
 # --------------------------------------------------------------------------
+# Web Push
+#
+# Optional, unlike the two above: a deployment with no keys records
+# notifications and shows them on the bell, and simply never interrupts
+# anybody. That is a working site, so it must not refuse to start — which is
+# why these are `get` rather than `required`.
+# --------------------------------------------------------------------------
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_CONTACT_EMAIL = os.environ.get('VAPID_CONTACT_EMAIL', '')
+
+
+# --------------------------------------------------------------------------
 # Transport security
 #
 # All of this assumes TLS terminates in front of Django, which is how it is

@@ -9,6 +9,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.generic import TemplateView
 
 from . import views
 
@@ -26,6 +27,25 @@ urlpatterns = [
 
     # The shared notice board behind the hub
     path("notices/", include("apps.noticeboard.urls")),
+
+    # The bell in the app bar, and what is behind it.
+    path("notifications/", include("apps.notifications.urls")),
+
+    # The service worker, served from the root and not from /static/.
+    #
+    # A worker may only control pages below the path it was served from, so
+    # one delivered as a static file at /static/js/sw.js would control
+    # /static/js/ and nothing else — a push for the board would arrive with
+    # nobody listening. It is a template rather than a file so that the icon
+    # URLs inside it are the hashed ones in production.
+    path(
+        "sw.js",
+        TemplateView.as_view(
+            template_name="sw.js",
+            content_type="application/javascript",
+        ),
+        name="service_worker",
+    ),
 
     # The two apps
     path("plu/", include("apps.plu.urls")),
