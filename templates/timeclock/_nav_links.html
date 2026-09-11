@@ -1,13 +1,14 @@
 {% load ui %}
 {% comment %}
-Navigation for the TimeSheet Management app. Rendered twice — in the app bar
-on wide screens, in the fixed bottom tab bar on phones — and only ever on
-timesheet pages. Same markup either way, so the two can never disagree.
+Navigation within the TimeSheet Management app: the segmented control at
+the top of every timesheet page, which base.html picks from the URL
+namespace. Moving between apps is the tab bar's job (see _tabs.html).
 
 One slot per destination and no slot twice. The calendar is not here: it is a
-second view of the timesheet, reached by the List / Calendar toggle that sits
+second view of the timesheet, reached by the List / Calendar control that sits
 on both of those pages, and a tab as well would have been two ways to the same
-screen. Anything past these three — workplaces, pay, adding a day you
+screen — but the Timesheet segment stays lit while you are on it, because the
+calendar is still the timesheet. Anything past these three — workplaces, pay, adding a day you
 forgot — sits behind More.
 {% endcomment %}
 {% with current=request.resolver_match.url_name %}
@@ -15,23 +16,23 @@ forgot — sits behind More.
 <a class="tab{% if current == 'dashboard' %} is-active{% endif %}"
    href="{% url 'timeclock:dashboard' %}">
   {% icon "clock" %}
-  <span>Clock</span>
+  <span class="tab__label">Clock</span>
 </a>
 
-<a class="tab{% if current == 'timesheet' or current == 'shift_detail' or current == 'shift_edit' or current == 'shift_create' %} is-active{% endif %}"
+<a class="tab{% if current == 'timesheet' or current == 'calendar' or current == 'shift_detail' or current == 'shift_edit' or current == 'shift_create' %} is-active{% endif %}"
    href="{% url 'timeclock:timesheet' %}">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/><path d="M8 14h3M8 17.5h6"/>
   </svg>
-  <span>Timesheet</span>
+  <span class="tab__label">Timesheet</span>
 </a>
 
-<a class="tab{% if current == 'more' or current == 'workplaces' or current == 'workplace_create' or current == 'workplace_edit' or current == 'workplace_confirm_delete' or current == 'payments' %} is-active{% endif %}"
+<a class="tab{% if current == 'more' or current == 'workplaces' or current == 'workplace_create' or current == 'workplace_edit' or current == 'workplace_confirm_delete' or current == 'payments' or current == 'payment_choose' or current == 'preferences' %} is-active{% endif %}"
    href="{% url 'timeclock:more' %}">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
   </svg>
-  <span>More</span>
+  <span class="tab__label">More</span>
 </a>
 
 {% endwith %}

@@ -1,0 +1,57 @@
+{% load ui %}
+{% comment %}
+  The app's navigation: five places, the same five on every screen.
+
+  One bar for the whole of MyWork, the way a native app has one — not a bar
+  per app that changes under your thumb when you cross from one to the other.
+  Rendered twice from this one file: in the floating glass bar at the foot of
+  a phone, and in the app bar on a wide screen. Same markup either way, so
+  the two can never disagree.
+
+  A tab lights up for the whole of the app it leads to, not only for the page
+  it links: the Clock tab is on while you are anywhere in TimeSheet, because
+  that is the question a tab bar answers — which part of the app am I in.
+  Within an app, the places under that tab are the segmented control at the
+  top of the page (see section_nav in base.html). The holidays calendar
+  belongs to the hub, which is where its card lives.
+
+  Alerts wears the unread count, the way a native tab does, so the number is
+  where your thumb already is rather than up in the corner.
+{% endcomment %}
+{% with ns=request.resolver_match.namespace name=request.resolver_match.url_name %}
+
+<a class="tab{% if ns == 'holidays' or ns == '' and name == 'home' %} is-active{% endif %}"
+   href="{% url 'home' %}">
+  {% icon "home" %}
+  <span class="tab__label">Home</span>
+</a>
+
+<a class="tab{% if ns == 'plu' %} is-active{% endif %}"
+   href="{% url 'plu:list' %}">
+  {% icon "search" %}
+  <span class="tab__label">PLU</span>
+</a>
+
+<a class="tab{% if ns == 'timeclock' %} is-active{% endif %}"
+   href="{% url 'timeclock:dashboard' %}">
+  {% icon "clock" %}
+  <span class="tab__label">Clock</span>
+</a>
+
+<a class="tab{% if ns == 'notices' %} is-active{% endif %}"
+   href="{% url 'notices:board' %}">
+  {% icon "chat-lines" %}
+  <span class="tab__label">Board</span>
+</a>
+
+<a class="tab{% if ns == 'notifications' %} is-active{% endif %}"
+   href="{% url 'notifications:inbox' %}" data-no-cache
+   aria-label="Alerts{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}">
+  <span class="tab__icon">
+    {% icon "bell" %}
+    {% if unread_notifications %}<span class="tab__badge" aria-hidden="true">{{ unread_badge }}</span>{% endif %}
+  </span>
+  <span class="tab__label">Alerts</span>
+</a>
+
+{% endwith %}

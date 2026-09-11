@@ -1,16 +1,16 @@
 {% load ui %}
 {% comment %}
-Navigation for the PLU Management app. Rendered twice — in the app bar on wide
-screens, in the fixed bottom tab bar on phones — and only ever on PLU pages;
-base.html picks this file from the URL namespace. Switching apps is the grid
-button in the app bar, so every slot here is a PLU feature.
+Navigation within the PLU Management app: the segmented control at the top
+of every PLU page, which base.html picks from the URL namespace. Moving
+between apps is the tab bar's job (see _tabs.html), so every slot here is a
+PLU feature.
 {% endcomment %}
 {% with current=request.resolver_match.url_name %}
 
 <a class="tab{% if current == 'list' or current == 'detail' %} is-active{% endif %}"
    href="{% url 'plu:list' %}">
   {% icon "search" %}
-  <span>Search</span>
+  <span class="tab__label">Search</span>
 </a>
 
 <a class="tab{% if current == 'photo_search' %} is-active{% endif %}"
@@ -18,14 +18,14 @@ button in the app bar, so every slot here is a PLU feature.
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a2 2 0 0 0 1.7-.9l.6-1a2 2 0 0 1 1.7-.9h2.6a2 2 0 0 1 1.7.9l.6 1a2 2 0 0 0 1.7.9h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5Z"/><circle cx="12" cy="12.5" r="3.2"/>
   </svg>
-  <span>Photo</span>
+  <span class="tab__label">Photo</span>
 </a>
 
 {% if request.user.is_staff %}
   <a class="tab{% if current == 'import' %} is-active{% endif %}"
      href="{% url 'plu:import' %}">
     {% icon "download" %}
-    <span>Import</span>
+    <span class="tab__label">Import</span>
   </a>
 {% endif %}
 

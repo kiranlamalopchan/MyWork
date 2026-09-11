@@ -83,18 +83,103 @@
     var btn = document.getElementById("theme-toggle");
     if (!btn) return;
 
+    var root = document.documentElement;
+    var system = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function isDark() {
+      var chosen = root.getAttribute("data-theme");
+      return chosen ? chosen === "dark" : system.matches;
+    }
+
+    // The switch says which way it is set. The stylesheet draws it from the
+    // theme rules on its own; this is for a screen reader, which cannot see
+    // where the knob is.
+    function announce() {
+      btn.setAttribute("aria-checked", isDark() ? "true" : "false");
+    }
+    announce();
+    // The system can change underneath a page that has not chosen.
+    if (system.addEventListener) listen(system, "change", announce);
+
     btn.addEventListener("click", function () {
-      var root = document.documentElement;
-      var systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      var current = root.getAttribute("data-theme") || (systemDark ? "dark" : "light");
-      var next = current === "dark" ? "light" : "dark";
+      var next = isDark() ? "light" : "dark";
 
-      root.setAttribute("data-theme", next);
-      try { localStorage.setItem("mywork-theme", next); } catch (e) { /* private mode */ }
+      function apply() {
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("mywork-theme", next); } catch (e) { /* private mode */ }
+        announce();
 
-      var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute("content", next === "dark" ? "#0b1120" : "#f4f5f7");
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", next === "dark" ? "#0b1120" : "#f4f5f7");
+      }
+
+      // One palette dissolves into the other rather than cutting to it: the
+      // browser snapshots the page, swaps the theme underneath, and fades
+      // between the two — one composited crossfade, which is far cheaper
+      // than transitioning every colour on every element. Where it cannot
+      // (or motion is reduced), the switch is simply the switch.
+      var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (document.startViewTransition && !still) {
+        document.startViewTransition(apply);
+      } else {
+        apply();
+      }
     });
+  }
+
+  /* ----------------------------------------------------------------------
+     The app bar behaves like a phone's navigation bar
+
+     Two things a native bar does that a web header does not, and both are
+     read off the page rather than told to it. A page with somewhere to go
+     back to carries a .backlink; on a phone its href and its words are
+     lifted into the slot at the left of the bar, where a thumb expects
+     them, and the page's own copy is hidden by the stylesheet (§3). And
+     once the page's big heading has scrolled up under the bar, its words
+     appear in the middle of it — so a long list still says what it is.
+
+     The bar is part of the body and is swapped with it, so this runs for
+     every page and starts from nothing each time.
+     ---------------------------------------------------------------------- */
+  /* Whether this page has a way back, said on <body> so the stylesheet can
+     hide the page's own link on phones. Called before a scroll position is
+     put back (render, and a reload), not only when the bar is set up: the
+     link is 40px tall, and restoring a position measured without it and
+     then taking it away lands the page 40px short. */
+  function markBack() {
+    var backlink = document.querySelector("main .backlink");
+    document.body.classList.toggle("has-back", !!backlink);
+    return backlink;
+  }
+
+  function initAppBar() {
+    var bar = document.querySelector(".appbar");
+    if (!bar) return;
+
+    var back = bar.querySelector(".appbar__back");
+    var backlink = markBack();
+    if (back && backlink) {
+      back.setAttribute("href", backlink.getAttribute("href"));
+      var label = back.querySelector(".appbar__back-label");
+      if (label) label.textContent = backlink.textContent.replace(/\s+/g, " ").trim();
+      bar.classList.add("has-back");
+    }
+
+    var slot = bar.querySelector(".appbar__title");
+    var heading = document.querySelector("main .page-title, main .profile-id__name");
+    if (!slot || !heading || !("IntersectionObserver" in window)) return;
+    slot.textContent = heading.textContent.replace(/\s+/g, " ").trim();
+
+    // "Gone" means gone under the bar, not merely off the bottom of a short
+    // window: the heading has to be above the viewport, and the margin
+    // makes the bar's own height count as above.
+    var watcher = new IntersectionObserver(function (entries) {
+      var entry = entries[0];
+      var gone = !entry.isIntersecting && entry.boundingClientRect.top < bar.offsetHeight;
+      bar.classList.toggle("is-titled", gone);
+    }, { rootMargin: "-" + bar.offsetHeight + "px 0px 0px 0px" });
+    watcher.observe(heading);
+    onLeave(function () { watcher.disconnect(); });
   }
 
   /* ----------------------------------------------------------------------
@@ -1263,6 +1348,27 @@
       if (event.key !== "Escape") return;
       pickers().forEach(function (picker) { picker.open = false; });
     });
+
+    // The row of faces opens from the left edge of its React button. Under a
+    // reply stepped in from the right of a narrow phone that puts the last
+    // face or two off the screen, so an opened picker is measured and, if
+    // it hangs over the edge, moved back inside it (§25 reads --shift).
+    // toggle does not bubble; it is caught on the way down instead.
+    document.addEventListener("toggle", function (event) {
+      var details = event.target;
+      if (!details.matches || !details.matches("details.react")) return;
+      var picker = details.querySelector(".picker");
+      if (!picker) return;
+      picker.style.removeProperty("--shift");
+      if (!details.open) return;
+      // Kept inside the card it belongs to, which is always inside the
+      // screen — innerWidth is not to be trusted on a phone mid-zoom.
+      var card = details.closest(".notice") || document.querySelector("main.container");
+      var edge = card ? card.getBoundingClientRect().right - 8 : window.innerWidth - 12;
+      var box = picker.getBoundingClientRect();
+      var over = box.right - edge;
+      if (over > 0) picker.style.setProperty("--shift", Math.min(over, box.left - 12) + "px");
+    }, true);
   }
 
   function initCompose() {
@@ -1694,10 +1800,53 @@
      capsule is never built, .has-slider is never set, and the active tab
      keeps the background it always had.
      ---------------------------------------------------------------------- */
-  function initTabSlider() {
-    var bar = document.querySelector(".tabbar__inner");
-    if (!bar) return;
+  var FROM_KEY = "mywork-tab-from";
+  // A note to the next page, not a preference: it is read once, cleared
+  // immediately, and ignored if it has been sitting there long enough to
+  // belong to some earlier navigation that never landed.
+  var FROM_FRESH = 15000;
 
+  /* Which tab the knob was under, and exactly where on the screen it was —
+     the next page's dock is laid out differently (the name moves to the
+     new tab, and the dock re-centres around it), so the knob starts from
+     the place it was seen rather than from where that tab has since gone. */
+  function rememberTab(href, box) {
+    try {
+      window.sessionStorage.setItem(FROM_KEY, [Date.now(), href, box ? Math.round(box.left) : "", box ? Math.round(box.width) : ""].join(" "));
+    } catch (e) { /* private browsing: the capsule simply won't slide */ }
+  }
+
+  function takeRemembered() {
+    var raw = null;
+    try {
+      raw = window.sessionStorage.getItem(FROM_KEY);
+      window.sessionStorage.removeItem(FROM_KEY);
+    } catch (e) { return null; }
+    if (!raw) return null;
+    var parts = raw.split(" ");
+    if (parts.length < 2 || !parts[1]) return null;
+    if (Date.now() - Number(parts[0]) > FROM_FRESH) return null;
+    return {
+      href: parts[1],
+      left: parts[2] === "" || parts[2] === undefined ? null : Number(parts[2]),
+      width: parts[3] === "" || parts[3] === undefined ? null : Number(parts[3])
+    };
+  }
+
+  function initTabSlider() {
+    // The note the last page left about which tab it was on (see below).
+    // Read once, here, because taking it clears it — and both bars want it.
+    var from = takeRemembered();
+    document.querySelectorAll(".tabbar__inner, .segments").forEach(function (bar) {
+      wireSlider(bar, from);
+    });
+  }
+
+  /* One bar's capsule. The tab bar and the segmented control are the same
+     mechanism in different materials; each gets its own capsule, and each
+     only ever slides between its own tabs — a bar that has no tab for where
+     you came from simply places its capsule and does not animate. */
+  function wireSlider(bar, from) {
     var tabs = bar.querySelectorAll(".tab");
     // One tab has nowhere to slide to.
     if (tabs.length < 2) return;
@@ -1732,7 +1881,10 @@
         slider.classList.remove("is-on");
         return;
       }
-      var box = measure(tab);
+      placeBox(measure(tab), animate);
+    }
+
+    function placeBox(box, animate) {
       if (!box.w) return;
 
       if (!animate) {
@@ -1767,31 +1919,6 @@
        that arrives puts the capsule back where it was and slides it to where
        it now belongs. That is also the honest order of events: the content
        has changed, and the capsule is catching up with it. */
-    var FROM_KEY = "mywork-tab-from";
-    // A note to the next page, not a preference: it is read once, cleared
-    // immediately, and ignored if it has been sitting there long enough to
-    // belong to some earlier navigation that never landed.
-    var FROM_FRESH = 15000;
-
-    function remember(href) {
-      try {
-        window.sessionStorage.setItem(FROM_KEY, Date.now() + " " + href);
-      } catch (e) { /* private browsing: the capsule simply won't slide */ }
-    }
-
-    function takeRemembered() {
-      var raw = null;
-      try {
-        raw = window.sessionStorage.getItem(FROM_KEY);
-        window.sessionStorage.removeItem(FROM_KEY);
-      } catch (e) { return null; }
-      if (!raw) return null;
-      var cut = raw.indexOf(" ");
-      if (cut < 1) return null;
-      if (Date.now() - Number(raw.slice(0, cut)) > FROM_FRESH) return null;
-      return raw.slice(cut + 1);
-    }
-
     function tabFor(href) {
       for (var i = 0; i < tabs.length; i++) {
         if (tabs[i].href === href) return tabs[i];
@@ -1799,16 +1926,95 @@
       return null;
     }
 
+    var isDock = bar.classList.contains("tabbar__inner");
+
+    /* The dock's knob moves like a drop of liquid. It does not travel: its
+       near edge stays under the tab you were on while its far edge reaches
+       out to the tab you tapped, so for a moment it spans both — then the
+       trailing edge lets go and snaps in, and the pill is under the new tab.
+       Two transitions with two timings (§34: .is-stretching, .is-snapping),
+       and the tab's icon fades in only once the pill has arrived under it. */
+    var STRETCH = 190;
+    var SNAP = 340;
+    // How long a segmented control's slide takes to settle (§34).
+    var SLIDE = 420;
+
+    // While the knob is on its way nothing else may place it: fonts.ready
+    // and the resize handler below both put the knob straight under the
+    // current tab, and on a soft navigation fonts.ready resolves at once —
+    // which used to plant the knob at its destination before the move had
+    // begun, so the move ran backwards from there.
+    var moving = false;
+
+    function flowTo(fromTab, toTab, fromBox) {
+      var a = fromBox || measure(fromTab);
+      var b = measure(toTab);
+      var x = Math.min(a.x, b.x);
+      var right = Math.max(a.x + a.w, b.x + b.w);
+      slider.classList.add("is-stretching");
+      slider.style.width = (right - x) + "px";
+      slider.style.height = b.h + "px";
+      slider.style.transform = "translate3d(" + x + "px, " + b.y + "px, 0)";
+      setTimeout(function () {
+        slider.classList.remove("is-stretching");
+        slider.classList.add("is-snapping");
+        fromTab.classList.remove("is-leaving");
+        place(toTab, true);
+        setTimeout(function () {
+          slider.classList.remove("is-snapping");
+          moving = false;
+          // Anything that changed under it while it was on its way.
+          place(current(), false);
+        }, SNAP);
+      }, STRETCH);
+    }
+
     var landed = current();
-    var cameFrom = tabFor(takeRemembered() || "");
+    var cameFrom = from ? tabFor(from.href) : null;
 
     if (cameFrom && landed && cameFrom !== landed) {
       // Put it where it was, let that paint, then move it. Two frames: one
       // to commit the starting position, one for the transition to have
-      // something to start from.
-      place(cameFrom, false);
+      // something to start from. In the dock "where it was" is the spot on
+      // the screen the last page left it at — the tab it sat under has
+      // since lost its name and moved (see rememberTab).
+      var wasBox = null;
+      if (isDock && from.left !== null && from.width) {
+        var barBox = bar.getBoundingClientRect();
+        var style = window.getComputedStyle(bar);
+        var to = measure(landed);
+        wasBox = {
+          x: from.left - barBox.left - (parseFloat(style.borderLeftWidth) || 0) + bar.scrollLeft,
+          y: to.y,
+          w: from.width,
+          h: to.h
+        };
+      }
+      if (wasBox) placeBox(wasBox, false); else place(cameFrom, false);
+      // In the dock the tab being left keeps the pill's white ink while the
+      // pill is still under it, and greys as the pill lets go (flowTo).
+      // Set before the first paint, so it is white from the start rather
+      // than fading up from grey.
+      if (isDock) cameFrom.classList.add("is-leaving");
+      moving = true;
+      // The tab the knob is about to land on: its icon and name arrive with
+      // the knob (§4). Only now — a page that opens with the knob already
+      // in place does not replay an arrival.
+      landed.classList.add("is-arriving");
       window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(function () { place(landed, true); });
+        window.requestAnimationFrame(function () {
+          if (isDock) {
+            flowTo(cameFrom, landed, wasBox);
+            return;
+          }
+          place(landed, true);
+          // A segmented control's knob slides, and stretches a little along
+          // its travel as it goes — the give the switch's knob has under a
+          // finger — rounding out again as it lands.
+          slider.classList.add("is-moving");
+          setTimeout(function () { slider.classList.remove("is-moving"); }, 210);
+          setTimeout(function () { moving = false; place(current(), false); }, SLIDE);
+        });
       });
     } else {
       place(landed, false);
@@ -1817,25 +2023,36 @@
     bar.addEventListener("click", function (event) {
       var tab = event.target.closest ? event.target.closest(".tab") : null;
       if (!tab || !bar.contains(tab)) return;
-      if (tab.classList.contains("is-active")) return;
+      if (tab.classList.contains("is-active")) {
+        // Tapping the tab you are on, in the dock, does what a phone's does:
+        // from somewhere inside that tab it goes back to the tab's own first
+        // screen (an ordinary navigation, left to the link), and from that
+        // screen it scrolls back to the top rather than reloading it.
+        if (isDock && tab.pathname === location.pathname) {
+          event.preventDefault();
+          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+        }
+        return;
+      }
       // Nothing moves here. Where the capsule is now is the whole message
       // the next page needs.
       var here = current();
-      if (here) remember(here.href);
+      if (here) rememberTab(here.href, slider.classList.contains("is-on") ? slider.getBoundingClientRect() : null);
     });
 
     // A width change is not a selection change, so it must not look like one.
     var settle = null;
     listen(window, "resize", function () {
       clearTimeout(settle);
-      settle = setTimeout(function () { place(current(), false); }, 120);
+      settle = setTimeout(function () { if (!moving) place(current(), false); }, 120);
     });
 
     // Fonts land after first paint and can change a tab's width underneath
-    // the capsule. Unless the page has gone by then.
+    // the capsule. Unless the page has gone by then — or the knob is on its
+    // way, in which case it re-measures itself when it lands.
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(function () {
-        if (bar.isConnected) place(current(), false);
+        if (bar.isConnected && !moving) place(current(), false);
       });
     }
 
@@ -1843,6 +2060,76 @@
     listen(window, "pageshow", function (event) {
       if (event.persisted) place(current(), false);
     });
+  }
+
+  /* ----------------------------------------------------------------------
+     The tab bar gets out of the way
+
+     An iPhone's tab bar folds to its icons while you scroll down a long page
+     and is whole again the moment you scroll up. The bar has the two sizes
+     (§4b in the stylesheet); this decides which, from the direction of
+     travel — not the position, because what matters is what you are doing,
+     and a page you are reading downwards is a page you want more of.
+
+     A little give in both directions, so a finger that wobbles while it
+     scrolls does not flicker the bar, and the top of the page always has
+     the whole bar, because there is nothing above it to be reading.
+     ---------------------------------------------------------------------- */
+  function initTabBarFold() {
+    var bar = document.querySelector(".tabbar");
+    if (!bar) return;
+
+    // How far down since the last turn before the bar folds; how far back up
+    // before it unfolds. Both are a real movement rather than a wobble, so a
+    // thumb that drifts while it scrolls cannot flutter the bar; down is the
+    // longer of the two, because folding is a favour to reading and can
+    // wait, while unfolding is a reach for the bar and cannot.
+    var FOLD_AFTER = 64;
+    var UNFOLD_AFTER = 24;
+    // A page with less than this to scroll never folds: there is nothing to
+    // get out of the way of, and a bar that folds and unfolds over three
+    // lines of movement is a bar that twitches.
+    var ROOM = 160;
+
+    var last = window.scrollY;
+    var turn = last;        // where the direction last changed
+    var goingDown = false;
+    var folded = false;
+    var queued = false;
+
+    function set(fold) {
+      if (fold === folded) return;
+      folded = fold;
+      bar.classList.toggle("is-min", fold);
+    }
+
+    function measure() {
+      queued = false;
+      // Clamped: iOS lets the page overshoot both ends, and a bounce is not
+      // a direction.
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max < ROOM) { set(false); return; }
+      var y = Math.max(0, Math.min(window.scrollY, max));
+      if (y === last) return;
+
+      var down = y > last;
+      if (down !== goingDown) {
+        goingDown = down;
+        turn = last;
+      }
+      last = y;
+
+      if (y <= 8) set(false);
+      else if (down && y - turn > FOLD_AFTER) set(true);
+      else if (!down && turn - y > UNFOLD_AFTER) set(false);
+    }
+
+    // One decision per frame, however many scroll events a flick sends.
+    listen(window, "scroll", function () {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(measure);
+    }, { passive: true });
   }
 
   /* ----------------------------------------------------------------------
@@ -1884,6 +2171,10 @@
      by hand (initPage); notifications.js hears about it as mywork:page.
      ---------------------------------------------------------------------- */
   function initSoftNav() {
+    // Which way the page being fetched should come in — see the click
+    // handler below. Reset to "forward" once a page has used it.
+    var arrive = "forward";
+
     var supported = !!(window.fetch && window.DOMParser && window.Promise &&
       window.history.pushState && window.URL && "isConnected" in document.body);
 
@@ -2078,6 +2369,10 @@
       // Adopted rather than re-parsed from a string, and its scripts have
       // already "started" as far as the browser is concerned: they do not run.
       document.documentElement.replaceChild(document.adoptNode(doc.body), document.body);
+      document.body.setAttribute("data-arrive", mode === "pop" ? "back" : arrive);
+      arrive = "forward";
+      // The page's height has to be final before a scroll position goes back.
+      markBack();
 
       // A redirect went somewhere else; the anchor was for where we asked.
       if (entry.redirected) hash = "";
@@ -2133,6 +2428,14 @@
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       var link = linkIn(event);
       if (!link) return;
+
+      // How the next page should come in (§20): a tab or a segment is a
+      // sideways move between equals and cross-fades; a back link pops;
+      // anything else pushes in from the right, the way a phone's screens
+      // stack. The stylesheet reads it off <body> once the page has landed.
+      arrive = link.closest(".tabbar, .segments, .appbar__nav") ? "tab"
+        : link.closest(".backlink, .appbar__back") ? "back"
+        : "forward";
 
       event.preventDefault();
       go(link.href, link.hasAttribute("data-no-cache") ? 0 : FRESH, "push");
@@ -2228,6 +2531,7 @@
 
   function initPage() {
     initTheme();
+    initAppBar();
     initCompose();
     initComposeModal();
     initTally();
@@ -2246,6 +2550,7 @@
     initSubmitState();
     initLiveFilter();
     initTabSlider();
+    initTabBarFold();
     initLiveErrors();
 
     // For anything outside this file with a page to set up — notifications.js
@@ -2256,6 +2561,7 @@
   }
 
   function init() {
+    markBack();
     initOnce();
     initPage();
   }

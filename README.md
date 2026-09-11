@@ -18,7 +18,7 @@ entirely to that app.
 - Set a weekly or fortnightly hours limit and track against it
 
 **Notifications** (`apps.notifications`, mounted at `/notifications/`)
-- A bell in the app bar with a count, and the inbox behind it
+- An Alerts tab with a count on it, and the inbox behind it
 - Web Push, so a notification arrives with the app closed
 - Raised by the board (new notice, comment, reply, reaction) and by
   TimeSheet (a forgotten clock-out, an hours cap coming up)
@@ -97,7 +97,7 @@ is for a laptop, not for a site with an address.
 
 ## Notifications
 
-The bell, the inbox and the count on them are plain Django and need no setup:
+The Alerts tab, the inbox and the count on them are plain Django and need no setup:
 every event is recorded whether or not anything can be delivered. What needs
 setting up is the *push* half — the part that reaches a phone with the app
 closed.
@@ -130,7 +130,7 @@ everybody has to turn notifications back on.
 
 ### Turning it on, as a user
 
-Open the bell, then **Turn on**, and accept the browser's prompt. The prompt
+Open Alerts, then **Turn on**, and accept the browser's prompt. The prompt
 has to come from that tap — asking on page load is how a browser learns to
 refuse on your behalf permanently.
 
@@ -237,7 +237,25 @@ string references like `"accounts.Profile"` resolve through it. And templates
 are addressed by the path under `templates/`, not by the app's module path, so
 `timeclock/shifts.html` did not move when `timeclock` did.
 
-One thing about the front end. Every page is rendered by Django, but tapping
+The front end is built to feel like a phone app rather than a web page, and
+the whole of it is one stylesheet, `static/css/app.css`, laid out phone-first
+with a few `min-width` queries for tablets and desktops. The pieces of chrome
+worth knowing: the **app bar** behaves like a navigation bar — a page's
+`.backlink` is lifted into its left corner on phones and the page's `h1`
+appears in its middle once it has scrolled away; the **dock** at the foot of
+a phone is one bar for the whole app, and its solid green pill is a knob that
+slides between the tabs (tapping the tab you are on scrolls to the top);
+the **segmented controls** (`.segments`: Clock / Timesheet / More, and List /
+Calendar) are the same track-and-knob; and every yes-or-no is a **switch**
+(`.switch` — the markup is in `timeclock/_form_fields.html`) modelled on the
+day-and-night switch in the app bar. Pages come in the way screens do — a
+push from the right, a pop back to the left, a cross-fade between tabs —
+from a `data-arrive` attribute `app.js` writes on `<body>`. A new component
+must be able to shrink: grids use `minmax(0, 1fr)`, flex and grid items get
+`min-width: 0`, and nothing is allowed to widen a 320px screen (§23 of the
+stylesheet lists the rules).
+
+Every page is rendered by Django, but tapping
 a link does not reload the site: `static/js/app.js` fetches the next page —
 starting the moment a finger lands on the link — and swaps its `<body>` in
 place, so the stylesheet and scripts are parsed once per visit rather than

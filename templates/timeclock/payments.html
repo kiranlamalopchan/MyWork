@@ -150,8 +150,8 @@
         this card's main action — that is the button above — so it does not
         get a button's weight.
       {% endcomment %}
+      {% if row.last_payment %}
       <div class="cardlinks">
-        {% if row.last_payment %}
           {% comment %}
             Straight after a payment the figure above it is gone — that is
             what the button is for. This is that figure kept: the month the
@@ -164,8 +164,8 @@
             </svg>
             {{ row.last_payment.created_at|date:"F" }} statement
           </a>
-        {% endif %}
       </div>
+      {% endif %}
     </div>
   {% endfor %}
 

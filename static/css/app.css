@@ -38,22 +38,37 @@
   --line:        #e8ebf0;
   --line-strong: #d4dae2;
 
-  /* The floating nav pill. It is its own small piece of chrome — dark in
-     either theme, so the bar reads as one object hovering over the page
-     rather than as another card in the stack. */
-  --pill:        #16181d;
-  /* The same pill with the page showing through it. Used only where the
-     browser can blur what is behind it; otherwise --pill stays opaque and
-     the bar simply looks solid.
+  /* The floating tab bar: a slab of clear glass the way an iPhone's own is,
+     the page blurred and brightened through it, in the theme's own light
+     rather than a dark object of its own. --pill is what a browser that
+     cannot blur shows instead — the same material, gone opaque. */
+  --pill:        #f3f5f9;
+  /* The glass itself, where the page shows through. 58% white is where the
+     two demands meet: enough of the page comes through for the lens in §33
+     to have something to bend, and the captions still read over whatever
+     happens to be passing underneath. */
+  --pill-glass:  rgba(255, 255, 255, .58);
+  --pill-ink:    rgba(15, 23, 42, .60);
+  --pill-line:   rgba(255, 255, 255, .80);
+  /* How hard the dock's shadow falls. Light glass over a light page casts
+     little. */
+  --pill-shadow:
+    0 8px 28px rgba(15, 23, 42, .13),
+    0 2px 6px rgba(15, 23, 42, .07);
 
-     72% is where the two demands meet: enough of the page comes through for
-     the lens in §33 to have something to bend, and the captions still read
-     over whatever happens to be passing underneath. */
-  --pill-glass:  rgba(18, 20, 25, .72);
-  --pill-ink:    rgba(255, 255, 255, .62);
-  --pill-line:   rgba(255, 255, 255, .08);
-  --pill-on:     #ffffff;
-  --pill-on-ink: #16181d;
+  /* Which side the day/night switch sits on (§3): 0 is day, 1 is night. A
+     number rather than a state so the switch's every part — knob, sky,
+     stars, sun, moon — is one rule that reads it, in either theme. */
+  --night: 0;
+
+  /* The switch's materials, which every toggle in the app shares (§3b,
+     §4): a track the knob sits in, sunk a little into the page, and the
+     knob itself, raised out of it. Named once so a form's yes/no, the
+     List/Calendar control and the dock all read as one family. */
+  --track:       rgba(15, 23, 42, .075);
+  --track-inset: inset 0 1px 3px rgba(15, 23, 42, .14);
+  --knob:        #ffffff;
+  --knob-shadow: 0 1px 3px rgba(15, 23, 42, .18), 0 0 1px rgba(15, 23, 42, .12), inset 0 1px 0 rgba(255, 255, 255, .7);
 
   /* Elevation
      Only things that genuinely float cast a shadow — a menu over the page, a
@@ -110,9 +125,20 @@
   --sp-6: 24px;
   --sp-8: 32px;
 
-  /* Chrome heights — used to reserve scroll room for the fixed bars */
+  /* The page: how far in from the screen's edge the content starts, and
+     how wide it is allowed to get. The gutter grows a little with the
+     screen — 16px on a 320px phone, 22px on a Pro Max — so a card never
+     touches the edge and never floats in a sea of margin either. The
+     column is held to a phone-ish width on a tablet or a desktop, because
+     a shift row stretched across a 13" screen is unreadable and looks like
+     a web page; a native app on an iPad keeps its lists in a column too. */
+  --gutter:   clamp(16px, 4.5vw, 22px);
+  --page-max: 720px;
+
+  /* Chrome heights — used to reserve scroll room for the fixed bars. The
+     tab bar's figure is the dock's own height plus the gap it floats at. */
   --appbar-h: 56px;
-  --tabbar-h: 68px;
+  --tabbar-h: 76px;
 
   /* Safe areas (iPhone notch / home indicator) */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -160,12 +186,20 @@
     --line-strong: #35455f;
 
     /* Lifted off the dark background rather than sunk into it. */
-    --pill:        #1a2540;
-    --pill-glass:  rgba(20, 31, 55, .70);
-    --pill-ink:    rgba(232, 237, 245, .60);
-    --pill-line:   rgba(255, 255, 255, .10);
-    --pill-on:     #e8edf5;
-    --pill-on-ink: #0b1120;
+    --pill:        #1c2640;
+    --pill-glass:  rgba(36, 48, 74, .58);
+    --pill-ink:    rgba(232, 237, 245, .62);
+    --pill-line:   rgba(255, 255, 255, .16);
+    --pill-shadow:
+      0 8px 28px rgba(0, 0, 0, .40),
+      0 2px 6px rgba(0, 0, 0, .24);
+
+    --night: 1;
+
+    --track:       rgba(0, 0, 0, .32);
+    --track-inset: inset 0 1px 3px rgba(0, 0, 0, .45);
+    --knob:        #2c3b5a;
+    --knob-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10);
 
     /* Flat here too: on a dark ground a card is separated by its own lighter
        surface, and a shadow under it only muddies the edge. */
@@ -214,12 +248,20 @@
   --line:        #26334d;
   --line-strong: #35455f;
 
-  --pill:        #1a2540;
-  --pill-glass:  rgba(20, 31, 55, .70);
-  --pill-ink:    rgba(232, 237, 245, .60);
-  --pill-line:   rgba(255, 255, 255, .10);
-  --pill-on:     #e8edf5;
-  --pill-on-ink: #0b1120;
+  --pill:        #1c2640;
+  --pill-glass:  rgba(36, 48, 74, .58);
+  --pill-ink:    rgba(232, 237, 245, .62);
+  --pill-line:   rgba(255, 255, 255, .16);
+  --pill-shadow:
+    0 8px 28px rgba(0, 0, 0, .40),
+    0 2px 6px rgba(0, 0, 0, .24);
+
+  --night: 1;
+
+  --track:       rgba(0, 0, 0, .32);
+  --track-inset: inset 0 1px 3px rgba(0, 0, 0, .45);
+  --knob:        #2c3b5a;
+  --knob-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10);
 
   --shadow-1: none;
   --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
@@ -294,6 +336,24 @@ img { max-width: 100%; height: auto; display: block; }
 /* --------------------------------------------------------------------------
    3. App shell
    -------------------------------------------------------------------------- */
+
+/* The page column. Side padding is the gutter, or the notch's inset on a
+   phone held sideways if that is bigger; the bottom keeps clear of the dock
+   and the home indicator, so the last card can always be scrolled fully
+   out from under them. */
+.container {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding:
+    var(--sp-4)
+    max(var(--gutter), var(--safe-r))
+    calc(var(--tabbar-h) + var(--safe-b) + var(--sp-6))
+    max(var(--gutter), var(--safe-l));
+}
+/* Soft navigation hands focus to the page after a swap, for keyboards and
+   screen readers. That is a place to start from, not a thing to outline. */
+.container:focus { outline: none; }
+
 .appbar {
   position: sticky;
   top: 0;
@@ -306,13 +366,81 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 .appbar__inner {
+  position: relative;
   height: var(--appbar-h);
   max-width: 980px;
   margin: 0 auto;
-  padding: 0 max(var(--sp-4), var(--safe-r)) 0 max(var(--sp-4), var(--safe-l));
+  padding: 0 max(var(--gutter), var(--safe-r)) 0 max(var(--gutter), var(--safe-l));
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+}
+
+/* ---- The bar as a phone's navigation bar ------------------------------------
+
+   Two things a native bar does that a web header does not, both filled in
+   by app.js from the page itself (initAppBar).
+
+   Back. A page with somewhere to return to — a shift, a form, the calendar
+   of holidays — carries a .backlink of its own. On a phone that link is
+   lifted into the bar's left corner, where a thumb expects it, and the
+   brand steps aside for it; the page's own copy is hidden so the way back
+   is said once. On a wide screen the bar keeps the brand and the tabs and
+   the page keeps its link.
+
+   Title. The page's big heading scrolls away with the page. Once it has,
+   its words appear in the middle of the bar — small, and only then — so a
+   long timesheet still says what it is however far down it you are. */
+.appbar__back {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  height: var(--tap);
+  margin-left: -10px;
+  margin-right: auto;
+  padding: 0 10px 0 6px;
+  border-radius: var(--r-pill);
+  color: var(--brand);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  max-width: 44%;
+  transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.appbar__back:hover { text-decoration: none; background: var(--brand-soft); }
+.appbar__back:active { transform: scale(.96); }
+.appbar__back svg { flex: none; width: 22px; height: 22px; }
+.appbar__back-label { overflow: hidden; text-overflow: ellipsis; }
+
+.appbar__title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: 44%;
+  transform: translate(-50%, calc(-50% + 6px));
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  color: var(--text);
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease), transform var(--dur-3) var(--ease-out);
+}
+.appbar.is-titled .appbar__title { opacity: 1; transform: translate(-50%, -50%); }
+
+/* Phones: the back link replaces the brand, and the title needs the middle. */
+@media (max-width: 859px) {
+  .appbar.has-back .appbar__back { display: inline-flex; }
+  .appbar.has-back .brand { display: none; }
+  /* Room in the middle for the title: the brand keeps its mark and gives
+     up its word, which the title now says better anyway. */
+  .appbar.is-titled .brand__text,
+  .appbar.is-titled .brand__section { display: none; }
+  body.has-back .backlink { display: none; }
 }
 
 .brand {
@@ -369,46 +497,267 @@ img { max-width: 100%; height: auto; display: block; }
 .icon-btn:hover { background: var(--surface-3); color: var(--text); }
 .icon-btn svg { width: 20px; height: 20px; }
 
-/* The button shows the theme you'd switch *to*, so it mirrors the palette
-   rules above exactly: moon while light is active, sun while dark is. */
-.icon-btn__sun  { display: none; }
-.icon-btn__moon { display: block; }
+/* ---- Day and night — a switch ------------------------------------------------
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .icon-btn__sun  { display: block; }
-  :root:not([data-theme="light"]) .icon-btn__moon { display: none; }
+   The knob carries the sun across a sky; on the far side the sky has gone to
+   night, the stars have come out, and the sun has turned into a moon. Every
+   part reads --night from §1 — 0 or 1 — so the same handful of rules draw
+   both settings and the move between them, and the switch cannot sit on a
+   side the page is not on.
+
+   A switch rather than an icon because a switch shows both its sides: you
+   can see what it is and which way it is set without having to work out
+   whether a moon means "it is night" or "make it night". */
+.daynight {
+  --track-w: 52px;
+  --track-h: 30px;
+  --knob: 24px;
+  --gap: 3px;
+  /* How far the knob travels: the track less itself less the gap each side. */
+  --travel: calc(var(--track-w) - var(--knob) - 2 * var(--gap));
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.daynight__track {
+  position: relative;
+  display: block;
+  width: var(--track-w);
+  height: var(--track-h);
+  border-radius: 999px;
+  overflow: hidden;
+  /* Daytime: a sky, deeper at the top the way a sky is. */
+  background: linear-gradient(180deg, #bfe4ff, #7ec3f2);
+  box-shadow:
+    inset 0 1px 3px rgba(15, 23, 42, .28),
+    0 1px 0 rgba(255, 255, 255, .5);
+  transition: transform var(--dur-2) var(--ease-snap);
+}
+.daynight:active .daynight__track { transform: scale(.98); }
+/* Held down, the knob lengthens toward where it is about to go — the way
+   an iPhone's switch does — and lets go into the slide. From the night side
+   it stretches back the other way, so the far edge stays put. */
+.daynight:active .daynight__knob { width: calc(var(--knob) + 7px); }
+.daynight[aria-checked="true"]:active .daynight__knob {
+  transform: translateX(calc(var(--travel) - 7px));
+}
+/* A ring for the keyboard, on the track rather than the 48px hit area. */
+.daynight:focus-visible { outline: none; }
+.daynight:focus-visible .daynight__track {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
-:root[data-theme="dark"] .icon-btn__sun  { display: block; }
-:root[data-theme="dark"] .icon-btn__moon { display: none; }
-
-.container {
-  max-width: 980px;
-  margin: 0 auto;
-  padding:
-    var(--sp-4)
-    max(var(--sp-4), var(--safe-r))
-    /* leave room for the fixed tab bar + home indicator */
-    calc(var(--tabbar-h) + var(--safe-b) + var(--sp-6))
-    max(var(--sp-4), var(--safe-l));
+/* Night is a second sky laid over the first, faded in rather than swapped:
+   a gradient cannot transition, but its opacity can. */
+.daynight__night {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #1c2b4d, #0b1120);
+  opacity: var(--night);
+  transition: opacity .45s var(--ease);
 }
-/* Soft navigation hands focus to the page after a swap, for keyboards and
-   screen readers. That is a place to start from, not a thing to outline. */
-.container:focus { outline: none; }
+
+/* Five stars, each a tiny radial gradient, that drift in from the left as
+   the sun leaves and are not there at all by day. */
+.daynight__stars {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1.3px 1.3px at 11px 9px,  #fff 98%, transparent),
+    radial-gradient(1px 1px at 19px 19px,     #fff 98%, transparent),
+    radial-gradient(1.5px 1.5px at 27px 7px,  #fff 98%, transparent),
+    radial-gradient(1px 1px at 8px 21px,      #fff 98%, transparent),
+    radial-gradient(1.1px 1.1px at 22px 12px, #fff 98%, transparent);
+  opacity: var(--night);
+  transform: translateX(calc(-6px * (1 - var(--night))));
+  transition: opacity .45s var(--ease), transform .55s var(--ease-out);
+}
+
+/* The knob: a warm disc by day that cools to moon-grey at night, sliding
+   the length of the track on the same spring the rest of the app moves on. */
+.daynight__knob {
+  position: absolute;
+  top: var(--gap);
+  left: var(--gap);
+  width: var(--knob);
+  height: var(--knob);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, #fff4c2 calc(100% * (1 - var(--night))), #e2e8f0);
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, .35),
+    inset 0 -1px 1px rgba(15, 23, 42, .08);
+  transform: translateX(calc(var(--travel) * var(--night)));
+  transition:
+    transform .5s var(--ease-snap),
+    width .18s var(--ease),
+    background .45s var(--ease);
+}
+
+/* The sun sets and the moon rises inside the knob: each rolls over the
+   horizon as it goes. */
+.daynight__sun,
+.daynight__moon {
+  grid-area: 1 / 1;
+  width: 15px;
+  height: 15px;
+  transition:
+    opacity .3s var(--ease),
+    transform .55s var(--ease-snap);
+}
+.daynight__sun {
+  color: #f59e0b;
+  opacity: calc(1 - var(--night));
+  transform: rotate(calc(-100deg * var(--night))) scale(calc(1 - .6 * var(--night)));
+}
+.daynight__moon {
+  color: #334155;
+  opacity: var(--night);
+  transform: rotate(calc(100deg * (1 - var(--night)))) scale(calc(.4 + .6 * var(--night)));
+}
+
+/* The switch itself: app.js asks the browser for a view transition, and this
+   is how long the old palette takes to dissolve into the new. Slightly
+   longer than the default quarter-second, so it reads as the room's light
+   changing rather than a flicker. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .42s;
+  animation-timing-function: var(--ease);
+}
+
+/* ---- §3b. The switch — every other yes-or-no in the app ---------------------
+
+   The day-and-night control above is a switch with a sky in it. This is the
+   same switch with the sky taken out: a track, a knob, and the brand colour
+   filling the track when it is on. A form's checkbox ("use as my default
+   workplace", "delete this break"), and push notifications on the inbox,
+   all wear it — so the app has one way of saying on and off, and it is the
+   one you already learned in the corner of the app bar.
+
+   The checkbox is real. It lies invisibly over the whole row, so the row is
+   the tap target (never smaller than 48px), a keyboard reaches it, and with
+   no stylesheet at all it is still a checkbox that works. Everything visual
+   hangs off :checked, :active and :focus-visible on that input. */
+.switch {
+  --track-w: 52px;
+  --track-h: 30px;
+  --knob: 24px;
+  --gap: 3px;
+  --travel: calc(var(--track-w) - var(--knob) - 2 * var(--gap));
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 550;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  z-index: 1;
+}
+.switch__text { flex: 1 1 auto; min-width: 0; }
+
+.switch__track {
+  flex: none;
+  position: relative;
+  width: var(--track-w);
+  height: var(--track-h);
+  border-radius: 999px;
+  background: var(--track);
+  box-shadow: var(--track-inset);
+  transition: background .3s var(--ease), box-shadow .3s var(--ease), transform var(--dur-2) var(--ease-snap);
+}
+.switch__knob {
+  position: absolute;
+  top: var(--gap);
+  left: var(--gap);
+  width: var(--knob);
+  height: var(--knob);
+  border-radius: 999px;
+  background: var(--knob);
+  box-shadow: var(--knob-shadow);
+  transition:
+    transform .5s var(--ease-snap),
+    width .18s var(--ease),
+    background .3s var(--ease);
+}
+/* Dark surfaces: the knob is lit, or it disappears into the track. */
+.switch__knob { background: #fff; }
+
+/* On: the track fills with the brand and the knob crosses it. */
+.switch input:checked ~ .switch__track {
+  background: var(--brand);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .18);
+}
+.switch input:checked ~ .switch__track .switch__knob {
+  transform: translateX(var(--travel));
+}
+/* A destructive yes — "delete this break" — fills red instead. */
+.switch--danger input:checked ~ .switch__track { background: var(--danger); }
+.switch--danger input:checked ~ .switch__text { color: var(--danger); }
+
+/* Under a finger the knob lengthens toward where it is going. */
+.switch input:active ~ .switch__track { transform: scale(.98); }
+.switch input:active ~ .switch__track .switch__knob { width: calc(var(--knob) + 7px); }
+.switch input:checked:active ~ .switch__track .switch__knob {
+  transform: translateX(calc(var(--travel) - 7px));
+}
+
+.switch input:focus-visible ~ .switch__track {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.switch input:disabled ~ .switch__track,
+.switch input:disabled ~ .switch__text { opacity: .45; }
+.switch input:disabled { cursor: default; }
+
+/* A switch with nothing to say beside it: the words are elsewhere on the
+   card, and this is only the control. */
+.switch--bare { min-height: 0; gap: 0; }
 
 /* --------------------------------------------------------------------------
-   4. Bottom tab bar (phones) — a floating pill within thumb reach
+   4. Bottom tab bar (phones) — a dock floating within thumb reach
 
    Not a bar across the foot of the screen but an object hovering over it:
-   the page runs to the bottom edge underneath, and navigation is one dark
-   pill you can reach without shifting your grip. Each tab names itself under
-   its icon, so which slot does what is readable rather than guessed at.
+   the page runs to the bottom edge underneath, and navigation is one
+   frosted capsule you can reach without shifting your grip. Five places,
+   the same five on every screen. Four of them are an icon; the one you are
+   in is a tinted pill with its name beside the icon, so the bar says where
+   you are in words and everywhere else in pictures — a dock, not a row of
+   captions.
 
-   It is made of glass, the way the chrome on a phone is: the page blurs
-   through it as it scrolls past, light catches along the top edge, and a
-   shadow falls underneath. That the page keeps moving behind it is the whole
-   point — a solid bar looks pasted on top of the page, a frosted one looks
-   like it is floating above it.
+   It is made of frosted glass the way the chrome on a phone is: the page
+   blurs through it as it scrolls past, a hairline of light catches the top
+   edge, and a soft shadow falls underneath. That the page keeps moving
+   behind it is the whole point — a solid bar looks pasted on top of the
+   page, a frosted one looks like it is floating above it. And like the
+   phone's, it shrinks while you scroll down and grows back as you scroll
+   up (§4b). Nothing else: no streaks, no sheen — a dock is furniture, and
+   furniture keeps still.
    -------------------------------------------------------------------------- */
 .tabbar {
   position: fixed;
@@ -418,7 +767,7 @@ img { max-width: 100%; height: auto; display: block; }
   z-index: 45;
   display: flex;
   justify-content: center;
-  /* The page either side of the pill still belongs to the page. */
+  /* The page either side of the dock still belongs to the page. */
   pointer-events: none;
 }
 
@@ -426,64 +775,55 @@ img { max-width: 100%; height: auto; display: block; }
   pointer-events: auto;
   display: flex;
   align-items: center;
-  /* Most of the screen wide, with the tabs spread across it — the reach of a
-     thumb is the width of the phone, not the width of four icons. */
-  width: 80%;
-  justify-content: space-around;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
   padding: 6px;
+  /* As wide as its tabs and no wider — the pill under the current tab grows
+     when you move, and the dock grows with it. Never past the screen's own
+     margins. */
+  max-width: calc(100% - 2 * var(--gutter));
   border-radius: var(--r-pill);
-
-  /* The light along the top of a curved surface. Named once and used by each
-     of the three states below, so the gloss cannot drift apart from itself.
-     It is fixed to the pill rather than to the tabs, which means it stays
-     still when a crowded bar scrolls sideways underneath it. */
-  --sheen: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, .16),
-    rgba(255, 255, 255, .05) 38%,
-    rgba(255, 255, 255, 0) 62%
-  );
-  background: var(--sheen), var(--pill);
+  background: var(--pill);
   border: 1px solid var(--pill-line);
-
-  /* Cast below, lit above. The drop shadow puts the bar over the page; the
-     inset hairline is the light catching its top edge. Together they are what
-     makes a flat pill read as something with a thickness to it. */
+  /* Cast below, lit above. The drop shadow puts the dock over the page; the
+     inset hairline is the light catching its top edge, and the faint
+     inner shadow under it is what makes the dock a track the pill sits in
+     rather than a plate it sits on — the same sink the switches have. */
   box-shadow:
-    0 8px 24px rgba(2, 6, 23, .22),
-    0 2px 6px rgba(2, 6, 23, .14),
-    inset 0 1px 0 rgba(255, 255, 255, .18),
-    inset 0 -1px 0 rgba(255, 255, 255, .04);
-
-  /* More tabs than a narrow phone can hold slide rather than wrap: a pill
-     that grows a second row stops being a pill. */
+    var(--pill-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, .55),
+    inset 0 2px 6px -3px rgba(15, 23, 42, .18);
+  /* More tabs than a narrow phone can hold slide rather than wrap. */
   overflow-x: auto;
   scrollbar-width: none;
+  /* The shrink on scroll (§4b) grows back from the edge it shrank towards:
+     the foot of the screen. A long, settling curve with no bounce — the
+     dock is getting out of the way, not arriving. */
+  transform-origin: 50% 100%;
+  transition: transform .5s var(--ease-out);
 }
 .tabbar__inner::-webkit-scrollbar { display: none; }
 
 /* Frosted, where the browser can frost — every version of iOS Safari can, and
    so can current Chrome and Firefox. All this swaps is the material: solid
-   for translucent, plus a blur of whatever the page is showing behind it. A
-   browser that can't do it keeps the bar above, opaque and still glossy.
+   for translucent, plus a blur of whatever the page is showing behind it.
 
    saturate() is the part that matters. Blur alone drains the colour out of
    what's underneath and the bar goes grey; pushing saturation back up is how
    iOS keeps its chrome looking lit rather than fogged. */
 @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .tabbar__inner {
-    background: var(--sheen), var(--pill-glass);
-    -webkit-backdrop-filter: saturate(180%) blur(22px);
-    backdrop-filter: saturate(180%) blur(22px);
+    background: var(--pill-glass);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
   }
 }
 
 /* Asked for less of this at the system level — iOS calls it Reduce
-   Transparency. The gloss stays; only the see-through goes. */
+   Transparency. Solid, and still a dock. */
 @media (prefers-reduced-transparency: reduce) {
   .tabbar__inner {
-    background: var(--sheen), var(--pill);
+    background: var(--pill);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -496,61 +836,202 @@ img { max-width: 100%; height: auto; display: block; }
   background: none;
   border: 0;
   cursor: pointer;
+  /* A tab is a control, not a link to hold down: no link preview, no
+     selection, no grey flash. */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 .tab:hover { text-decoration: none; }
 .tab svg { width: 22px; height: 22px; }
 
-/* ---- The pill's own tabs ------------------------------------------------ */
+/* ---- The dock's own tabs -------------------------------------------------- */
 .tabbar .tab {
-  /* Share the pill out rather than claim a fixed slice: four captioned tabs
-     still fit across the narrowest phone, and two spread out instead of
-     huddling in the middle. */
-  flex: 1 1 auto;
-  min-width: 54px;
-  max-width: 78px;
-  height: 54px;
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  z-index: 2;
+  flex: none;
+  height: 48px;
+  min-width: 48px;
+  padding: 0 12px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  border-radius: 20px;
+  gap: 8px;
+  border-radius: var(--r-pill);
   color: var(--pill-ink);
+  transition: color .3s var(--ease), transform var(--dur-1) var(--ease);
 }
-.tabbar .tab:hover { color: var(--pill-on); }
-.tabbar .tab svg { width: 20px; height: 20px; }
+.tabbar .tab:hover { color: var(--text); }
+.tabbar .tab:active { transform: scale(.94); }
+.tabbar .tab svg { flex: none; width: 24px; height: 24px; }
 
-/* The caption: small enough to stay under the icon, never wrapping the pill
-   onto a second row — a long name is clipped, not folded. */
-.tabbar .tab span {
-  max-width: 100%;
-  font-size: 10px;
+/* The name, which only the current tab wears: the others are their icons.
+   It arrives as the pill lands — and only then. .is-arriving is set by
+   app.js on a tab the pill has just slid to; a page that opens with the
+   pill already where it was does not replay the arrival. */
+.tabbar .tab__label {
+  display: none;
+  font-size: 13px;
   line-height: 1;
-  font-weight: 550;
-  letter-spacing: .01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 650;
+  letter-spacing: -.01em;
   white-space: nowrap;
 }
-
-/* Where you are: a filled lozenge, the one bright thing in the bar. Lighter
-   at the top than the bottom by a few percent, with the same lit hairline the
-   pill itself has — enough for the shape to look raised out of the glass
-   rather than printed on it, and not enough to read as a gradient. */
-.tabbar .tab.is-active {
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--pill-on) 92%, #fff),
-    color-mix(in srgb, var(--pill-on) 90%, #000)
-  );
-  color: var(--pill-on-ink);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .55),
-    0 1px 3px rgba(2, 6, 23, .32);
+.tabbar .tab.is-active .tab__label { display: block; }
+/* Held back for the length of the stretch (§34), so the name appears as
+   the pill snaps in under it rather than on bare glass ahead of it. */
+.tabbar .tab.is-arriving .tab__label { animation: mw-tab-name .34s .19s var(--ease-out) both; }
+@keyframes mw-tab-name {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: none; }
 }
-.tabbar .tab.is-active svg { stroke-width: 2.1; }
 
-/* Sign out is a POST, so it's a form-wrapped button that has to size like a tab */
+/* Where you are: the knob. A solid pill of the brand colour, raised out of
+   the track with a soft shadow, and the tab's icon and name in the brand's
+   own ink on it — the one solid colour in the dock, the way the switch's
+   track goes solid green when it is on. With JavaScript the pill is the
+   travelling element in §34 and this background comes off; without it, the
+   tab draws its own and nothing is lost but the slide. */
+.tabbar .tab.is-active {
+  padding: 0 16px 0 12px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 36%, transparent);
+}
+.tabbar .tab.is-active svg { stroke-width: 2.2; }
+/* The pill reaches the tab before the icon shows: white ink on bare glass
+   would be invisible, so the icon waits out the stretch (§34) and fades in
+   as the pill snaps under it. */
+.tabbar .tab.is-arriving svg { animation: mw-tab-in .3s .17s var(--ease) both; }
+@keyframes mw-tab-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* The tab being left keeps the pill's ink for as long as the pill is still
+   under it (app.js holds .is-leaving through the stretch), then greys. */
+.tabbar .tab.is-leaving { color: var(--brand-ink); }
+/* The count on Alerts, when Alerts is the pill: ringed in the pill's colour. */
+.tabbar .tab.is-active .tab__badge { box-shadow: 0 0 0 2px var(--brand); }
+
+/* Tapping the tab you are already on scrolls its page back to the top —
+   app.js — and the icon gives a small nod to say it heard. */
+.tabbar .tab.is-active:active svg { transform: translateY(-2px) scale(.92); }
+
+/* The narrowest phones: five tabs and a name still fit inside a 320px
+   screen's margins once the gaps close up a little. */
+@media (max-width: 380px) {
+  .tabbar__inner { gap: 2px; padding: 5px; max-width: calc(100% - 2 * var(--sp-3)); }
+  .tabbar .tab { height: 46px; min-width: 44px; padding: 0 8px; }
+  .tabbar .tab.is-active { padding: 0 12px 0 10px; gap: 6px; }
+  .tabbar .tab__label { font-size: 12.5px; }
+}
+
+/* The icon and, on Alerts, the number riding on its shoulder. */
+.tab__icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.tab__badge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0;
+  /* A ring in the dock's own colour, so the badge reads as sitting on top
+     of the icon rather than punched out of it. */
+  box-shadow: 0 0 0 2px var(--pill);
+  pointer-events: none;
+}
+
+/* ---- §4b. Shrunk: the dock while you scroll down ----------------------------
+
+   An iPhone's tab bar gets out of the way of a long page: as you scroll down
+   it shrinks, and the moment you scroll back up it is whole again. app.js
+   sets .is-min from the scroll direction; the dock itself just has two
+   sizes.
+
+   Scaled rather than re-laid-out. The pill in §34 sits inside this box and
+   is placed by measurement, so shrinking the tabs underneath it would leave
+   it stranded mid-slide; scaling the whole box takes the pill with it, and
+   costs one composited transform rather than a layout per frame. */
+.tabbar.is-min .tabbar__inner {
+  transform: scale(.86) translateY(6px);
+}
+
+/* ---- Segmented control: the places within one app, and List / Calendar ----
+
+   The tab bar says which app you are in; this says where in it — Clock /
+   Timesheet / More — and, on the timesheet, which view of it: List or
+   Calendar. One control for both, and it is the switch again in a wider
+   body: a track sunk into the page, and a knob raised out of it that slides
+   to whichever segment you pick (the travelling element in §34). Without
+   JavaScript the chosen segment draws the knob itself and the slide is all
+   that goes.
+
+   The same .tab markup as the bar, restyled — the per-app _nav_links.html
+   files render here and nowhere else. */
+.segments {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+  box-shadow: var(--track-inset);
+}
+.segments .tab {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition: color .25s var(--ease), transform var(--dur-1) var(--ease);
+}
+.segments .tab:hover { color: var(--text); text-decoration: none; }
+.segments .tab:active { transform: scale(.96); }
+.segments .tab svg { flex: none; width: 16px; height: 16px; }
+.segments .tab__label { overflow: hidden; text-overflow: ellipsis; }
+.segments .tab.is-active {
+  color: var(--text);
+  background: var(--knob);
+  box-shadow: var(--knob-shadow);
+}
+/* The icon nods into place when the knob arrives under it — set by app.js
+   only when the knob actually moved. */
+.segments .tab.is-arriving svg { animation: mw-pop var(--dur-3) var(--ease-snap) both; }
+
+/* List / Calendar sits under the page title, before the content it switches.
+   Two words do not need the whole width of a tablet. */
+.segments--views { margin-bottom: var(--sp-4); }
+@media (min-width: 600px) { .segments--views { max-width: 400px; } }
+
+/* Three captioned segments across the narrowest phone: the icon goes, the
+   words stay, because the words are the part that says where you are. */
+@media (max-width: 360px) {
+  .segments--places .tab svg { display: none; }
+}
 
 /* --------------------------------------------------------------------------
    5. Surfaces
@@ -568,19 +1049,24 @@ img { max-width: 100%; height: auto; display: block; }
   padding: var(--sp-5) var(--sp-5) 0;
 }
 
+/* A large title, the way an iPhone screen opens: it scrolls away with the
+   page, and the app bar picks its words up (§3) once it has gone. Sized to
+   the screen, within reason — 28px on a small phone, 32px on a big one. */
 .page-title {
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -.02em;
-  line-height: 1.2;
+  font-size: clamp(27px, 7.4vw, 32px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 .page-sub {
   margin-top: var(--sp-1);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 14.5px;
+  line-height: 1.45;
 }
 /* A heading needs air under it more than it needs weight. */
-.page-head { margin-bottom: var(--sp-5); padding-top: var(--sp-2); }
+.page-head { margin-bottom: var(--sp-4); padding-top: var(--sp-1); }
 
 .section-label {
   font-size: 12px;
@@ -603,27 +1089,30 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  min-height: var(--tap);
-  padding: 0 var(--sp-4);
+  min-height: 50px;
+  padding: 0 var(--sp-5);
   border-radius: var(--r-md);
   border: 1px solid var(--line-strong);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 15px;
-  font-weight: 550;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.01em;
   cursor: pointer;
   user-select: none;
-  transition: transform .06s ease, background .12s ease, opacity .12s ease;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-1) var(--ease), background .12s ease, opacity .12s ease, box-shadow var(--dur-2) var(--ease);
 }
 .btn:hover { background: var(--surface-2); text-decoration: none; }
-.btn:active { transform: scale(.98); }
+.btn:active { transform: scale(.97); }
 .btn svg { width: 18px; height: 18px; flex: none; }
 
 .btn--primary {
   background: var(--brand);
   border-color: var(--brand);
   color: var(--brand-ink);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--brand) 30%, transparent);
 }
 .btn--primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
 
@@ -633,7 +1122,7 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 .btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-soft); }
 
 .btn--block { width: 100%; }
-.btn--sm { min-height: 38px; font-size: 14px; padding: 0 var(--sp-3); border-radius: var(--r-sm); }
+.btn--sm { min-height: 40px; font-size: 14px; padding: 0 var(--sp-3); border-radius: var(--r-sm); }
 
 .btn[disabled], .btn[aria-disabled="true"] {
   opacity: .5;
@@ -676,6 +1165,27 @@ textarea {
   -webkit-appearance: none;
 }
 .input::placeholder, input::placeholder { color: var(--muted); }
+
+/* A select with the browser's arrow taken off looked like a text box you
+   could not type in. The arrow comes back, drawn in the muted ink, and the
+   text keeps clear of it. */
+select {
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
+}
+/* iOS draws date and time pickers as a bare value with no height of its
+   own; giving the inner value a line box keeps them the same height as the
+   fields beside them. */
+input[type="date"], input[type="time"], input[type="datetime-local"] {
+  min-height: var(--tap);
+  line-height: 24px;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; min-height: 24px; }
 
 .input:focus,
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus,
@@ -747,8 +1257,8 @@ input[type="file"] { font-size: 15px; }
   position: sticky;
   top: calc(var(--appbar-h) + var(--safe-t));
   z-index: 30;
-  margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
+  margin: calc(var(--sp-4) * -1) calc(var(--gutter) * -1) var(--sp-4);
+  padding: var(--sp-3) var(--gutter);
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -1132,7 +1642,10 @@ code, .code {
   justify-content: space-between;
   gap: var(--sp-3);
 }
-.clock__date { font-size: 13px; color: var(--muted); }
+.status-pill { flex: none; }
+/* The date gives way before the status does: it is the one of the two you
+   already know. */
+.clock__date { min-width: 0; font-size: 13px; color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Status pill — the dot pulses only while something is actually running, so
    movement on screen always means the clock is moving too. */
@@ -1459,17 +1972,20 @@ code, .code {
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
+  min-height: var(--tap);
   padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
   border-radius: var(--r-md);
   cursor: pointer;
   list-style: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--dur-2) var(--ease);
 }
 .day__head::-webkit-details-marker { display: none; }
+.day__head:active { background: var(--surface-3); }
 .day__head:hover { background: var(--surface-2); }
 .day[open] .day__head { margin-bottom: var(--sp-1); }
 
-.day__date { font-size: 13px; font-weight: 650; letter-spacing: .02em; }
+.day__date { font-size: 14px; font-weight: 650; letter-spacing: .01em; }
 
 .day__meta {
   display: flex;
@@ -1567,14 +2083,18 @@ code, .code {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: var(--sp-3);
-  font-size: 14px;
-  font-weight: 550;
-  color: var(--muted);
-  transition: color var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-out);
+  min-height: 40px;
+  margin: calc(var(--sp-2) * -1) 0 var(--sp-2) -6px;
+  padding: 0 10px 0 6px;
+  border-radius: var(--r-pill);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--brand);
+  transition: color var(--dur-2) var(--ease), background var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-out);
 }
-.backlink:hover { color: var(--text); text-decoration: none; transform: translateX(-2px); }
-.backlink svg { width: 17px; height: 17px; }
+.backlink:hover { background: var(--brand-soft); text-decoration: none; }
+.backlink:active { transform: scale(.97); }
+.backlink svg { width: 18px; height: 18px; }
 
 .shift-hero {
   text-align: center;
@@ -1647,54 +2167,11 @@ code, .code {
   background: var(--surface-2);
   margin-bottom: var(--sp-3);
 }
-.break-edit__grid { display: grid; gap: var(--sp-3); grid-template-columns: 1fr 1fr; }
+/* minmax(0, …) and not 1fr: a datetime-local box has an intrinsic width of
+   ~250px in Chrome, and two of them in plain 1fr tracks widened the whole
+   page on a phone (§23). */
+.break-edit__grid { display: grid; gap: var(--sp-3); grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .break-edit__grid .field { margin-bottom: 0; }
-
-.checkline {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-height: var(--tap);
-  font-size: 14px;
-  font-weight: 550;
-  cursor: pointer;
-}
-.checkline input[type="checkbox"] {
-  width: 20px; height: 20px;
-  min-height: 0;
-  flex: none;
-  accent-color: var(--brand);
-  padding: 0;
-}
-
-/* ---- Segmented list / calendar toggle ---------------------------------- */
-.segmented {
-  display: flex;
-  gap: 3px;
-  padding: 3px;
-  margin-bottom: var(--sp-4);
-  border-radius: var(--r-pill);
-  background: var(--surface-3);
-}
-.segmented__item {
-  flex: 1;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-pill);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--muted);
-  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease),
-              box-shadow var(--dur-2) var(--ease);
-}
-.segmented__item:hover { text-decoration: none; color: var(--text); }
-.segmented__item.is-on {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-1);
-}
 
 /* ---- Calendar ----------------------------------------------------------- */
 .cal { overflow: hidden; }
@@ -1908,7 +2385,7 @@ a.cal__day.is-picked {
 .workplace__sub { display: flex; align-items: center; gap: 5px; }
 .workplace__sub .chip__tag { flex: none; font-size: 9.5px; padding: 1px 6px; }
 .workplace__actions { display: flex; gap: var(--sp-1); flex: none; }
-.icon-btn--sm { width: 38px; height: 38px; border-radius: var(--r-sm); }
+.icon-btn--sm { width: 40px; height: 40px; border-radius: var(--r-sm); }
 .icon-btn--sm svg { width: 17px; height: 17px; }
 .icon-btn--danger { color: var(--danger); }
 .icon-btn--danger:hover { background: var(--danger-soft); color: var(--danger); }
@@ -1933,7 +2410,6 @@ html { scroll-behavior: smooth; }
 }
 .tab:active { transform: scale(.93); }
 .tab svg { transition: stroke-width var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-snap); }
-.tabbar .tab.is-active svg { transform: none; }
 
 .icon-btn {
   transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease),
@@ -2020,7 +2496,7 @@ select, textarea {
   letter-spacing: .02em;
   text-transform: uppercase;
 }
-@media (max-width: 400px) {
+@media (max-width: 859px) {
   .brand__section { display: none; }
 }
 
@@ -2088,7 +2564,7 @@ select, textarea {
 /* Leaving the hub is not the reason you came here, so it sits apart and quiet. */
 
 /* --------------------------------------------------------------------------
-   19. Wider screens — nav moves up into the app bar, tab bar disappears
+   19. Wider screens — the tabs move up into the app bar, the floating bar goes
    -------------------------------------------------------------------------- */
 @media (min-width: 860px) {
   :root { --tabbar-h: 0px; }
@@ -2115,10 +2591,16 @@ select, textarea {
   .appbar__nav .tab:hover { background: var(--surface-2); color: var(--text); }
   .appbar__nav .tab.is-active { background: var(--brand-soft); color: var(--brand); }
   .appbar__nav .tab svg { width: 18px; height: 18px; }
+  /* The count rides the icon here too, ringed in the bar's own colour. */
+  .appbar__nav .tab__badge { top: -6px; right: -8px; box-shadow: 0 0 0 2px var(--surface); }
+
+  /* Three segments do not need a metre of track. */
+  .segments--places { max-width: 520px; }
+  .segments--views { max-width: 360px; }
 
   .container { padding-bottom: var(--sp-8); }
 
-  .page-title { font-size: 30px; }
+  .page-title { font-size: 32px; }
 
   .stat-row { grid-template-columns: repeat(4, 1fr); }
 
@@ -2156,17 +2638,18 @@ select, textarea {
 /* ---- Arrival ------------------------------------------------------------
    Deliberately NOT applied to .searchbar: it is position: sticky, and an
    animated transform would make it a containing block and drop the stick. */
-.page-head,
-.app-card,
-.card,
-.detail-hero,
-.empty,
-.stat-row,
-/* A short cascade, so a screen assembles instead of flashing in as one slab. */
-.app-card:nth-child(2)     { animation-delay: .07s; }
-.card:nth-of-type(2)       { animation-delay: .05s; }
-.card:nth-of-type(3)       { animation-delay: .10s; }
-.card:nth-of-type(n+4)     { animation-delay: .14s; }
+/* Nothing rises on its own when a page is first loaded: the content is
+   simply there. What moves is the page as a whole when you go from one to
+   the next (below) — the way a native app pushes the next screen in from
+   the right, pops back to the left, and cross-fades between tabs. app.js
+   writes which of the three on <body> as the new page lands; a full load
+   has none and animates nothing. */
+body[data-arrive="forward"] > .container { animation: mw-page-push .34s var(--ease-out) both; }
+body[data-arrive="back"]    > .container { animation: mw-page-pop  .34s var(--ease-out) both; }
+body[data-arrive="tab"]     > .container { animation: mw-page-tab  .24s var(--ease-out) both; }
+@keyframes mw-page-push { from { opacity: 0; transform: translateX(32px); }  to { opacity: 1; transform: none; } }
+@keyframes mw-page-pop  { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
+@keyframes mw-page-tab  { from { opacity: 0; transform: translateY(8px); }   to { opacity: 1; transform: none; } }
 
 /* Search results re-render on every keystroke, so the cascade has to be quick
    enough to keep up with typing — .24s, and only the first eight rows wait. */
@@ -2277,7 +2760,6 @@ select, textarea {
 .result:active { transform: scale(.995); }
 
 .tab svg { transition: transform var(--dur-2) var(--ease-snap); }
-.tab.is-active svg { animation: mw-pop var(--dur-3) var(--ease-snap) both; }
 .tab:active svg { transform: scale(.88); }
 
 .input, .searchbar__input {
@@ -2291,12 +2773,13 @@ select, textarea {
 
 
 /* --------------------------------------------------------------------------
-   21. App switcher — which app you're in is an app-bar concern
+   21. Profile menu — you, in the corner of the app bar
 
-   The bottom bar carries the features of the app you're already inside, so
-   moving *between* apps happens up here instead of spending a tab slot on it.
-   A <details> is the whole mechanism: it opens and closes with no script, and
-   app.js only adds the conveniences (outside click, Escape).
+   Your face, and behind it your profile and the way out. It used to be the
+   app switcher as well; the tab bar took that over when it became the same
+   bar on every screen, and the class names stayed. A <details> is the whole
+   mechanism: it opens and closes with no script, and app.js only adds the
+   conveniences (outside click, Escape).
    -------------------------------------------------------------------------- */
 .appmenu { position: relative; flex: none; }
 
@@ -2471,11 +2954,26 @@ select, textarea {
 .cal__key-item,
 .cal__title { min-width: 0; }
 
+/* Grid items too: a notice is a grid item of the board, and a grid track
+   grows to a card's min-content width unless the card is allowed to be
+   narrower than the names and counts on its tally line. */
+.board > *,
+.notices > .notice,
+.notes > .note,
+.notice > * { min-width: 0; }
+.tally { overflow: hidden; }
+.tally > a.tally__emoji { flex: 1 1 auto; }
+
 /* A long workplace name heads its own limit bar — wrap it, don't widen it */
 .limit .section-label { overflow-wrap: anywhere; }
 
 /* Nothing inside the page may be wider than the page */
 .container > * { max-width: 100%; }
+
+/* A form control never widens its column: the browser gives date, time and
+   file inputs an intrinsic width that a grid track or a flex item would
+   otherwise grow to hold. */
+input, select, textarea { min-width: 0; max-width: 100%; }
 
 /* app.js hides the form rows that don't apply; nothing may override this. */
 [hidden] { display: none !important; }
@@ -2844,8 +3342,8 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   align-items: center;
   gap: 6px;
   flex: none;
-  height: 34px;
-  padding: 0 var(--sp-3) 0 10px;
+  height: 40px;
+  padding: 0 var(--sp-4) 0 12px;
   border-radius: var(--r-pill);
   background: var(--brand);
   color: var(--brand-ink);
@@ -2866,7 +3364,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 /* Past the narrowest phones the label is worth its width; below that the +
    says it on its own. */
 @media (max-width: 380px) {
-  .post-btn { width: 34px; padding: 0; justify-content: center; }
+  .post-btn { width: 40px; padding: 0; justify-content: center; }
   .post-btn__label { display: none; }
 }
 
@@ -2948,6 +3446,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 .tally {
   display: flex;
   align-items: center;
+  align-self: stretch;
   gap: var(--sp-3);
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--line);
@@ -2966,7 +3465,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   margin-right: -6px;
 }
 .tally__n { margin-left: 10px; font-weight: 600; }
-.tally__comments { margin-left: auto; }
+.tally__comments { margin-left: auto; flex: none; white-space: nowrap; }
 
 /* Who is behind the count. The names are the point — the tally is a link to
    the rest of them, so nobody has to guess whose the emoji were. */
@@ -2988,9 +3487,10 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px var(--sp-2);
+  min-height: 40px;
+  padding: 0 var(--sp-3);
   border: 0;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-pill);
   background: none;
   color: var(--muted);
   font: inherit;
@@ -3015,7 +3515,9 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
 .picker {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 0;
+  /* Moved back inside the screen by app.js when it would hang over the
+     right edge (initReactions). */
+  left: calc(0px - var(--shift, 0px));
   z-index: 20;
   display: flex;
   gap: 2px;
@@ -3032,7 +3534,7 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
 }
 
 .picker__btn {
-  width: 38px; height: 38px;
+  width: 42px; height: 42px;
   display: grid;
   place-items: center;
   border: 0;
@@ -3188,7 +3690,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 
 /* The picker on a comment is the same row of faces, sized for a smaller row. */
 .picker--sm { padding: 4px; }
-.picker--sm .picker__btn { width: 32px; height: 32px; font-size: 18px; }
+.picker--sm .picker__btn { width: 36px; height: 36px; font-size: 18px; }
 
 /* The thread under a notice: comments, then the box to add one. */
 .thread {
@@ -3313,6 +3815,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  min-height: 52px;
   padding: var(--sp-2) var(--sp-3);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -3455,7 +3958,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 32px;
+  height: 38px;
   padding: 0 var(--sp-3);
   border-radius: var(--r-pill);
   border: 1px solid var(--line-strong);
@@ -4534,32 +5037,33 @@ body::before {
 }
 
 /* --------------------------------------------------------------------------
-   33. Liquid glass — the floating chrome refracts what passes under it
+   33. Liquid glass — the app bar refracts what passes under it
 
-   §32 makes every panel frosted. This goes one further on the two pieces that
-   float over moving content, and only on those two: what scrolls beneath the
-   app bar and the tab bar is bent as well as blurred, the way it would be
-   through something with a thickness and a curve.
+   §32 makes every panel frosted. This goes one further on the one piece of
+   chrome that floats over moving content: what scrolls beneath the app bar
+   is bent as well as blurred, the way it would be through something with a
+   thickness and a curve. (The dock at the foot of the screen is plain
+   frosted glass — §4 — a dock is furniture, and furniture keeps still.)
 
-   Four layers, in the order light meets them, and each one has to be its own
-   box because they are filtered differently:
+   Three layers, in the order light meets them, and each one has to be its
+   own box because they are filtered differently:
 
      ::before   the lens        blurs the backdrop, then refracts it
      ::after    tint + shine    the material's own colour, and the light
                                 caught along its inside edge
-     > *        the content     icons and captions, which must not bend
+     > *        the content     the brand and the buttons, which must not bend
 
    The element itself is left transparent and keeps only the border and the
    drop shadow. If it held a background, that background would sit inside the
    lens's backdrop and get bent along with the page, and the bar's edges would
    smear.
 
-   Only these two, deliberately. Refraction shows up where there is something
-   moving behind to refract, and both of these have the whole page sliding
-   underneath them. A card sitting in the page flow has the ambient wash
-   behind it and nothing else — it would pay for a filter per card and bend
-   almost nothing. Apple applies its own version to floating controls for the
-   same reason, not to the sheets of content between them.
+   Only here, deliberately. Refraction shows up where there is something
+   moving behind to refract, and the app bar has the whole page sliding
+   underneath it. A card sitting in the page flow has the ambient wash behind
+   it and nothing else — it would pay for a filter per card and bend almost
+   nothing. Apple applies its own version to floating controls for the same
+   reason, not to the sheets of content between them.
    -------------------------------------------------------------------------- */
 
 /* The filters live in an SVG in base.html; the element carrying them is not
@@ -4575,8 +5079,7 @@ body::before {
 
   /* The wrapper gives up its fill and its blur to the layers below. It keeps
      the drop shadow, which belongs to the object rather than to the glass. */
-  .appbar,
-  .tabbar__inner {
+  .appbar {
     position: relative;
     background: transparent;
     -webkit-backdrop-filter: none;
@@ -4584,9 +5087,7 @@ body::before {
   }
 
   .appbar::before,
-  .appbar::after,
-  .tabbar__inner::before,
-  .tabbar__inner::after {
+  .appbar::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -4605,159 +5106,148 @@ body::before {
 
      Legibility then comes from the tint above rather than from the blur,
      which is why that layer is the more opaque of the two. */
-  .appbar::before,
-  .tabbar__inner::before {
+  .appbar::before {
     z-index: 0;
     -webkit-backdrop-filter: var(--lens-blur);
     backdrop-filter: var(--lens-blur);
+    filter: url(#glass-distortion-soft);
   }
-  .tabbar__inner::before { filter: url(#glass-distortion); }
-  .appbar::before        { filter: url(#glass-distortion-soft); }
 
-  /* 2 + 3. The material's colour, and the light along its inside edge. Two
-     insets, lit from the top left and answering faintly from the bottom
-     right, which is what gives a flat rectangle the look of a bevel. */
+  /* 2 + 3. The material's colour, and the light along its inside edge. */
   .appbar::after {
     z-index: 1;
     background: color-mix(in srgb, var(--surface) 82%, transparent);
     box-shadow: inset 0 -1px 0 var(--glass-hi);
   }
 
-  /* The bevel, and the reason the bar reads as glass at all.
-
-     The refraction above only shows where something is passing underneath —
-     over the empty half of a page it has a flat wash to bend and bends it
-     into a flat wash. What makes a thick piece of glass recognisable even
-     against nothing is its edge: a bright rim where light enters, a glow
-     just inside it, a darker line at the bottom where the body of the glass
-     sits, and a specular streak across the face.
-
-     All of that is box-shadow and background, so unlike the lens it works in
-     every browser — including the iPhone this was built for. */
-  .tabbar__inner::after {
-    z-index: 1;
-    background:
-      /* the specular streak, low across the upper face */
-      linear-gradient(100deg,
-        transparent 6%,
-        rgba(255, 255, 255, .20) 24%,
-        rgba(255, 255, 255, .05) 40%,
-        transparent 54%),
-      var(--sheen),
-      var(--pill-glass);
-    box-shadow:
-      /* the lit rim, brightest where light lands and fading around */
-      inset 0 1.5px 0 rgba(255, 255, 255, .55),
-      inset 1.5px 0 0 rgba(255, 255, 255, .18),
-      inset -1.5px 0 0 rgba(255, 255, 255, .10),
-      /* the glow just inside the top rim: thickness, seen edge-on */
-      inset 0 9px 18px -9px rgba(255, 255, 255, .38),
-      /* and the body of the glass gathering at the bottom */
-      inset 0 -1.5px 0 rgba(255, 255, 255, .09),
-      inset 0 -12px 22px -12px rgba(2, 6, 23, .40);
-  }
-
-  /* The wrapper's own shadow keeps it off the page; the lit edges moved to
-     the layer above, so they are not said twice. */
-  .tabbar__inner {
-    box-shadow:
-      0 8px 24px rgba(2, 6, 23, .22),
-      0 2px 6px rgba(2, 6, 23, .14);
-  }
-
   /* 4. The content, which sits above all three and is not filtered. Bending
-     the page behind a caption is the effect; bending the caption is a bug. */
-  .appbar > *,
-  .tabbar__inner > * {
+     the page behind a button is the effect; bending the button is a bug. */
+  .appbar > * {
     position: relative;
     z-index: 2;
   }
 }
 
 /* Reduce Transparency takes the lens with everything else: no bend, no blur,
-   and the two bars go back to solid chrome. */
+   and the bar goes back to solid chrome. */
 @media (prefers-reduced-transparency: reduce) {
-  .appbar::before,
-  .tabbar__inner::before { display: none; }
-
+  .appbar::before { display: none; }
   .appbar::after  { background: var(--surface); }
-  .tabbar__inner::after { background: var(--sheen), var(--pill); }
 }
 
 /* --------------------------------------------------------------------------
-   34. The tab bar's capsule, which slides
+   34. The dock's pill, which slides
 
-   One lozenge that travels between the tabs, instead of one disappearing from
-   under the old tab while another appears under the new. Tapping a tab is
-   still a plain link and the page still loads; the slide happens in the gap
-   before it does, and the page that arrives has drawn its capsule already
-   under the tab you chose, so the movement and the arrival meet rather than
-   contradict each other.
+   One tinted pill that travels between the tabs, instead of one disappearing
+   from under the old tab while another appears under the new. Tapping a tab
+   is still a plain link and the page still arrives; the slide happens in
+   the gap before it does, and the page that arrives has drawn its pill
+   already under the tab you chose, so the movement and the arrival meet
+   rather than contradict each other. The tab it lands on grows a name as it
+   lands (§4), and the pill grows with it.
 
-   The capsule is built by JavaScript, which is also what sets .has-slider on
+   The pill is built by JavaScript, which is also what sets .has-slider on
    the bar. With no JavaScript neither exists, the rule below never matches,
    and the active tab keeps the background it has in §4 — the bar loses the
    animation and nothing else.
    -------------------------------------------------------------------------- */
 
-/* The lozenge moved out of the tab and into the travelling element, so the
-   tab keeps only its ink. */
+/* The tint moved out of the tab and into the travelling element, so the tab
+   keeps only its ink. */
 .tabbar__inner.has-slider .tab.is-active {
   background: none;
-  box-shadow: none;
-}
-
-/* Dark ink to light and back as the capsule arrives and leaves. Slower than
-   the slide, so the colour is still settling as the capsule comes to rest
-   rather than snapping ahead of it. */
-.tabbar .tab {
-  transition: color .3s var(--ease);
 }
 
 .tabbar__inner > .tab-slider {
   position: absolute;
   top: 0;
   left: 0;
-  /* The same layer as the tabs, and first in the DOM, so they paint over it. */
-  z-index: 2;
+  /* Under the tabs: the knob is solid now, and the tab it carries paints
+     its icon and name on top of it (the tabs are z-index 2 in §4). */
+  z-index: 1;
   width: 0;
   height: 0;
-  /* Matches .tabbar .tab, so the capsule is the shape of what it sits under. */
-  border-radius: 20px;
+  border-radius: var(--r-pill);
   opacity: 0;
   pointer-events: none;
 
-  /* Exactly what the active tab used to draw for itself. */
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--pill-on) 92%, #fff),
-    color-mix(in srgb, var(--pill-on) 90%, #000)
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .55),
-    0 1px 3px rgba(2, 6, 23, .32);
+  /* Exactly what the active tab draws for itself in §4: the knob. */
+  background: var(--brand);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 36%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
 
-  /* Its own compositor layer, and this one is not optional.
-
-     The capsule slides directly over the tab bar's lens — a backdrop-filter
-     with an SVG displacement filter on top of it, which is about the most
-     expensive thing on the page to rasterise. Without this the browser has a
-     fair chance of redrawing that lens on every frame of the slide, and the
-     movement stutters. Promoted, the capsule is a texture the compositor
-     moves on its own, and the lens underneath stays cached and untouched. */
+  /* Its own compositor layer: the pill slides over a backdrop-filter, which
+     is expensive to rasterise. Promoted, it is a texture the compositor
+     moves on its own, and the frosting underneath stays cached. */
   will-change: transform;
 
   /* --ease-snap overshoots slightly and settles back, which is what makes a
      movement read as a thing with weight arriving rather than a value
      changing. It is the curve the rest of the app already springs on. */
   transition:
-    transform .38s var(--ease-snap),
-    width .38s var(--ease-snap),
-    height .38s var(--ease-snap),
+    transform .42s var(--ease-snap),
+    width .42s var(--ease-snap),
+    height .42s var(--ease-snap),
+    scale .2s var(--ease),
     opacity var(--dur-2) var(--ease);
 }
 
 .tabbar__inner > .tab-slider.is-on { opacity: 1; }
+
+/* Liquid. The dock's pill does not slide from one tab to the next; it
+   flows. app.js (flowTo) first widens it so its far edge reaches the tab
+   you tapped while its near edge stays put — a quick, accelerating reach,
+   the way a drop of water leans before it lets go — and then, once it
+   spans both tabs, sets it to the new tab alone: the trailing edge snaps
+   in on the app's spring, overshooting a touch and settling. Two timings
+   for the same two properties, chosen by which class is on. */
+.tabbar__inner > .tab-slider.is-stretching {
+  transition:
+    transform .19s cubic-bezier(.45, 0, .85, .4),
+    width .19s cubic-bezier(.45, 0, .85, .4),
+    height .19s var(--ease);
+}
+.tabbar__inner > .tab-slider.is-snapping {
+  transition:
+    transform .34s var(--ease-snap),
+    width .34s var(--ease-snap),
+    height .34s var(--ease-snap);
+}
+
+/* The segmented control's knob slides, and stretches a little along its
+   travel as it goes, rounding out again as it lands. app.js holds
+   .is-moving for the first half of the slide. */
+.segments > .tab-slider.is-moving { scale: 1.08 .94; }
+
+/* The segmented control's capsule: the same element, the same slide, in the
+   control's own material — a raised white segment. Everything about the
+   movement is shared with the rule above. */
+.segments.has-slider .tab.is-active {
+  background: none;
+  box-shadow: none;
+}
+.segments > .tab-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 0;
+  height: 0;
+  border-radius: var(--r-pill);
+  opacity: 0;
+  pointer-events: none;
+  background: var(--knob);
+  box-shadow: var(--knob-shadow);
+  will-change: transform;
+  transition:
+    transform .42s var(--ease-snap),
+    width .42s var(--ease-snap),
+    height .42s var(--ease-snap),
+    scale .2s var(--ease),
+    opacity var(--dur-2) var(--ease);
+}
+.segments > .tab-slider.is-on { opacity: 1; }
+.segments > .tab-slider.is-instant { transition: none; }
+.segments > .tab { position: relative; z-index: 1; }
 
 /* Put in place rather than moved there: the first paint of a page, a window
    resize, a web font landing late. None of those are a choice the person
@@ -4765,50 +5255,19 @@ body::before {
 .tabbar__inner > .tab-slider.is-instant { transition: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .tabbar__inner > .tab-slider { transition: opacity var(--dur-1) var(--ease); }
-  .tabbar .tab { transition: none; }
+  .tabbar__inner > .tab-slider,
+  .segments > .tab-slider { transition: opacity var(--dur-1) var(--ease); }
+  .tabbar .tab,
+  .tabbar__inner,
+  .tabbar .tab__label { transition: none; animation: none; }
 }
 
 /* --------------------------------------------------------------------------
    35. Notifications — the bell, and the list behind it
    -------------------------------------------------------------------------- */
 
-/* The bell sits in the app bar between the page and your face. It is an
-   anchor wearing .icon-btn, so it inherits the shape of the theme toggle
-   beside it and only has to add the count. */
-.bell {
-  position: relative;
-  text-decoration: none;
-}
-.bell:hover { text-decoration: none; }
-
-/* Unread is a colour before it is a number: the badge is read at a glance
-   from across a room, the digit in it only once you look. */
-.bell--unread { color: var(--brand); border-color: var(--brand-soft); }
-
-.bell__count {
-  position: absolute;
-  /* Just off the bell's shoulder, clear of the 44px tap target's edges so it
-     is never the thing under a thumb. */
-  top: 3px;
-  right: 3px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--danger);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  /* A ring in the bar's own colour, so the badge reads as sitting on top of
-     the button rather than punched out of it. */
-  box-shadow: 0 0 0 2px var(--surface-2);
-  pointer-events: none;
-}
+/* The bell is the Alerts tab in the tab bar, and the unread count rides on
+   its icon — see .tab__badge in §4. Nothing of it lives in the app bar. */
 
 /* ---- The switch at the top of the inbox --------------------------------- */
 
@@ -4845,7 +5304,10 @@ body::before {
   font-size: 13px;
   line-height: 1.4;
 }
-.push-setup .btn { flex: none; }
+.push-setup__switch { flex: none; align-self: center; }
+/* Nothing to offer here — the browser cannot, or the server is not set up —
+   so the card is a note and the switch is gone rather than greyed. */
+.push-setup.is-static .push-setup__switch { display: none; }
 
 /* The setup note nobody but staff sees: amber, because it is a job somebody
    has to do rather than a state of the app. */
@@ -5107,19 +5569,12 @@ body::before {
   .blank__icon svg { width: 24px; height: 24px; }
 }
 
-/* ---- Phones: the switch gets its own line ------------------------------
-   Beside three wrapped lines of text, "Turn on" is a button squeezed into
-   whatever is left — the one thing on the page somebody came to press, and
-   the narrowest target on it. Given the full width it is unmissable and
-   comfortably thumb-sized, which is the right trade on a phone even though
-   it costs a row of height.
-   -------------------------------------------------------------------------- */
+/* ---- Phones -------------------------------------------------------------- */
 @media (max-width: 480px) {
   /* The bell beside the words is decoration, and on a phone it is decoration
-     that costs the sentence a whole extra line — which then squeezes the one
-     button on the page. The heading already says what the card is. */
+     that costs the sentence a whole extra line. The heading already says
+     what the card is; the switch keeps its place at the right. */
   .push-setup__mark { display: none; }
-  .push-setup .btn { min-height: 44px; }
 }
 
 /* ---- Narrow phones ------------------------------------------------------
@@ -5195,6 +5650,22 @@ body::before {
   /* One line of the body rather than two: in this shape the list is being
      scanned for which notification to open, not read. */
   .inbox .note__text { -webkit-line-clamp: 1; }
+}
+
+/* --------------------------------------------------------------------------
+   35b. A phone on its side — every page
+
+   Three hundred and ninety pixels of height, and the app bar, the dock and
+   the title between them were most of it. The dock sits lower and smaller,
+   the bar loses a little height, and the big title is a normal heading.
+   -------------------------------------------------------------------------- */
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 859px) {
+  :root { --appbar-h: 48px; --tabbar-h: 62px; }
+  .tabbar { bottom: calc(var(--safe-b) + 6px); }
+  .tabbar .tab { height: 42px; }
+  .page-title { font-size: 24px; }
+  .page-head { margin-bottom: var(--sp-3); }
+  .dial { width: min(200px, 40vh); }
 }
 
 /* --------------------------------------------------------------------------
@@ -5306,9 +5777,10 @@ body::before {
 
 .holiday__foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
+  gap: var(--sp-2) var(--sp-3);
   margin-top: var(--sp-4);
   padding-top: var(--sp-3);
   border-top: 1px solid var(--line);
@@ -5317,6 +5789,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--warn-soft);
@@ -5329,6 +5802,8 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  min-height: 32px;
+  white-space: nowrap;
   color: var(--brand-strong);
   font-size: 13px;
   font-weight: 650;

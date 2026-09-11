@@ -8,11 +8,16 @@
   <h1 class="page-title">Timesheet</h1>
 </div>
 
-{# List / calendar toggle, so both views of the same data are one tap apart. #}
-<div class="segmented" role="tablist" aria-label="Timesheet view">
-  <a class="segmented__item is-on" role="tab" aria-selected="true" href="{% url 'timeclock:timesheet' %}">List</a>
-  <a class="segmented__item" role="tab" aria-selected="false" href="{% url 'timeclock:calendar' %}">Calendar</a>
-</div>
+{% comment %}
+  List / calendar: two views of the same data, one tap apart. The same
+  segmented control as the one at the top of the page — a track, and a knob
+  that slides to the view you pick (app.js) — so there is one kind of
+  switch in the app rather than a different one on every screen.
+{% endcomment %}
+<nav class="segments segments--views" aria-label="Timesheet view">
+  <a class="tab is-active" href="{% url 'timeclock:timesheet' %}" aria-current="page">List</a>
+  <a class="tab" href="{% url 'timeclock:calendar' %}">Calendar</a>
+</nav>
 
 {% comment %}
   ---- Workplace filter ----------------------------------------------------

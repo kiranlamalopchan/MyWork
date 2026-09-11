@@ -8,11 +8,11 @@
   <h1 class="page-title">Calendar</h1>
 </div>
 
-{# List / calendar toggle, so both views of the same data are one tap apart. #}
-<div class="segmented" role="tablist" aria-label="Timesheet view">
-  <a class="segmented__item" role="tab" aria-selected="false" href="{% url 'timeclock:timesheet' %}">List</a>
-  <a class="segmented__item is-on" role="tab" aria-selected="true" href="{% url 'timeclock:calendar' %}">Calendar</a>
-</div>
+{# The same List / calendar control as the timesheet's — see timesheet.html. #}
+<nav class="segments segments--views" aria-label="Timesheet view">
+  <a class="tab" href="{% url 'timeclock:timesheet' %}">List</a>
+  <a class="tab is-active" href="{% url 'timeclock:calendar' %}" aria-current="page">Calendar</a>
+</nav>
 
 <div class="card cal">
   <div class="cal__bar">

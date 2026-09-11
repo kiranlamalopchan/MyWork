@@ -24,20 +24,29 @@
 
 <div class="inbox">
 
-<a class="backlink" href="{% url 'home' %}">{% icon "back" %} MyWork</a>
+<a class="backlink" href="{% url 'home' %}">{% icon "back" %} Home</a>
 
 <div class="page-head">
   <h1 class="page-title">Notifications</h1>
 </div>
 
 {% if push_available %}
+  {% comment %}
+    A switch, like the one for day and night in the app bar: on or off is
+    readable across the room, and turning it is one flick. notifications.js
+    owns it — it sets the knob from the real subscription and hides the
+    whole switch where the browser cannot honestly offer one.
+  {% endcomment %}
   <div class="card card__pad push-setup" id="push-setup" hidden>
     <span class="push-setup__mark" aria-hidden="true">{% icon "bell" %}</span>
     <div class="push-setup__text">
-      <span class="push-setup__title">On this device</span>
+      <span class="push-setup__title" id="push-title">Notify this device</span>
       <p class="push-setup__status" id="push-status"></p>
     </div>
-    <button type="button" class="btn" id="push-toggle" hidden></button>
+    <label class="switch switch--bare push-setup__switch" id="push-switch">
+      <input type="checkbox" id="push-toggle" role="switch" aria-labelledby="push-title" aria-describedby="push-status">
+      <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
+    </label>
   </div>
 {% elif push_needs_setup %}
   {% comment %}

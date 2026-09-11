@@ -25,9 +25,17 @@
       {% if field.errors %}<div class="help help--error">{{ field.errors|striptags }}</div>{% endif %}
     </div>
   {% elif field.field.widget.input_type == 'checkbox' %}
-    <label class="checkline">
+    {% comment %}
+      A yes-or-no is a switch, the same one the app bar's day-and-night
+      is: a knob that slides across a track and fills it with the brand
+      colour when it is on. The checkbox is real and sits invisibly over
+      the whole row, so the row is the tap target and a keyboard still
+      reaches it.
+    {% endcomment %}
+    <label class="switch">
       {{ field }}
-      <span>{{ field.label }}</span>
+      <span class="switch__text">{{ field.label }}</span>
+      <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
     </label>
     {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
   {% else %}

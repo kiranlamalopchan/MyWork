@@ -857,7 +857,7 @@ class NavigationTests(TestCase):
             clock_out=start + timedelta(hours=8), status=Shift.Status.COMPLETED,
         )
 
-    def test_every_page_renders_with_the_app_switcher_and_no_apps_tab(self):
+    def test_every_page_renders_with_the_tab_bar_and_the_profile_menu(self):
         pages = [
             ("home", []),
             ("timeclock:dashboard", []),
@@ -878,12 +878,20 @@ class NavigationTests(TestCase):
                 resp = self.client.get(reverse(name, args=args))
                 self.assertEqual(resp.status_code, 200)
                 html = resp.content.decode()
-                self.assertIn('id="app-switcher"', html)
-                # The hub is its own app chooser and carries no tab bar.
-                if name != "home":
-                    self.assertIn('class="tabbar__inner"', html)
-                # Switching apps is the app bar's job now, not a tab slot.
-                self.assertNotIn(">Apps</span>", html)
+                # One tab bar for the whole app, the hub included.
+                self.assertIn('class="tabbar__inner"', html)
+                self.assertIn('class="tab__label">Home</span>', html)
+                self.assertIn('class="tab__label">Alerts</span>', html)
+                # The menu in the corner is yours alone; apps are not in it.
+                self.assertIn('id="profile-menu"', html)
+                self.assertNotIn('id="app-switcher"', html)
+                self.assertNotIn(">Apps</div>", html)
+                # Within an app, its own places are a segmented control; the
+                # hub has no app and so no segments.
+                if name == "home":
+                    self.assertNotIn('class="segments segments--places"', html)
+                else:
+                    self.assertIn('class="segments segments--places"', html)
 
     def test_the_timesheet_is_only_shifts(self):
         resp = self.client.get(reverse("timeclock:timesheet"))
@@ -2203,14 +2211,16 @@ class OneWayInTests(TestCase):
         self.assertEqual(sheet.count(f'href="{calendar}"'), 1)
         self.assertNotIn(f'href="{calendar}"', clock)
 
-    def test_the_tab_bar_is_three_destinations(self):
+    def test_the_segments_are_three_destinations(self):
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
-        # Rendered twice — app bar on wide screens, tab bar on phones — from
-        # one template, so the two can never disagree.
-        self.assertEqual(html.count("<span>Clock</span>"), 2)
-        self.assertEqual(html.count("<span>Timesheet</span>"), 2)
-        self.assertEqual(html.count("<span>More</span>"), 2)
-        self.assertNotIn("<span>Calendar</span>", html)
+        # The app's own places are the segmented control at the top of the
+        # page, rendered once. "Clock" appears three times: once here, and
+        # twice as the app-wide tab (app bar on wide screens, tab bar on
+        # phones) — both from one template, so the two can never disagree.
+        self.assertEqual(html.count('class="tab__label">Timesheet</span>'), 1)
+        self.assertEqual(html.count('class="tab__label">More</span>'), 1)
+        self.assertEqual(html.count('class="tab__label">Clock</span>'), 3)
+        self.assertNotIn('class="tab__label">Calendar</span>', html)
 
     def test_the_cycles_still_save(self):
         response = self.client.post(reverse("timeclock:preferences"), {

@@ -1,10 +1,11 @@
 """
 Tells every template which of MyWork's apps the current page belongs to.
 
-Navigation is section-scoped: once you pick an app from the hub, the tab bar
-shows that app's features and nothing else. Deciding it here — from the URL
-namespace, which every app already declares — means no view has to remember
-to pass it, and a page added to either app is navigated correctly for free.
+The tab bar is the same everywhere; what changes inside an app is the
+segmented control at the top of its pages, which lists that app's own
+places. Deciding it here — from the URL namespace, which every app already
+declares — means no view has to remember to pass it, and a page added to
+either app is navigated correctly for free.
 """
 
 SECTIONS = {
@@ -25,7 +26,8 @@ def section(request):
     match = getattr(request, "resolver_match", None)
     current = SECTIONS.get(match.namespace) if match else None
     if not current:
-        # The hub, the account pages, the admin — no app section, so no tab bar.
+        # The hub, the account pages, the admin — no app section, so nothing
+        # to segment. The tab bar is base.html's and is there regardless.
         return {"section_nav": None, "section_name": None, "section_title": None}
     return {
         "section_nav": current["nav"],

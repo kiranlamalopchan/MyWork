@@ -88,6 +88,21 @@
 
 <header class="appbar">
   <div class="appbar__inner">
+    {% comment %}
+      On a phone the bar behaves like a native navigation bar. A page with
+      somewhere to go back to says so here, at the left, where a thumb
+      expects it — app.js copies the page's own .backlink into this slot —
+      and once the page's big heading has scrolled away its title appears
+      in the middle, so a long list still says what it is. Both slots are
+      empty until a page fills them, and on a wide screen neither is used:
+      the brand and the tabs are the bar there.
+    {% endcomment %}
+    <a class="appbar__back" href="#" aria-label="Back">
+      {% icon "back" width="2.4" %}
+      <span class="appbar__back-label"></span>
+    </a>
+    <span class="appbar__title" aria-hidden="true"></span>
+
     {# The logo is the way home: tap it from anywhere and you're back at the hub. #}
     <a class="brand" href="{% if request.user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">
       <span class="brand__mark" aria-hidden="true">
@@ -100,48 +115,32 @@
       {% if section_name %}<span class="brand__section">{{ section_name }}</span>{% endif %}
     </a>
 
-    {% if request.user.is_authenticated and section_nav %}
-      <nav class="appbar__nav" aria-label="{{ section_name }}">
-        {% include section_nav %}
-      </nav>
-    {% endif %}
-
     {% if request.user.is_authenticated %}
       {% comment %}
-        Anything waiting for you.
-
-        A link rather than a menu, because there is only one thing to do with
-        it. It sits beside your face and not inside that menu: a count you
-        have to open something to see is a count that does not work, and the
-        whole job of a bell is to be visible without being opened.
+        The same five tabs the bar at the foot of a phone has, up here on a
+        screen wide enough to hold them beside the brand. One file renders
+        both, so they cannot disagree.
       {% endcomment %}
-      {# data-no-cache: opening the inbox is what marks it read, so it is a #}
-      {# fresh request every time and never fetched before it is tapped.     #}
-      <a class="icon-btn bell{% if unread_notifications %} bell--unread{% endif %}"
-         href="{% url 'notifications:inbox' %}" data-no-cache
-         aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}">
-        {% icon "bell" %}
-        {% if unread_notifications %}<span class="bell__count">{{ unread_badge }}</span>{% endif %}
-      </a>
+      <nav class="appbar__nav" aria-label="MyWork">
+        {% include "_tabs.html" %}
+      </nav>
 
       {% comment %}
-        You, and everything that is about you rather than about the page:
-        your profile, which app you're in, and signing out. It wears your own
+        You, and only you: your profile, and signing out. It wears your own
         photo because the thing you tap to reach yourself should look like
         you — and because a face is easier to find in the corner of a screen
         than another grey glyph among the buttons beside it.
 
-        Still the one place that switches app and the one place you sign out
-        from. Going home is the logo, so this menu has no route to the hub.
-        The bottom bar is left to the features of the app you're inside.
+        This used to be where you switched apps as well. Now the tab bar
+        goes everywhere, so nothing about the app lives up here — going home
+        is the Home tab or the logo, and this menu is yours alone.
       {% endcomment %}
-      <details class="appmenu" id="app-switcher" data-dismiss>
-        <summary class="appmenu__btn" title="You" aria-label="You, your apps and sign out" aria-haspopup="menu">
+      <details class="appmenu" id="profile-menu" data-dismiss>
+        <summary class="appmenu__btn" title="You" aria-label="You: your profile, and sign out" aria-haspopup="menu">
           {% avatar request.user size="btn" %}
         </summary>
 
         <div class="appmenu__panel" role="menu">
-          {# Your own row, first: this menu is yours before it is the app list. #}
           <a class="appmenu__item appmenu__me" role="menuitem" href="{% url 'accounts:profile' %}">
             {% avatar request.user size="md" %}
             <span class="appmenu__body">
@@ -149,30 +148,6 @@
               <span class="appmenu__sub">View profile{% if me.display_name %} · {{ request.user.username }}{% endif %}</span>
             </span>
             {% icon "chev" class="appmenu__chev" %}
-          </a>
-
-          <div class="appmenu__rule"></div>
-
-          <div class="appmenu__label">Apps</div>
-
-          <a class="appmenu__item{% if section_name == 'PLU' %} is-on{% endif %}" role="menuitem" href="{% url 'plu:list' %}">
-            <span class="appmenu__icon" aria-hidden="true">
-              {% icon "search" %}
-            </span>
-            <span class="appmenu__body">
-              <span class="appmenu__name">PLU</span>
-              <span class="appmenu__sub">Product codes</span>
-            </span>
-          </a>
-
-          <a class="appmenu__item{% if section_name == 'TimeSheet' %} is-on{% endif %}" role="menuitem" href="{% url 'timeclock:dashboard' %}">
-            <span class="appmenu__icon" aria-hidden="true">
-              {% icon "clock" %}
-            </span>
-            <span class="appmenu__body">
-              <span class="appmenu__name">TimeSheet</span>
-              <span class="appmenu__sub">Shifts &amp; hours</span>
-            </span>
           </a>
 
           <div class="appmenu__rule"></div>
@@ -185,20 +160,46 @@
       </details>
     {% endif %}
 
-    <button type="button" class="icon-btn" id="theme-toggle"
-            aria-label="Switch between light and dark theme">
-      <svg class="icon-btn__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="4"/>
-        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-      </svg>
-      <svg class="icon-btn__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
-      </svg>
+    {% comment %}
+      Day and night: a switch, because that is what it is. A knob carrying
+      the sun slides across a sky to become a moon in a night with stars —
+      the state is readable from across the room, which a lone icon never
+      was. Which side it sits on is decided by the stylesheet from the same
+      theme rules everything else follows, so it cannot disagree with the
+      page; app.js only flips the theme and keeps aria-checked honest.
+    {% endcomment %}
+    <button type="button" class="daynight" id="theme-toggle" role="switch" aria-checked="false"
+            aria-label="Dark theme">
+      <span class="daynight__track" aria-hidden="true">
+        <span class="daynight__night"></span>
+        <span class="daynight__stars"></span>
+        <span class="daynight__knob">
+          <svg class="daynight__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M4.3 4.3l1.6 1.6M18.1 18.1l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.3 19.7l1.6-1.6M18.1 5.9l1.6-1.6"/>
+          </svg>
+          <svg class="daynight__moon" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M20.2 14.4A8.5 8.5 0 0 1 9.6 3.8a8.5 8.5 0 1 0 10.6 10.6Z"/>
+          </svg>
+        </span>
+      </span>
     </button>
   </div>
 </header>
 
 <main class="container">
+  {% if request.user.is_authenticated and section_nav %}
+    {% comment %}
+      Where you are within the app the tab bar put you in. The Clock tab is
+      TimeSheet as a whole; this is Clock / Timesheet / More inside it — a
+      segmented control at the top of the page, which is where a native app
+      keeps the views under one tab.
+    {% endcomment %}
+    <nav class="segments segments--places" aria-label="{{ section_name }}">
+      {% include section_nav %}
+    </nav>
+  {% endif %}
+
   {% if messages %}
     <div class="alerts">
       {% for message in messages %}
@@ -210,18 +211,17 @@
   {% block content %}{% endblock %}
 </main>
 
-{% if request.user.is_authenticated and section_nav %}
+{% if request.user.is_authenticated %}
   {% comment %}
-    Primary navigation on phones: a pill floating inside thumb reach.
-
-    Nothing in it but the features of the app you're inside — switching
-    between apps is the grid button in the app bar, and the brand beside it
-    is the way back to the hub. The hub itself has no tab bar at all,
-    because its two cards *are* the navigation.
+    Primary navigation on phones: a glass bar floating inside thumb reach,
+    the way an iPhone's own tab bar does. The same five places on every
+    screen, the hub included — a bar that is always there is one you never
+    have to look for. It shrinks to its icons while you scroll down and
+    comes back as you scroll up (app.js), so a long page keeps its room.
   {% endcomment %}
-  <nav class="tabbar" aria-label="{{ section_name }}">
+  <nav class="tabbar" aria-label="MyWork">
     <div class="tabbar__inner">
-      {% include section_nav %}
+      {% include "_tabs.html" %}
     </div>
   </nav>
 {% endif %}

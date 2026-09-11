@@ -81,9 +81,10 @@
               </div>
             </div>
             {% if bform.instance.pk %}
-              <label class="checkline">
+              <label class="switch switch--danger">
                 {{ bform.DELETE }}
-                <span>Delete this break</span>
+                <span class="switch__text">Delete this break</span>
+                <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
               </label>
             {% endif %}
           </div>

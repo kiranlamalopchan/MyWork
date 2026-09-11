@@ -1,7 +1,7 @@
 /* MyWork — notifications on this device.
 
-   Everything here is an enhancement over a page that already works: the bell
-   in the app bar, the inbox behind it and the count on both are rendered by
+   Everything here is an enhancement over a page that already works: the
+   Alerts tab, the inbox behind it and the count on both are rendered by
    Django and need none of this. What this file adds is the part a server
    cannot do — asking the browser for permission, handing the subscription
    back, and putting a number on the home-screen icon.
@@ -145,19 +145,21 @@
     var box = document.getElementById("push-setup");
     if (!box) return;
 
-    var button = document.getElementById("push-toggle");
+    var input = document.getElementById("push-toggle");
     var status = document.getElementById("push-status");
 
+    /* The switch says one of three things: on, off, or nothing it can do
+       about it. `action` is the last case's opposite — a non-empty action
+       means the switch is live; nothing means the card is only a note, and
+       the switch is taken away rather than greyed. The knob always shows
+       the real state, never the hoped-for one. */
     function say(text, action, on) {
       status.textContent = text;
       box.hidden = false;
       box.classList.toggle("is-on", !!on);
-      if (action) {
-        button.hidden = false;
-        button.textContent = action;
-      } else {
-        button.hidden = true;
-      }
+      box.classList.toggle("is-static", !action);
+      input.checked = !!on;
+      input.disabled = !action;
     }
 
     if (!supported) {
@@ -206,9 +208,11 @@
         });
     }
 
-    button.addEventListener("click", function () {
-      var turningOff = box.classList.contains("is-on");
-      button.disabled = true;
+    input.addEventListener("change", function () {
+      // The knob has already moved to where the finger sent it; this is
+      // the work of making that true. While it runs the switch is held.
+      var turningOff = !input.checked;
+      input.disabled = true;
       status.textContent = turningOff ? "Turning off…" : "Just a moment…";
 
       var work = turningOff
@@ -225,7 +229,7 @@
           say("That didn't work. Try again, or reload the page.", "Try again");
         })
         .then(function () {
-          button.disabled = false;
+          input.disabled = false;
           if (Notification.permission === "denied") {
             say("Notifications are blocked for MyWork in this browser.", null);
           } else {

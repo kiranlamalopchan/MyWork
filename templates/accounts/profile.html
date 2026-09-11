@@ -29,6 +29,8 @@
   {% csrf_token %}
 </form>
 
+<a class="backlink" href="{% url 'home' %}">{% icon "back" %} Home</a>
+
 {# ---- Who you are ------------------------------------------------------ #}
 <div class="card card__pad profile-id">
   <a class="profile-id__edit" href="{% url 'accounts:edit' %}">
