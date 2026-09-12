@@ -980,7 +980,6 @@
     var label = document.getElementById("photo-label");
     var submit = document.getElementById("photo-submit");
     var form = document.getElementById("photo-form");
-    var overlay = document.getElementById("photo-overlay");
 
     var isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || "");
     if (label) label.textContent = isMobile ? "Take a photo" : "Choose a photo";
@@ -992,8 +991,14 @@
     var objectUrl = null;
 
     function showFile(file) {
-      if (!file) return;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+      if (!file) {
+        // Cleared: back to the empty box, ready for the next list.
+        if (preview) { preview.removeAttribute("src"); preview.hidden = true; }
+        if (emptyState) emptyState.hidden = false;
+        if (filename) filename.textContent = "Hold the page flat and fill the frame";
+        return;
+      }
       objectUrl = URL.createObjectURL(file);
 
       if (preview) { preview.src = objectUrl; preview.hidden = false; }
@@ -1025,16 +1030,151 @@
       showFile(file);
     });
 
-    if (form) {
-      form.addEventListener("submit", function () {
-        if (!form.checkValidity()) return;
-        if (overlay) overlay.hidden = false;
-        if (submit) {
-          submit.disabled = true;
-          submit.textContent = "Reading…";
-        }
+    // The photo goes by XMLHttpRequest under the reading panel (makeReader)
+    // and the results come back on their own, dropped under the form —
+    // the page never leaves, so the preview stays beside what it said.
+    var status = document.getElementById("photo-status");
+    var results = document.getElementById("photo-results");
+    var reader = null;
+
+    if (form && status && results && window.FormData) {
+      form.addEventListener("submit", function (event) {
+        var file = input.files && input.files[0];
+        if (!file || !form.checkValidity()) return;
+        event.preventDefault();
+        if (reader) reader.abort();
+        results.innerHTML = "";
+        submit.disabled = true;
+        submit.textContent = "Reading…";
+        reader = makeReader(file, {
+          into: status,
+          reading: "Reading the list and naming each line — a few seconds",
+        });
+        reader.send(form.action || location.href, new FormData(form), "text")
+          .then(function (res) {
+            reader.settle();
+            results.innerHTML = res.text;
+            submit.disabled = false;
+            submit.textContent = "Read another photo";
+            initPhotoPicks();
+            // The answer is below the fold on a phone: bring the head of it up.
+            var head = results.querySelector(".results-head, .alert");
+            if (head) head.scrollIntoView({ behavior: "smooth", block: "start" });
+          })
+          .catch(function (err) {
+            reader.close();
+            submit.disabled = false;
+            submit.textContent = "Read this photo";
+            results.innerHTML = '<div class="alert alert--error">' +
+              (err && err.message === "abort"
+                ? "Stopped. Choose the photo again when you're ready."
+                : "The photo couldn't be sent. Check the connection and try again.") +
+              "</div>";
+          });
       });
+      onLeave(function () { if (reader) reader.abort(); });
     }
+    initPhotoPicks();
+  }
+
+  /* A line of the read put right: the row's own form posts the chosen PLU
+     (or none) and the row that comes back takes the old one's place. The
+     <details> is real, so it all works as plain forms without this. */
+  function initPhotoPicks() {
+    var results = document.getElementById("photo-results");
+    if (!results || results.hasAttribute("data-picks-live") || !window.fetch) return;
+    results.setAttribute("data-picks-live", "");
+
+    function recount() {
+      var title = results.querySelector(".results-head__title");
+      var n = results.querySelectorAll("[data-pick]").length;
+      if (title) title.textContent = n + " item" + (n === 1 ? "" : "s") + " found";
+    }
+
+    // Clear: the read is forgotten on the server and the page goes back to
+    // its empty state, with the photo box ready for the next list.
+    results.addEventListener("submit", function (event) {
+      var form = event.target.closest && event.target.closest("[data-photo-clear]");
+      if (!form) return;
+      event.preventDefault();
+      var button = form.querySelector("button");
+      button.disabled = true;
+      fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("not cleared");
+          results.innerHTML = "";
+          var status = document.getElementById("photo-status");
+          if (status) { status.innerHTML = ""; status.hidden = true; }
+          var submit = document.getElementById("photo-submit");
+          if (submit) submit.textContent = "Read this photo";
+          var input = document.getElementById("photo-input");
+          if (input) { input.value = ""; input.dispatchEvent(new Event("change", { bubbles: true })); }
+          var top = document.getElementById("photo-dropzone");
+          if (top) top.scrollIntoView({ behavior: "smooth", block: "start" });
+        })
+        .catch(function () { button.disabled = false; });
+    });
+
+    results.addEventListener("submit", function (event) {
+      var form = event.target.closest && event.target.closest("[data-pick-form]");
+      if (!form) return;
+      event.preventDefault();
+      var row = form.closest("[data-pick]");
+      var button = event.submitter;
+      var body = new FormData(form);
+      // The chips carry their number; the Set button takes the typed one.
+      if (button && button.hasAttribute("name")) body.set("plu_no", button.value);
+      else {
+        var typed = form.querySelector("[data-pick-number]");
+        if (!typed || !typed.value.trim()) { if (typed) typed.focus(); return; }
+        body.set("plu_no", typed.value.trim());
+      }
+      row.classList.add("is-busy");
+      fetch(form.action, {
+        method: "POST",
+        body: body,
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (res) {
+          return res.text().then(function (text) {
+            if (!res.ok) {
+              var data = null;
+              try { data = JSON.parse(text); } catch (e) { data = null; }
+              throw new Error((data && data.error) || "That line couldn't be changed.");
+            }
+            return text;
+          });
+        })
+        .then(function (html) {
+          if (!html.trim()) {
+            // Taken out: the row folds away and the count follows.
+            row.style.height = row.offsetHeight + "px";
+            row.classList.add("is-going");
+            setTimeout(function () { row.remove(); recount(); }, 260);
+            return;
+          }
+          var box = document.createElement("ul");
+          box.innerHTML = html;
+          var fresh = box.firstElementChild;
+          row.replaceWith(fresh);
+          fresh.classList.add("is-changed");
+        })
+        .catch(function (err) {
+          row.classList.remove("is-busy");
+          var typed = form.querySelector("[data-pick-number]");
+          var note = form.querySelector(".pick__error") || document.createElement("div");
+          note.className = "help help--error pick__error";
+          note.textContent = err.message;
+          form.appendChild(note);
+          if (typed) typed.focus();
+        });
+    });
   }
 
   /* ----------------------------------------------------------------------
@@ -1269,7 +1409,7 @@
   /* ------------------------------------------------------------------------
      Submit feedback — a form that is working says so, and stops taking taps.
      Two forms opt out: the live-search form never navigates, and the photo
-     upload already covers the screen with its own OCR overlay. The CSV import
+     upload is sent by makeReader under its own reading panel. The CSV import
      form is left in, because that upload is the slowest thing in the app.
      ---------------------------------------------------------------------- */
   var NO_BUSY = { "plu-search-form": 1, "photo-form": 1 };
@@ -1522,6 +1662,139 @@
   }
 
   /* ----------------------------------------------------------------------
+     Sending a file, and showing it being read
+     One panel for every upload that is read rather than kept — a payslip
+     for the workplace form, a photo of a picking list: a thumbnail of the
+     file with a beam sweeping over it, the name and size, a bar that fills
+     with the bytes actually sent and then shimmers while the server reads,
+     and the two steps as they happen. Nothing in it is pretended: the bar
+     is the upload's own progress events, and the second step lights only
+     once the last byte has gone.
+
+       var reader = makeReader(file, { after: el, reading: "Reading the text" });
+       reader.send(url, formData, "json").then(data => { reader.settle(); … })
+
+     `after` is the element the panel goes under; `reading` the words of
+     the second step. send() resolves with the parsed body ("json") or the
+     text ("text"); a cancel rejects with an Error whose message is "abort".
+     ---------------------------------------------------------------------- */
+  function fileSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+    return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  }
+
+  function makeReader(file, opts) {
+    var isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    var isImage = !isPdf && /^image\//.test(file.type);
+    var el = document.createElement("div");
+    el.className = "reader";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.setAttribute("data-stage", "upload");
+    el.innerHTML =
+      '<div class="reader__doc' + (isPdf ? " reader__doc--pdf" : "") + '" aria-hidden="true">' +
+        (isImage ? '<img class="reader__img" alt="">' : '<span class="reader__glyph">' + (isPdf ? "PDF" : "FILE") + "</span>") +
+        '<span class="reader__beam"></span>' +
+      "</div>" +
+      '<div class="reader__body">' +
+        '<div class="reader__name"><span>' + escapeHtml(file.name) + "</span>" +
+          '<span class="reader__size">' + fileSize(file.size) + "</span></div>" +
+        '<div class="reader__bar"><span class="reader__fill"></span></div>' +
+        '<ol class="reader__steps">' +
+          '<li class="reader__step is-live" data-step="upload"><span class="reader__mark"></span><span>Uploading<b class="reader__pct"></b></span></li>' +
+          '<li class="reader__step" data-step="read"><span class="reader__mark"></span><span>' + escapeHtml(opts.reading || "Reading") + "</span></li>" +
+        "</ol>" +
+      "</div>" +
+      '<button type="button" class="reader__cancel" aria-label="Cancel">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>' +
+      "</button>";
+
+    var thumbUrl = null;
+    if (isImage && window.URL && URL.createObjectURL) {
+      thumbUrl = URL.createObjectURL(file);
+      el.querySelector(".reader__img").src = thumbUrl;
+    }
+    var request = null;
+    var started = Date.now();
+    el.querySelector(".reader__cancel").addEventListener("click", function () {
+      if (request) request.abort();
+    });
+    if (opts.after) opts.after.insertAdjacentElement("afterend", el);
+    else if (opts.into) { opts.into.innerHTML = ""; opts.into.appendChild(el); opts.into.hidden = false; }
+
+    function stage(name) {
+      el.setAttribute("data-stage", name);
+      var order = ["upload", "read", "done"];
+      var at = order.indexOf(name);
+      el.querySelectorAll(".reader__step").forEach(function (step) {
+        var i = order.indexOf(step.getAttribute("data-step"));
+        step.classList.toggle("is-done", i < at);
+        step.classList.toggle("is-live", i === at);
+      });
+    }
+
+    function progress(sent, total) {
+      if (!total) return;
+      var share = Math.min(sent / total, 1);
+      el.querySelector(".reader__fill").style.width = (share * 100).toFixed(1) + "%";
+      el.querySelector(".reader__pct").textContent = " " + Math.round(share * 100) + "%";
+    }
+
+    var reader = {
+      el: el,
+      // Done: the panel settles into one line — the file, ticked, and how
+      // long it took — so the file that was read stays named.
+      settle: function () {
+        stage("done");
+        el.querySelector(".reader__pct").textContent = "";
+        el.querySelector('[data-step="read"] span:last-child').textContent =
+          "Read in " + ((Date.now() - started) / 1000).toFixed(1) + " s";
+        var cancel = el.querySelector(".reader__cancel");
+        if (cancel) cancel.remove();
+      },
+      close: function () {
+        el.remove();
+        if (thumbUrl) { URL.revokeObjectURL(thumbUrl); thumbUrl = null; }
+        if (opts.into) opts.into.hidden = true;
+      },
+      abort: function () {
+        if (request) request.abort();
+        if (thumbUrl) { URL.revokeObjectURL(thumbUrl); thumbUrl = null; }
+      },
+      // The file goes by XMLHttpRequest rather than fetch: it is the one
+      // that reports how much of a file has been sent.
+      send: function (url, body, as) {
+        return new Promise(function (resolve, reject) {
+          var xhr = new XMLHttpRequest();
+          request = xhr;
+          xhr.open("POST", url, true);
+          xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+          if (as === "json") xhr.setRequestHeader("Accept", "application/json");
+          xhr.upload.addEventListener("progress", function (event) {
+            if (event.lengthComputable) progress(event.loaded, event.total);
+          });
+          xhr.upload.addEventListener("load", function () { progress(1, 1); stage("read"); });
+          xhr.addEventListener("load", function () {
+            request = null;
+            if (as === "json") {
+              var data = null;
+              try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+              if (!data || (xhr.status >= 400 && !data.error)) return reject(new Error("not read"));
+              return resolve(data);
+            }
+            resolve({ status: xhr.status, text: xhr.responseText });
+          });
+          xhr.addEventListener("error", function () { request = null; reject(new Error("network")); });
+          xhr.addEventListener("abort", function () { request = null; reject(new Error("abort")); });
+          xhr.send(body);
+        });
+      },
+    };
+    return reader;
+  }
+
+  /* ----------------------------------------------------------------------
      Workplace — fill the form from a payslip
      The small button on the workplace form. The file goes to
      timeclock:workplace_payslip by fetch; what comes back is the boxes to
@@ -1543,6 +1816,7 @@
     // True while the slip's figures are going in, so the change events the
     // fill itself fires aren't taken for the user editing.
     var filling = false;
+    var reader = null;
 
     function busy(on) {
       button.classList.toggle("is-busy", on);
@@ -1638,39 +1912,47 @@
       if (token) body.append("csrfmiddlewaretoken", token.value);
 
       busy(true);
-      label.textContent = "Reading " + file.name + "…";
+      label.textContent = "Reading…";
       say("Looking for the rate, the tax withheld and the pay period.");
       read.hidden = true;
+      hint.hidden = true;
+      var isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      reader = makeReader(file, {
+        after: hint,
+        reading: isPdf ? "Reading the text" : "Reading the picture — a photo takes a few seconds",
+      });
 
-      fetch(block.getAttribute("data-payslip-url"), {
-        method: "POST",
-        body: body,
-        credentials: "same-origin",
-        headers: { "X-Requested-With": "fetch", Accept: "application/json" },
-      })
-        .then(function (response) {
-          return response.json().then(function (data) {
-            if (!response.ok && !data.error) throw new Error("not read");
-            return data;
-          });
-        })
+      reader.send(block.getAttribute("data-payslip-url"), body, "json")
         .then(function (data) {
           busy(false);
           if (data.error) {
+            reader.close();
+            hint.hidden = false;
             label.textContent = idle;
             say(data.error, true);
             return;
           }
+          reader.settle();
+          hint.hidden = false;
           show(data);
         })
-        .catch(function () {
+        .catch(function (err) {
           busy(false);
+          reader.close();
+          hint.hidden = false;
           label.textContent = idle;
+          if (err && err.message === "abort") {
+            say("Stopped. Choose the payslip again when you're ready — or type the figures in.");
+            return;
+          }
           say("The payslip couldn't be sent. Check the connection and try again — or type the figures in.", true);
         });
       // So the same file can be chosen again after a fix.
       input.value = "";
     });
+
+    // Left the page mid-read: nothing to fill any more.
+    onLeave(function () { if (reader) reader.abort(); });
 
     // Anything typed after a fill is the user's, not the slip's: the ring
     // and the tag come off that box. A select fires change, not input.

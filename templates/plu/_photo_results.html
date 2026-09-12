@@ -1,0 +1,52 @@
+{% load ui %}
+{% comment %}
+  The result of reading a photo, on its own so app.js can drop it under the
+  form once the photo has been read (photo_search renders this alone for a
+  fetch). `error` is what went wrong, if it did; `results` the last read.
+{% endcomment %}
+{% if error %}
+  <div class="alert alert--error">{{ error }}</div>
+{% endif %}
+{% if results is not None %}
+  <div class="results-head">
+    <div>
+      <div class="results-head__title">{{ results|length }} item{{ results|length|pluralize }} found</div>
+      <div class="results-head__sub">
+        {% if results %}
+          Tap <b>Change</b> on any that look wrong &mdash; the PDF follows what you pick.
+        {% else %}
+          Nothing on it matched an item.
+        {% endif %}
+        {% if skipped %}{{ skipped }} line{{ skipped|pluralize }} that matched nothing {% if skipped == 1 %}was{% else %}were{% endif %} left out.{% endif %}
+      </div>
+    </div>
+    <div class="results-head__actions">
+      {% if results %}
+        <a class="btn btn--sm" href="{% url 'plu:photo_search_pdf' %}" data-full-load>
+          {% icon "download" %}
+          Download PDF
+        </a>
+      {% endif %}
+      {# Done with this list: the read is forgotten and the page is empty again. #}
+      <form method="post" action="{% url 'plu:photo_search_clear' %}" data-photo-clear>
+        {% csrf_token %}
+        <button type="submit" class="btn btn--sm">{% icon "trash" %} Clear</button>
+      </form>
+    </div>
+  </div>
+
+  {% if results %}
+    <ul class="result-list pick-list">
+      {% for row in results %}
+        {% include "plu/_photo_row.html" with row=row %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <div class="empty__title">Nothing matched</div>
+        <div class="empty__sub">Try again with more light and the page filling the frame.</div>
+      </div>
+    </div>
+  {% endif %}
+{% endif %}

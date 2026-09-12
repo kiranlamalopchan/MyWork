@@ -93,3 +93,178 @@ class PrioritySearchTests(TestCase):
         resp = self.client.get(reverse("plu:search_api"), {"q": "beef"})
         codes = [row["plu_no"] for row in resp.json()["results"]]
         self.assertEqual(codes[:3], [PRIORITY_FIRST, 7050, PRIORITY_LAST])
+
+
+class PickingListMatchTests(TestCase):
+    """
+    A photographed picking list, line by line: the cut each line means.
+
+    No photo here — the OCR is Tesseract's — only what is done with the
+    words it gives back, which is where a line goes wrong or right.
+    """
+
+    def setUp(self):
+        from . import picking
+
+        self.picking = picking
+        rows = [
+            (1, "BEEF BONELESS SCOTCH FILLET"), (2, "BEEF BONELESS SLICED CHUCK"),
+            (3, "BEEF BONELESS RUMP STEAK"), (8, "BEEF BONE-IN Y-BONE STEAK"),
+            (900, "BEEF MINCE"), (901, "BEEF MINCE PREMIUM"), (1319, "LAMB LEG CHOPS"),
+            (1320, "LAMB LEG"), (1357, "LAMB BBQ CHOPS"), (144, "CHICKEN THIGH FILLET"),
+            (217, "PORK FILLET"), (7012, "SAUSAGES THIN BEEF"),
+        ]
+        self.items = [PluItem.objects.create(plu_no=n, description=d) for n, d in rows]
+        self.catalogue = picking.Catalogue(self.items)
+
+    def match(self, line):
+        return self.catalogue.match(line)
+
+    def test_the_rare_word_decides_the_cut(self):
+        # BEEF is on half the list; SCOTCH is on one row.
+        self.assertEqual(self.match("beef scotch 1kg").item.plu_no, 1)
+
+    def test_a_misread_letter_still_finds_the_word(self):
+        self.assertEqual(self.match("beef m1nce 500g").item.plu_no, 900)
+        self.assertEqual(self.match("lamb ch0ps").item.plu_no, 1319)
+
+    def test_the_tighter_description_wins_a_tie(self):
+        # Both mince rows share both words; the one that is only those wins.
+        self.assertEqual(self.match("beef mince").item.plu_no, 900)
+
+    def test_a_code_on_the_sheet_is_believed(self):
+        m = self.match("PLU 7012")
+        self.assertEqual(m.item.plu_no, 7012)
+        self.assertTrue(m.by_code)
+        self.assertEqual(self.match("7012").item.plu_no, 7012)
+
+    def test_a_small_bare_number_is_a_quantity_not_a_code(self):
+        self.assertIsNone(self.match("2").item)
+        self.assertIsNone(self.match("2 x").item)
+
+    def test_a_code_the_words_disagree_with_is_not_taken(self):
+        # "lamb chops x 8": the 8 is a count, not Y-bone steak.
+        self.assertEqual(self.match("lamb chops x 8").item.plu_no, 1319)
+
+    def test_dates_and_weights_are_not_codes(self):
+        self.assertEqual(self.picking.codes("Picking list 12/09/2026"), [])
+        self.assertEqual(self.picking.codes("2kg mince 500g"), [])
+
+    def test_a_line_with_nothing_on_the_list_comes_back_empty(self):
+        m = self.match("John Smith order")
+        self.assertIsNone(m.item)
+        self.assertEqual(m.sureness, "none")
+
+    def test_one_common_word_is_only_likely(self):
+        m = self.match("lamb")
+        self.assertIsNotNone(m.item)
+        self.assertEqual(m.sureness, "likely")
+
+    def test_an_unknown_word_lowers_the_sureness(self):
+        # PORK FILLET is the only pork; "bely" is not a word the list knows.
+        m = self.match("pork bely")
+        self.assertEqual(m.item.plu_no, 217)
+        self.assertNotEqual(m.sureness, "sure")
+
+    def test_the_runners_up_come_with_the_answer(self):
+        m = self.match("lamb chops")
+        self.assertEqual(m.item.plu_no, 1319)
+        self.assertIn(1357, [item.plu_no for item, _ in m.alternatives])
+
+    def test_lines_that_are_not_items_are_dropped(self):
+        lines = [self.picking.Line(t, 90) for t in ["----", "beef mince", "12/09/2026"]]
+        out = self.picking.match_lines(lines, self.items)
+        self.assertEqual([line.text for line, _ in out], ["beef mince"])
+
+
+class PhotoSearchPickTests(TestCase):
+    """Putting a line of the read right, and the PDF following it."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+        self.mince = PluItem.objects.create(plu_no=900, description="BEEF MINCE")
+        self.chops = PluItem.objects.create(plu_no=1319, description="LAMB LEG CHOPS")
+        session = self.client.session
+        session["photo_search_lines"] = [
+            {"line": "lamb chops", "plu_no": 900, "score": 0.5, "sureness": "likely",
+             "by_code": False, "alternatives": [1319]},
+        ]
+        session.save()
+
+    def test_a_read_kept_by_the_old_version_still_shows(self):
+        session = self.client.session
+        session["photo_search_lines"] = [{"line": "lamb chops", "plu_no": 1319}, {"line": "x", "plu_no": None}]
+        session.save()
+        resp = self.client.get(reverse("plu:photo_search"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "LAMB LEG CHOPS")
+        resp = self.client.post(reverse("plu:photo_search_pick"), {"index": 0, "plu_no": 900})
+        self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 900)
+
+    def test_the_last_read_is_shown_again_on_a_refresh(self):
+        resp = self.client.get(reverse("plu:photo_search"))
+        self.assertContains(resp, "BEEF MINCE")
+        self.assertContains(resp, "Likely")
+
+    def test_a_line_can_be_changed_to_a_runner_up(self):
+        resp = self.client.post(
+            reverse("plu:photo_search_pick"), {"index": 0, "plu_no": 1319},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "LAMB LEG CHOPS")
+        self.assertContains(resp, "You chose")
+        self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 1319)
+
+    def test_a_line_can_be_taken_out(self):
+        resp = self.client.post(
+            reverse("plu:photo_search_pick"), {"index": 0, "plu_no": ""},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 204)
+        self.assertIsNone(self.client.session["photo_search_lines"][0]["plu_no"])
+        resp = self.client.get(reverse("plu:photo_search"))
+        self.assertNotContains(resp, "BEEF MINCE")
+
+    def test_lines_that_matched_nothing_are_left_out_and_counted(self):
+        from . import picking
+        from .views import _remember
+
+        PluItem.objects.create(plu_no=1, description="BEEF SCOTCH FILLET")
+        lines = [picking.Line(t, 90) for t in ["Customer: J. Smith", "beef scotch", "Thanks!"]]
+        matched = picking.match_lines(lines, PluItem.objects.all())
+
+        class Req:
+            session = {}
+        req = Req()
+        _remember(req, matched)
+        self.assertEqual([r["plu_no"] for r in req.session["photo_search_lines"]], [1])
+        self.assertEqual(req.session["photo_search_skipped"], 1)
+
+    def test_clear_forgets_the_read(self):
+        resp = self.client.post(reverse("plu:photo_search_clear"), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.status_code, 204)
+        self.assertNotIn("photo_search_lines", self.client.session)
+        resp = self.client.get(reverse("plu:photo_search"))
+        self.assertNotContains(resp, "BEEF MINCE")
+        self.assertNotContains(resp, "Clear")
+
+    def test_a_number_not_on_the_list_is_refused(self):
+        resp = self.client.post(
+            reverse("plu:photo_search_pick"), {"index": 0, "plu_no": 4242},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 900)
+
+    def test_the_pdf_follows_the_correction(self):
+        self.client.post(reverse("plu:photo_search_pick"), {"index": 0, "plu_no": 1319})
+        resp = self.client.get(reverse("plu:photo_search_pdf"))
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+        self.assertTrue(resp.content.startswith(b"%PDF"))
+
+    def test_a_fetch_gets_the_results_alone(self):
+        resp = self.client.get(reverse("plu:photo_search"), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertNotContains(resp, 'id="photo-form"')
+        self.assertContains(resp, "BEEF MINCE")

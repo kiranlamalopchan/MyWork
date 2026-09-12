@@ -7,7 +7,11 @@ entirely to that app.
 **PLU Management** (`apps.plu`, mounted at `/plu/`)
 - Search PLUs by number or description (live, as you type)
 - View PLU details and copy the code for the scale
-- Read a picking-list photo and match each line to a PLU
+- Read a picking-list photo and name each line as a PLU (`apps/plu/picking.py`):
+  a confidence-checked OCR pass with a thresholded retry, words weighted by
+  how rare they are on the list, misread letters tolerated, PLU codes on the
+  sheet honoured; every line says how sure it was, and a wrong one is put
+  right with a tap — the PDF follows what you picked
 - Import PLUs from a CSV file (staff only)
 - Manage PLUs in Django Admin
 

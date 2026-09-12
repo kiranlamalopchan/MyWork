@@ -1,11 +1,6 @@
 # plu/views.py
 import csv
-import difflib
 import io
-import re
-
-import pytesseract
-from PIL import Image, ImageOps
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -19,7 +14,9 @@ from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
+from . import picking
 from .forms import CsvImportForm, PhotoSearchForm
 from .models import PluItem
 
@@ -28,8 +25,6 @@ def is_staff_user(user):
     return user.is_authenticated and user.is_staff
 
 
-# Live search sends a request per typing pause, so cap what comes back; the
-# result list is scrolled on a phone and nobody scrolls past a few dozen rows.
 # Results a page: five, so a phone shows the answer and not a scroll, and
 # the rest are a page away. The same figure for the page and the live
 # search, so pressing Search and typing land on the same list.
@@ -193,151 +188,172 @@ def plu_detail(request, plu_no: int):
     return render(request, "plu/plu_detail.html", {"item": item})
 
 
-def _preprocess_photo(image: Image.Image) -> Image.Image:
+# ---------------------------------------------------------------------------
+# Photo search — a picking list photographed, each line named as a PLU
+# ---------------------------------------------------------------------------
+
+SESSION_KEY = "photo_search_lines"
+SKIPPED_KEY = "photo_search_skipped"
+
+
+def _remember(request, matched):
     """
-    Clean up a phone photo of a picking list before OCR: fix camera-reported
-    rotation, auto-correct sideways/upside-down pages, boost contrast, and
-    upscale small images. Dense small print reads far better after this than
-    fed to Tesseract raw.
+    What the photo said, kept on the session so the page can be refreshed,
+    a wrong line corrected, and the PDF made, without the photo again.
     """
-    image = ImageOps.exif_transpose(image)
-    image = image.convert("L")
-
-    try:
-        osd = pytesseract.image_to_osd(image)
-        angle_match = re.search(r"Rotate:\s*(\d+)", osd)
-        confidence_match = re.search(r"Orientation confidence:\s*([\d.]+)", osd)
-        angle = int(angle_match.group(1)) if angle_match else 0
-        confidence = float(confidence_match.group(1)) if confidence_match else 0.0
-        # Low-confidence OSD readings are a coin flip and can rotate an
-        # already-correct image into an unreadable one, so only act on
-        # confident readings.
-        if angle and confidence >= 2.0:
-            image = image.rotate(-angle, expand=True, fillcolor=255)
-    except Exception:
-        pass
-
-    image = ImageOps.autocontrast(image)
-
-    if image.width < 1800:
-        scale = 1800 / image.width
-        image = image.resize((int(image.width * scale), int(image.height * scale)), Image.LANCZOS)
-
-    return image
+    request.session[SESSION_KEY] = [
+        {
+            "line": line.text,
+            "plu_no": match.item.plu_no,
+            "score": match.score,
+            "sureness": match.sureness,
+            "by_code": match.by_code,
+            "alternatives": [item.plu_no for item, _ in match.alternatives],
+        }
+        for line, match in matched
+        if match.item is not None
+    ]
+    # A line nothing matched is left out — a name, a date, a note — and
+    # only counted, so the page can say how many it passed over.
+    request.session[SKIPPED_KEY] = sum(1 for _, match in matched if match.item is None)
 
 
-def _match_line(line: str, all_items: list):
-    """
-    Best-effort match of a single picking-list line to a PluItem, purely by
-    item name/description. Numbers in the line (weights, quantities, PLU
-    codes printed on the sheet) are ignored entirely.
-
-    First tries to find the item sharing the most whole words with the line.
-    If nothing shares even one word, falls back to the closest fuzzy string
-    match across every item so a line always surfaces a best-effort PLU
-    instead of coming back blank. Only returns None when the line has no
-    recognizable words at all.
-    """
-    words = [w.upper() for w in re.sub(r"[^A-Za-z\s]", " ", line).split() if len(w) > 2]
-    words = list(dict.fromkeys(words))[:8]
-    if not words:
+def _recall(request):
+    """The remembered lines with their items looked up, for a template."""
+    rows = request.session.get(SESSION_KEY)
+    if rows is None:
         return None
-
-    # On a tied score, prefer the shorter description: it's the tighter,
-    # more literal match rather than a longer one that happens to contain
-    # all the same words as a subset (e.g. "LAMB MINCE" over "LAMB
-    # BONELESS LAMB YIROS MINCE" when both match "LAMB" and "MINCE").
-    best_item, best_score, best_len = None, 0, None
-    for item in all_items:
-        desc_upper = item.description.upper()
-        score = sum(1 for w in words if w in desc_upper)
-        if score == 0:
+    # A read kept by an earlier version had only the line and its PLU;
+    # it is still shown, as a plain match with nothing else to offer.
+    wanted = set()
+    for row in rows:
+        if row.get("plu_no") is not None:
+            wanted.add(row["plu_no"])
+        wanted.update(row.get("alternatives") or [])
+    items = {item.plu_no: item for item in PluItem.objects.filter(plu_no__in=wanted)}
+    out = []
+    for i, row in enumerate(rows):
+        item = items.get(row.get("plu_no"))
+        # Left blank by hand: gone from the list, but kept in place so the
+        # other rows' numbers still point at them.
+        if item is None:
             continue
-        desc_len = len(desc_upper)
-        if score > best_score or (score == best_score and desc_len < best_len):
-            best_item, best_score, best_len = item, score, desc_len
-
-    if best_item:
-        return best_item
-
-    # No shared words at all - fall back to whichever description reads
-    # closest to the line, so we always write "the one you get" rather
-    # than leaving the line blank.
-    line_text = " ".join(words)
-    best_fuzzy, best_ratio = None, -1.0
-    for item in all_items:
-        ratio = difflib.SequenceMatcher(None, line_text, item.description.upper()).ratio()
-        if ratio > best_ratio:
-            best_fuzzy, best_ratio = item, ratio
-    return best_fuzzy
+        out.append({
+            "index": i,
+            "line": row.get("line", ""),
+            "item": item,
+            "score": row.get("score", 0.0),
+            "sureness": row.get("sureness", "likely"),
+            "by_code": row.get("by_code", False),
+            "alternatives": [
+                items[n] for n in (row.get("alternatives") or []) if n in items and items[n] is not item
+            ],
+        })
+    return out
 
 
-def _find_plu_matches(ocr_text: str):
-    """
-    Match each line of an OCR'd picking list to a PLU. Returns a list of
-    {"line": str, "item": PluItem or None} dicts, one per non-empty line.
-    item is only None when the line has no readable words to match on.
-    """
-    all_items = list(PluItem.objects.all())
-    results = []
-    for raw_line in (ocr_text or "").splitlines():
-        line = raw_line.strip()
-        if len(line) < 3:
-            continue
-        results.append({"line": line, "item": _match_line(line, all_items)})
-    return results
+def _photo_context(request, form, error=None):
+    rows = _recall(request)
+    return {
+        "form": form,
+        "results": rows,
+        "skipped": request.session.get(SKIPPED_KEY, 0),
+        "error": error,
+    }
 
 
 @login_required
 def photo_search(request):
     """
-    Upload/capture a photo of a picking list, OCR it line by line, and show
-    the best PLU match for each line. Results are cached in the session so
-    they can be re-downloaded as a PDF without re-uploading the photo.
+    Photograph a picking list; every line on it comes back named as a PLU.
+
+    The photo is read by apps.plu.picking, which says how sure it is of
+    each line and what else the line might have meant, so a doubtful row
+    can be put right with a tap (photo_search_pick) before the PDF is
+    made. app.js sends the photo by XMLHttpRequest and asks for the
+    results alone; a browser without it posts the form and gets the page,
+    and either way a refresh shows the last read, kept on the session.
     """
-    results = None
-    ocr_text = ""
+    form = PhotoSearchForm()
+    error = None
+    wants_fragment = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
         form = PhotoSearchForm(request.POST, request.FILES)
-        if form.is_valid():
-            try:
-                image = Image.open(form.cleaned_data["photo"])
-                image = _preprocess_photo(image)
-                ocr_text = pytesseract.image_to_string(image, config="--psm 6")
-            except Exception:
-                messages.error(request, "Could not read that photo. Please try a clearer image.")
-                return render(request, "plu/photo_search.html", {"form": form, "results": None, "ocr_text": ""})
-
-            results = _find_plu_matches(ocr_text)
-
-            request.session["photo_search_ocr_text"] = ocr_text
-            request.session["photo_search_lines"] = [
-                {"line": r["line"], "plu_no": r["item"].plu_no if r["item"] else None} for r in results
-            ]
-
-            if not results:
-                messages.warning(request, "No text could be matched to a PLU in that photo.")
+        if not form.is_valid():
+            error = "Choose a photo — a JPEG or PNG of the list."
         else:
-            messages.error(request, "Please upload a valid image.")
-    else:
-        form = PhotoSearchForm()
+            try:
+                lines = picking.read_lines(form.cleaned_data["photo"])
+            except picking.Unreadable as why:
+                error = str(why)
+            else:
+                matched = picking.match_lines(lines, PluItem.objects.all())
+                _remember(request, matched)
+                if not request.session[SESSION_KEY]:
+                    error = "Words were read, but none of them matched an item. Try the page filling the frame."
 
-    return render(
-        request,
-        "plu/photo_search.html",
-        {"form": form, "results": results, "ocr_text": ocr_text},
-    )
+    if wants_fragment:
+        return render(
+            request, "plu/_photo_results.html", _photo_context(request, form, error),
+            status=400 if error else 200,
+        )
+    if error:
+        messages.error(request, error)
+    return render(request, "plu/photo_search.html", _photo_context(request, form))
+
+
+@login_required
+@require_POST
+def photo_search_pick(request):
+    """
+    Put a line right: this row of the last read now means this PLU, or no
+    PLU at all. The change is kept on the session, so the PDF follows it.
+    """
+    rows = request.session.get(SESSION_KEY) or []
+    try:
+        index = int(request.POST.get("index", ""))
+        row = rows[index]
+    except (ValueError, IndexError):
+        return JsonResponse({"error": "That line isn't on the last read."}, status=400)
+    row.setdefault("alternatives", [])
+    raw = (request.POST.get("plu_no") or "").strip()
+    if raw:
+        item = PluItem.objects.filter(plu_no=raw).first() if raw.isdigit() else None
+        if item is None:
+            return JsonResponse({"error": "No PLU with that number."}, status=400)
+        row["plu_no"], row["sureness"], row["score"], row["by_code"] = item.plu_no, "picked", 1.0, False
+    else:
+        row["plu_no"], row["sureness"], row["score"], row["by_code"] = None, "none", 0.0, False
+    request.session[SESSION_KEY] = rows
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if not raw:
+            # Blanked: nothing to draw; app.js takes the row away.
+            return HttpResponse(status=204)
+        fresh = next(r for r in _recall(request) if r["index"] == index)
+        return render(request, "plu/_photo_row.html", {"row": fresh})
+    return redirect("plu:photo_search")
+
+
+@login_required
+@require_POST
+def photo_search_clear(request):
+    """The last read forgotten — the PDF is made, the list is done with."""
+    request.session.pop(SESSION_KEY, None)
+    request.session.pop(SKIPPED_KEY, None)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return HttpResponse(status=204)
+    return redirect("plu:photo_search")
 
 
 @login_required
 def photo_search_pdf(request):
     """
     Render the last photo-search result (from session) as a downloadable PDF:
-    one row per picking-list line, with its matched PLU or blank if none.
+    one row per picking-list line that was matched to a PLU.
     """
-    lines = request.session.get("photo_search_lines") or []
-    plu_nos = {row["plu_no"] for row in lines if row["plu_no"] is not None}
+    lines = [row for row in request.session.get(SESSION_KEY) or [] if row.get("plu_no") is not None]
+    plu_nos = {row["plu_no"] for row in lines}
     items_by_plu = {item.plu_no: item for item in PluItem.objects.filter(plu_no__in=plu_nos)}
 
     buffer = io.BytesIO()

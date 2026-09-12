@@ -1,0 +1,48 @@
+{% load ui %}
+{% comment %}
+  One line of the photographed list that matched something: what it was
+  read as, the PLU it was taken to mean, how sure that was, and — under
+  "Change" — the runners-up, a box for a number, and a way to take the line
+  out, each a button that posts to plu:photo_search_pick.
+  app.js turns that post into a fetch and swaps this row for the one that
+  comes back; without it the form posts and the page comes back whole.
+{% endcomment %}
+<li class="pick" data-pick data-index="{{ row.index }}" data-sureness="{{ row.sureness }}">
+  <div class="result pick__main">
+    <a class="plu-badge" href="{% url 'plu:detail' row.item.plu_no %}">{{ row.item.plu_no }}</a>
+    <span class="result__body">
+      <span class="result__title">{{ row.item.description }}</span>
+      <span class="result__sub">Read: &ldquo;{{ row.line }}&rdquo;</span>
+    </span>
+    <span class="sure sure--{{ row.sureness }}">
+      {% if row.sureness == "picked" %}You chose
+      {% elif row.by_code %}Code on sheet
+      {% elif row.sureness == "sure" %}Sure
+      {% elif row.sureness == "likely" %}Likely
+      {% else %}Unsure{% endif %}
+    </span>
+  </div>
+  <details class="pick__more">
+    <summary class="pick__change">{% icon "pencil" %}<span>Change</span></summary>
+    <form method="post" action="{% url 'plu:photo_search_pick' %}" class="pick__alts" data-pick-form>
+      {% csrf_token %}
+      <input type="hidden" name="index" value="{{ row.index }}">
+      {% if row.alternatives %}
+        <div class="pick__label">Did it mean one of these?</div>
+        <div class="pick__chips">
+          {% for alt in row.alternatives %}
+            <button type="submit" name="plu_no" value="{{ alt.plu_no }}" class="pick__chip">
+              <b>{{ alt.plu_no }}</b> {{ alt.description }}
+            </button>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div class="pick__type">
+        <label class="sr-only" for="pick-{{ row.index }}">PLU number</label>
+        <input class="input" id="pick-{{ row.index }}" type="number" inputmode="numeric" min="1" placeholder="Or type a PLU number" data-pick-number>
+        <button type="submit" class="btn btn--sm" data-pick-set>Set</button>
+      </div>
+      <button type="submit" name="plu_no" value="" class="pick__none">Not on the list — take this line out</button>
+    </form>
+  </details>
+</li>

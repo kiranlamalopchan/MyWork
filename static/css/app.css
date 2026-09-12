@@ -5094,6 +5094,278 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   color: var(--muted);
 }
 .payslip__hint.help--error { color: var(--danger); }
+.payslip__hint[hidden] { display: none; }
+
+/* While a payslip is on its way (app.js, openReader): the file itself, a
+   beam sweeping down it, a bar that is the bytes sent and then shimmers
+   while the server reads, and the two steps. It takes the hint's place
+   beside the button and, once read, settles into one ticked line. */
+.reader {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--line));
+  background: linear-gradient(135deg, var(--brand-soft), transparent 60%) var(--surface);
+  animation: mw-rise var(--dur-3) var(--ease-out) both;
+}
+.reader__doc {
+  position: relative;
+  width: 56px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+}
+.reader__img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.reader__glyph {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  color: var(--brand);
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: var(--brand-soft);
+}
+/* A page torn corner, so the PDF card reads as a document. */
+.reader__doc--pdf::before {
+  content: "";
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 14px; height: 14px;
+  background: linear-gradient(225deg, var(--surface) 50%, var(--line-strong) 50%);
+  border-bottom-left-radius: 3px;
+}
+/* The beam: a soft band of brand light sweeping the height of the page,
+   with a hairline at its leading edge. It runs only while there is reading
+   going on, and never when motion is turned down. */
+.reader__beam {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--brand) 22%, transparent) 45%, var(--brand) 50%, transparent 52%);
+  background-size: 100% 60%;
+  background-repeat: no-repeat;
+  animation: mw-scan 1.6s var(--ease) infinite;
+}
+@keyframes mw-scan {
+  from { background-position: 0 -60%; }
+  to   { background-position: 0 160%; }
+}
+.reader[data-stage="done"] .reader__beam { display: none; }
+.reader__body { min-width: 0; }
+.reader__name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.reader__name > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader__size { flex: none; font-size: 12px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.reader__bar {
+  position: relative;
+  height: 6px;
+  margin: var(--sp-2) 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-2));
+}
+.reader__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--brand);
+  transition: width var(--dur-2) var(--ease);
+}
+/* Bytes all gone, server reading: the full bar carries a moving sheen. */
+.reader[data-stage="read"] .reader__fill {
+  background: linear-gradient(90deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 55%, #fff) 50%, var(--brand) 100%);
+  background-size: 200% 100%;
+  animation: mw-shimmer 1.1s linear infinite;
+}
+.reader__steps {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.reader__step { display: flex; align-items: center; gap: 7px; }
+.reader__step.is-live { color: var(--text); }
+.reader__step.is-done { color: var(--text-2); }
+.reader__pct { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--brand); }
+/* The mark before each step: hollow to come, a spinner while live, a tick
+   once done — drawn from one ring so it changes without jumping. */
+.reader__mark {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  box-sizing: border-box;
+  position: relative;
+  transition: border-color var(--dur-2) var(--ease), background var(--dur-2) var(--ease);
+}
+.reader__step.is-live .reader__mark {
+  border-color: color-mix(in srgb, var(--brand) 25%, transparent);
+  border-top-color: var(--brand);
+  animation: spin .7s linear infinite;
+}
+.reader__step.is-done .reader__mark {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+.reader__step.is-done .reader__mark::after {
+  content: "";
+  position: absolute;
+  left: 3px; top: 0;
+  width: 4px; height: 7px;
+  border: solid var(--brand-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.reader__cancel {
+  align-self: start;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.reader__cancel svg { width: 16px; height: 16px; }
+.reader__cancel:hover { background: var(--surface-2); color: var(--text); }
+/* Read: the bar has said its piece; the tick and the file are the story. */
+.reader[data-stage="done"] { border-color: var(--line); background: var(--surface-2); animation: none; }
+.reader[data-stage="done"] .reader__bar { display: none; }
+.reader[data-stage="done"] .reader__doc { height: 56px; }
+.reader[data-stage="done"] [data-step="upload"] { display: none; }
+@media (max-width: 400px) {
+  .reader { grid-template-columns: 48px 1fr auto; }
+  .reader__doc { width: 48px; height: 62px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader, .reader__beam, .reader__fill, .reader__step.is-live .reader__mark { animation: none; }
+  .reader__beam { display: none; }
+}
+
+/* ---- Photo search: the read, line by line ------------------------------
+   The reading panel sits under the button while the photo is away; then
+   each line of the list is a row — the PLU it was taken to mean, how sure
+   that was as a small pill, and "Change" folding out the runners-up as
+   chips and a box for a number. A row just put right flashes brand. */
+.photo-status { margin-top: var(--sp-3); }
+.photo-status[hidden] { display: none; }
+.photo-status .reader { animation: mw-rise var(--dur-3) var(--ease-out) both; }
+#photo-results { margin-top: var(--sp-4); }
+#photo-results:empty { margin-top: 0; }
+.results-head__title { font-weight: 700; }
+.results-head__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.results-head__actions form { display: contents; }
+.results-head__sub { margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+
+.sure {
+  flex: none;
+  align-self: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.sure--sure, .sure--picked { background: var(--brand-soft); color: var(--brand); }
+.sure--likely { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.sure--unsure { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.sure--none { background: var(--surface-3); color: var(--muted); }
+
+.pick { position: relative; }
+.pick__main { padding-right: var(--sp-3); }
+.pick__main .plu-badge { text-decoration: none; }
+.pick.is-busy { opacity: .55; pointer-events: none; }
+.pick.is-going { overflow: hidden; height: 0 !important; opacity: 0; transition: height .26s var(--ease), opacity .2s var(--ease); }
+.pick.is-changed > .pick__main { animation: mw-picked 1.4s var(--ease) both; }
+@keyframes mw-picked {
+  0%, 60% { background: var(--brand-soft); }
+  100% { background: transparent; }
+}
+.pick__more { border-top: 1px dashed var(--line); }
+.pick__change {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pick__change::-webkit-details-marker { display: none; }
+.pick__change svg { width: 15px; height: 15px; }
+.pick__more[open] .pick__change { background: var(--surface-2); }
+.pick__alts { padding: var(--sp-3) var(--sp-4) var(--sp-4); background: var(--surface-2); }
+.pick__label { font-size: 12.5px; color: var(--muted); margin-bottom: var(--sp-2); }
+.pick__chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.pick__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.pick__chip b { color: var(--brand); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pick__chip:hover { border-color: var(--brand); background: var(--brand-soft); }
+.pick__chip:active { transform: scale(.97); }
+.pick__type { display: flex; gap: var(--sp-2); }
+.pick__type .input { flex: 1 1 auto; min-width: 0; min-height: 40px; }
+.pick__type .btn { flex: none; }
+.pick__none {
+  display: block;
+  margin-top: var(--sp-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pick__none:hover { color: var(--danger); }
+.pick__error { margin-top: var(--sp-2); }
 .payslip__read { flex: 1 1 100%; }
 .payslip__list {
   display: grid;

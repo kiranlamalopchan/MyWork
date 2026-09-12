@@ -17,4 +17,6 @@ urlpatterns = [
     path("import/", views.import_csv, name="import"),
     path("photo-search/", views.photo_search, name="photo_search"),
     path("photo-search/pdf/", views.photo_search_pdf, name="photo_search_pdf"),
+    path("photo-search/pick/", views.photo_search_pick, name="photo_search_pick"),
+    path("photo-search/clear/", views.photo_search_clear, name="photo_search_clear"),
 ]
