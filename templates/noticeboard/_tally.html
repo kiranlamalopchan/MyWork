@@ -1,0 +1,24 @@
+{% load reactions %}
+{% comment %}
+  What the room made of a notice: the faces left on it, who left them, and
+  how many comments are underneath. Always rendered, hidden when there is
+  nothing to say, so a reaction arriving by fetch has something to fill in.
+
+  Takes: item (a notice marked up by views._mark), next_url.
+{% endcomment %}
+<div class="tally" data-tally="{{ item.key }}"{% if not item.groups and not item.comment_total %} hidden{% endif %}>
+  {% if item.groups %}
+    {# The count is a door: behind it is the list of who reacted. #}
+    <a class="tally__emoji" href="{% url 'notices:reactors' item.pk %}?next={{ next_url|urlencode }}"
+       title="{{ item.who_reacted }} reacted">
+      <span class="tally__pips">
+        {% for emoji, count in item.groups|slice:":3" %}<span class="tally__pip">{% reaction emoji %}</span>{% endfor %}
+      </span>
+      <span class="tally__n">{{ item.reaction_total }}</span>
+      <span class="tally__who">{{ item.who_reacted }}</span>
+    </a>
+  {% endif %}
+  {% if item.comment_total %}
+    <a class="tally__comments" href="#say-{{ item.pk }}" data-focus>{{ item.comment_total }} comment{{ item.comment_total|pluralize }}</a>
+  {% endif %}
+</div>

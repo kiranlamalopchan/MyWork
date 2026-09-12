@@ -1,0 +1,19 @@
+{% load reactions %}
+{% comment %}
+  The count on a comment, hung on the corner of its bubble the way a chat
+  app hangs it there. One tap for the names behind it; hovering gives them
+  without the trip. Rendered empty and hidden when nobody has reacted, so a
+  reaction arriving by fetch has a place to land.
+
+  Takes: item (a comment marked up by views._mark), next_url.
+{% endcomment %}
+{% if item.groups %}
+  <a class="comment__tally" data-tally="{{ item.key }}"
+     href="{% url 'notices:comment_reactors' item.pk %}?next={{ next_url|urlencode }}"
+     title="{{ item.who_reacted }} reacted">
+    {% for emoji, count in item.groups|slice:":3" %}<span class="tally__pip">{% reaction emoji %}</span>{% endfor %}
+    <span class="tally__n">{{ item.reaction_total }}</span>
+  </a>
+{% else %}
+  <span class="comment__tally" data-tally="{{ item.key }}" hidden></span>
+{% endif %}

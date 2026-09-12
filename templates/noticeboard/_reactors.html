@@ -1,0 +1,37 @@
+{% load avatars reactions %}
+{% comment %}
+  The names behind a tally, grouped by what each person left. Drawn on the
+  page of its own and, by app.js, in the sheet over the board.
+
+  Takes: groups (see views._reactors_page).
+{% endcomment %}
+{% if groups %}
+  <div class="reactors">
+    {% for group in groups %}
+      <section class="reactors__group">
+        <h2 class="reactors__head">
+          <span class="reactors__emoji" aria-hidden="true">{% reaction group.emoji %}</span>
+          {{ group.people|length }}
+        </h2>
+        <ul class="reactors__list">
+          {% for person in group.people %}
+            <li class="reactors__row">
+              <a class="reactors__person" href="{% url 'notices:person' person.username %}">
+                {% avatar person.user size="sm" %}
+                <span class="reactors__name">
+                  {{ person.username }}{% if person.is_me %} <span class="reactors__you">you</span>{% endif %}
+                </span>
+              </a>
+              <span class="reactors__mark" aria-hidden="true">{% reaction group.emoji %}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="notices-empty">
+    <div class="empty__title">No reactions yet</div>
+    <div class="empty__sub">Be the first — the faces are under the post.</div>
+  </div>
+{% endif %}

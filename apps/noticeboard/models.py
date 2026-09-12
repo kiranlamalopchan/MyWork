@@ -15,6 +15,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 
 # The letter and colour somebody wears on the board are the same ones they
@@ -48,8 +49,13 @@ class Emoji(models.TextChoices):
     explain.
     """
 
+    # The order is the order of the row of faces, so the two most-used sit
+    # under the thumb first. The stored value is the emoji itself: the board
+    # draws each one as its own icon (see templatetags/reactions.py), and the
+    # glyph is what stands in anywhere those icons cannot be drawn.
     LIKE = "\U0001F44D", "Like"
     LOVE = "❤️", "Love"
+    CARE = "\U0001F970", "Care"
     HAHA = "\U0001F602", "Haha"
     WOW = "\U0001F62E", "Wow"
     SAD = "\U0001F622", "Sad"
@@ -76,6 +82,20 @@ class Social:
     stand, so on a prefetched page the whole board renders without going back
     to the database — see `Notice.visible()`.
     """
+
+    # What this is, in the words the board's markup uses: the anchor a page
+    # scrolls to ("notice-12"), the key a reaction sent by fetch is matched
+    # back to, and the URL the reaction goes to.
+    KIND = ""
+    REACT_ROUTE = ""
+
+    @property
+    def key(self):
+        return f"{self.KIND}-{self.pk}"
+
+    @property
+    def react_url(self):
+        return reverse(self.REACT_ROUTE, args=[self.pk])
 
     # ---- who wrote it ---------------------------------------------------
 
@@ -162,6 +182,9 @@ class Social:
 
 
 class Notice(Social, models.Model):
+    KIND = "notice"
+    REACT_ROUTE = "notices:react"
+
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notices"
     )
@@ -192,6 +215,14 @@ class Notice(Social, models.Model):
             "comments__author__profile",
             "comments__reactions__user",
         )
+
+    @classmethod
+    def visible_for_react(cls):
+        """
+        One notice with what its tally and React button read: the reactions
+        and the people behind them, and the comments for the count.
+        """
+        return cls.objects.prefetch_related("reactions__user", "comments")
 
     @classmethod
     def editable_by(cls, user):
@@ -312,6 +343,9 @@ class Comment(Social, models.Model):
     and on a phone the fourth indent has no room left to say anything.
     """
 
+    KIND = "comment"
+    REACT_ROUTE = "notices:comment_react"
+
     notice = models.ForeignKey(Notice, on_delete=models.CASCADE, related_name="comments")
     parent = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies"
@@ -328,6 +362,11 @@ class Comment(Social, models.Model):
 
     def __str__(self):
         return f"{self.author} on {self.notice_id}"
+
+    @classmethod
+    def visible_for_react(cls):
+        """One comment with what its tally reads: reactions and reactors."""
+        return cls.objects.prefetch_related("reactions__user")
 
     @classmethod
     def editable_by(cls, user):

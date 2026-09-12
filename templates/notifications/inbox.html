@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load humanize avatars ui %}
+{% load humanize avatars ui reactions %}
 {% block title %}Notifications · MyWork{% endblock %}
 
 {% comment %}
@@ -100,7 +100,7 @@
                   copy of the same shape says nothing twice.
                 {% endcomment %}
                 {% if note.emoji %}
-                  <span class="note__kind note__kind--emoji" aria-hidden="true">{{ note.emoji }}</span>
+                  <span class="note__kind note__kind--emoji" aria-hidden="true">{% reaction note.emoji %}</span>
                 {% elif note.icon %}
                   <span class="note__kind" aria-hidden="true">{% icon note.icon %}</span>
                 {% endif %}

@@ -1,0 +1,44 @@
+{% load humanize ui %}
+{% comment %}
+  The words of a notice: who, when, and what — and, on your own, the editor
+  folded away underneath them. Its own partial because a save made in place
+  (app.js initEditing) is answered with this block, redrawn, so what lands
+  after an edit is exactly what a reload would have shown.
+
+  Takes: notice (decorated by views.decorate), form (the NoticeForm to edit
+  it with, only read on your own), next_url.
+{% endcomment %}
+<div class="notice__body">
+  <div class="notice__head">
+    <a class="notice__who" href="{% url 'notices:person' notice.author.username %}">
+      {% if notice.is_mine %}You{% else %}{{ notice.author.username }}{% endif %}
+    </a>
+    <span class="notice__when" title="{{ notice.created_at }}">
+      {{ notice.created_at|naturaltime }}{% if notice.was_edited %} · edited{% endif %}
+    </span>
+  </div>
+
+  <p class="notice__text">{{ notice.body|linebreaksbr }}</p>
+
+  {% if notice.is_mine %}
+    {% comment %}
+      The editor: the same box the edit page has, in the card, closed until
+      Edit is tapped. It posts to the same view, so with script off — when
+      Edit is a link to that page — nothing here is ever seen or needed.
+    {% endcomment %}
+    <form class="editor" method="post" action="{% url 'notices:edit' notice.pk %}" data-editor hidden novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <textarea class="editor__box" name="body" rows="3" maxlength="600"
+                aria-label="Edit your notice">{{ notice.body }}</textarea>
+      <div class="editor__error help help--error" data-editor-error hidden></div>
+      <div class="editor__foot">
+        <button type="button" class="btn btn--sm" data-editor-cancel>Cancel</button>
+        <button type="submit" class="btn btn--primary btn--sm">
+          {% icon "check" %}
+          Save
+        </button>
+      </div>
+    </form>
+  {% endif %}
+</div>

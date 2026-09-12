@@ -425,9 +425,10 @@ class InboxLookTests(TestCase):
         html = self._inbox()
         for kind in Kind.values:
             self.assertIn(f"a {kind} happened", html)
-        # The reaction wears the face somebody left, not a glyph standing in.
+        # The reaction wears the face somebody left — drawn, the same picture
+        # the board draws for it, not the glyph the phone happens to have.
         self.assertIn("note__kind--emoji", html)
-        self.assertIn("❤️", html)
+        self.assertIn("rx--love", html)
         # And every other kind wears its own glyph.
         self.assertTrue(KIND_ICONS[Kind.REPLY])
 

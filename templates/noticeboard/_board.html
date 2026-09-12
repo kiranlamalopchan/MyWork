@@ -49,6 +49,29 @@
 {% endif %}
 
 {% comment %}
+  Who reacted, in a sheet. Empty until a tally is tapped: app.js fetches the
+  list behind it (the same view that draws the full page) and shows it here,
+  over the board, so looking at the names is not a trip away from it. With
+  JavaScript off the tally is an ordinary link to that page.
+{% endcomment %}
+<dialog class="modal modal--solid" id="reactors-modal" aria-labelledby="reactors-title">
+  <div class="modal__box">
+    <div class="modal__head">
+      <div class="modal__heading">
+        <h2 class="modal__title" id="reactors-title">Reactions</h2>
+        <p class="modal__sub" id="reactors-sub"></p>
+      </div>
+      <button type="button" class="icon-btn icon-btn--sm" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal__body" id="reactors-body" aria-live="polite"></div>
+  </div>
+</dialog>
+
+{% comment %}
   The composer, in a dialog. Rendered once per page and opened by app.js when
   the + is tapped; a rejected post re-opens it with the words still in it.
   With JavaScript off the dialog never opens and the + is an ordinary link to

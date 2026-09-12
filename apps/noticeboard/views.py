@@ -12,7 +12,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -83,6 +85,9 @@ def _mark(item, user):
     the room answered it."""
     item.is_mine = item.author_id == user.pk
     item.my_emoji = item.emoji_of(user)
+    # The word on the button once you have reacted — "Love" rather than
+    # "Reacted", since the face beside it already says which.
+    item.my_label = Emoji(item.my_emoji).label if item.my_emoji else ""
     item.groups = item.reaction_groups()
     item.who_reacted = item.reactor_summary(user)
     return item
@@ -214,6 +219,15 @@ def notice_create(request):
 
 @login_required
 def notice_edit(request, pk):
+    """
+    Change your own notice.
+
+    Two ways in. The page: Edit is a link here, the form is here, and a save
+    goes back to the board. And in place: app.js opens the same form inside
+    the card and posts it by fetch, and the answer is the card's words
+    redrawn — or the error, to show under the box — so a fix to a typo
+    never means leaving the board.
+    """
     # Only ever your own — someone else's is a 404, not a 403.
     notice = get_object_or_404(Notice.editable_by(request.user), pk=pk)
 
@@ -221,8 +235,15 @@ def notice_edit(request, pk):
         form = NoticeForm(request.POST, instance=notice)
         if form.is_valid():
             form.save()
+            if _by_fetch(request):
+                return JsonResponse({"body": _notice_body(request, notice)})
             messages.success(request, "Notice updated.")
             return redirect(_safe_next(request, reverse("notices:board")))
+        if _by_fetch(request):
+            return JsonResponse(
+                {"error": " ".join(form.errors.get("body", ["Please fix the error."]))},
+                status=400,
+            )
         messages.error(request, "Please fix the error below.")
     else:
         form = NoticeForm(instance=notice)
@@ -232,6 +253,15 @@ def notice_edit(request, pk):
         "notice": notice,
         "next_url": request.GET.get("next", ""),
     })
+
+
+def _notice_body(request, notice):
+    """The words of one notice as the board draws them, for a save in place."""
+    _mark(notice, request.user)
+    return render_to_string("noticeboard/_notice_body.html", {
+        "notice": notice,
+        "next_url": _safe_next(request, reverse("notices:board")),
+    }, request)
 
 
 @require_POST
@@ -258,6 +288,47 @@ def _back_to(request, notice, anchor=None):
     return f"{_safe_next(request, reverse('notices:board'))}#{anchor or f'notice-{notice.pk}'}"
 
 
+def _by_fetch(request):
+    """
+    Whether this tap came from app.js rather than from a form.
+
+    A form gets a redirect back to the page, as it always did. A fetch gets
+    the pieces of the page that changed, so the board can redraw a tap
+    without leaving — see `_reacted`.
+    """
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _reacted(request, item, left, back):
+    """
+    What a reaction answers with.
+
+    By fetch, it is the two parts of the card that a reaction changes — the
+    button (now wearing your face, or not) and the tally — rendered by the
+    same templates the board uses, so what lands is exactly what a reload
+    would have drawn. Otherwise it is the reload itself.
+    """
+    if not _by_fetch(request):
+        return redirect(back)
+
+    # Reactions were prefetched before the toggle; read them again.
+    item = type(item).visible_for_react().get(pk=item.pk)
+    _mark(item, request.user)
+    context = {
+        "item": item,
+        "small": isinstance(item, Comment),
+        "emoji_choices": Emoji.choices,
+        "next_url": _safe_next(request, reverse("notices:board")),
+    }
+    tally = "noticeboard/_comment_tally.html" if context["small"] else "noticeboard/_tally.html"
+    return JsonResponse({
+        "key": item.key,
+        "emoji": left,
+        "control": render_to_string("noticeboard/_react.html", context, request),
+        "tally": render_to_string(tally, context, request),
+    })
+
+
 @require_POST
 @login_required
 def notice_react(request, pk):
@@ -267,7 +338,7 @@ def notice_react(request, pk):
     # What they are left with: an emoji, or None if that tap took it back.
     left = Reaction.toggle(notice, request.user, request.POST.get("emoji", ""))
     notify.notice_reacted(notice, request.user, left)
-    return redirect(_back_to(request, notice))
+    return _reacted(request, notice, left, _back_to(request, notice))
 
 
 @require_POST
@@ -278,7 +349,10 @@ def comment_react(request, pk):
     )
     left = CommentReaction.toggle(comment, request.user, request.POST.get("emoji", ""))
     notify.comment_reacted(comment, request.user, left)
-    return redirect(_back_to(request, comment.notice, anchor=f"comment-{comment.pk}"))
+    return _reacted(
+        request, comment, left,
+        _back_to(request, comment.notice, anchor=f"comment-{comment.pk}"),
+    )
 
 
 @require_POST
@@ -371,14 +445,24 @@ def _reactors_page(request, item, quoted):
         for emoji, users in item.reaction_people()
     ]
 
-    return render(request, "noticeboard/reactors.html", {
+    total = item.reaction_total()
+    context = {
         "item": item,
         "quoted": quoted,
         "groups": groups,
-        "total": item.reaction_total(),
+        "total": total,
         "mine": item.emoji_of(request.user),
         "back": _safe_next(request, reverse("notices:board")),
-    })
+    }
+    # Asked for by app.js, to show in a sheet over the board: the list and
+    # the words above it, without the page around them.
+    if _by_fetch(request):
+        return JsonResponse({
+            "title": f"{total} reaction{'' if total == 1 else 's'}",
+            "sub": f"On {item.author.get_username()}’s post",
+            "html": render_to_string("noticeboard/_reactors.html", context, request),
+        })
+    return render(request, "noticeboard/reactors.html", context)
 
 
 @login_required

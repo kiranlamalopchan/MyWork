@@ -1,10 +1,12 @@
 {% extends "base.html" %}
-{% load avatars ui %}
+{% load ui %}
 {% block title %}Reactions · MyWork{% endblock %}
 
 {% comment %}
   Who is behind the count. The board shows a tally and the first couple of
-  names; this is the whole list, grouped by what each person left.
+  names; this is the whole list, grouped by what each person left. With
+  script the board shows the same list in a sheet and never comes here; the
+  page is for a link followed without it, or shared.
 {% endcomment %}
 
 {% block content %}
@@ -16,35 +18,6 @@
   <p class="page-sub">On {{ item.author.username }}’s post — “{{ quoted|truncatechars:80 }}”</p>
 </div>
 
-{% if groups %}
-  <div class="reactors">
-    {% for group in groups %}
-      <section class="reactors__group">
-        <h2 class="reactors__head">
-          <span class="reactors__emoji" aria-hidden="true">{{ group.emoji }}</span>
-          {{ group.people|length }}
-        </h2>
-        <ul class="reactors__list">
-          {% for person in group.people %}
-            <li class="reactors__row">
-              <a class="reactors__person" href="{% url 'notices:person' person.username %}">
-                {% avatar person.user size="sm" %}
-                <span class="reactors__name">
-                  {{ person.username }}{% if person.is_me %} <span class="reactors__you">you</span>{% endif %}
-                </span>
-              </a>
-              <span class="reactors__mark" aria-hidden="true">{{ group.emoji }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-      </section>
-    {% endfor %}
-  </div>
-{% else %}
-  <div class="notices-empty">
-    <div class="empty__title">No reactions yet</div>
-    <div class="empty__sub">Be the first — the faces are under the post.</div>
-  </div>
-{% endif %}
+{% include "noticeboard/_reactors.html" %}
 
 {% endblock %}

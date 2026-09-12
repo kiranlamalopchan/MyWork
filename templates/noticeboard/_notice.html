@@ -4,7 +4,15 @@
   thread underneath. Rendered by _board.html both above and below the fold, so
   a notice looks and behaves the same whichever side of it it lands on.
 
+  Top to bottom it is laid out the way a post on a social app is: the
+  author line, the words, the tally of faces and comments, one row of
+  actions, then the thread. The card stretches everything to its own width
+  (see .notice in §25), so the row of actions is one row and the reply box
+  reaches the edge the card does.
+
   Takes: notice (decorated by views.decorate), next_url, emoji_choices.
+  The include of _board.html also supplies `form`, which the editor on your
+  own notice reads.
 {% endcomment %}
 
   {% comment %}
@@ -27,91 +35,49 @@
 
     <div class="notice__main">
       {% avatar notice.author link=True %}
-
-      <div class="notice__body">
-        <div class="notice__head">
-          <a class="notice__who" href="{% url 'notices:person' notice.author.username %}">
-            {% if notice.is_mine %}You{% else %}{{ notice.author.username }}{% endif %}
-          </a>
-          <span class="notice__when" title="{{ notice.created_at }}">
-            {{ notice.created_at|naturaltime }}{% if notice.was_edited %} · edited{% endif %}
-          </span>
-        </div>
-
-        <p class="notice__text">{{ notice.body|linebreaksbr }}</p>
-      </div>
+      {% include "noticeboard/_notice_body.html" %}
     </div>
 
     {# ---- What everyone else made of it ------------------------------ #}
-    {% if notice.groups or notice.comment_list %}
-      <div class="tally">
-        {% if notice.groups %}
-          {# The count is a door: behind it is the list of who reacted. #}
-          <a class="tally__emoji" href="{% url 'notices:reactors' notice.pk %}?next={{ next_url|urlencode }}"
-             title="{{ notice.who_reacted }} reacted">
-            {% for emoji, count in notice.groups %}<span class="tally__pip">{{ emoji }}</span>{% endfor %}
-            <span class="tally__n">{{ notice.reaction_total }}</span>
-            <span class="tally__who">{{ notice.who_reacted }}</span>
-          </a>
-        {% endif %}
-        {% if notice.comment_list %}
-          <span class="tally__comments">{{ notice.comment_total }} comment{{ notice.comment_total|pluralize }}</span>
-        {% endif %}
-      </div>
-    {% endif %}
+    {% include "noticeboard/_tally.html" with item=notice %}
 
-    {# ---- Act on it: one row, and it stays one row -------------------- #}
+    {% comment %}
+      ---- Act on it: one row, and it stays one row ----------------------
+      Every action gets an equal share of the row — React and Comment on
+      everyone's, Edit and Remove too on your own — so the row reads as one
+      bar however many it holds. Remove is a form (it changes something, so
+      it is a POST) laid out as if it were not there, so its button takes a
+      cell like the links beside it.
+
+      Edit is a link to the edit page; app.js catches the tap and opens the
+      editor inside the card instead (see _notice_body.html).
+    {% endcomment %}
     <div class="acts">
-      <details class="react">
-        <summary class="act{% if notice.my_emoji %} is-on{% endif %}">
-          {% if notice.my_emoji %}
-            <span class="act__emoji">{{ notice.my_emoji }}</span> Reacted
-          {% else %}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/>
-              <path d="M9 9.5v.01M15 9.5v.01"/>
-            </svg>
-            React
-          {% endif %}
-        </summary>
-
-        {# One form, one button per emoji: the same emoji again takes it back. #}
-        <form class="picker" method="post" action="{% url 'notices:react' notice.pk %}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ next_url }}">
-          {% for value, label in emoji_choices %}
-            <button type="submit" name="emoji" value="{{ value }}"
-                    class="picker__btn{% if notice.my_emoji == value %} is-on{% endif %}"
-                    style="--i: {{ forloop.counter0 }}" title="{{ label }}" aria-label="{{ label }}">
-              {{ value }}
-            </button>
-          {% endfor %}
-        </form>
-      </details>
+      {% include "noticeboard/_react.html" with item=notice %}
 
       {% comment %}
         Comment jumps to the box at the foot of the thread — the thread
         itself is below this row, not inside it, so nothing here grows.
       {% endcomment %}
       <a class="act" href="#say-{{ notice.pk }}" data-focus>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg class="act__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2Z"/>
         </svg>
-        Comment
+        <span class="act__label">Comment</span>
       </a>
 
       {% if notice.is_mine %}
-        <a class="act act--quiet" href="{% url 'notices:edit' notice.pk %}?next={{ next_url|urlencode }}">
-          {% icon "pencil" %}
-          Edit
+        <a class="act act--quiet" href="{% url 'notices:edit' notice.pk %}?next={{ next_url|urlencode }}" title="Edit" aria-label="Edit" data-edit>
+          {% icon "pencil" class="act__icon" %}
+          <span class="act__label">Edit</span>
         </a>
-        <form method="post" action="{% url 'notices:delete' notice.pk %}"
+        <form class="acts__form" method="post" action="{% url 'notices:delete' notice.pk %}"
               onsubmit="return confirm('Remove this notice? Everyone loses sight of it.');">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next_url }}">
-          <button type="submit" class="act act--quiet act--danger">
-            {% icon "trash" %}
-            Remove
+          <button type="submit" class="act act--quiet act--danger" title="Remove" aria-label="Remove">
+            {% icon "trash" class="act__icon" %}
+            <span class="act__label">Remove</span>
           </button>
         </form>
       {% endif %}

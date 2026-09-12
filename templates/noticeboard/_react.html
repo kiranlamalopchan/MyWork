@@ -1,0 +1,46 @@
+{% load reactions %}
+{% comment %}
+  The React button and the row of faces behind it — one control, shared by a
+  notice and by a comment, so they can never drift apart.
+
+  A <details>, so the row opens with no script at all, and a form of submit
+  buttons, so a face can be left with none either. With script (app.js
+  initReactions) the tap is sent by fetch instead and the answer redraws this
+  control and the tally beside it in place, which is the difference between
+  a reaction and a page load.
+
+  Takes: item (a notice or comment marked up by views._mark — its .key is
+  what a fetched answer is matched back to, its .react_url where the tap
+  goes), next_url, emoji_choices, and small=True for the comment-sized
+  version.
+{% endcomment %}
+<details class="react{% if small %} react--sm{% endif %}" data-react="{{ item.key }}">
+  <summary class="{% if small %}comment__act{% else %}act{% endif %}{% if item.my_emoji %} is-on{% endif %}"
+           {% if item.my_emoji %}data-kind="{{ item.my_emoji|reaction_kind }}"{% endif %}
+           aria-haspopup="true">
+    {% if item.my_emoji %}
+      {% reaction item.my_emoji %}
+      <span class="act__label">{{ item.my_label }}</span>
+    {% else %}
+      <svg class="act__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/>
+        <path d="M9 9.5v.01M15 9.5v.01"/>
+      </svg>
+      <span class="act__label">React</span>
+    {% endif %}
+  </summary>
+
+  {# One form, one button per face: the same face again takes it back. #}
+  <form class="picker{% if small %} picker--sm{% endif %}" method="post" action="{{ item.react_url }}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {% for value, label in emoji_choices %}
+      <button type="submit" name="emoji" value="{{ value }}"
+              class="picker__btn{% if item.my_emoji == value %} is-on{% endif %}"
+              style="--i: {{ forloop.counter0 }}" data-label="{{ label }}" data-kind="{{ value|reaction_kind }}"
+              title="{{ label }}" aria-label="{{ label }}{% if item.my_emoji == value %} (yours — tap to take back){% endif %}">
+        {% reaction value %}
+      </button>
+    {% endfor %}
+  </form>
+</details>

@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
-    MAX_BODY, MAX_COMMENT, Comment, CommentReaction, Notice, Reaction,
+    MAX_BODY, MAX_COMMENT, Comment, CommentReaction, Emoji, Notice, Reaction,
 )
 from .views import COMMENTS_SHOWN, REPLIES_SHOWN, _fold
 
@@ -113,6 +113,42 @@ class NoticeBoardTests(TestCase):
         self.assertRedirects(resp, "/")
         self.assertFalse(Notice.objects.filter(pk=mine.pk).exists())
 
+    def test_an_edit_sent_by_fetch_is_answered_with_the_words_redrawn(self):
+        mine = Notice.objects.create(author=self.kiran, body="Typo hear")
+        resp = self.client.post(
+            reverse("notices:edit", args=[mine.pk]), {"body": "Typo here", "next": "/"},
+            HTTP_X_REQUESTED_WITH="fetch",
+        )
+        self.assertEqual(resp.status_code, 200)
+        mine.refresh_from_db()
+        self.assertEqual(mine.body, "Typo here")
+        body = resp.json()["body"]
+        # The block the card shows, with the new words and the editor
+        # folded back inside it for next time.
+        self.assertIn('class="notice__body"', body)
+        self.assertIn("Typo here", body)
+        self.assertIn("data-editor", body)
+
+    def test_an_empty_edit_sent_by_fetch_is_refused_with_the_reason(self):
+        mine = Notice.objects.create(author=self.kiran, body="Keep me")
+        resp = self.client.post(
+            reverse("notices:edit", args=[mine.pk]), {"body": "   ", "next": "/"},
+            HTTP_X_REQUESTED_WITH="fetch",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Write something", resp.json()["error"])
+        mine.refresh_from_db()
+        self.assertEqual(mine.body, "Keep me")
+
+    def test_your_own_notice_carries_the_editor_and_nobody_elses_does(self):
+        mine = Notice.objects.create(author=self.kiran, body="Mine")
+        html = self.client.get(reverse("notices:board")).content.decode()
+        # One editor on the page — yours — and it starts folded away.
+        self.assertEqual(html.count('class="editor"'), 1)
+        self.assertEqual(html.count("data-editor hidden"), 1)
+        self.assertIn(reverse("notices:edit", args=[mine.pk]), html)
+        self.assertNotIn(reverse("notices:edit", args=[self.theirs.pk]), html)
+
     def test_someone_elses_notice_cannot_be_edited(self):
         for method, url in [
             ("get", reverse("notices:edit", args=[self.theirs.pk])),
@@ -201,7 +237,60 @@ class ReactionTests(TestCase):
     def test_the_board_shows_the_emoji_you_left(self):
         self.client.post(self.url, {"emoji": Reaction.Emoji.WOW, "next": "/"})
         resp = self.client.get(reverse("notices:board"))
-        self.assertContains(resp, "Reacted")
+        # The button wears the face and says which: "Wow", not "Reacted".
+        self.assertContains(resp, 'data-kind="wow"')
+        self.assertContains(resp, '<span class="act__label">Wow</span>', html=False)
+
+    def test_the_faces_are_drawn_rather_than_typed(self):
+        Reaction.objects.create(notice=self.notice, user=self.sam, emoji=Reaction.Emoji.LIKE)
+        html = self.client.get(reverse("notices:board")).content.decode()
+        # Every face on the menu is an icon in the picker, and the tally
+        # carries the one that was left.
+        for value in Emoji.values:
+            self.assertIn(f'value="{value}"', html)
+        self.assertIn('class="rx rx--like"', html)
+        self.assertNotIn(">\U0001F44D<", html)
+
+    # ---- by fetch: what app.js sends, and what it is handed back ----------
+
+    def react_by_fetch(self, emoji):
+        return self.client.post(
+            self.url, {"emoji": emoji, "next": "/"}, HTTP_X_REQUESTED_WITH="fetch"
+        )
+
+    def test_a_tap_sent_by_fetch_is_answered_in_place(self):
+        resp = self.react_by_fetch(Reaction.Emoji.LOVE)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/json")
+
+        data = resp.json()
+        self.assertEqual(data["key"], f"notice-{self.notice.pk}")
+        self.assertEqual(data["emoji"], Reaction.Emoji.LOVE)
+        # The control comes back wearing the face, ready to drop in.
+        self.assertIn(f'data-react="notice-{self.notice.pk}"', data["control"])
+        self.assertIn('data-kind="love"', data["control"])
+        self.assertIn("Love", data["control"])
+        # And the tally counts it, with "You" first.
+        self.assertIn(f'data-tally="notice-{self.notice.pk}"', data["tally"])
+        self.assertIn("rx--love", data["tally"])
+        self.assertIn("You", data["tally"])
+        self.assertNotIn(f'data-tally="notice-{self.notice.pk}" hidden', data["tally"])
+
+    def test_taking_it_back_by_fetch_empties_the_tally(self):
+        self.react_by_fetch(Reaction.Emoji.LIKE)
+        data = self.react_by_fetch(Reaction.Emoji.LIKE).json()
+
+        self.assertIsNone(data["emoji"])
+        self.assertNotIn("is-on", data["control"])
+        self.assertIn("React", data["control"])
+        # Nothing left to say, so the tally is handed back hidden.
+        self.assertIn(f'data-tally="notice-{self.notice.pk}" hidden', data["tally"])
+        self.assertFalse(Reaction.objects.exists())
+
+    def test_the_fetched_tally_still_counts_the_comments(self):
+        Comment.objects.create(notice=self.notice, author=self.sam, body="Good.")
+        data = self.react_by_fetch(Reaction.Emoji.HAHA).json()
+        self.assertIn("1 comment", data["tally"])
 
 
 class CommentTests(TestCase):
@@ -427,6 +516,19 @@ class CommentReactionTests(TestCase):
         self.comment.delete()
         self.assertFalse(CommentReaction.objects.exists())
 
+    def test_a_tap_on_a_comment_sent_by_fetch_is_answered_in_place(self):
+        resp = self.client.post(
+            self.url, {"emoji": CommentReaction.Emoji.CARE, "next": "/"},
+            HTTP_X_REQUESTED_WITH="fetch",
+        )
+        data = resp.json()
+        self.assertEqual(data["key"], f"comment-{self.comment.pk}")
+        # The comment-sized control and the count on the bubble.
+        self.assertIn("picker--sm", data["control"])
+        self.assertIn('data-kind="care"', data["control"])
+        self.assertIn(f'data-tally="comment-{self.comment.pk}"', data["tally"])
+        self.assertIn("rx--care", data["tally"])
+
 
 class WhoReactedTests(TestCase):
     """The count is a number; the names behind it are the useful part."""
@@ -467,6 +569,22 @@ class WhoReactedTests(TestCase):
         self.react(self.sam, self.ana)
         html = self.client.get(reverse("notices:board")).content.decode()
         self.assertIn("ana and sam", html)
+
+    def test_the_list_behind_the_tally_can_be_fetched_for_the_sheet(self):
+        self.react(self.sam, self.ana)
+        self.react(self.kiran, emoji=Reaction.Emoji.LOVE)
+        resp = self.client.get(
+            reverse("notices:reactors", args=[self.notice.pk]), HTTP_X_REQUESTED_WITH="fetch"
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["title"], "3 reactions")
+        self.assertIn(self.notice.author.get_username(), data["sub"])
+        # The list, without a page around it.
+        self.assertIn("reactors__row", data["html"])
+        self.assertNotIn("<html", data["html"])
+        for name in ["sam", "ana", "kiran"]:
+            self.assertIn(name, data["html"])
 
     def test_the_page_behind_the_tally_lists_everyone_by_emoji(self):
         self.react(self.sam, self.ana)

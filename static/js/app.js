@@ -116,10 +116,18 @@
       // One palette dissolves into the other rather than cutting to it: the
       // browser snapshots the page, swaps the theme underneath, and fades
       // between the two — one composited crossfade, which is far cheaper
-      // than transitioning every colour on every element. Where it cannot
-      // (or motion is reduced), the switch is simply the switch.
+      // than transitioning every colour on every element.
+      //
+      // On a desktop. The snapshot is of the whole page — every frosted
+      // panel and the lens in the app bar — and a phone spends the length
+      // of the fade drawing it, dropping frames under the knob as it goes,
+      // so the one thing you are looking at is the one thing that judders.
+      // There the switch is simply the switch: its own slide, sky and stars
+      // carry the change, and the page changes under it in a frame. The
+      // same where motion is reduced, or the browser cannot do it at all.
       var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (document.startViewTransition && !still) {
+      var touch = window.matchMedia("(pointer: coarse)").matches;
+      if (document.startViewTransition && !still && !touch) {
         document.startViewTransition(apply);
       } else {
         apply();
@@ -1035,6 +1043,9 @@
   function initSubmitState() {
     document.querySelectorAll("form").forEach(function (form) {
       if (form.id && NO_BUSY[form.id]) return;
+      // Sent by fetch, and the page stays: a reaction (initReactions) and
+      // an edit made in place (initEditing).
+      if (form.classList.contains("picker") || form.hasAttribute("data-editor")) return;
 
       form.addEventListener("submit", function () {
         // A form that failed validation never leaves the page; the browser
@@ -1258,49 +1269,236 @@
      and opens the same form in a <dialog> instead. With JS off the link is
      simply followed, so posting never depends on any of this.
      ---------------------------------------------------------------------- */
+  /* ----------------------------------------------------------------------
+     Dialogs
+     Every <dialog class="modal"> — the composer, the list of who reacted —
+     opens and shuts the same way: the box travels in and back out, the
+     backdrop and Escape both close it. Wired per page, since the dialogs
+     are part of the body and go with it.
+     ---------------------------------------------------------------------- */
+  function openModal(modal) {
+    if (!modal || typeof modal.showModal !== "function") return false;
+    modal.classList.remove("is-closing");
+    if (!modal.open) modal.showModal();
+    return true;
+  }
+
+  function closeModal(modal) {
+    if (!modal || !modal.open) return;
+    // Let the box travel back out before the dialog is taken away.
+    modal.classList.add("is-closing");
+    setTimeout(function () {
+      modal.classList.remove("is-closing");
+      if (modal.open) modal.close();
+    }, 160);
+  }
+
+  function initModals() {
+    document.querySelectorAll("dialog.modal").forEach(function (modal) {
+      if (typeof modal.showModal !== "function") return;
+
+      modal.querySelectorAll("[data-close]").forEach(function (btn) {
+        btn.addEventListener("click", function () { closeModal(modal); });
+      });
+
+      // Clicking the backdrop lands on the dialog itself, never on its box.
+      modal.addEventListener("click", function (event) {
+        if (event.target === modal) closeModal(modal);
+      });
+
+      // Escape closes the dialog itself; intercept so it animates out too.
+      modal.addEventListener("cancel", function (event) {
+        event.preventDefault();
+        closeModal(modal);
+      });
+    });
+  }
+
   function initComposeModal() {
     var modal = document.getElementById("compose-modal");
     if (!modal || typeof modal.showModal !== "function") return;
 
     function open(event) {
       if (event) event.preventDefault();
-      modal.classList.remove("is-closing");
-      modal.showModal();
+      openModal(modal);
       var box = modal.querySelector("textarea");
       if (box) box.focus();
-    }
-
-    function close() {
-      // Let the box travel back out before the dialog is taken away.
-      modal.classList.add("is-closing");
-      setTimeout(function () {
-        modal.classList.remove("is-closing");
-        modal.close();
-      }, 160);
     }
 
     document.querySelectorAll("[data-compose]").forEach(function (trigger) {
       trigger.addEventListener("click", open);
     });
 
-    modal.querySelectorAll("[data-close]").forEach(function (btn) {
-      btn.addEventListener("click", close);
-    });
-
-    // Clicking the backdrop lands on the dialog itself, never on its box.
-    modal.addEventListener("click", function (event) {
-      if (event.target === modal) close();
-    });
-
-    // Escape closes the dialog itself; intercept so it animates out too.
-    modal.addEventListener("cancel", function (event) {
-      event.preventDefault();
-      close();
-    });
-
     // A rejected post comes back with the box marked open, so the writer
     // sees the error where they typed rather than on an empty board.
     if (modal.hasAttribute("data-open")) open();
+  }
+
+  /* ----------------------------------------------------------------------
+     Who reacted
+     The count on a tally is a link to the page of names behind it. With
+     script the tap fetches that list and shows it in a sheet over the
+     board instead, so looking at who reacted is a glance, not a trip.
+     ---------------------------------------------------------------------- */
+  function initReactorsSheet() {
+    if (!window.fetch) return;
+
+    document.addEventListener("click", function (event) {
+      var link = event.target.closest ? event.target.closest("a.tally__emoji, a.comment__tally") : null;
+      if (!link || event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      var modal = document.getElementById("reactors-modal");
+      if (!modal || typeof modal.showModal !== "function") return;
+
+      event.preventDefault();
+      var title = modal.querySelector("#reactors-title");
+      var sub = modal.querySelector("#reactors-sub");
+      var body = modal.querySelector("#reactors-body");
+      title.textContent = "Reactions";
+      sub.textContent = "";
+      body.innerHTML = '<div class="modal__wait" aria-hidden="true"></div>';
+      openModal(modal);
+
+      fetch(link.href, {
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch", Accept: "application/json" },
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error("no list");
+          return response.json();
+        })
+        .then(function (data) {
+          if (!modal.isConnected || !modal.open) return;
+          title.textContent = data.title;
+          sub.textContent = data.sub;
+          body.innerHTML = data.html;
+        })
+        .catch(function () {
+          // The page of names is still there; go and look at it.
+          if (modal.isConnected && modal.open) window.location.href = link.href;
+        });
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Editing in place
+     Edit on your own notice is a link to the edit page. With script the
+     tap opens the editor that _notice_body.html keeps folded inside the
+     card: the words become a box, Save posts it by fetch, and the card is
+     redrawn with the answer — so a fix to a typo never leaves the board.
+     If the save cannot be sent the form is posted the old way.
+     ---------------------------------------------------------------------- */
+  function initEditing() {
+    if (!window.fetch || !window.FormData) return;
+
+    function editorFor(el) {
+      var card = el.closest(".notice");
+      return card ? card.querySelector("[data-editor]") : null;
+    }
+
+    function open(editor) {
+      var card = editor.closest(".notice");
+      var text = card.querySelector(".notice__text");
+      var box = editor.querySelector("textarea");
+      // One at a time: the last card left open goes back to its words.
+      document.querySelectorAll(".notice.is-editing [data-editor]").forEach(function (other) {
+        if (other !== editor) close(other);
+      });
+      editor.hidden = false;
+      if (text) text.hidden = true;
+      card.classList.add("is-editing");
+      grow(box);
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    }
+
+    function close(editor) {
+      var card = editor.closest(".notice");
+      var text = card.querySelector(".notice__text");
+      var error = editor.querySelector("[data-editor-error]");
+      editor.hidden = true;
+      if (text) text.hidden = false;
+      if (error) error.hidden = true;
+      card.classList.remove("is-editing");
+      // Back to what is on the board, not to a half-made change.
+      var box = editor.querySelector("textarea");
+      if (box) box.value = box.defaultValue;
+    }
+
+    function grow(box) {
+      box.style.height = "auto";
+      box.style.height = Math.min(box.scrollHeight + 2, 320) + "px";
+    }
+
+    document.addEventListener("click", function (event) {
+      var target = event.target.closest ? event.target.closest("[data-edit], [data-editor-cancel]") : null;
+      if (!target || event.defaultPrevented) return;
+      var editor = editorFor(target);
+      if (!editor) return;
+      event.preventDefault();
+      if (target.hasAttribute("data-edit")) open(editor);
+      else close(editor);
+    });
+
+    document.addEventListener("input", function (event) {
+      var box = event.target;
+      if (box.matches && box.matches("[data-editor] textarea")) grow(box);
+    });
+
+    document.addEventListener("keydown", function (event) {
+      var box = event.target;
+      if (!box.matches || !box.matches("[data-editor] textarea")) return;
+      if (event.key === "Escape") { event.preventDefault(); close(box.closest("[data-editor]")); }
+      // Enter with the modifier saves, as it does in most boxes like this.
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        box.closest("[data-editor]").requestSubmit();
+      }
+    });
+
+    document.addEventListener("submit", function (event) {
+      var editor = event.target;
+      if (!editor.matches || !editor.matches("[data-editor]")) return;
+      event.preventDefault();
+
+      var card = editor.closest(".notice");
+      var error = editor.querySelector("[data-editor-error]");
+      var save = editor.querySelector('button[type="submit"]');
+      if (save) save.disabled = true;
+
+      fetch(editor.action, {
+        method: "POST",
+        body: new FormData(editor),
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch", Accept: "application/json" },
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok && !data.error) throw new Error("not saved");
+            return data;
+          });
+        })
+        .then(function (data) {
+          if (save) save.disabled = false;
+          if (data.error) {
+            if (error) { error.textContent = data.error; error.hidden = false; }
+            return;
+          }
+          if (!card.isConnected) return;
+          var old = card.querySelector(".notice__body");
+          var box = document.createElement("template");
+          box.innerHTML = data.body.trim();
+          var next = box.content.firstElementChild;
+          if (old && next) old.replaceWith(next);
+          card.classList.remove("is-editing");
+          card.classList.add("is-saved");
+          setTimeout(function () { card.classList.remove("is-saved"); }, 1400);
+        })
+        .catch(function () {
+          // The old way: the page, with the change carried in the form.
+          if (editor.isConnected) editor.submit();
+        });
+    });
   }
 
   /* ----------------------------------------------------------------------
@@ -1329,24 +1527,41 @@
   }
 
   /* ----------------------------------------------------------------------
-     Reaction picker
-     The row of faces is a <details>, so it opens without script. This only
-     closes the one you left open when you move on.
+     Reactions
+     The row of faces is a <details> over a form of submit buttons, so it
+     opens and posts with no script at all. That path is a page load per
+     tap, though — a POST, a redirect and a fresh board — and on a phone
+     with a poor signal that is a second or two of nothing having visibly
+     happened, which is exactly long enough to tap again. So a tap here is
+     sent by fetch instead: the button wears the face at once, and the
+     server's answer — the same button and tally the board would have
+     drawn — replaces both when it lands. If anything about that goes
+     wrong the form is posted the old way, so a reaction is never lost.
+
+     Everything is delegated to the document, so it holds for every page
+     this document shows and for a control that has just been swapped in.
      ---------------------------------------------------------------------- */
   function initReactions() {
     function pickers() {
       return document.querySelectorAll("details.react");
     }
 
-    document.addEventListener("click", function (event) {
+    function closeAll(except) {
       pickers().forEach(function (picker) {
-        if (picker.open && !picker.contains(event.target)) picker.open = false;
+        if (picker !== except && picker.open) picker.open = false;
       });
+    }
+
+    // ---- open and shut ---------------------------------------------------
+
+    document.addEventListener("click", function (event) {
+      var inside = event.target.closest ? event.target.closest("details.react") : null;
+      closeAll(inside);
     });
 
     document.addEventListener("keydown", function (event) {
       if (event.key !== "Escape") return;
-      pickers().forEach(function (picker) { picker.open = false; });
+      closeAll(null);
     });
 
     // The row of faces opens from the left edge of its React button. Under a
@@ -1361,6 +1576,7 @@
       if (!picker) return;
       picker.style.removeProperty("--shift");
       if (!details.open) return;
+      closeAll(details);
       // Kept inside the card it belongs to, which is always inside the
       // screen — innerWidth is not to be trusted on a phone mid-zoom.
       var card = details.closest(".notice") || document.querySelector("main.container");
@@ -1369,7 +1585,146 @@
       var over = box.right - edge;
       if (over > 0) picker.style.setProperty("--shift", Math.min(over, box.left - 12) + "px");
     }, true);
+
+    // On a mouse the row opens under the pointer, the way it does on the
+    // app it is borrowed from, and shuts once the pointer has left it and
+    // the button for good. Only where hover means something: a phone's
+    // emulated hover would open the row on the tap that meant to press.
+    if (window.matchMedia && window.matchMedia("(hover: hover)").matches) {
+      var hoverTimer = null;
+      var hoverOpened = null;
+      document.addEventListener("mouseover", function (event) {
+        var details = event.target.closest ? event.target.closest("details.react") : null;
+        clearTimeout(hoverTimer);
+        if (!details) return;
+        hoverTimer = setTimeout(function () {
+          if (!details.open) hoverOpened = details;
+          details.open = true;
+        }, 350);
+      });
+      // A click on the button under a row that hover already opened means
+      // "open it", not "shut what I did not open".
+      document.addEventListener("click", function (event) {
+        var summary = event.target.closest ? event.target.closest("details.react > summary") : null;
+        if (summary && summary.parentElement === hoverOpened && hoverOpened.open) {
+          event.preventDefault();
+        }
+        hoverOpened = null;
+      });
+      document.addEventListener("mouseout", function (event) {
+        var details = event.target.closest ? event.target.closest("details.react") : null;
+        clearTimeout(hoverTimer);
+        if (!details || !details.open) return;
+        if (event.relatedTarget && details.contains(event.relatedTarget)) return;
+        hoverTimer = setTimeout(function () { details.open = false; }, 450);
+      });
+    }
+
+    // ---- the tap ---------------------------------------------------------
+
+    if (!window.fetch || !window.FormData) return;
+
+    document.addEventListener("click", function (event) {
+      var btn = event.target.closest ? event.target.closest(".picker__btn") : null;
+      if (!btn || event.defaultPrevented) return;
+      var form = btn.form || btn.closest("form.picker");
+      var details = btn.closest("details.react");
+      if (!form || !details) return;
+
+      event.preventDefault();
+      send(details, form, btn);
+    });
+
+    function send(details, form, btn) {
+      var key = details.getAttribute("data-react");
+      var taking = btn.classList.contains("is-on");
+
+      // What was tapped shows at once; the answer confirms it.
+      wear(details, taking ? null : btn);
+      details.open = false;
+
+      var body = new FormData(form);
+      body.set("emoji", btn.value);
+
+      fetch(form.action, {
+        method: "POST",
+        body: body,
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch", Accept: "application/json" },
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error("reaction not saved");
+          return response.json();
+        })
+        .then(function (data) {
+          // The page may have been swapped underneath a slow answer.
+          var live = document.querySelector('details.react[data-react="' + key + '"]');
+          if (!live || !live.isConnected) return;
+          swap(live, data.control);
+          var tally = document.querySelector('[data-tally="' + key + '"]');
+          if (tally && data.tally) swap(tally, data.tally);
+        })
+        .catch(function () {
+          // The old way: a page load, with the face carried in a field the
+          // buttons no longer need to supply.
+          var live = document.querySelector('details.react[data-react="' + key + '"] form.picker');
+          if (!live) return;
+          var field = document.createElement("input");
+          field.type = "hidden";
+          field.name = "emoji";
+          field.value = btn.value;
+          live.appendChild(field);
+          live.submit();
+        });
+    }
+
+    /* The React button, wearing the face just tapped — or none. Drawn from
+       the button that was pressed, which already has the face and the word
+       on it, so nothing here has to know what a reaction looks like. */
+    function wear(details, btn) {
+      var summary = details.querySelector("summary");
+      if (!summary) return;
+      var label = summary.querySelector(".act__label");
+      var face = summary.querySelector(".rx");
+      var icon = summary.querySelector(".act__icon");
+
+      details.querySelectorAll(".picker__btn").forEach(function (other) {
+        other.classList.toggle("is-on", other === btn);
+      });
+
+      if (!btn) {
+        summary.classList.remove("is-on");
+        summary.removeAttribute("data-kind");
+        if (face) face.remove();
+        if (!icon) summary.insertAdjacentHTML("afterbegin", NEUTRAL_FACE);
+        if (label) label.textContent = "React";
+        return;
+      }
+      summary.classList.add("is-on");
+      summary.setAttribute("data-kind", btn.getAttribute("data-kind") || "");
+      if (icon) icon.remove();
+      if (face) face.remove();
+      var pressed = btn.querySelector(".rx");
+      if (pressed) summary.insertAdjacentElement("afterbegin", pressed.cloneNode(true));
+      if (label) label.textContent = btn.getAttribute("data-label") || "Reacted";
+    }
+
+    /* One element for another, parsed the way the page itself was. */
+    function swap(el, html) {
+      var box = document.createElement("template");
+      box.innerHTML = html.trim();
+      var next = box.content.firstElementChild;
+      if (next) el.replaceWith(next);
+    }
   }
+
+  // The plain face on a React button nobody has pressed — the same lines
+  // _react.html draws, for putting back after a reaction is taken away.
+  var NEUTRAL_FACE =
+    '<svg class="act__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/>' +
+    '<path d="M9 9.5v.01M15 9.5v.01"/></svg>';
 
   function initCompose() {
     var box = document.querySelector(".compose textarea");
@@ -2520,6 +2875,11 @@
      were added.
      ---------------------------------------------------------------------- */
   function initOnce() {
+    // Before soft navigation: these two catch a tap on a link — Edit, a
+    // tally — and handle it in the card, and soft navigation must find the
+    // tap already taken rather than follow the link.
+    initReactorsSheet();
+    initEditing();
     initSoftNav();
     initArrival();
     initReactions();
@@ -2533,6 +2893,7 @@
     initTheme();
     initAppBar();
     initCompose();
+    initModals();
     initComposeModal();
     initTally();
     initPeriodFields();

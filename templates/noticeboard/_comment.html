@@ -26,37 +26,15 @@
       </a>
       <span class="comment__text">{{ comment.body }}</span>
 
-      {% comment %}
-        The count sits on the bubble, the way a chat app hangs it there. One
-        tap for the names behind it; hovering gives them without the trip.
-      {% endcomment %}
-      {% if comment.groups %}
-        <a class="comment__tally" href="{% url 'notices:comment_reactors' comment.pk %}?next={{ next_url|urlencode }}"
-           title="{{ comment.who_reacted }} reacted">
-          {% for emoji, count in comment.groups %}<span class="tally__pip">{{ emoji }}</span>{% endfor %}
-          <span class="tally__n">{{ comment.reaction_total }}</span>
-        </a>
-      {% endif %}
+      {# The count sits on the bubble, the way a chat app hangs it there. #}
+      {% include "noticeboard/_comment_tally.html" with item=comment %}
     </div>
 
     {# ---- One line of actions, never a stack of them ---------------------- #}
     <div class="comment__foot">
       <span class="comment__time">{{ comment.created_at|naturaltime }}</span>
 
-      <details class="react">
-        <summary class="comment__act{% if comment.my_emoji %} is-on{% endif %}">
-          {% if comment.my_emoji %}<span class="act__emoji">{{ comment.my_emoji }}</span> Reacted{% else %}React{% endif %}
-        </summary>
-        <form class="picker picker--sm" method="post" action="{% url 'notices:comment_react' comment.pk %}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ next_url }}">
-          {% for value, label in emoji_choices %}
-            <button type="submit" name="emoji" value="{{ value }}"
-                    class="picker__btn{% if comment.my_emoji == value %} is-on{% endif %}"
-                    style="--i: {{ forloop.counter0 }}" title="{{ label }}" aria-label="{{ label }}">{{ value }}</button>
-          {% endfor %}
-        </form>
-      </details>
+      {% include "noticeboard/_react.html" with item=comment small=True %}
 
       <a class="comment__act" href="#reply-{{ comment.pk }}" data-focus>Reply</a>
 

@@ -21,6 +21,14 @@
   --warn:         #b45309;
   --warn-soft:    rgba(180, 83, 9, .12);
 
+  /* The reactions, for the word beside a face you have left: the blue of
+     the thumb, the red of the heart, and one darker yellow that reads as
+     text where the faces' own yellow would not. */
+  --rx-like:  #1b74e4;
+  --rx-love:  #e0243f;
+  --rx-face:  #b7791f;
+  --rx-angry: #d9482a;
+
   /* Surfaces — light
      Three steps, close together. With the shadows gone the separation between
      a card and the page behind it is this half-tone and one hairline, which
@@ -173,6 +181,11 @@
     --warn:        #fbbf24;
     --warn-soft:   rgba(251, 191, 36, .13);
 
+    --rx-like:  #5aa0f2;
+    --rx-love:  #f5607a;
+    --rx-face:  #f2c14e;
+    --rx-angry: #f2795c;
+
     --bg:        #0b1120;
     --surface:   #131c2e;
     --surface-2: #18233a;
@@ -235,6 +248,11 @@
   --danger-soft: rgba(248, 113, 113, .13);
   --warn:        #fbbf24;
   --warn-soft:   rgba(251, 191, 36, .13);
+
+  --rx-like:  #5aa0f2;
+  --rx-love:  #f5607a;
+  --rx-face:  #f2c14e;
+  --rx-angry: #f2795c;
 
   --bg:        #0b1120;
   --surface:   #131c2e;
@@ -312,7 +330,7 @@ body {
 }
 
 /* Every interactive element gets instant taps (no 300ms delay) */
-a, button, input, select, textarea, label[for] { touch-action: manipulation; }
+a, button, summary, input, select, textarea, label[for] { touch-action: manipulation; }
 
 a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -634,6 +652,13 @@ img { max-width: 100%; height: auto; display: block; }
   animation-duration: .42s;
   animation-timing-function: var(--ease);
 }
+/* The switch is kept out of that crossfade. Snapshotted with the page, a
+   ghost of the knob on its old side would fade out over the knob sliding
+   to its new one; on its own, it is shown live from the first frame and
+   the slide is the slide. */
+.daynight { view-transition-name: daynight; }
+::view-transition-old(daynight) { animation: none; opacity: 0; }
+::view-transition-new(daynight) { animation: none; }
 
 /* ---- §3b. The switch — every other yes-or-no in the app ---------------------
 
@@ -3415,6 +3440,28 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   margin-bottom: var(--sp-3);
 }
 .modal__title { font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+/* A sheet that is read rather than typed into — the names behind a tally —
+   is solid: a list over a busy board is unreadable through glass. */
+.modal--solid .modal__box {
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.modal__heading { min-width: 0; }
+.modal__sub { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
+.modal__sub:empty { display: none; }
+/* A sheet that lists things scrolls inside itself past a screen's worth,
+   so the head and the way out stay put. */
+.modal__body { max-height: min(60vh, 520px); overflow-y: auto; overscroll-behavior: contain; }
+/* While the list is on its way. */
+.modal__wait {
+  height: 52px;
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: mw-shimmer 1.2s linear infinite;
+}
+@keyframes mw-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 /* On a phone it belongs at the bottom, in reach, and slides up like a sheet. */
 @media (max-width: 559px) {
@@ -3437,39 +3484,69 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 }
 
 /* ---- Reactions and replies --------------------------------------------- */
-.notice { flex-direction: column; gap: var(--sp-2); }
+/* The card is a column, and every row of it — the tally, the actions, the
+   thread — is stretched to its width. Left to the flex default the rows
+   shrink to their content: the actions wrap to two lines because the row
+   they are in is only as wide as they were, and the reply box stops short
+   of the edge the card reaches. */
+.notice { flex-direction: column; align-items: stretch; gap: var(--sp-2); }
 .notice__main { display: flex; align-items: flex-start; gap: var(--sp-3); width: 100%; }
 
 .avatar--sm { width: 28px; height: 28px; font-size: 12px; }
 
-/* The running tally, above the buttons — what everyone else made of it. */
+/* ---- The faces ----------------------------------------------------------
+   Each reaction is drawn by {% reaction %} (noticeboard/templatetags/
+   reactions.py): a coloured disc with the face on it, the same picture on
+   every phone. It is sized by whatever holds it, so one drawing serves the
+   tally at 16px, the button at 18px and the picker at 40px. A reaction that
+   is no longer on the menu falls back to its glyph, sized to match.
+   -------------------------------------------------------------------------- */
+.rx {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -.15em;
+  font-size: inherit;
+  line-height: 1;
+}
+.rx--glyph { text-align: center; }
+
+/* The running tally, above the buttons — what everyone else made of it:
+   the two or three faces most left, overlapped the way a social app stacks
+   them, the count, and the names; the comment count at the far end. */
 .tally {
   display: flex;
   align-items: center;
-  align-self: stretch;
   gap: var(--sp-3);
-  padding-bottom: var(--sp-2);
-  border-bottom: 1px solid var(--line);
+  min-height: 24px;
+  padding: 2px 2px 0;
   font-size: 12.5px;
   color: var(--muted);
 }
-.tally__emoji { display: inline-flex; align-items: center; gap: 2px; }
+.tally[hidden] { display: none; }
+.tally__emoji { display: inline-flex; align-items: center; min-width: 0; flex: 1 1 auto; }
+.tally__pips { display: inline-flex; align-items: center; flex: none; }
 .tally__pip {
   display: inline-grid;
   place-items: center;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--surface-2);
-  border: 1px solid var(--surface);
-  font-size: 11px;
-  margin-right: -6px;
+  background: var(--surface);
+  /* The ring is the card's own surface, so a face overlapping the one
+     behind it is cut out of it cleanly rather than blurred into it. */
+  box-shadow: 0 0 0 2px var(--surface);
+  font-size: 18px;
+  margin-right: -5px;
 }
-.tally__n { margin-left: 10px; font-weight: 600; }
-.tally__comments { margin-left: auto; flex: none; white-space: nowrap; }
+.tally__pip:last-child { margin-right: 0; }
+.tally__n { margin-left: 8px; font-weight: 650; color: var(--text-2); }
+.tally__comments { margin-left: auto; flex: none; white-space: nowrap; color: inherit; }
+.tally__comments:hover { color: var(--text); text-decoration: underline; }
 
 /* Who is behind the count. The names are the point — the tally is a link to
-   the rest of them, so nobody has to guess whose the emoji were. */
-a.tally__emoji { color: inherit; min-width: 0; }
+   the rest of them, so nobody has to guess whose the faces were. */
+a.tally__emoji { color: inherit; }
 a.tally__emoji:hover { color: var(--text); text-decoration: none; }
 a.tally__emoji:hover .tally__who { text-decoration: underline; }
 .tally__who {
@@ -3480,14 +3557,34 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
   text-overflow: ellipsis;
 }
 
-.acts { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
-.acts form { margin: 0; }
+/* ---- One row of actions -------------------------------------------------
+   React and Comment on the left, Edit and Remove on the right, a rule above
+   them. Every one is the same height and the same shape whether it is a
+   link, a button or the summary of the picker, and the row never wraps:
+   past the phone the two on the right carry their words, on it they are
+   their icons alone, which is enough for a pencil and a bin.
+   -------------------------------------------------------------------------- */
+.acts {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: center;
+  gap: 2px;
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--line);
+}
+/* The Remove form is laid out as though it were not there, so its button
+   takes a cell like the links beside it. */
+.acts__form { display: contents; }
 
 .act {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  flex: none;
   min-height: 40px;
+  min-width: 40px;
   padding: 0 var(--sp-3);
   border: 0;
   border-radius: var(--r-pill);
@@ -3496,62 +3593,197 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   list-style: none;
-  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
+              transform var(--dur-1) var(--ease-snap);
 }
 .act::-webkit-details-marker { display: none; }
-.act:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
-.act svg { width: 15px; height: 15px; }
-.act.is-on { color: var(--brand); }
-.act__emoji { font-size: 14px; line-height: 1; }
-.act--quiet { margin-left: auto; }
-.act--quiet + form .act--quiet { margin-left: 0; }
-.act--danger:hover { color: var(--danger); background: var(--danger-soft, var(--surface-2)); }
+.act:hover, .act:focus { text-decoration: none; }
+/* Hover only where there is a pointer to hover with: on a phone the
+   emulated hover outlives the tap and leaves a grey pill behind. */
+@media (hover: hover) {
+  .act:hover { background: var(--surface-2); color: var(--text); }
+}
+.act:active { transform: scale(.96); background: var(--surface-2); }
+.act__icon { width: 16px; height: 16px; flex: none; }
+.act .rx { font-size: 18px; animation: mw-pop var(--dur-3) var(--ease-snap) both; }
+/* Each action fills its cell, so the whole cell is the tap target. */
+.acts > .act, .acts > .react, .acts__form > .act { min-width: 0; width: 100%; }
+.react > .act { width: 100%; }
 
-/* ---- The emoji picker --------------------------------------------------- */
+/* Once you have reacted the button wears your face and its colour. */
+.act.is-on { color: var(--brand); }
+.act.is-on[data-kind="like"]  { color: var(--rx-like); }
+.act.is-on[data-kind="love"]  { color: var(--rx-love); }
+.act.is-on[data-kind="care"],
+.act.is-on[data-kind="haha"],
+.act.is-on[data-kind="wow"],
+.act.is-on[data-kind="sad"]   { color: var(--rx-face); }
+.act.is-on[data-kind="angry"] { color: var(--rx-angry); }
+
+@media (hover: hover) {
+  .act--danger:hover { color: var(--danger); background: var(--danger-soft, var(--surface-2)); }
+}
+/* Four cells on the narrowest phones leave no room for "Remove" beside its
+   bin; the pencil and the bin say it on their own there. */
+@media (max-width: 359px) {
+  .act--quiet { padding: 0; }
+  .act--quiet .act__label { display: none; }
+}
+
+/* ---- Editing in place ---------------------------------------------------
+   Edit turns the words of your own notice into a box, in the card, where
+   they were (app.js initEditing). The box takes the text's place and its
+   size; Save and Cancel sit under it, small and to the right, so the card
+   grows by one row and nothing else on the board moves.
+   -------------------------------------------------------------------------- */
+.notice__text[hidden] { display: none; }
+.editor { margin-top: 3px; animation: mw-rise var(--dur-2) var(--ease-out) both; }
+.editor[hidden] { display: none; }
+.editor__box {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px var(--sp-3);
+  border: 1px solid color-mix(in srgb, var(--brand) 45%, var(--line));
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+}
+.editor__box:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.editor__error { margin-top: var(--sp-1); }
+.editor__error[hidden] { display: none; }
+.editor__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.editor__foot .btn svg { width: 15px; height: 15px; }
+/* Saved: the words come back with a brief ring, the same one a notice gets
+   when you are returned to it. */
+.notice.is-saved { animation: mw-flag 1.4s var(--ease) both; }
+
+/* ---- The row of faces ---------------------------------------------------
+   A white pill floating above the React button, the faces in a row, each
+   one landing a beat after the one before it. On a mouse the one under the
+   pointer rises and says its name; on a phone each is a 44px target and
+   the tap itself is the feedback. While the row is open the faces move —
+   the heart beats, the laugh shakes, the anger trembles — which is what
+   makes them a row of faces rather than a row of stickers.
+   -------------------------------------------------------------------------- */
 .react { position: relative; }
 
 .picker {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 4px);
   /* Moved back inside the screen by app.js when it would hang over the
      right edge (initReactions). */
   left: calc(0px - var(--shift, 0px));
   z-index: 20;
   display: flex;
-  gap: 2px;
-  padding: 5px;
+  align-items: center;
+  gap: 0;
+  padding: 4px;
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-3);
-  animation: mw-picker var(--dur-2) var(--ease-out) both;
+  transform-origin: left bottom;
+  animation: mw-picker var(--dur-3) var(--ease-out) both;
 }
 @keyframes mw-picker {
-  from { opacity: 0; transform: translateY(6px) scale(.9); }
+  from { opacity: 0; transform: translateY(8px) scale(.85); }
   to   { opacity: 1; transform: none; }
 }
 
 .picker__btn {
-  width: 42px; height: 42px;
+  position: relative;
+  width: 44px; height: 44px;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: none;
-  font-size: 22px;
+  font-size: 36px;
   line-height: 1;
   cursor: pointer;
   /* Each face arrives a beat after the one before it, the way the row of
      reactions pops open on a phone. */
-  animation: mw-pop var(--dur-3) var(--ease-snap) both;
-  animation-delay: calc(var(--i, 0) * .035s);
-  transition: transform var(--dur-1) var(--ease-snap), background var(--dur-1) var(--ease);
+  animation: mw-face var(--dur-3) var(--ease-snap) both;
+  animation-delay: calc(var(--i, 0) * .04s);
+  transition: transform var(--dur-2) var(--ease-snap);
 }
-.picker__btn:hover { transform: scale(1.25) translateY(-2px); background: var(--surface-2); }
-.picker__btn:active { transform: scale(1.05); }
-.picker__btn.is-on { background: var(--brand-soft); }
+@keyframes mw-face {
+  from { opacity: 0; transform: translateY(14px) scale(.4); }
+  to   { opacity: 1; transform: none; }
+}
+.picker__btn:active { transform: scale(.9); }
+/* The face already yours sits on a ring, so the row says which tap would
+   take it back rather than leave a second. */
+.picker__btn.is-on::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+.picker__btn .rx { position: relative; transform-origin: 50% 80%; }
+
+/* Its name, on hover only: a phone has no hover and the faces are their own
+   names there, as they are on the app this row is borrowed from. */
+.picker__btn::after {
+  content: attr(data-label);
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--text);
+  color: var(--bg);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease), translate var(--dur-2) var(--ease-snap);
+}
+@media (hover: hover) {
+  .picker:hover .picker__btn { transform: scale(.9); }
+  .picker__btn:hover { transform: scale(1.45) translateY(-9px); z-index: 1; }
+  .picker__btn:hover::after { opacity: 1; translate: -50% -2px; }
+  .picker__btn:hover .rx { animation-duration: .6s; }
+}
+.picker__btn:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+/* The faces, moving. Each has its own gesture; §17 stills them all. */
+.picker .rx--like  { animation: rx-like  1.6s var(--ease) infinite; }
+.picker .rx--love  { animation: rx-love  1.1s var(--ease) infinite; }
+.picker .rx--care  { animation: rx-care  1.8s var(--ease) infinite; }
+.picker .rx--haha  { animation: rx-haha  .9s  var(--ease) infinite; }
+.picker .rx--wow   { animation: rx-wow   1.8s var(--ease) infinite; }
+.picker .rx--sad   { animation: rx-sad   2.2s var(--ease) infinite; }
+.picker .rx--angry { animation: rx-angry .5s  var(--ease) infinite; }
+@keyframes rx-like  { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-14deg) translateY(-1px); } 60% { transform: rotate(4deg); } }
+@keyframes rx-love  { 0%, 100% { transform: scale(1); } 25% { transform: scale(1.14); } 45% { transform: scale(1); } 60% { transform: scale(1.1); } }
+@keyframes rx-care  { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@keyframes rx-haha  { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-3px) rotate(-6deg); } 75% { transform: translateY(-3px) rotate(6deg); } }
+@keyframes rx-wow   { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.06); } }
+@keyframes rx-sad   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px) rotate(-3deg); } }
+@keyframes rx-angry { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5px) rotate(-3deg); } 75% { transform: translateX(1.5px) rotate(3deg); } }
 
 /* ---- Comments ----------------------------------------------------------- */
 .comment { display: flex; align-items: flex-start; gap: var(--sp-2); }
@@ -3605,7 +3837,15 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .comment__act::-webkit-details-marker { display: none; }
 .comment__act:hover { color: var(--text); text-decoration: none; }
 .comment__act.is-on { color: var(--brand); }
-.comment__act .act__emoji { font-size: 13px; line-height: 1; }
+.comment__act.is-on[data-kind="like"]  { color: var(--rx-like); }
+.comment__act.is-on[data-kind="love"]  { color: var(--rx-love); }
+.comment__act.is-on[data-kind="care"],
+.comment__act.is-on[data-kind="haha"],
+.comment__act.is-on[data-kind="wow"],
+.comment__act.is-on[data-kind="sad"]   { color: var(--rx-face); }
+.comment__act.is-on[data-kind="angry"] { color: var(--rx-angry); }
+.comment__act .act__icon { display: none; }
+.comment__act .rx { font-size: 14px; animation: mw-pop var(--dur-3) var(--ease-snap) both; }
 
 /* The count on the comment itself, tucked against the bubble the way a chat
    app hangs it there. The names behind it are one tap, or one hover, away. */
@@ -3622,9 +3862,11 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   color: var(--muted);
   vertical-align: 1px;
 }
+.comment__tally[hidden] { display: none; }
 .comment__tally:hover { color: var(--text); text-decoration: none; }
-.comment__tally .tally__pip { width: 15px; height: 15px; font-size: 9px; margin-right: -4px; }
-.comment__tally .tally__n { margin-left: 7px; }
+.comment__tally .tally__pip { width: 15px; height: 15px; font-size: 14px; margin-right: -4px; box-shadow: 0 0 0 1.5px var(--surface); }
+.comment__tally .tally__pip:last-child { margin-right: 0; }
+.comment__tally .tally__n { margin-left: 6px; }
 
 /* ---- Replies ------------------------------------------------------------
    Stepped in once and no further — the model keeps threads one deep, so the
@@ -3689,8 +3931,18 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .fold--notices > .fold__toggle:hover { background: var(--surface-2); color: var(--text); }
 
 /* The picker on a comment is the same row of faces, sized for a smaller row. */
-.picker--sm { padding: 4px; }
-.picker--sm .picker__btn { width: 36px; height: 36px; font-size: 18px; }
+.picker--sm { padding: 3px; }
+.picker--sm .picker__btn { width: 40px; height: 40px; font-size: 30px; }
+
+/* Seven faces at 44px is 316px of row: wider than the card on the smallest
+   phones, so there the faces close up a little rather than hang off it. */
+@media (max-width: 380px) {
+  .picker__btn, .picker--sm .picker__btn { width: 40px; height: 40px; font-size: 32px; }
+}
+@media (max-width: 340px) {
+  .picker { padding: 3px; }
+  .picker__btn, .picker--sm .picker__btn { width: 38px; height: 38px; font-size: 30px; }
+}
 
 /* The thread under a notice: comments, then the box to add one. */
 .thread {
@@ -3800,6 +4052,9 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
    lists rather than anything that needs learning.
    ------------------------------------------------------------------------ */
 .reactors { display: grid; gap: var(--sp-4); }
+/* In the sheet the rows sit on the sheet's own surface, so they take the
+   next tone rather than a hairline on white. */
+.modal .reactors__row { background: var(--surface-2); border-color: transparent; }
 .reactors__group { display: grid; gap: var(--sp-2); }
 .reactors__head {
   display: flex;
@@ -3809,7 +4064,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   font-weight: 650;
   color: var(--muted);
 }
-.reactors__emoji { font-size: 20px; line-height: 1; }
+.reactors__emoji { font-size: 24px; line-height: 1; display: inline-flex; }
 .reactors__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
 .reactors__row {
   display: flex;
@@ -3842,7 +4097,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   text-transform: uppercase;
   letter-spacing: .04em;
 }
-.reactors__mark { flex: none; font-size: 18px; }
+.reactors__mark { flex: none; font-size: 22px; display: inline-flex; }
 
 /* ---- A profile ---------------------------------------------------------- */
 .profile {
@@ -5449,9 +5704,10 @@ body::before {
    smaller and harder to read. */
 .note__kind--emoji {
   background: var(--surface);
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1;
 }
+.note__kind--emoji .rx { vertical-align: 0; }
 
 .note--unread.note--from .note__kind { background: var(--tint); }
 .note--unread.note--from .note__kind--emoji { background: var(--surface); }
