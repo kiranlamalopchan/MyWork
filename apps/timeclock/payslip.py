@@ -182,7 +182,12 @@ def read_text(uploaded):
 
 
 def _pdf_text(data):
-    from pypdf import PdfReader
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        # New in requirements.txt: a server that pulled the code but not
+        # the package says so, rather than failing with a 500.
+        raise Unreadable("PDF reading isn't set up on this server (pypdf isn't installed) — send a screenshot of the payslip instead.")
 
     try:
         reader = PdfReader(io.BytesIO(data))
@@ -208,7 +213,9 @@ def _image_text(data):
         raise Unreadable("Send a payslip as a PDF, or a photo or screenshot of one.")
     try:
         import pytesseract
-
+    except ImportError:
+        raise Unreadable("Picture reading isn't set up on this server (pytesseract isn't installed) — send the PDF instead.")
+    try:
         image = ImageOps.exif_transpose(image).convert("L")
         image = ImageOps.autocontrast(image)
         if image.width < OCR_WIDTH:

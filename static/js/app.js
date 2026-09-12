@@ -1068,7 +1068,7 @@
             results.innerHTML = '<div class="alert alert--error">' +
               (err && err.message === "abort"
                 ? "Stopped. Choose the photo again when you're ready."
-                : "The photo couldn't be sent. Check the connection and try again.") +
+                : escapeHtml(sendFailure(err, "."))) +
               "</div>";
           });
       });
@@ -1678,6 +1678,18 @@
      the second step. send() resolves with the parsed body ("json") or the
      text ("text"); a cancel rejects with an Error whose message is "abort".
      ---------------------------------------------------------------------- */
+  /* What to tell the user when a send failed, from what the server did. */
+  function sendFailure(err, again) {
+    var status = err && err.status;
+    if (err && err.message === "network") return "It couldn't be sent. Check the connection and try again" + again;
+    if (status === 403) return "You've been signed out, or the page is stale. Reload the page and try again.";
+    if (status === 413) return "That file is too big for the server to take. Try a smaller photo or a PDF.";
+    if (status === 504 || status === 502) return "The server took too long reading it (HTTP " + status + "). Try a smaller or clearer file" + again;
+    if (status >= 500) return "The server hit an error reading it (HTTP " + status + ") — check the server log.";
+    if (status === 200 || status === 0) return "The server answered with a page instead of a result — you may be signed out. Reload and try again.";
+    return "It couldn't be read (HTTP " + status + ")" + again;
+  }
+
   function fileSize(bytes) {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
@@ -1780,8 +1792,21 @@
             if (as === "json") {
               var data = null;
               try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
-              if (!data || (xhr.status >= 400 && !data.error)) return reject(new Error("not read"));
+              if (!data || (xhr.status >= 400 && !data.error)) {
+                // Not the JSON the view sends: a sign-in page, an error
+                // page, a proxy's limit. Say which, not "the connection".
+                var why = new Error("not read");
+                why.status = xhr.status;
+                return reject(why);
+              }
               return resolve(data);
+            }
+            // A fragment comes back with a 400 when the read went wrong,
+            // and that is the answer; only the server's own failures aren't.
+            if (xhr.status >= 500 || xhr.status === 403 || xhr.status === 413) {
+              var bad = new Error("not read");
+              bad.status = xhr.status;
+              return reject(bad);
             }
             resolve({ status: xhr.status, text: xhr.responseText });
           });
@@ -1945,7 +1970,7 @@
             say("Stopped. Choose the payslip again when you're ready — or type the figures in.");
             return;
           }
-          say("The payslip couldn't be sent. Check the connection and try again — or type the figures in.", true);
+          say(sendFailure(err, " — or type the figures in."), true);
         });
       // So the same file can be chosen again after a fix.
       input.value = "";
