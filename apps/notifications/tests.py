@@ -191,11 +191,12 @@ class InboxTests(TestCase):
         self.sam = User.objects.create_user("sam", password="pw")
         self.client.force_login(self.kiran)
 
-    def test_the_alerts_tab_shows_a_count_on_every_page(self):
+    def test_the_bell_in_the_app_bar_shows_a_count_on_every_page(self):
         notify(self.kiran, Kind.NOTICE, "sam posted a notice", url="/notices/",
                actor=self.sam)
 
         resp = self.client.get(reverse("home"))
+        self.assertContains(resp, 'class="appbar__bell"')
         self.assertContains(resp, 'class="tab__badge"')
         self.assertEqual(resp.context["unread_notifications"], 1)
 

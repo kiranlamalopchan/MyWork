@@ -126,6 +126,21 @@
       </nav>
 
       {% comment %}
+        The bell. Alerts used to be a tab of the dock; it lives up here now,
+        in the corner a phone keeps it in, with the unread count riding on
+        it. The count is the same one the page carries in its meta tag, so
+        the bell, the inbox and the home-screen badge never disagree.
+      {% endcomment %}
+      <a class="appbar__bell" href="{% url 'notifications:inbox' %}" data-no-cache
+         aria-label="Alerts{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}"
+         title="Alerts"{% if request.resolver_match.namespace == "notifications" %} aria-current="page"{% endif %}>
+        <span class="tab__icon">
+          {% icon "bell" %}
+          {% if unread_notifications %}<span class="tab__badge" aria-hidden="true">{{ unread_badge }}</span>{% endif %}
+        </span>
+      </a>
+
+      {% comment %}
         You, and only you: your profile, and signing out. It wears your own
         photo because the thing you tap to reach yourself should look like
         you — and because a face is easier to find in the corner of a screen

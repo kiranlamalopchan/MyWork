@@ -8,16 +8,30 @@ declares — means no view has to remember to pass it, and a page added to
 either app is navigated correctly for free.
 """
 
+# TimeSheet is three tabs of the dock, and these say which of its pages
+# belong to which: the timesheet and its calendar, the shifts on it and the
+# forms for them; More and everything it leads to. What is in neither is the
+# Clock's. The dock (_tabs.html) reads both to light one tab and no other.
+TIMESHEET_PAGES = frozenset({
+    "timesheet", "calendar", "shift_detail", "shift_edit", "shift_create",
+})
+MORE_PAGES = frozenset({
+    "more", "workplaces", "workplace_create", "workplace_edit",
+    "workplace_confirm_delete", "payments", "statement",
+    "preferences",
+})
+
 SECTIONS = {
     "plu": {
         "name": "PLU",
         "title": "PLU Management",
         "nav": "plu/_nav_links.html",
     },
+    # No segments: its places are tabs of the dock (see TIMESHEET_PAGES).
     "timeclock": {
         "name": "TimeSheet",
         "title": "TimeSheet Management",
-        "nav": "timeclock/_nav_links.html",
+        "nav": None,
     },
 }
 
@@ -25,15 +39,17 @@ SECTIONS = {
 def section(request):
     match = getattr(request, "resolver_match", None)
     current = SECTIONS.get(match.namespace) if match else None
+    tabs = {"timesheet_pages": TIMESHEET_PAGES, "more_pages": MORE_PAGES}
     if not current:
         # The hub, the account pages, the admin — no app section, so nothing
         # to segment. The tab bar is base.html's and is there regardless.
-        return {"section_nav": None, "section_name": None, "section_title": None}
-    return {
-        "section_nav": current["nav"],
-        "section_name": current["name"],
-        "section_title": current["title"],
-    }
+        return dict(tabs, section_nav=None, section_name=None, section_title=None)
+    return dict(
+        tabs,
+        section_nav=current["nav"],
+        section_name=current["name"],
+        section_title=current["title"],
+    )
 
 
 def me(request):

@@ -17,20 +17,6 @@
   {% include "noticeboard/_board.html" %}
 </div>
 
-{% if page_obj.paginator.num_pages > 1 %}
-  <nav class="pager" aria-label="Pagination">
-    {% if page_obj.has_previous %}
-      <a class="btn" href="?page={{ page_obj.previous_page_number }}" rel="prev">Newer</a>
-    {% else %}
-      <span class="btn" aria-disabled="true">Newer</span>
-    {% endif %}
-    <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}
-      <a class="btn" href="?page={{ page_obj.next_page_number }}" rel="next">Older</a>
-    {% else %}
-      <span class="btn" aria-disabled="true">Older</span>
-    {% endif %}
-  </nav>
-{% endif %}
+  {% include "_pager.html" with page_obj=page_obj prev="Newer" next="Older" %}
 
 {% endblock %}

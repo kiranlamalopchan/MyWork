@@ -19,6 +19,24 @@
 
   <div class="card">
     <div class="card__pad">
+      {% comment %}
+        The small button: send a payslip and the rate, the tax share and the
+        pay cycle are read off it into the boxes below (app.js,
+        initPayslipFill → timeclock:workplace_payslip). The file input has no
+        name, so it never travels with the form itself; what was read is
+        listed under the button so each figure can be checked against the
+        slip before Save.
+      {% endcomment %}
+      <div class="payslip" data-payslip data-payslip-url="{% url 'timeclock:workplace_payslip' %}">
+        <label class="btn btn--sm payslip__btn">
+          <input type="file" class="payslip__file" accept="application/pdf,image/*" data-payslip-file>
+          {% icon "doc" %}
+          <span data-payslip-label>Fill from a payslip</span>
+        </label>
+        <span class="payslip__hint" data-payslip-hint>PDF, photo or screenshot — the rate, tax and pay cycle are read off it for you to check.</span>
+        <div class="payslip__read" data-payslip-read hidden></div>
+      </div>
+
       {% include "timeclock/_form_fields.html" with form=form %}
     </div>
   </div>

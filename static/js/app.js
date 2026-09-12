@@ -368,21 +368,215 @@
     );
   }
 
-  function skeletonPage() {
-    return (
-      '<div class="skeleton-page">' +
-      '<div class="skeleton-page__head">' +
-      '<span class="skeleton skeleton--title skeleton--w55"></span>' +
-      '<span class="skeleton skeleton--line skeleton--w70"></span>' +
-      "</div>" +
-      '<div class="skeleton-tiles">' +
-      '<span class="skeleton skeleton--tile"></span>' +
-      '<span class="skeleton skeleton--tile"></span>' +
-      "</div>" +
-      skeletonCard() +
-      skeletonRows(3, "skeleton--circle") +
-      "</div>"
-    );
+  /* ----------------------------------------------------------------------
+     The page skeletons
+     One per kind of screen, in the shape of that screen: the clock page
+     waits as a ring over a button, the calendar as a grid of days, the
+     board as cards with a face in the corner. A placeholder shaped like
+     something else is a page that jumps at the moment it should settle —
+     and a wall of grey lines shaped like nothing says only "loading",
+     where the shape of the thing says what is loading.
+
+     Built from a handful of blocks below, chosen by the address being gone
+     to (skeletonFor). Anything not listed gets the general one.
+     ---------------------------------------------------------------------- */
+  var SK = {
+    line: function (w) { return '<span class="skeleton skeleton--line" style="width:' + (w || 70) + '%"></span>'; },
+    title: function (w) { return '<span class="skeleton skeleton--title" style="width:' + (w || 55) + '%"></span>'; },
+    big: function (w) { return '<span class="skeleton skeleton--big" style="width:' + (w || 40) + '%"></span>'; },
+    circle: function (mod) { return '<span class="skeleton skeleton--circle' + (mod ? " " + mod : "") + '"></span>'; },
+    btn: function (mod) { return '<span class="skeleton skeleton--btn' + (mod ? " " + mod : "") + '"></span>'; },
+    field: function () { return '<span class="skeleton skeleton--field"></span>'; },
+    chip: function () { return '<span class="skeleton skeleton--chip"></span>'; },
+    pill: function () { return '<span class="skeleton skeleton--segments"></span>'; },
+    // Widths that step down a stack read as writing, not as grey bars.
+    text: function (n) {
+      var widths = [85, 70, 55, 40], out = "";
+      for (var i = 0; i < n; i++) out += SK.line(widths[i % widths.length]);
+      return out;
+    },
+    card: function (inner, mod) { return '<div class="skeleton-card' + (mod ? " " + mod : "") + '">' + inner + "</div>"; },
+    stack: function (inner, mod) { return '<div class="skeleton-stack' + (mod ? " " + mod : "") + '">' + inner + "</div>"; },
+    row: function (lead, lines, tail) {
+      return '<div class="skeleton-row">' + lead +
+        '<span class="skeleton-row__body">' + (lines || SK.line(70) + SK.line(40)) + "</span>" +
+        (tail || "") + "</div>";
+    },
+    // A label over a box: one field of a form.
+    labelled: function () { return SK.stack(SK.line(30) + SK.field(), "skeleton-stack--tight"); },
+    // Heading and the line under it, as every page head has.
+    head: function (w) { return '<div class="skeleton-page__head">' + SK.title(w) + SK.line(70) + "</div>"; },
+    // A notice on the board: a face, a name, the words, the row of actions.
+    notice: function (lines) {
+      return SK.card(
+        SK.row(SK.circle("skeleton--avatar"), SK.line(35) + SK.text(lines || 2)) +
+        '<div class="skeleton-acts">' + SK.line(20) + SK.line(20) + "</div>"
+      );
+    },
+    twoUp: function (inner) { return '<div class="skeleton-tiles">' + inner + "</div>"; },
+    repeat: function (n, fn) { var out = ""; for (var i = 0; i < n; i++) out += fn(i); return out; },
+  };
+
+  var SKELETONS = {
+    hub: function () {
+      return SK.twoUp(SK.repeat(2, function () {
+        return SK.card(SK.circle("skeleton--icon") + SK.line(55) + SK.line(70), "skeleton-card--tile");
+      })) +
+      '<div class="skeleton-bar">' + SK.line(35) + SK.btn("skeleton--btn-sm") + "</div>" +
+      SK.notice(3) + SK.notice(2);
+    },
+    board: function () {
+      return '<div class="skeleton-bar">' + SK.title(45) + SK.btn("skeleton--btn-sm") + "</div>" +
+        SK.notice(3) + SK.notice(2) + SK.notice(2);
+    },
+    person: function () {
+      return SK.row(SK.circle("skeleton--avatar"), SK.title(35) + SK.line(55)) +
+        SK.twoUp(SK.repeat(4, function () { return SK.card(SK.big(25) + SK.line(55), "skeleton-card--stat"); })) +
+        SK.line(35) + SK.notice(3);
+    },
+    inbox: function () {
+      return SK.head(50) + SK.chip() +
+        SK.repeat(4, function () {
+          return SK.card(SK.row(SK.circle("skeleton--avatar"), SK.line(70) + SK.line(45) + SK.line(25)));
+        });
+    },
+    holidays: function () {
+      return SK.head(55) + SK.row(SK.line(15), SK.field()) +
+        SK.repeat(3, function () { return SK.card(SK.line(45) + SK.line(70)); });
+    },
+    profile: function () {
+      return SK.card(SK.circle("skeleton--avatar-xl") + SK.title(30) + SK.line(45), "skeleton-card--centre") +
+        SK.card(SK.repeat(4, function () { return SK.row(SK.circle("skeleton--dot"), SK.line(30)); }), "skeleton-card--rows") +
+        SK.card(SK.row("", SK.line(30), SK.line(35)));
+    },
+    form: function () {
+      return SK.head(45) + SK.card(SK.repeat(3, SK.labelled) + SK.stack(SK.line(30) + SK.field() + SK.field(), "skeleton-stack--tight")) + SK.btn();
+    },
+    // ---- PLU ----------------------------------------------------------
+    pluList: function () {
+      return SK.stack(SK.field() + SK.line(60), "skeleton-stack--search") +
+        '<ul class="skeleton-list">' + SK.repeat(4, function (i) {
+          return "<li>" + SK.row('<span class="skeleton skeleton--badge"></span>', SK.line([85, 70, 55, 40][i % 4]) + SK.line(40)) + "</li>";
+        }) + "</ul>";
+    },
+    pluDetail: function () {
+      return SK.card(SK.line(20) + SK.big(20) + SK.line(65), "skeleton-card--centre skeleton-card--tall") +
+        SK.btn() + SK.btn("skeleton--btn-plain");
+    },
+    pluPhoto: function () {
+      return SK.head(45) + SK.card('<span class="skeleton skeleton--drop"></span>' + SK.btn());
+    },
+    // ---- TimeSheet ----------------------------------------------------
+    clock: function () {
+      return '<div class="skeleton-bar">' + SK.chip() + SK.line(35) + "</div>" +
+        '<span class="skeleton--ring"></span>' +
+        SK.line(20) + '<div class="skeleton-chips">' + SK.chip() + SK.chip() + "</div>" + SK.btn();
+    },
+    timesheet: function () {
+      return SK.head(45) + SK.pill() + '<div class="skeleton-chips">' + SK.chip() + SK.chip() + SK.chip() + "</div>" +
+        SK.card(SK.line(20) + SK.big(25) + SK.line(30) + SK.line(25)) +
+        SK.card(SK.row("", SK.line(40), SK.line(30)) + SK.row("", SK.line(35), SK.line(15)) + SK.row("", SK.line(35), SK.line(20)), "skeleton-card--rows");
+    },
+    calendar: function () {
+      return SK.head(45) + SK.pill() +
+        SK.card(
+          '<div class="skeleton-bar">' + SK.circle("skeleton--dot") + SK.title(45) + SK.circle("skeleton--dot") + "</div>" +
+          '<div class="skeleton-days">' + SK.repeat(35, function () { return '<span class="skeleton skeleton--day"></span>'; }) + "</div>" +
+          SK.line(60)
+        );
+    },
+    shiftDetail: function () {
+      return SK.head(40) + SK.card(SK.repeat(4, function () { return SK.row("", SK.line(30), SK.line(35)); }), "skeleton-card--rows") +
+        SK.btn() + SK.btn("skeleton--btn-plain");
+    },
+    workplaces: function () {
+      return SK.head(50) +
+        SK.card(SK.repeat(2, function () {
+          return SK.row('<span class="skeleton skeleton--square"></span>', SK.line(45) + SK.line(60), SK.circle("skeleton--dot") + SK.circle("skeleton--dot"));
+        }), "skeleton-card--rows") +
+        SK.card(SK.row("", SK.line(40), SK.line(30))) + SK.btn();
+    },
+    pay: function () {
+      return SK.head(25) + SK.repeat(2, function () {
+        return SK.card(SK.row("", SK.line(40), SK.line(30)) + SK.big(45) + SK.line(35) + SK.btn() + SK.line(60));
+      });
+    },
+    statement: function () {
+      return SK.head(50) + SK.card(SK.repeat(6, function () { return SK.row("", SK.line(35), SK.line(25)); }), "skeleton-card--rows");
+    },
+    more: function () {
+      return SK.head(30) + SK.card(SK.repeat(3, function () {
+        return SK.row(SK.circle("skeleton--icon-sm"), SK.line(40) + SK.line(65), SK.circle("skeleton--dot"));
+      }), "skeleton-card--rows");
+    },
+    general: function () {
+      return SK.head(55) + SK.twoUp('<span class="skeleton skeleton--tile"></span><span class="skeleton skeleton--tile"></span>') +
+        SK.card(SK.line(40) + SK.line(85) + SK.line(70)) +
+        '<ul class="skeleton-list">' + SK.repeat(3, function (i) {
+          return "<li>" + SK.row(SK.circle(), SK.line([85, 70, 55][i]) + SK.line(40)) + "</li>";
+        }) + "</ul>";
+    },
+  };
+
+  /* Which shape stands in for the page at `pathname`. First match wins, so
+     the more particular addresses come before the app they sit under. */
+  var SKELETON_ROUTES = [
+    [/^\/$/, "hub"],
+    [/^\/plu\/item\//, "pluDetail"],
+    [/^\/plu\/photo-search/, "pluPhoto"],
+    [/^\/plu\/import/, "form"],
+    [/^\/plu\//, "pluList"],
+    [/^\/timesheet\/$/, "clock"],
+    [/^\/timesheet\/calendar/, "calendar"],
+    [/^\/timesheet\/shifts\/(add|\d+\/edit)/, "form"],
+    [/^\/timesheet\/shifts\/\d+/, "shiftDetail"],
+    [/^\/timesheet\/shifts/, "timesheet"],
+    [/^\/timesheet\/workplaces\/(add|\d+)/, "form"],
+    [/^\/timesheet\/(workplaces|preferences)/, "workplaces"],
+    [/^\/timesheet\/pay\/statement/, "statement"],
+    [/^\/timesheet\/pay/, "pay"],
+    [/^\/timesheet\/more/, "more"],
+    [/^\/notices\/people\//, "person"],
+    [/^\/notices\/(new|\d+\/edit)/, "form"],
+    [/^\/notices\/(\d+|comments\/\d+)\/reactions/, "inbox"],
+    [/^\/notices/, "board"],
+    [/^\/notifications/, "inbox"],
+    [/^\/holidays/, "holidays"],
+    [/^\/profile\/edit/, "form"],
+    [/^\/profile/, "profile"],
+  ];
+
+  /* The app whose pages open with the segmented control (base.html's
+     section_nav — PLU; TimeSheet's places are tabs of the dock). While the
+     page is on its way that strip is drawn too — the real one, copied from
+     the page being left when it is the same app, so the strip does not
+     blink out and back; a bar of its shape otherwise. */
+  var SEGMENTED = /^\/(plu)\//;
+
+  function skeletonFor(href) {
+    var pathname = location.pathname;
+    try { pathname = new URL(href, location.href).pathname; } catch (e) { /* keep the page's own */ }
+
+    var kind = "general";
+    for (var i = 0; i < SKELETON_ROUTES.length; i++) {
+      if (SKELETON_ROUTES[i][0].test(pathname)) { kind = SKELETON_ROUTES[i][1]; break; }
+    }
+
+    var strip = "";
+    var app = (SEGMENTED.exec(pathname) || [])[1];
+    if (app) {
+      var here = document.querySelector("main.container > .segments--places");
+      var sameApp = here && location.pathname.indexOf("/" + app + "/") === 0;
+      if (sameApp) {
+        var copy = here.cloneNode(true);
+        copy.setAttribute("aria-hidden", "true");
+        strip = copy.outerHTML;
+      } else {
+        strip = SK.pill();
+      }
+    }
+
+    return '<div class="skeleton-page skeleton-page--' + kind + '">' + strip + SKELETONS[kind]() + "</div>";
   }
 
   function initLiveSearch() {
@@ -413,6 +607,10 @@
     var timer = null;
     var inFlight = null;
     var lastRendered = initialQuery;
+    // Which page of the results is up. The list shows five at a time and
+    // the rest are a page away, exactly as the page renders without JS.
+    var initialPage = parseInt(new URLSearchParams(location.search).get("page"), 10) || 1;
+    var lastPage = initialQuery ? initialPage : 1;
 
     // Centres the box while nothing has been searched for; see .search-page.
     var page = document.getElementById("search-page");
@@ -447,15 +645,48 @@
           "</span></span>" + ICON_CHEVRON + "</a></li>";
       }
       html += "</ul>";
+      html += pagerHtml(query, data.page, data.pages);
       resultsEl.innerHTML = html;
 
-      var shown = data.results.length;
-      var meta = shown + (shown === 1 ? " result" : " results");
-      if (data.truncated) {
-        meta = "Top " + shown + " of " + data.total + " &mdash; keep typing to narrow it down";
+      var meta = data.total + (data.total === 1 ? " result" : " results");
+      if (data.pages > 1) {
+        meta += " &mdash; page " + data.page + " of " + data.pages;
       }
       setMeta(meta);
     }
+
+    // The same pager templates/_pager.html draws, so the live list and the
+    // page it stands in for look alike. Real links, so a tap works as a
+    // page load too; the click handler below turns them into a fetch.
+    function pagerHtml(query, page, pages) {
+      if (pages <= 1) return "";
+      var ICON_BACK = ICON_CHEVRON.replace("m9 18 6-6-6-6", "m15 18-6-6 6-6");
+      function link(n, cls, inner) {
+        var href = location.pathname + "?q=" + encodeURIComponent(query) + (n > 1 ? "&page=" + n : "");
+        return '<a class="btn pager__btn ' + cls + '" href="' + href + '" data-page="' + n + '">' + inner + "</a>";
+      }
+      function dead(cls, inner) {
+        return '<span class="btn pager__btn ' + cls + '" aria-disabled="true">' + inner + "</span>";
+      }
+      var prev = ICON_BACK + "<span>Previous</span>";
+      var next = "<span>Next</span>" + ICON_CHEVRON;
+      return '<nav class="pager" aria-label="Pagination">' +
+        (page > 1 ? link(page - 1, "pager__btn--prev", prev) : dead("pager__btn--prev", prev)) +
+        '<span class="pager__label">Page ' + page + " of " + pages + "</span>" +
+        (page < pages ? link(page + 1, "pager__btn--next", next) : dead("pager__btn--next", next)) +
+        "</nav>";
+    }
+
+    resultsEl.addEventListener("click", function (event) {
+      var link = event.target.closest && event.target.closest("a[data-page]");
+      if (!link) return;
+      event.preventDefault();
+      run(lastRendered, parseInt(link.getAttribute("data-page"), 10));
+      // The new page starts where the old one did.
+      var top = resultsEl.getBoundingClientRect().top + window.pageYOffset;
+      var bars = (bar ? bar.getBoundingClientRect().height : 0) + 72;
+      if (window.pageYOffset > top - bars) window.scrollTo({ top: Math.max(top - bars, 0) });
+    });
 
     // Back to the "type something" state the page opens in.
     function showIdle() {
@@ -470,17 +701,18 @@
           "Search " + total + " PLU" + (total === 1 ? "" : "s") + " by number or description");
       }
       setIdle(true);
-      lastRendered = "";
+      lastRendered = ""; lastPage = 1;
     }
 
-    function run(query) {
-      if (query === lastRendered) return;
+    function run(query, page) {
+      page = page || 1;
+      if (query === lastRendered && page === lastPage) return;
 
       if (!query) {
         if (inFlight) { inFlight.abort(); inFlight = null; }
         if (bar) bar.classList.remove("is-busy");
         showIdle();
-        syncUrl("");
+        syncUrl("", 1);
         return;
       }
 
@@ -506,7 +738,7 @@
         resultsEl.innerHTML = skeletonRows(5);
       }
 
-      fetch(endpoint + "?q=" + encodeURIComponent(query), {
+      fetch(endpoint + "?q=" + encodeURIComponent(query) + (page > 1 ? "&page=" + page : ""), {
         signal: controller.signal,
         headers: { "X-Requested-With": "XMLHttpRequest" },
       })
@@ -519,8 +751,9 @@
           inFlight = null;
           if (bar) bar.classList.remove("is-busy");
           lastRendered = query;
+          lastPage = data.page;
           renderResults(query, data);
-          syncUrl(query);
+          syncUrl(query, data.page);
         })
         .catch(function (err) {
           if (bar) bar.classList.remove("is-busy");
@@ -533,9 +766,10 @@
     }
 
     // Keep the address bar in step so refresh/share/back give the same view.
-    function syncUrl(query) {
+    function syncUrl(query, page) {
       if (!window.history || !window.history.replaceState) return;
       var url = window.location.pathname + (query ? "?q=" + encodeURIComponent(query) : "");
+      if (query && page > 1) url += "&page=" + page;
       window.history.replaceState(null, "", url);
       noteAddress();
     }
@@ -1044,12 +1278,15 @@
     document.querySelectorAll("form").forEach(function (form) {
       if (form.id && NO_BUSY[form.id]) return;
       // Sent by fetch, and the page stays: a reaction (initReactions) and
-      // an edit made in place (initEditing).
+      // an edit made in place (initEditing). A download stays too.
       if (form.classList.contains("picker") || form.hasAttribute("data-editor")) return;
+      if (form.hasAttribute("data-download")) return;
 
-      form.addEventListener("submit", function () {
+      form.addEventListener("submit", function (event) {
         // A form that failed validation never leaves the page; the browser
         // blocks submit before this fires, so the button is safe to lock.
+        // One whose confirm() was declined stays too, and must not lock.
+        if (event.defaultPrevented) return;
         var btn = form.querySelector('button[type="submit"], button:not([type])');
         if (!btn || btn.classList.contains("is-loading")) return;
 
@@ -1200,35 +1437,301 @@
   }
 
   /* ----------------------------------------------------------------------
-     Cycle start — show the one that applies
-     A workplace carries a start for all three periods, but only the period
-     its limit uses is worth asking about. The others stay in the form (and
-     keep submitting their values), just out of the way.
+     Cycle start — show the ones that apply
+     A workplace carries a start for all three periods, but only the ones
+     in use are worth asking about: the period its cap is counted over, and
+     the one it is paid on. The others stay in the form (and keep submitting
+     their values), just out of the way.
+
+     Two more things a job that pays on a cycle wants. Choosing how it pays
+     sets the cap to the same period — paid fortnightly, the count goes back
+     to zero with each pay fortnight, which is what a limit per pay run is
+     for; it can still be changed after, for a cap on some other cycle. And
+     the fortnight's two answers — which weekday, this week or last — are
+     spelt out as the dates they come to, as they are changed, so the choice
+     can be checked against a payslip before it is saved.
      ---------------------------------------------------------------------- */
   function initPeriodFields() {
     var period = document.getElementById("id_limit_period");
-    if (!period) return;
+    var pays = document.getElementById("id_pay_cycle");
+    var weekday = document.getElementById("id_fortnight_starts_on");
+    var phase = document.getElementById("id_fortnight_phase");
+    if (!period && !weekday) return;
 
     var fields = {
-      WEEK: document.getElementById("id_week_starts_on"),
-      FORTNIGHT: document.getElementById("id_fortnight_anchor"),
-      MONTH: document.getElementById("id_month_starts_on")
+      WEEK: [document.getElementById("id_week_starts_on")],
+      FORTNIGHT: [weekday, phase],
+      MONTH: [document.getElementById("id_month_starts_on")]
     };
 
     var rows = {};
     Object.keys(fields).forEach(function (key) {
-      if (fields[key]) rows[key] = fields[key].closest(".field");
+      rows[key] = fields[key].filter(Boolean).map(function (el) { return el.closest(".field"); }).filter(Boolean);
     });
-    if (!Object.keys(rows).length) return;
+
+    function wanted(key) {
+      if (period && period.value === key) return true;
+      // Paid on it: the pay run reads the same start (Workplace.pay_window).
+      if (pays && pays.value === key) return true;
+      // Nothing to go by (your own cycles form has neither): show them all.
+      return !period && !pays;
+    }
 
     function sync() {
       Object.keys(rows).forEach(function (key) {
-        rows[key].hidden = key !== period.value;
+        var show = wanted(key);
+        rows[key].forEach(function (row) { row.hidden = !show; });
       });
     }
 
-    period.addEventListener("change", sync);
+    if (period) period.addEventListener("change", sync);
+    if (pays) {
+      pays.addEventListener("change", function () {
+        // A job that pays on a cycle counts its cap over that cycle unless
+        // told otherwise; one paid whenever leaves the cap where it was.
+        if (period && pays.value && pays.value !== "IRREGULAR") period.value = pays.value;
+        sync();
+      });
+    }
     sync();
+
+    // ---- the fortnight, as dates ------------------------------------------
+    var hint = document.querySelector("[data-fortnight-hint]");
+    if (!weekday || !phase || !hint) return;
+
+    var DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    function say() {
+      var startsOn = parseInt(weekday.value, 10);
+      if (isNaN(startsOn)) return;
+      // Python counts Monday as 0; JS counts Sunday as 0. Same sum as
+      // models.week_start, in JS's numbering.
+      var today = new Date();
+      var back = ((today.getDay() + 6) % 7 - startsOn + 7) % 7;
+      if (phase.value === "last") back += 7;
+      var start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - back);
+      var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 13);
+      hint.textContent = DAYS[startsOn] + " → " + DAYS[(startsOn + 6) % 7] +
+        ". This one runs " + start.getDate() + " " + MONTHS[start.getMonth()] +
+        " – " + end.getDate() + " " + MONTHS[end.getMonth()] + ".";
+    }
+
+    weekday.addEventListener("change", say);
+    phase.addEventListener("change", say);
+  }
+
+  /* ----------------------------------------------------------------------
+     Workplace — fill the form from a payslip
+     The small button on the workplace form. The file goes to
+     timeclock:workplace_payslip by fetch; what comes back is the boxes to
+     fill (keyed by the form's own ids) and where each figure was read from,
+     which is listed under the button. Boxes are filled, not the form saved:
+     the user checks the figures and presses Save as ever. The name is only
+     filled into an empty box — a job being edited keeps its name.
+     ---------------------------------------------------------------------- */
+  function initPayslipFill() {
+    var block = document.querySelector("[data-payslip]");
+    if (!block || !window.fetch || !window.FormData) return;
+    var input = block.querySelector("[data-payslip-file]");
+    var label = block.querySelector("[data-payslip-label]");
+    var hint = block.querySelector("[data-payslip-hint]");
+    var read = block.querySelector("[data-payslip-read]");
+    var button = block.querySelector(".payslip__btn");
+    var form = block.closest("form");
+    var idle = label.textContent;
+    // True while the slip's figures are going in, so the change events the
+    // fill itself fires aren't taken for the user editing.
+    var filling = false;
+
+    function busy(on) {
+      button.classList.toggle("is-busy", on);
+      button.setAttribute("aria-disabled", on ? "true" : "false");
+      input.disabled = on;
+    }
+
+    function say(text, bad) {
+      hint.textContent = text;
+      hint.classList.toggle("help--error", !!bad);
+    }
+
+    function fill(id, value) {
+      var el = document.getElementById("id_" + id);
+      if (!el) return false;
+      if (id === "name" && el.value.trim()) return false;
+      el.value = String(value);
+      // A select that had no such option keeps what it had.
+      if (el.tagName === "SELECT" && el.value !== String(value)) return false;
+      // Let the period rows and the fortnight hint follow the new value.
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      mark(el.closest(".field"));
+      return true;
+    }
+
+    // A box the slip filled says so beside its label, and stays ringed
+    // until the user types over it — the flash alone is gone before the
+    // eye has left the button.
+    function mark(row) {
+      if (!row) return;
+      row.classList.remove("is-filled");
+      void row.offsetWidth;
+      row.classList.add("is-filled");
+      var label = row.querySelector(".label");
+      if (label && !label.querySelector(".payslip__tag")) {
+        var tag = document.createElement("span");
+        tag.className = "payslip__tag";
+        tag.textContent = "From payslip";
+        label.appendChild(tag);
+      }
+    }
+
+    function unmark(row) {
+      row.classList.remove("is-filled");
+      var tag = row.querySelector(".payslip__tag");
+      if (tag) tag.remove();
+    }
+
+    function show(data) {
+      var count = 0;
+      // The cycle first, so the rows it reveals are there to be filled.
+      var order = ["name", "pay_cycle", "limit_period", "hourly_rate", "tax_rate",
+        "week_starts_on", "fortnight_starts_on", "fortnight_phase", "month_starts_on"];
+      filling = true;
+      order.forEach(function (key) {
+        if (key in data.fields && fill(key, data.fields[key])) count++;
+      });
+      filling = false;
+      read.innerHTML = "";
+      var list = document.createElement("ul");
+      list.className = "payslip__list";
+      (data.read || []).forEach(function (item) {
+        var li = document.createElement("li");
+        var b = document.createElement("b");
+        b.textContent = item.label + " ";
+        var v = document.createElement("span");
+        v.textContent = item.value;
+        var how = document.createElement("small");
+        how.textContent = item.how;
+        li.appendChild(b); li.appendChild(v); li.appendChild(how);
+        list.appendChild(li);
+      });
+      read.appendChild(list);
+      (data.notes || []).forEach(function (note) {
+        var p = document.createElement("p");
+        p.className = "payslip__note";
+        p.textContent = note;
+        read.appendChild(p);
+      });
+      read.hidden = false;
+      say(count
+        ? "Filled " + count + " box" + (count === 1 ? "" : "es") + " below — each is marked “From payslip”. Check them against the slip, then save."
+        : "Read the slip, but every box it could fill already had that value.");
+      label.textContent = "Another payslip";
+    }
+
+    input.addEventListener("change", function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var body = new FormData();
+      body.append("payslip", file);
+      var token = form && form.querySelector('input[name="csrfmiddlewaretoken"]');
+      if (token) body.append("csrfmiddlewaretoken", token.value);
+
+      busy(true);
+      label.textContent = "Reading " + file.name + "…";
+      say("Looking for the rate, the tax withheld and the pay period.");
+      read.hidden = true;
+
+      fetch(block.getAttribute("data-payslip-url"), {
+        method: "POST",
+        body: body,
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch", Accept: "application/json" },
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok && !data.error) throw new Error("not read");
+            return data;
+          });
+        })
+        .then(function (data) {
+          busy(false);
+          if (data.error) {
+            label.textContent = idle;
+            say(data.error, true);
+            return;
+          }
+          show(data);
+        })
+        .catch(function () {
+          busy(false);
+          label.textContent = idle;
+          say("The payslip couldn't be sent. Check the connection and try again — or type the figures in.", true);
+        });
+      // So the same file can be chosen again after a fix.
+      input.value = "";
+    });
+
+    // Anything typed after a fill is the user's, not the slip's: the ring
+    // and the tag come off that box. A select fires change, not input.
+    if (form) {
+      function edited(event) {
+        if (filling) return;
+        var row = event.target.closest && event.target.closest(".field.is-filled");
+        if (row) unmark(row);
+      }
+      form.addEventListener("input", edited);
+      form.addEventListener("change", edited);
+    }
+  }
+
+  /* ----------------------------------------------------------------------
+     Pay — one form, and the date box only when a day is the answer
+     "What did this payment cover" is a list; one of its answers is a day
+     you name, and only then is there a date to ask for. The button asks
+     before it draws the line, in the words of the answer chosen.
+     ---------------------------------------------------------------------- */
+  function initPayForms() {
+    document.querySelectorAll("form[data-settle]").forEach(function (form) {
+      var covers = form.querySelector("[data-settle-covers]");
+      var day = form.querySelector("[data-settle-day]");
+      if (!covers || !day) return;
+
+      function sync() { day.hidden = covers.value !== "date"; }
+      covers.addEventListener("change", sync);
+      sync();
+
+      form.addEventListener("submit", function (event) {
+        var chosen = covers.options[covers.selectedIndex];
+        var what = covers.value === "date"
+          ? "work up to and including " + (form.up_to.value || "the day chosen")
+          : chosen.text;
+        if (!confirm("Mark " + what + " as paid at " + form.getAttribute("data-settle") + "?")) {
+          event.preventDefault();
+        }
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------------------
+     Statement — the quick picks fill the dates
+     "This month" and "Last month" are the two most statements are for; the
+     boxes stay, for any other stretch. The form is marked data-download:
+     the browser saves the file and the page stays, so neither the busy
+     state nor the page skeleton a submit usually brings applies to it.
+     ---------------------------------------------------------------------- */
+  function initStatementForm() {
+    var form = document.querySelector("form[data-statement]");
+    if (!form) return;
+
+    form.querySelectorAll("[data-range]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var parts = btn.getAttribute("data-range").split(":");
+        form.from.value = parts[0];
+        form.to.value = parts[1];
+      });
+    });
+
   }
 
   /* ----------------------------------------------------------------------
@@ -1997,14 +2500,18 @@
     var giveUp = null;
     var parked = null;
     var host = null;
+    var bound = "";   // where the navigation is going — which shape to draw
 
     function show() {
       if (parked) return;
       host = document.querySelector("main.container");
       if (!host) return;
+      // Drawn before the content is set aside: the shape may copy the
+      // segmented control off the page being left.
+      var shapes = skeletonFor(bound);
       parked = document.createDocumentFragment();
       while (host.firstChild) parked.appendChild(host.firstChild);
-      host.innerHTML = skeletonPage();
+      host.innerHTML = shapes;
       host.setAttribute("aria-busy", "true");
       giveUp = setTimeout(restore, GIVE_UP);
     }
@@ -2024,9 +2531,11 @@
       host = null;
     }
 
-    /* Start waiting. The skeleton appears only if the wait turns out long. */
-    function arm() {
+    /* Start waiting, for `href`. The skeleton appears only if the wait
+       turns out long, and in the shape of the page at that address. */
+    function arm(href) {
       clearTimeout(timer);
+      bound = href || "";
       timer = setTimeout(show, WAIT);
     }
 
@@ -2063,7 +2572,7 @@
       if (link.pathname === window.location.pathname &&
           link.search === window.location.search) return;
 
-      pageSkeleton.arm();
+      pageSkeleton.arm(link.href);
     });
 
     document.addEventListener("submit", function (event) {
@@ -2073,7 +2582,12 @@
       if (event.defaultPrevented) return;
       var form = event.target;
       if (form.getAttribute && form.getAttribute("target")) return;
-      pageSkeleton.arm();
+      // A file to save is not a page to wait for.
+      if (form.hasAttribute && form.hasAttribute("data-download")) return;
+      // A form lands wherever its view sends it — usually back where it
+      // was posted from, which the page carries in `next` when it knows.
+      var next = form.querySelector && form.querySelector('input[name="next"]');
+      pageSkeleton.arm(next && next.value ? next.value : form.action);
     });
 
     // Leaving for real: nothing left to wait for.
@@ -2760,7 +3274,7 @@
 
       // Where this page was left, for when it is stepped back to.
       scrolls[shown.key] = window.scrollY;
-      pageSkeleton.arm();
+      pageSkeleton.arm(href);
 
       pageAt(parts[0], maxAge).then(function (entry) {
         if (active !== job) return;   // a later tap took over
@@ -2897,6 +3411,9 @@
     initComposeModal();
     initTally();
     initPeriodFields();
+    initPayslipFill();
+    initPayForms();
+    initStatementForm();
     initCashFields();
     initLiveClock();
     initClientClock();

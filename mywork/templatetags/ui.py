@@ -45,6 +45,8 @@ ICONS = {
     "calendar":   '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>',
     "reply":      '<path d="M9 14 4 9l5-5"/><path d="M4 9h7a7 7 0 0 1 7 7v4"/>',
     "bell":       '<path d="M18 16V11a6 6 0 1 0-12 0v5l-2 3h16Z"/><path d="M10 22h4"/>',
+    "timesheet":  '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/><path d="M8 14h3M8 17.5h6"/>',
+    "more":       '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
     "download":   '<path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
 }
 
@@ -75,3 +77,23 @@ def icon(name, **kwargs):
         'role="img" aria-label="%s"' % escape(label) if label else 'aria-hidden="true"'
     )
     return mark_safe("<svg %s>%s</svg>" % (" ".join(attrs), line))
+
+
+@register.simple_tag(takes_context=True)
+def page_link(context, number):
+    """
+    The address of page `number` of the list on this page, filters kept.
+
+    `?page=3` on its own loses the search or the workplace the list was
+    narrowed to, and every pager used to rebuild the query string by hand
+    with a different set of keys. This takes the request's own query
+    string, swaps the page, and drops the key when it is page one so the
+    first page has the one address it always had.
+    """
+    request = context["request"]
+    params = request.GET.copy()
+    params.pop("page", None)
+    if int(number) > 1:
+        params["page"] = number
+    query = params.urlencode()
+    return "?" + query if query else request.path

@@ -8,9 +8,12 @@ is only what is true of you across the whole of MyWork: your photo, your name,
 and the figures both apps can add up about you.
 """
 
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.noticeboard.models import Comment, CommentReaction, Notice, Reaction
@@ -56,10 +59,20 @@ def profile(request):
     could have been half-typed — and the thing you came here to do most of the
     time is look at what is already true.
     """
+    today = timezone.localdate()
+    # Where the statement form opens: this month so far. Last month is a
+    # tap away on the form itself.
+    last_month_end = today.replace(day=1) - timedelta(days=1)
     return render(request, "accounts/profile.html", {
         "me": Profile.of(request.user),
         "photo_form": PhotoForm(),
         "section_title": "Profile",
+        "workplaces": Workplace.objects.filter(user=request.user).order_by("name"),
+        "statement_from": today.replace(day=1),
+        "statement_to": today,
+        "last_month_from": last_month_end.replace(day=1),
+        "last_month_to": last_month_end,
+        "today": today,
         **_activity(request.user),
     })
 

@@ -495,6 +495,30 @@ img { max-width: 100%; height: auto; display: block; }
 
 .brand__text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ---- The bell -------------------------------------------------------------
+   Alerts, in the corner where a phone keeps it: a round button the size of
+   the face beside it, with the unread count on the bell's shoulder. It is
+   the one place in the app that goes to the inbox, on every page. */
+.appbar__bell {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--text-2);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
+              transform var(--dur-1) var(--ease-snap);
+}
+.appbar__bell svg { width: 22px; height: 22px; }
+.appbar__bell:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+.appbar__bell:active { transform: scale(.92); }
+.appbar__bell .tab__badge { top: -6px; right: -9px; box-shadow: 0 0 0 2px var(--surface); }
+/* Once you are in the inbox the bell says so, the way a lit tab does. */
+.appbar__bell[aria-current="page"] { color: var(--brand); background: var(--brand-soft); }
+/* A new arrival rings it: the count pops in, and the bell gives a nod. */
+.appbar__bell .tab__badge { animation: mw-pop var(--dur-3) var(--ease-snap) both; }
+
 /* Desktop nav lives in the appbar; on phones the tab bar replaces it */
 .appbar__nav { display: none; }
 
@@ -1476,21 +1500,36 @@ input[type="file"] { font-size: 15px; }
 /* --------------------------------------------------------------------------
    12. Pagination
    -------------------------------------------------------------------------- */
+/* The pager (templates/_pager.html): two thumb-sized buttons with the page
+   count between them. On a phone the buttons take equal halves of the row
+   and the count sits under them, so each is a wide target at the bottom of
+   the screen where the thumb already is; wider up, they shrink to their
+   words and the count moves between them. */
 .pager {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
   margin-top: var(--sp-4);
 }
+.pager__btn { flex: 1 1 0; min-width: 0; padding: 0 var(--sp-4); }
+.pager__btn svg { flex: none; width: 18px; height: 18px; }
+.pager__btn--prev { justify-content: flex-start; }
+.pager__btn--next { justify-content: flex-end; }
 .pager__label {
+  flex: 1 1 100%;
+  order: 1;
   font-size: 13px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   text-align: center;
-  flex: 1;
 }
-.pager .btn { flex: none; min-width: 96px; }
+@media (min-width: 480px) {
+  .pager__btn { flex: none; min-width: 120px; }
+  .pager__btn--prev, .pager__btn--next { justify-content: center; }
+  .pager__label { flex: 1 1 auto; order: 0; }
+}
 
 /* --------------------------------------------------------------------------
    13. Detail page
@@ -1968,7 +2007,11 @@ code, .code {
   font-size: 13px;
   color: var(--muted);
 }
+.limit__note { flex-wrap: wrap; row-gap: 2px; }
 .limit__note svg { width: 16px; height: 16px; flex: none; }
+/* The dates the period runs between and the day the count starts again —
+   what makes "this fortnight" a thing on the calendar rather than a word. */
+.limit__until { font-size: 12px; opacity: .85; }
 
 /* Where the count restarted, and what the restart does not excuse. */
 .limit__reset {
@@ -4786,11 +4829,74 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   gap: var(--sp-3);
 }
 
-/* The whole-page one. Nothing but the shapes a MyWork screen is made of: a
-   heading, a couple of cards, a list. */
+/* ---- The page ones ------------------------------------------------------
+   One per kind of screen (app.js SKELETONS), each built from the blocks
+   below in the shape of the page it stands in for — so a screen arrives
+   into a layout that was already there rather than over one that was not.
+   The sizes are the sizes of the real things: a button is 48px because
+   .btn is, a day in the calendar the width a day is. */
 .skeleton-page { display: grid; gap: var(--sp-4); }
 .skeleton-page__head { display: grid; gap: var(--sp-2); }
 .skeleton-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+
+/* A few lines with no card around them; tight, for a label over its box. */
+.skeleton-stack { display: grid; gap: var(--sp-3); }
+.skeleton-stack--tight { gap: var(--sp-2); }
+/* The search page: its box sits low, under a run of empty sky. */
+.skeleton-stack--search { padding-top: 34vh; gap: var(--sp-2); }
+
+/* A heading with a button on the end of the line, or a strip of controls. */
+.skeleton-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.skeleton-bar > .skeleton--line { flex: 1 1 auto; }
+.skeleton-chips { display: flex; gap: var(--sp-2); }
+.skeleton-acts { display: flex; gap: var(--sp-6); padding-top: var(--sp-2); border-top: 1px solid var(--line); }
+
+/* The blocks. */
+.skeleton--big       { height: 34px; border-radius: 8px; }
+.skeleton--btn       { display: block; width: 100%; height: 48px; border-radius: var(--r-md); background: var(--brand-soft); }
+.skeleton--btn-plain { background: var(--surface-2); }
+.skeleton--btn-sm    { flex: none; width: 84px; height: 40px; border-radius: var(--r-pill); }
+.skeleton--field     { display: block; width: 100%; height: 48px; border-radius: var(--r-md); }
+.skeleton--chip      { flex: none; width: 96px; height: 36px; border-radius: var(--r-pill); }
+.skeleton--segments  { display: block; width: 100%; height: 44px; border-radius: var(--r-pill); }
+.skeleton--avatar    { width: 40px; height: 40px; }
+.skeleton--avatar-xl { width: 96px; height: 96px; margin: 0 auto; }
+.skeleton--icon      { width: 44px; height: 44px; margin: 0 auto; }
+.skeleton--icon-sm   { width: 36px; height: 36px; border-radius: var(--r-sm); }
+.skeleton--dot       { width: 28px; height: 28px; }
+.skeleton--square    { flex: none; width: 40px; height: 40px; border-radius: var(--r-sm); }
+.skeleton--drop      { display: block; height: 180px; border: 2px dashed var(--line-strong); border-radius: var(--r-lg); background: none; }
+.skeleton--drop::after { display: none; }
+/* The clock's ring: hollow, so it is the dial and not a grey moon. */
+.skeleton--ring {
+  display: block;
+  width: min(240px, 60vw);
+  aspect-ratio: 1;
+  margin: var(--sp-4) auto;
+  border-radius: 50%;
+  border: 14px solid var(--surface-2);
+}
+/* The calendar: seven a row, as many rows as a month needs. */
+.skeleton-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.skeleton--day { aspect-ratio: 1; border-radius: var(--r-sm); }
+
+/* Cards of particular shapes. */
+.skeleton-card--tile   { min-height: 128px; justify-items: center; align-content: center; }
+.skeleton-card--stat   { gap: var(--sp-2); }
+.skeleton-card--centre { justify-items: center; }
+.skeleton-card--tall   { min-height: 190px; align-content: center; }
+/* A row inside a card is the card's own line, not a result row; a card of
+   rows is a list, and its rows keep a list row's height and rule. */
+.skeleton-card > .skeleton-row { padding: 0; min-height: 0; }
+.skeleton-card > .skeleton-row .skeleton-row__body { gap: 6px; }
+.skeleton-card--rows   { padding: 0 var(--sp-2); gap: 0; }
+.skeleton-card--rows > .skeleton-row { min-height: 56px; padding: var(--sp-2); }
+.skeleton-card--rows > .skeleton-row + .skeleton-row { border-top: 1px solid var(--line); }
+.skeleton-page--person > .skeleton-row { padding: 0; }
+
+/* The segmented control, copied from the page being left, stays where it
+   was; it is a picture of the strip while the page is on its way. */
+.skeleton-page > .segments { pointer-events: none; }
 
 /* --------------------------------------------------------------------------
    30. Pay — what each job still owes
@@ -4884,50 +4990,45 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 }
 .owed__undo:hover { text-decoration: underline; }
 
-/* ---- One pay run ---------------------------------------------------------
-   A job on a cycle owes you a list, not a figure: each closed run is its own
-   payment, arriving on its own day. They are stacked as separate blocks so
-   clearing one visibly clears one. */
-.run + .run { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
-
-.run__dates {
+/* ---- The runs ------------------------------------------------------------
+   A job on a cycle owes a list, not a figure: each closed run is its own
+   payment, arriving on its own day. One line each — the dates, when it is
+   paid, what it comes to — with the run still going at the foot in grey,
+   because nobody is late paying for a fortnight that has not finished. */
+.runs {
+  list-style: none;
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.runs__row {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  font-size: 13px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 48px;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.runs__when {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-2);
 }
-.run__tag {
-  font-size: 12px;
-  font-weight: 550;
-  color: var(--muted);
-}
-
-.run__figure {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  margin: var(--sp-1) 0 var(--sp-3);
-}
-.run__hours {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -.03em;
+.runs__tag { font-size: 12px; font-weight: 500; color: var(--muted); }
+.runs__tag--due { color: var(--warn); font-weight: 600; }
+.runs__figure {
+  flex: none;
+  font-size: 14px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.run__unit { font-size: 15px; font-weight: 600; letter-spacing: -.02em; margin-left: 1px; }
-.run__pay { font-size: 16px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-
-.run__note { font-size: 12.5px; color: var(--muted); }
-
-/* The run still going. Nobody is late paying for a fortnight that hasn't
-   finished, so it is stated rather than actioned. */
-.run--open .run__hours,
-.run--open .run__unit { color: var(--text-2); }
+.runs__row--open .runs__when,
+.runs__row--open .runs__figure { color: var(--muted); font-weight: 500; }
 
 /* Which cycle this job is on, beside its name. */
 .owed__cycle {
@@ -4942,93 +5043,111 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   white-space: nowrap;
 }
 
-/* ---- What a payment covered ---------------------------------------------
-   The unpaid days as they happened, each saying what marking it would clear.
-   The running total is the figure being checked against a payslip, so it sits
-   with the day rather than being worked out in somebody's head. */
-.cover-heading { display: block; margin-top: var(--sp-6); }
-
-.cover-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  overflow: hidden;
-}
-.cover-list > li + li { border-top: 1px solid var(--line); }
-
-.cover {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-}
-
-.cover__day { min-width: 0; }
-.cover__date { display: block; font-size: 14px; font-weight: 600; }
-.cover__times {
-  display: block;
-  margin-top: 1px;
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cover__figures {
-  grid-column: 1;
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-  min-width: 0;
-  flex-wrap: wrap;
-}
-.cover__worked {
-  font-size: 15px;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-.cover__clears { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-
-/* The button spans both rows of the day beside it, so one tap sits opposite
-   one day however many lines that day needs. */
-.cover form { grid-column: 2; grid-row: 1 / -1; }
-.cover__pick { white-space: nowrap; }
-
-/* The rarer of the two answers on a pay card. */
-.owed__partly {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  min-height: 42px;
-  margin-top: var(--sp-2);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-2);
-}
-.owed__partly:hover { color: var(--brand); text-decoration: none; }
-.owed__partly svg { width: 13px; height: 13px; }
+/* ---- Saying you were paid ------------------------------------------------
+   One form on the card: what the payment covered, the date box for when
+   the answer is a day, and the button. The two fields sit closer than a
+   form's usual rhythm, since they are one question. */
+.settle { margin-top: var(--sp-2); }
+.settle .field { margin-bottom: var(--sp-3); }
+.settle__day[hidden] { display: none; }
+.settle .help { margin-top: var(--sp-1); }
 
 /* The span of dates a removal would take with it, said under its own row. */
 .going__when { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
-/* Saying the date outright, for a payment that stopped somewhere no button
-   knows about. The field and its button read as one thing, so the card holds
-   them close rather than at the page's usual rhythm. */
-.cover-date .field { margin-bottom: var(--sp-3); }
-.cover-date .help { margin-top: var(--sp-2); }
-
 /* The workplace's colour beside its name in a page heading. */
 .page-sub .swatch { margin-right: 6px; vertical-align: baseline; }
 
-/* Download a month as a PDF. The same quiet action wherever it appears — on
-   the calendar for any month you're looking at, and under a payment for the
-   month it landed in, which is the one you check against the bank. */
+/* ---- Fill from a payslip, on the workplace form -------------------------
+   One small button above the boxes, the file input hidden under it, and a
+   list of what was read once it has been. A box the slip filled is tagged
+   "From payslip" beside its label and ringed in the brand colour — the
+   ring holds for ten seconds, then a quieter tint stays until the box is edited,
+   so what the slip wrote and what the user wrote never look the same. */
+.payslip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding-bottom: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.payslip__btn { position: relative; overflow: hidden; flex: none; }
+.payslip__btn.is-busy { opacity: .7; pointer-events: none; }
+.payslip__btn:focus-within { box-shadow: 0 0 0 3px var(--brand-soft); }
+/* The real input, over the whole button, invisible: the button is the
+   tap target, and a keyboard still reaches it. */
+.payslip__file {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+.payslip__hint {
+  flex: 1 1 200px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.payslip__hint.help--error { color: var(--danger); }
+.payslip__read { flex: 1 1 100%; }
+.payslip__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3);
+  list-style: none;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.payslip__list li { display: grid; grid-template-columns: 7.5em 1fr; column-gap: var(--sp-2); }
+.payslip__list b { font-weight: 600; color: var(--text-2); }
+.payslip__list small {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.payslip__note { margin: var(--sp-2) 0 0; font-size: 13px; line-height: 1.4; color: var(--warn); }
+
+.field.is-filled > input,
+.field.is-filled > select {
+  border-color: var(--brand);
+  background-color: var(--brand-soft);
+  animation: mw-filled 10s var(--ease) both;
+}
+@keyframes mw-filled {
+  0%   { box-shadow: 0 0 0 3px var(--brand-soft); }
+  85%  { box-shadow: 0 0 0 3px var(--brand-soft); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.payslip__tag {
+  display: inline-block;
+  margin-left: var(--sp-2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: 1px;
+  animation: mw-pop var(--dur-3) var(--ease-snap) both;
+}
+
+/* ---- The statement form, on the profile ---------------------------------
+   Two quick picks, two dates side by side, a job, and the button. */
+.statement-form__quick { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.statement-form__quick .btn { flex: 1 1 0; }
+.statement-form__dates { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.statement-form .field { margin-bottom: var(--sp-3); }
+
+/* Download a PDF: the same quiet link wherever a document is offered. */
 .pdflink {
   display: flex;
   align-items: center;
@@ -5043,26 +5162,6 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 .pdflink:hover { color: var(--brand); text-decoration: none; }
 .pdflink svg { width: 15px; height: 15px; flex: none; }
 
-/* A card's secondary actions, laid out across rather than down. One on its
-   own takes the whole width; two share it. On a phone too narrow to seat
-   both without squeezing the words away, auto-fit drops them back into a
-   column — which is the right answer at that width, not a failure of this
-   one. */
-.cardlinks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: var(--sp-2);
-  margin-top: var(--sp-3);
-  padding-top: var(--sp-1);
-  border-top: 1px solid var(--line);
-}
-.cardlinks .pdflink {
-  min-width: 0;
-  margin-top: 0;
-  padding: 0 var(--sp-2);
-  text-align: center;
-  line-height: 1.35;
-}
 
 
 /* --------------------------------------------------------------------------
@@ -5521,8 +5620,8 @@ body::before {
    35. Notifications — the bell, and the list behind it
    -------------------------------------------------------------------------- */
 
-/* The bell is the Alerts tab in the tab bar, and the unread count rides on
-   its icon — see .tab__badge in §4. Nothing of it lives in the app bar. */
+/* The bell is a button of the app bar (.appbar__bell, §3), and the unread
+   count rides on its icon — the same .tab__badge the dock's tabs use. */
 
 /* ---- The switch at the top of the inbox --------------------------------- */
 

@@ -144,6 +144,63 @@
 </div>
 
 {% comment %}
+  ---- A statement, to download ----------------------------------------------
+
+  Your record as a PDF, laid out like a payslip: the dates you choose, one
+  job or all of them. The one place a statement is made — a payment lands
+  in a bank account as one line, and this is the other side of it, kept as
+  it stood on the day you took it. A plain GET, so the browser saves the
+  file and the page stays where it is.
+{% endcomment %}
+<details class="panel" id="statement">
+  <summary class="panel__head">
+    <span class="panel__title">Statement</span>
+    <span class="panel__hint">PDF, any dates</span>
+    {% icon "chev-down" class="panel__chev" width="2.2" %}
+  </summary>
+
+  <div class="panel__body">
+    <p class="muted text-sm" style="margin-top:0">
+      Hours, pay and payments over the dates you pick, as a PDF to keep
+      beside a payslip or a bank line.
+    </p>
+    <form class="statement-form" method="get" action="{% url 'timeclock:statement' %}" data-statement data-download>
+      <div class="statement-form__quick" role="group" aria-label="Quick dates">
+        <button type="button" class="btn btn--sm" data-range="{{ statement_from|date:'Y-m-d' }}:{{ statement_to|date:'Y-m-d' }}">This month</button>
+        <button type="button" class="btn btn--sm" data-range="{{ last_month_from|date:'Y-m-d' }}:{{ last_month_to|date:'Y-m-d' }}">Last month</button>
+      </div>
+      <div class="statement-form__dates">
+        <div class="field">
+          <label class="label" for="statement-from">From</label>
+          <input type="date" id="statement-from" name="from" required
+                 value="{{ statement_from|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
+        </div>
+        <div class="field">
+          <label class="label" for="statement-to">To</label>
+          <input type="date" id="statement-to" name="to" required
+                 value="{{ statement_to|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}">
+        </div>
+      </div>
+      {% if workplaces|length > 1 %}
+        <div class="field">
+          <label class="label" for="statement-workplace">Workplace</label>
+          <select id="statement-workplace" name="workplace">
+            <option value="">All workplaces</option>
+            {% for place in workplaces %}
+              <option value="{{ place.pk }}">{{ place.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+      <button type="submit" class="btn btn--primary btn--block" id="statement-download">
+        {% icon "download" %}
+        Download PDF
+      </button>
+    </form>
+  </div>
+</details>
+
+{% comment %}
   ---- What you've done in it ------------------------------------------------
 
   One figure leads and the rest support it. The week's hours are the number

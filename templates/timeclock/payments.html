@@ -3,11 +3,17 @@
 {% block title %}Pay · MyWork{% endblock %}
 
 {% comment %}
-  What each job still owes you.
+  What each job still owes you, and one way of saying you have been paid.
 
   One card per workplace and never one total across them: two jobs pay on two
   different days, and a single figure would be cleared by whichever of them
   paid first, taking the other's hours with it.
+
+  Each card is the figure, how it breaks down, and one form under it: what
+  the payment covered — a pay run, everything up to now, or work up to a day
+  you name — and the button. There used to be a button on the card and a
+  second page with three more ways of drawing the same line; this is that
+  line, drawn in one place.
 
   Marking a payment received changes nothing on your timesheet. It draws a
   line at that moment, and the hours before it stop being counted as owed —
@@ -25,103 +31,89 @@
 
 {% if owing %}
   {% for row in owing %}
-    <div class="card card__pad owed">
+    <div class="card card__pad owed" id="pay-{{ row.workplace.pk }}">
       <div class="owed__head">
         <span class="swatch" style="--wp-css: {{ row.workplace|wp_color }}" aria-hidden="true"></span>
         <span class="owed__name">{{ row.workplace.name }}</span>
         <span class="owed__cycle">{{ row.workplace.get_pay_cycle_display|lower }}</span>
       </div>
 
+      {# ---- The figure: everything this job owes, whichever runs it is in. #}
+      <div class="owed__figure">
+        <span class="owed__hours" data-tally="{{ row.worked|seconds }}" data-tally-format="hm">{{ row.worked|hm|default:"0m" }}</span>
+        {% if row.owed_pay %}<span class="owed__pay">${{ row.owed_pay.gross|floatformat:2 }}</span>{% endif %}
+      </div>
+      <p class="owed__meta">
+        {% if row.worked %}
+          owed over {{ row.shifts }} shift{{ row.shifts|pluralize }}{% if row.since %} since you were paid on {{ row.since|date:"j M" }}{% endif %}
+        {% else %}
+          nothing outstanding{% if row.since %} — paid up to {{ row.since|date:"j M" }}{% endif %}
+        {% endif %}
+      </p>
+
       {% if row.scheduled %}
         {% comment %}
-          A job that pays on a cycle. Periods close on their own, so what is
-          owed is a list rather than a figure: each closed one is a payment
-          that may arrive on its own day, and clearing one must not clear
-          another. The period running now is shown apart from them, because
-          nobody is late paying for a fortnight that hasn't finished.
+          A job on a cycle owes a list, not a figure: each closed run is its
+          own payment, arriving on its own day. The run still going is shown
+          with them, greyed — nobody is late paying for a fortnight that has
+          not finished — and from its payday it is payable like the rest.
         {% endcomment %}
-        {% for run in row.due %}
-          <div class="run run--due">
-            <div class="run__dates">
-              {{ run.start|date:"j M" }} – {{ run.payday|date:"j M" }}
-              <span class="run__tag">payday {{ run.payday|date:"D j M" }}</span>
-            </div>
-            <div class="run__figure">
-              <span class="run__hours">{{ run.hours|floatformat:1 }}<span class="run__unit">h</span></span>
-              {% if run.pay %}<span class="run__pay">${{ run.pay.gross|floatformat:2 }}</span>{% endif %}
-            </div>
-            {% include "timeclock/_pay_button.html" with workplace=row.workplace through=run.end confirm=run.confirm %}
-          </div>
-        {% endfor %}
+        <ul class="runs">
+          {% for run in row.due %}
+            <li class="runs__row">
+              <span class="runs__when">
+                {{ run.start|date:"j M" }} – {{ run.payday|date:"j M" }}
+                <span class="runs__tag runs__tag--due">due · payday {{ run.payday|date:"D j M" }}</span>
+              </span>
+              <span class="runs__figure">{{ run.hours|floatformat:1 }}h{% if run.pay %} · ${{ run.pay.gross|floatformat:2 }}{% endif %}</span>
+            </li>
+          {% endfor %}
+          <li class="runs__row{% if not row.current.payable %} runs__row--open{% endif %}">
+            <span class="runs__when">
+              This {{ row.workplace.pay_cycle_label }} · {{ row.current.start|date:"j M" }} – {{ row.current.payday|date:"j M" }}
+              <span class="runs__tag">
+                {% if row.current.payable %}payday was {{ row.current.payday|date:"D j M" }}{% else %}paid {{ row.current.payday|date:"D j M" }}{% endif %}
+              </span>
+            </span>
+            <span class="runs__figure">{{ row.current.hours|floatformat:1 }}h{% if row.current.pay %} · ${{ row.current.pay.gross|floatformat:2 }}{% endif %}</span>
+          </li>
+        </ul>
+      {% endif %}
 
+      {% if row.worked %}
         {% comment %}
-          The run in progress. From its payday it can be settled like any
-          other — you are paid on the Wednesday, and the run not closing until
-          Thursday is the app's business, not yours.
+          The one form. "What did it cover" is a list of the answers this job
+          can have — its unpaid runs, everything up to now, or a day you
+          name — and the button draws the line there. A run answer records
+          that run and nothing either side of it; a day sweeps up everything
+          before it, however many runs that spans. app.js (initPayForms)
+          shows the date box only when a day is the answer.
         {% endcomment %}
-        <div class="run{% if row.current.payable %} run--due{% else %} run--open{% endif %}">
-          <div class="run__dates">
-            This {{ row.workplace.pay_cycle_label }}
-            <span class="run__tag">{{ row.current.start|date:"j M" }} – {{ row.current.payday|date:"j M" }}</span>
+        <form class="settle" method="post" action="{% url 'timeclock:payment_record' row.workplace.pk %}"
+              data-settle="{{ row.workplace.name }}">
+          {% csrf_token %}
+          <div class="field settle__what">
+            <label class="label" for="covers-{{ row.workplace.pk }}">This payment covered</label>
+            <select id="covers-{{ row.workplace.pk }}" name="covers" data-settle-covers>
+              {% for choice in row.covers %}
+                <option value="{{ choice.value }}"{% if forloop.first %} selected{% endif %}>{{ choice.label }}</option>
+              {% endfor %}
+              <option value="date">Work up to a day I choose…</option>
+            </select>
           </div>
-          <div class="run__figure">
-            <span class="run__hours">{{ row.current.hours|floatformat:1 }}<span class="run__unit">h</span></span>
-            {% if row.current.pay %}<span class="run__pay">${{ row.current.pay.gross|floatformat:2 }}</span>{% endif %}
+          <div class="field settle__day" data-settle-day>
+            <label class="label" for="up-to-{{ row.workplace.pk }}">Paid up to and including</label>
+            <input type="date" id="up-to-{{ row.workplace.pk }}" name="up_to"
+                   value="{{ today|date:'Y-m-d' }}"
+                   {% if row.earliest %}min="{{ row.earliest|date:'Y-m-d' }}"{% endif %}
+                   max="{{ today|date:'Y-m-d' }}">
+            <div class="help">Everything worked on or before this day is settled; the count starts again the day after.</div>
           </div>
-
-          {% if row.current.payable and row.current.hours %}
-            <p class="run__note">Payday was {{ row.current.payday|date:"l j M" }}.</p>
-            {% include "timeclock/_pay_button.html" with workplace=row.workplace through=row.current.end confirm=row.current.confirm %}
-          {% else %}
-            <p class="run__note">
-              Still running — you're paid on {{ row.current.payday|date:"l j M" }}.
-            </p>
-          {% endif %}
-        </div>
-
-        {% comment %}
-          A run button settles a whole run. When the money stopped somewhere
-          inside one — an employer paying up to the Saturday of a fortnight
-          that runs to the Wednesday — the date has to be sayable outright.
-        {% endcomment %}
-        <a class="owed__partly" href="{% url 'timeclock:payment_choose' row.workplace.pk %}">
-          It covered work up to a particular date
-          {% icon "chev" %}
-        </a>
-
-      {% else %}
-        {% comment %}
-          A job that pays when it gets round to it. No periods to divide —
-          one running figure of everything since the last payment, and a
-          button that wipes it the day the money turns up.
-        {% endcomment %}
-        <div class="run run--open">
-          <div class="owed__figure">
-            <span class="owed__hours">{{ row.current.hours|floatformat:1 }}<span class="owed__unit">h</span></span>
-            {% if row.current.pay %}<span class="owed__pay">${{ row.current.pay.gross|floatformat:2 }}</span>{% endif %}
-          </div>
-          <p class="owed__meta">
-            {% if row.current.hours %}
-              owed over {{ row.current.shifts }} shift{{ row.current.shifts|pluralize }}{% if row.since %}, since {{ row.since|date:"j M" }}{% endif %}
-            {% else %}
-              nothing outstanding{% if row.since %} since {{ row.since|date:"j M" }}{% endif %}
-            {% endif %}
-          </p>
-
-          {% if row.current.hours %}
-            {% include "timeclock/_pay_button.html" with workplace=row.workplace confirm=row.current.confirm %}
-
-            {% comment %}
-              Quieter, because it is the rarer answer — but it is the right one
-              for a job that pays you on a Sunday for the work before it, where
-              "everything up to now" would clear the shift you did that morning.
-            {% endcomment %}
-            <a class="owed__partly" href="{% url 'timeclock:payment_choose' row.workplace.pk %}">
-              It only covered work up to an earlier day
-              {% icon "chev" %}
-            </a>
-          {% endif %}
-        </div>
+          <button type="submit" class="btn btn--primary btn--block">
+            {% icon "check" %}
+            Payment received
+          </button>
+        </form>
       {% endif %}
 
       {% if row.last_payment %}
@@ -140,31 +132,6 @@
             <button type="submit" class="owed__undo">Undo</button>
           </form>
         </div>
-
-      {% endif %}
-
-      {% comment %}
-        The two things you do with a card once the money has landed, side by
-        side rather than one above the other: one takes the employer's
-        paperwork in, the other hands your own record back out. Neither is
-        this card's main action — that is the button above — so it does not
-        get a button's weight.
-      {% endcomment %}
-      {% if row.last_payment %}
-      <div class="cardlinks">
-          {% comment %}
-            Straight after a payment the figure above it is gone — that is
-            what the button is for. This is that figure kept: the month the
-            money landed in, as a PDF to sit next to the line on the bank feed.
-          {% endcomment %}
-          <a class="pdflink"
-             href="{% url 'timeclock:statement' row.last_payment.created_at|date:'Y' row.last_payment.created_at|date:'n' %}?workplace={{ row.workplace.pk }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-            </svg>
-            {{ row.last_payment.created_at|date:"F" }} statement
-          </a>
-      </div>
       {% endif %}
     </div>
   {% endfor %}

@@ -8,19 +8,27 @@
   a phone, and in the app bar on a wide screen. Same markup either way, so
   the two can never disagree.
 
-  A tab lights up for the whole of the app it leads to, not only for the page
-  it links: the Clock tab is on while you are anywhere in TimeSheet, because
-  that is the question a tab bar answers — which part of the app am I in.
-  Within an app, the places under that tab are the segmented control at the
-  top of the page (see section_nav in base.html). The holidays calendar
-  belongs to the hub, which is where its card lives.
+  A tab lights up for the pages it leads to. PLU is one tab, with its own
+  places (Search, Photo) as a segmented control at the top of its pages
+  (see section_nav in base.html); TimeSheet is three tabs — Clock,
+  Timesheet, More — and has no segments. The holidays calendar and the
+  notice board belong to the hub, which is where they live.
 
-  Alerts wears the unread count, the way a native tab does, so the number is
-  where your thumb already is rather than up in the corner.
+  Alerts is not one of the five: the bell sits in the app bar with its count
+  on it (base.html), the way a phone keeps notifications in the corner, and
+  the fifth slot is More.
+{% endcomment %}
+{% comment %}
+  `more_pages` — which TimeSheet pages are the More tab's — comes from
+  mywork/context_processors.py, where the segmented control reads it too.
 {% endcomment %}
 {% with ns=request.resolver_match.namespace name=request.resolver_match.url_name %}
 
-<a class="tab{% if ns == 'holidays' or ns == '' and name == 'home' %} is-active{% endif %}"
+{% comment %}
+  Home carries the board — the notices are on the hub — so a page of the
+  board lights Home rather than a tab of its own.
+{% endcomment %}
+<a class="tab{% if ns == 'holidays' or ns == 'notices' or ns == '' and name == 'home' %} is-active{% endif %}"
    href="{% url 'home' %}">
   {% icon "home" %}
   <span class="tab__label">Home</span>
@@ -32,26 +40,29 @@
   <span class="tab__label">PLU</span>
 </a>
 
-<a class="tab{% if ns == 'timeclock' %} is-active{% endif %}"
+{% comment %}
+  TimeSheet is three tabs: the clock, the timesheet it fills, and More for
+  the settings behind them. They used to be one tab with a segmented
+  control inside it; now each is a tap from anywhere. Each lights for its
+  own pages only — see timesheet_pages and more_pages, which come from
+  mywork/context_processors.py — so no two light together.
+{% endcomment %}
+<a class="tab{% if ns == 'timeclock' and name not in timesheet_pages and name not in more_pages %} is-active{% endif %}"
    href="{% url 'timeclock:dashboard' %}">
   {% icon "clock" %}
   <span class="tab__label">Clock</span>
 </a>
 
-<a class="tab{% if ns == 'notices' %} is-active{% endif %}"
-   href="{% url 'notices:board' %}">
-  {% icon "chat-lines" %}
-  <span class="tab__label">Board</span>
+<a class="tab{% if ns == 'timeclock' and name in timesheet_pages %} is-active{% endif %}"
+   href="{% url 'timeclock:timesheet' %}">
+  {% icon "timesheet" %}
+  <span class="tab__label">Timesheet</span>
 </a>
 
-<a class="tab{% if ns == 'notifications' %} is-active{% endif %}"
-   href="{% url 'notifications:inbox' %}" data-no-cache
-   aria-label="Alerts{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}">
-  <span class="tab__icon">
-    {% icon "bell" %}
-    {% if unread_notifications %}<span class="tab__badge" aria-hidden="true">{{ unread_badge }}</span>{% endif %}
-  </span>
-  <span class="tab__label">Alerts</span>
+<a class="tab{% if ns == 'timeclock' and name in more_pages %} is-active{% endif %}"
+   href="{% url 'timeclock:more' %}">
+  {% icon "more" %}
+  <span class="tab__label">More</span>
 </a>
 
 {% endwith %}

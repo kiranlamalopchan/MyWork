@@ -48,6 +48,8 @@
       {% else %}
         {{ limit.remaining|hm }} remaining
       {% endif %}
+      {# The period is a date on the calendar, and the count restarts with it. #}
+      <span class="limit__until">· {{ limit.period_start|date:"j M" }} – {{ limit.period_end|date:"j M" }}, resets {{ limit.resets_on|date:"D j M" }}</span>
     </div>
 
     {% if limit.paid_at %}

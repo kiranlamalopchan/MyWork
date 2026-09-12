@@ -1,7 +1,7 @@
 /* MyWork — notifications on this device.
 
    Everything here is an enhancement over a page that already works: the
-   Alerts tab, the inbox behind it and the count on both are rendered by
+   bell in the app bar, the inbox behind it and the count on both are rendered by
    Django and need none of this. What this file adds is the part a server
    cannot do — asking the browser for permission, handing the subscription
    back, and putting a number on the home-screen icon.

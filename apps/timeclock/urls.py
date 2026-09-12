@@ -28,6 +28,7 @@ urlpatterns = [
 
     path("workplaces/", views.workplace_list, name="workplaces"),
     path("workplaces/add/", views.workplace_create, name="workplace_create"),
+    path("workplaces/payslip/", views.workplace_payslip, name="workplace_payslip"),
     path("workplaces/<int:pk>/edit/", views.workplace_edit, name="workplace_edit"),
     # Removing takes the shifts, breaks and payments with it, so
     # the screen that counts them comes first and the POST does it.
@@ -35,14 +36,14 @@ urlpatterns = [
     path("workplaces/<int:pk>/delete/", views.workplace_delete, name="workplace_delete"),
     path("workplaces/<int:pk>/default/", views.workplace_make_default, name="workplace_default"),
 
-    # What each job still owes, and the button that draws a line under it.
+    # What each job still owes, and the one form that draws a line under it:
+    # a run, everything up to now, or a day named outright.
     path("pay/", views.payments, name="payments"),
     path("pay/<int:pk>/received/", views.payment_record, name="payment_record"),
-    # When the money covered work up to some earlier day rather than up to now.
-    path("pay/<int:pk>/covers/", views.payment_choose, name="payment_choose"),
     path("pay/<int:pk>/undo/", views.payment_undo, name="payment_undo"),
-    # A month as a PDF, to check a payment against the line on a bank feed.
-    path("pay/statement/<int:year>/<int:month>/", views.statement, name="statement"),
+    # A stretch of the record as a PDF, asked for from the profile — any
+    # dates, one job or all — to check a payment against a bank feed.
+    path("statement/", views.statement, name="statement"),
 
     # The employer's own statement of what they paid, read and checked
     # against the hours you recorded for the same days.

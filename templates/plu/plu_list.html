@@ -68,23 +68,7 @@
       {% endfor %}
     </ul>
 
-    {% if page_obj.paginator.num_pages > 1 %}
-      <nav class="pager" aria-label="Pagination">
-        {% if page_obj.has_previous %}
-          <a class="btn" href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" rel="prev">Previous</a>
-        {% else %}
-          <span class="btn" aria-disabled="true">Previous</span>
-        {% endif %}
-
-        <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-
-        {% if page_obj.has_next %}
-          <a class="btn" href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ page_obj.next_page_number }}" rel="next">Next</a>
-        {% else %}
-          <span class="btn" aria-disabled="true">Next</span>
-        {% endif %}
-      </nav>
-    {% endif %}
+    {% include "_pager.html" with page_obj=page_obj prev="Previous" next="Next" %}
 
   {% else %}
     <div class="card">

@@ -161,6 +161,32 @@ def _recent_fortnight_start():
     return week_start(timezone.localdate(), DEFAULT_FORTNIGHT_START)
 
 
+def fortnight_anchor_for(starts_on, started_last_week=False, today=None):
+    """
+    The date the current fortnight opened, given only what a person knows.
+
+    Nobody knows "a date the cycle has started on"; what they know is that
+    it runs Thursday to Wednesday and whether this week's Thursday or last
+    week's was the one payday counts from. Those two answers pin down the
+    fortnight exactly, and from there every one after it opens itself: the
+    hours cap and the pay run both count from `fortnight_start`, which steps
+    forward 14 days at a time from whatever is stored here.
+    """
+    today = today or timezone.localdate()
+    start = week_start(today, starts_on)
+    return start - timedelta(days=7) if started_last_week else start
+
+
+def fortnight_started_last_week(anchor, today=None):
+    """
+    Whether the fortnight open today began last week rather than this one —
+    the answer `fortnight_anchor_for` asks for, read back off a stored
+    anchor so a form can show a person the choice they made.
+    """
+    today = today or timezone.localdate()
+    return fortnight_start(today, anchor) < week_start(today, anchor.weekday())
+
+
 def fortnight_runs(anchor):
     """
     "Thursday → Wednesday": the days a fortnight anchored here runs between.

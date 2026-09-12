@@ -5,10 +5,13 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms import inlineformset_factory
 from django.utils import timezone
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
 
 from .models import (
-    MAX_MONTH_START_DAY, Break, PaidIn, Shift, TimePreference,
-    Workplace, fortnight_runs,
+    DEFAULT_FORTNIGHT_START, MAX_MONTH_START_DAY, Break, PaidIn, Shift,
+    TimePreference, Weekday, Workplace, fortnight_anchor_for, fortnight_runs,
+    fortnight_start, fortnight_started_last_week,
 )
 
 # Phones give a proper date+time spinner for this input type, which beats
@@ -26,21 +29,68 @@ class LocalDateTimeField(forms.DateTimeField):
         super().__init__(**kwargs)
 
 
-def _say_which_days(form):
+class FortnightFields:
     """
-    Spell out the cycle the chosen anchor actually produces.
+    The fortnight, asked for the way a person knows it.
 
-    The field asks for a date, but what it sets is a weekday: every cycle
-    from then on starts on the same day of the week. Saying so under the box
-    turns a date nobody can read a rule out of into a rule you can check.
+    The model stores a date the cycle opened on and counts forward 14 days at
+    a time from it, which is the right thing to store and the wrong thing to
+    ask for — a box wanting "any date the cycle has started on" reads as a
+    date to look up every fortnight. What somebody actually knows is the day
+    of the week their fortnight starts, and whether the one they are in now
+    began this week or last. Those are the two fields here; the date is
+    worked out from them on save (`fortnight_anchor_for`) and read back into
+    them when the form is opened again, so the cycle then rolls over on its
+    own, fortnight after fortnight, with nothing more to set.
+
+    Mixed into both forms that carry a fortnight — a workplace's and your
+    own — so the two ask the same question the same way.
     """
-    field = form.fields["fortnight_anchor"]
-    anchor = getattr(form.instance, "fortnight_anchor", None)
-    if anchor:
-        field.help_text = f"{field.help_text} Fortnights run {fortnight_runs(anchor)}."
+
+    PHASES = [
+        ("this", "This week"),
+        ("last", "Last week"),
+    ]
+
+    def _add_fortnight_fields(self):
+        anchor = getattr(self.instance, "fortnight_anchor", None)
+        today = timezone.localdate()
+        self.fields["fortnight_starts_on"] = forms.TypedChoiceField(
+            label="Fortnight starts on",
+            choices=Weekday.choices,
+            coerce=int,
+            initial=anchor.weekday() if anchor else DEFAULT_FORTNIGHT_START,
+            help_text="Every fortnight opens on this day; the count starts again with it.",
+        )
+        self.fields["fortnight_phase"] = forms.ChoiceField(
+            label="The fortnight you are in now began",
+            choices=self.PHASES,
+            initial="last" if anchor and fortnight_started_last_week(anchor, today) else "this",
+            help_text=mark_safe('<span data-fortnight-hint>%s</span>' % escape(
+                _fortnight_hint(anchor, today) if anchor else ""
+            )),
+        )
+
+    def _resolve_fortnight(self, cleaned):
+        """Turn the two answers into the date the model keeps."""
+        starts_on = cleaned.get("fortnight_starts_on")
+        if starts_on is None or starts_on == "":
+            return
+        self.instance.fortnight_anchor = fortnight_anchor_for(
+            starts_on, started_last_week=cleaned.get("fortnight_phase") == "last"
+        )
 
 
-class WorkplaceForm(forms.ModelForm):
+def _fortnight_hint(anchor, today):
+    """"Thursday → Wednesday. This one: 10 Sep – 23 Sep." — under the box."""
+    start = fortnight_start(today, anchor)
+    end = start + timedelta(days=13)
+    return "%s. This one runs %s – %s." % (
+        fortnight_runs(anchor), start.strftime("%-d %b"), end.strftime("%-d %b")
+    )
+
+
+class WorkplaceForm(FortnightFields, forms.ModelForm):
     """
     Everything about one workplace, its own hours cap included — the cap is
     per workplace, so this is the only screen that sets it.
@@ -48,10 +98,12 @@ class WorkplaceForm(forms.ModelForm):
 
     class Meta:
         model = Workplace
+        # The fortnight is asked for as a weekday and a this-week-or-last
+        # (FortnightFields), not as the date the model keeps.
         fields = [
             "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate", "tax_rate",
             "hours_limit", "limit_period",
-            "week_starts_on", "fortnight_anchor", "month_starts_on",
+            "week_starts_on", "month_starts_on",
             "is_default",
         ]
         labels = {
@@ -65,7 +117,6 @@ class WorkplaceForm(forms.ModelForm):
             "hours_limit": "Hours limit here (optional)",
             "limit_period": "Applies",
             "week_starts_on": "Week starts on",
-            "fortnight_anchor": "Fortnight starts from",
             "month_starts_on": "Month starts on day",
             "is_default": "Use as my default workplace",
         }
@@ -84,7 +135,6 @@ class WorkplaceForm(forms.ModelForm):
             "hours_limit": forms.NumberInput(
                 attrs={"step": "0.5", "min": "0", "inputmode": "decimal", "placeholder": "e.g. 48"}
             ),
-            "fortnight_anchor": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "month_starts_on": forms.NumberInput(
                 attrs={"min": "1", "max": str(MAX_MONTH_START_DAY), "inputmode": "numeric"}
             ),
@@ -102,7 +152,6 @@ class WorkplaceForm(forms.ModelForm):
             "tax_rate": "From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax.",
             "hours_limit": "Counted against this workplace only. Leave blank for no limit.",
             "week_starts_on": "Used for a weekly limit, and for this job's week totals.",
-            "fortnight_anchor": "Any date this job's fortnight cycle has started on.",
             "month_starts_on": f"1–{MAX_MONTH_START_DAY}. Use the day your pay month opens.",
         }
 
@@ -121,7 +170,15 @@ class WorkplaceForm(forms.ModelForm):
         # Nor is how you are handed it: an older client that never saw the
         # field leaves a workplace as it was rather than failing on it.
         self.fields["paid_in"].required = False
-        _say_which_days(self)
+        self._add_fortnight_fields()
+        # Asked for in the order the cap is: which period, then where each
+        # period starts — the fortnight's two answers beside the week's one.
+        self.order_fields([
+            "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate", "tax_rate",
+            "hours_limit", "limit_period",
+            "week_starts_on", "fortnight_starts_on", "fortnight_phase", "month_starts_on",
+            "is_default",
+        ])
 
     def clean_pay_cycle(self):
         return self.cleaned_data.get("pay_cycle") or self.instance.pay_cycle
@@ -140,6 +197,7 @@ class WorkplaceForm(forms.ModelForm):
         cleaned = super().clean()
         if cleaned.get("paid_in") == PaidIn.CASH:
             cleaned["tax_rate"] = None
+        self._resolve_fortnight(cleaned)
         return cleaned
 
     def clean_color(self):
@@ -310,7 +368,7 @@ BreakFormSet = inlineformset_factory(
 )
 
 
-class TimePreferenceForm(forms.ModelForm):
+class TimePreferenceForm(FortnightFields, forms.ModelForm):
     """
     Where your own week, fortnight and month begin.
 
@@ -321,24 +379,27 @@ class TimePreferenceForm(forms.ModelForm):
 
     class Meta:
         model = TimePreference
-        fields = ["week_starts_on", "fortnight_anchor", "month_starts_on"]
+        fields = ["week_starts_on", "month_starts_on"]
         labels = {
             "week_starts_on": "Week starts on",
-            "fortnight_anchor": "Fortnight starts from",
             "month_starts_on": "Month starts on day",
         }
         widgets = {
-            "fortnight_anchor": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "month_starts_on": forms.NumberInput(
                 attrs={"min": "1", "max": str(MAX_MONTH_START_DAY), "inputmode": "numeric"}
             ),
         }
         help_texts = {
             "week_starts_on": "Also sets which day the calendar grid starts on.",
-            "fortnight_anchor": "Any date your fortnight cycle has started on.",
             "month_starts_on": f"1–{MAX_MONTH_START_DAY}. Use 1 for the calendar month.",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        _say_which_days(self)
+        self._add_fortnight_fields()
+        self.order_fields(["week_starts_on", "fortnight_starts_on", "fortnight_phase", "month_starts_on"])
+
+    def clean(self):
+        cleaned = super().clean()
+        self._resolve_fortnight(cleaned)
+        return cleaned

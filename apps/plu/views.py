@@ -30,7 +30,10 @@ def is_staff_user(user):
 
 # Live search sends a request per typing pause, so cap what comes back; the
 # result list is scrolled on a phone and nobody scrolls past a few dozen rows.
-SEARCH_LIMIT = 50
+# Results a page: five, so a phone shows the answer and not a scroll, and
+# the rest are a page away. The same figure for the page and the live
+# search, so pressing Search and typing land on the same list.
+PER_PAGE = 5
 
 # The codes this shop actually reaches for. They are a small band in a list of
 # a thousand, and they are most of what anybody searches for, so they sort
@@ -124,7 +127,7 @@ def plu_list(request):
 
     page_obj = None
     if q:
-        paginator = Paginator(search_plu_items(q), 25)
+        paginator = Paginator(search_plu_items(q), PER_PAGE)
         page_obj = paginator.get_page(request.GET.get("page"))
 
     # Real descriptions for the animated placeholder, so the examples always
@@ -150,8 +153,9 @@ def plu_list(request):
 @login_required
 def search_api(request):
     """
-    JSON backing the live search on the list page. Returns at most
-    SEARCH_LIMIT rows, and says so via `truncated` when there are more.
+    JSON backing the live search on the list page: one page of PER_PAGE
+    rows, cut the same way the page itself is, with `page` and `pages` so
+    app.js can draw the same pager under them.
 
     An empty query comes back empty rather than as the whole table: the page
     shows a prompt until you type something.
@@ -159,18 +163,19 @@ def search_api(request):
     q = (request.GET.get("q") or "").strip()
 
     if not q:
-        return JsonResponse({"q": "", "total": 0, "truncated": False, "results": []})
+        return JsonResponse({"q": "", "total": 0, "page": 1, "pages": 1, "results": []})
 
-    qs = search_plu_items(q)
-    total = qs.count()
-    rows = qs.values("plu_no", "description")[:SEARCH_LIMIT]
+    page_obj = Paginator(
+        search_plu_items(q).values("plu_no", "description"), PER_PAGE
+    ).get_page(request.GET.get("page"))
 
     return JsonResponse(
         {
             "q": q,
-            "total": total,
-            "truncated": total > SEARCH_LIMIT,
-            "results": list(rows),
+            "total": page_obj.paginator.count,
+            "page": page_obj.number,
+            "pages": page_obj.paginator.num_pages,
+            "results": list(page_obj.object_list),
         }
     )
 

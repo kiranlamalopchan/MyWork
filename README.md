@@ -14,11 +14,13 @@ entirely to that app.
 **TimeSheet Management** (`apps.timeclock`, mounted at `/timesheet/`)
 - Clock in and out, with breaks
 - Review shifts as a list or a month calendar, and edit them
-- Save workplaces and pick which one a shift belongs to
+- Save workplaces and pick which one a shift belongs to — or fill one in
+  from a payslip (PDF, photo or screenshot): hourly rate, tax withheld %
+  and the pay cycle are read off it
 - Set a weekly or fortnightly hours limit and track against it
 
 **Notifications** (`apps.notifications`, mounted at `/notifications/`)
-- An Alerts tab with a count on it, and the inbox behind it
+- A bell in the app bar with a count on it, and the inbox behind it
 - Web Push, so a notification arrives with the app closed
 - Raised by the board (new notice, comment, reply, reaction) and by
   TimeSheet (a forgotten clock-out, an hours cap coming up)
@@ -97,7 +99,7 @@ is for a laptop, not for a site with an address.
 
 ## Notifications
 
-The Alerts tab, the inbox and the count on them are plain Django and need no setup:
+The bell, the inbox and the count on them are plain Django and need no setup:
 every event is recorded whether or not anything can be delivered. What needs
 setting up is the *push* half — the part that reaches a phone with the app
 closed.
@@ -243,10 +245,11 @@ with a few `min-width` queries for tablets and desktops. The pieces of chrome
 worth knowing: the **app bar** behaves like a navigation bar — a page's
 `.backlink` is lifted into its left corner on phones and the page's `h1`
 appears in its middle once it has scrolled away; the **dock** at the foot of
-a phone is one bar for the whole app, and its solid green pill is a knob that
-slides between the tabs (tapping the tab you are on scrolls to the top);
-the **segmented controls** (`.segments`: Clock / Timesheet / More, and List /
-Calendar) are the same track-and-knob; and every yes-or-no is a **switch**
+a phone is one bar for the whole app — Home, PLU, Clock, Timesheet, More,
+with the bell for Alerts up in the app bar — and its solid green pill is a
+knob that slides between the tabs (tapping the tab you are on scrolls to the
+top); the **segmented controls** (`.segments`: Search / Photo on PLU, and
+List / Calendar on the timesheet) are the same track-and-knob; and every yes-or-no is a **switch**
 (`.switch` — the markup is in `timeclock/_form_fields.html`) modelled on the
 day-and-night switch in the app bar. Pages come in the way screens do — a
 push from the right, a pop back to the left, a cross-fade between tabs —

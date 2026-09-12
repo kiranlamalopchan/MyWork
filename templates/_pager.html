@@ -1,0 +1,27 @@
+{% load ui %}
+{% comment %}
+  The pager under every list that runs to more than one page: notices,
+  the inbox, the timesheet, the PLU search.
+
+    {% include "_pager.html" with page_obj=page_obj prev="Newer" next="Older" %}
+
+  `prev` and `next` default to Previous and Next. The links keep whatever
+  the list was filtered by (page_link, in templatetags/ui.py) and are thumb
+  sized: two equal halves on a phone with the page count between them, the
+  disabled end still drawn so the buttons never jump sides.
+{% endcomment %}
+{% if page_obj.paginator.num_pages > 1 %}
+  <nav class="pager" aria-label="Pagination">
+    {% if page_obj.has_previous %}
+      <a class="btn pager__btn pager__btn--prev" href="{% page_link page_obj.previous_page_number %}" rel="prev">{% icon "back" %}<span>{{ prev|default:"Previous" }}</span></a>
+    {% else %}
+      <span class="btn pager__btn pager__btn--prev" aria-disabled="true">{% icon "back" %}<span>{{ prev|default:"Previous" }}</span></span>
+    {% endif %}
+    <span class="pager__label">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="btn pager__btn pager__btn--next" href="{% page_link page_obj.next_page_number %}" rel="next"><span>{{ next|default:"Next" }}</span>{% icon "chev" %}</a>
+    {% else %}
+      <span class="btn pager__btn pager__btn--next" aria-disabled="true"><span>{{ next|default:"Next" }}</span>{% icon "chev" %}</span>
+    {% endif %}
+  </nav>
+{% endif %}

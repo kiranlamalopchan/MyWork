@@ -17,6 +17,7 @@ from django.utils import timezone
 from .forms import WorkplaceForm
 from .models import (
     Break,
+    fortnight_anchor_for,
     fortnight_start,
     PaidIn,
     PayCycle,
@@ -29,7 +30,7 @@ from .models import (
     next_month_start,
     week_start,
 )
-from .views import SESSION_WORKPLACE, _limit_for, _limits_for, _pay_state
+from .views import SESSION_WORKPLACE, _limit_for, _limits_for, _midnight, _pay_state
 
 
 class ShiftFlowTests(TestCase):
@@ -881,17 +882,21 @@ class NavigationTests(TestCase):
                 # One tab bar for the whole app, the hub included.
                 self.assertIn('class="tabbar__inner"', html)
                 self.assertIn('class="tab__label">Home</span>', html)
-                self.assertIn('class="tab__label">Alerts</span>', html)
+                self.assertIn('class="tab__label">More</span>', html)
+                # Alerts is the bell in the app bar, not a tab.
+                self.assertNotIn('class="tab__label">Alerts</span>', html)
+                self.assertIn('class="appbar__bell"', html)
                 # The menu in the corner is yours alone; apps are not in it.
                 self.assertIn('id="profile-menu"', html)
                 self.assertNotIn('id="app-switcher"', html)
                 self.assertNotIn(">Apps</div>", html)
-                # Within an app, its own places are a segmented control; the
-                # hub has no app and so no segments.
-                if name == "home":
-                    self.assertNotIn('class="segments segments--places"', html)
-                else:
+                # PLU's own places are a segmented control on its pages.
+                # The hub has no app and so no segments, and TimeSheet has
+                # none either: its places are tabs of the dock.
+                if name.startswith("plu:"):
                     self.assertIn('class="segments segments--places"', html)
+                else:
+                    self.assertNotIn('class="segments segments--places"', html)
 
     def test_the_timesheet_is_only_shifts(self):
         resp = self.client.get(reverse("timeclock:timesheet"))
@@ -990,7 +995,7 @@ class CycleStartTests(TestCase):
     def test_the_cycle_starts_can_be_saved_from_the_forms(self):
         resp = self.client.post(reverse("timeclock:preferences"), {
             "week_starts_on": Weekday.MONDAY,
-            "fortnight_anchor": "2026-09-07",
+            "fortnight_starts_on": Weekday.MONDAY, "fortnight_phase": "this",
             "month_starts_on": "15",
         })
         self.assertEqual(resp.status_code, 302)
@@ -998,13 +1003,15 @@ class CycleStartTests(TestCase):
         pref = TimePreference.for_user(self.user)
         self.assertEqual(pref.week_starts_on, Weekday.MONDAY)
         self.assertEqual(pref.month_starts_on, 15)
+        self.assertEqual(pref.fortnight_anchor.weekday(), Weekday.MONDAY)
 
         resp = self.client.post(
             reverse("timeclock:workplace_edit", args=[self.workplace.pk]),
             {
                 "name": "Courtlands", "address": "", "hourly_rate": "",
                 "hours_limit": "38", "limit_period": Workplace.Period.MONTH,
-                "week_starts_on": Weekday.SUNDAY, "fortnight_anchor": "2026-09-06",
+                "week_starts_on": Weekday.SUNDAY,
+                "fortnight_starts_on": Weekday.SUNDAY, "fortnight_phase": "this",
                 "month_starts_on": "26",
             },
         )
@@ -1017,7 +1024,7 @@ class CycleStartTests(TestCase):
     def test_a_month_start_outside_1_to_28_is_refused(self):
         resp = self.client.post(reverse("timeclock:preferences"), {
             "week_starts_on": Weekday.SUNDAY,
-            "fortnight_anchor": "2026-09-06",
+            "fortnight_starts_on": Weekday.SUNDAY, "fortnight_phase": "this",
             "month_starts_on": "31",
         })
         self.assertEqual(resp.status_code, 200)
@@ -1225,7 +1232,74 @@ class ThursdayFortnightTests(TestCase):
     def test_the_form_spells_out_which_days_the_cycle_runs(self):
         job = Workplace.objects.create(user=self.user, name="AUFS")
         form = WorkplaceForm(instance=job, user=self.user)
-        self.assertIn("Thursday → Wednesday", form.fields["fortnight_anchor"].help_text)
+        self.assertIn("Thursday → Wednesday", form.fields["fortnight_phase"].help_text)
+        # And the fortnight is asked for as a weekday and a this-week-or-
+        # last, never as a date: the date is the model's to keep.
+        self.assertNotIn("fortnight_anchor", form.fields)
+        self.assertEqual(form.fields["fortnight_starts_on"].initial, Weekday.THURSDAY)
+
+    def test_the_fortnight_is_set_from_a_weekday_and_which_week_it_began(self):
+        today = timezone.localdate()
+        job = Workplace.objects.create(user=self.user, name="AUFS")
+
+        def save(starts_on, phase):
+            resp = self.client.post(
+                reverse("timeclock:workplace_edit", args=[job.pk]),
+                {
+                    "name": "AUFS", "address": "", "hourly_rate": "",
+                    "hours_limit": "48", "limit_period": Workplace.Period.FORTNIGHT,
+                    "week_starts_on": Weekday.SUNDAY,
+                    "fortnight_starts_on": starts_on, "fortnight_phase": phase,
+                    "month_starts_on": "1",
+                },
+            )
+            self.assertEqual(resp.status_code, 302)
+            job.refresh_from_db()
+            return job.fortnight_anchor
+
+        this_monday = week_start(today, Weekday.MONDAY)
+        # "Mondays, and the current one began this week": the fortnight open
+        # today opened on the most recent Monday.
+        self.assertEqual(save(Weekday.MONDAY, "this"), this_monday)
+        self.assertEqual(job.limit_window(today)[0], this_monday)
+        # "...began last week": the one before, so today is in its second
+        # week and the count resets next Monday.
+        self.assertEqual(save(Weekday.MONDAY, "last"), this_monday - timedelta(days=7))
+        self.assertEqual(job.limit_window(today)[1], this_monday + timedelta(days=7))
+        # Any weekday works the same way.
+        self.assertEqual(save(Weekday.FRIDAY, "this").weekday(), Weekday.FRIDAY)
+
+    def test_the_form_reads_the_choice_back_off_the_stored_date(self):
+        today = timezone.localdate()
+        this_thursday = week_start(today, Weekday.THURSDAY)
+        job = Workplace.objects.create(
+            user=self.user, name="AUFS", fortnight_anchor=this_thursday - timedelta(days=21)
+        )
+        # Anchored three weeks back: the fortnight open today began last
+        # week, and that is what the form shows — not a date to work out.
+        form = WorkplaceForm(instance=job, user=self.user)
+        self.assertEqual(form.fields["fortnight_starts_on"].initial, Weekday.THURSDAY)
+        self.assertEqual(form.fields["fortnight_phase"].initial, "last")
+        job.fortnight_anchor = this_thursday - timedelta(days=28)
+        self.assertEqual(
+            WorkplaceForm(instance=job, user=self.user).fields["fortnight_phase"].initial, "this"
+        )
+
+    def test_the_cap_resets_on_its_own_when_the_next_fortnight_opens(self):
+        today = timezone.localdate()
+        job = Workplace.objects.create(
+            user=self.user, name="AUFS", hours_limit=48,
+            limit_period=Workplace.Period.FORTNIGHT,
+            fortnight_anchor=fortnight_anchor_for(Weekday.THURSDAY, started_last_week=False, today=today),
+        )
+        start, end = job.limit_window(today)
+        # Fourteen days on, the window is the next one, from the same weekday.
+        later = job.limit_window(today + timedelta(days=14))
+        self.assertEqual(later, (start + timedelta(days=14), end + timedelta(days=14)))
+        self.assertEqual(later[0].weekday(), Weekday.THURSDAY)
+        # And the card says so: the day the count starts again is on it.
+        html = self.client.get(reverse("timeclock:dashboard")).content.decode()
+        self.assertIn("resets " + end.strftime("%a %-d %b"), html)
 
     def test_the_label_follows_the_anchor_rather_than_being_told(self):
         # Move the anchor and the sentence moves with it — nothing to keep
@@ -1348,13 +1422,14 @@ class LimitResetOnPaymentTests(TestCase):
         self.assertIn("5h used so far", html)
 
 
-class MonthStatementTests(TestCase):
+class StatementTests(TestCase):
     """
-    A month as a PDF, to hold next to the money.
+    A stretch of the record as a PDF, laid out like a payslip.
 
     Being paid sets the running total back to zero, so the figure somebody
     wants to check against a bank line is gone by the time the line appears.
-    The statement is that figure kept.
+    The statement is that figure kept — for any dates, one job or all, asked
+    for from the profile.
     """
 
     def setUp(self):
@@ -1370,34 +1445,41 @@ class MonthStatementTests(TestCase):
             clock_out=start + timedelta(hours=5), status=Shift.Status.COMPLETED,
         )
 
-    def _url(self, day=None):
-        day = day or self.today
-        return reverse("timeclock:statement", args=[day.year, day.month])
+    def _get(self, **params):
+        return self.client.get(reverse("timeclock:statement"), params)
 
-    def test_the_month_downloads_as_a_pdf(self):
-        response = self.client.get(self._url())
+    def test_the_period_downloads_as_a_pdf(self):
+        response = self._get(**{"from": self.today.replace(day=1).isoformat(), "to": self.today.isoformat()})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertTrue(response.content.startswith(b"%PDF-"))
         self.assertTrue(response.content.rstrip().endswith(b"%%EOF"))
 
-    def test_the_filename_sorts_by_month(self):
-        response = self.client.get(self._url())
+    def test_no_dates_means_this_month_so_far(self):
+        response = self._get()
+        first = self.today.replace(day=1)
         self.assertIn(
-            f'filename="MyWork-statement-{self.today:%Y-%m}.pdf"',
+            f'filename="MyWork-statement-{first:%Y-%m-%d}-to-{self.today:%Y-%m-%d}.pdf"',
             response["Content-Disposition"],
         )
 
     def test_one_job_can_be_reconciled_on_its_own(self):
-        response = self.client.get(self._url(), {"workplace": self.job.pk})
+        response = self._get(workplace=self.job.pk)
         self.assertIn("fresh-meat", response["Content-Disposition"])
 
-    def test_a_month_that_is_not_a_month_is_not_found(self):
-        self.assertEqual(self.client.get("/timesheet/pay/statement/2026/13/").status_code, 404)
+    def test_a_range_that_is_not_one_is_sent_back_to_the_profile(self):
+        for params in [
+            {"from": "2026-09-10", "to": "2026-09-01"},   # backwards
+            {"from": "2020-01-01", "to": "2026-09-01"},   # years
+            {"from": "the saturday", "to": "2026-09-01"},  # not a date
+        ]:
+            with self.subTest(params=params):
+                response = self._get(**params)
+                self.assertRedirects(response, reverse("accounts:profile"))
 
-    def test_a_month_with_nothing_in_it_still_renders(self):
-        response = self.client.get(self._url(date(2019, 2, 1)))
+    def test_a_period_with_nothing_in_it_still_renders(self):
+        response = self._get(**{"from": "2019-02-01", "to": "2019-02-28"})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.content.startswith(b"%PDF-"))
 
@@ -1405,14 +1487,36 @@ class MonthStatementTests(TestCase):
         other = User.objects.create_user("someone", password="pw")
         theirs = Workplace.objects.create(user=other, name="Theirs")
 
-        response = self.client.get(self._url(), {"workplace": theirs.pk})
+        response = self._get(workplace=theirs.pk)
         self.assertEqual(response.status_code, 404)
 
     def test_signing_out_closes_it(self):
         self.client.logout()
-        response = self.client.get(self._url())
+        response = self._get()
         self.assertEqual(response.status_code, 302)
         self.assertIn(settings.LOGIN_URL, response["Location"])
+
+    def test_the_profile_carries_the_form_and_the_calendar_does_not(self):
+        html = self.client.get(reverse("accounts:profile")).content.decode()
+        self.assertIn('action="' + reverse("timeclock:statement") + '"', html)
+        self.assertIn('name="from"', html)
+        self.assertIn('name="to"', html)
+        # One workplace: nothing to choose between.
+        self.assertNotIn('name="workplace"', html)
+        Workplace.objects.create(user=self.user, name="AUFS")
+        html = self.client.get(reverse("accounts:profile")).content.decode()
+        self.assertIn('name="workplace"', html)
+        # And the calendar no longer offers the month: one place for it.
+        calendar = self.client.get(reverse("timeclock:calendar")).content.decode()
+        self.assertNotIn("as a PDF", calendar)
+        self.assertNotIn(reverse("timeclock:statement"), calendar)
+
+    def test_the_label_reads_as_a_month_or_a_span(self):
+        from .views import _period_label
+        self.assertEqual(_period_label(date(2026, 9, 1), date(2026, 9, 30)), "September 2026")
+        self.assertEqual(_period_label(date(2026, 9, 6), date(2026, 9, 19)), "6 – 19 Sep 2026")
+        self.assertEqual(_period_label(date(2026, 8, 28), date(2026, 9, 3)), "28 Aug – 3 Sep 2026")
+        self.assertEqual(_period_label(date(2025, 12, 29), date(2026, 1, 4)), "29 Dec 2025 – 4 Jan 2026")
 
 
 class LiveFilterTests(TestCase):
@@ -1638,12 +1742,32 @@ class PaidUpToADateTests(TestCase):
         )
         self.assertEqual(self._owed(), timedelta(hours=25))
 
-    def test_the_screen_offers_a_date_box(self):
-        html = self.client.get(
-            reverse("timeclock:payment_choose", args=[self.job.pk])
-        ).content.decode()
+    def test_the_pay_card_asks_what_the_payment_covered_in_one_form(self):
+        html = self.client.get(reverse("timeclock:payments")).content.decode()
+        # One form per job: a list of what the money covered, with the date
+        # box as one of its answers — not a button here and a page of other
+        # ways there.
+        self.assertEqual(html.count('data-settle="Fresh Meat"'), 1)
+        self.assertIn('<option value="now"', html)
+        self.assertIn('<option value="date">', html)
         self.assertIn('name="up_to"', html)
         self.assertIn("Paid up to and including", html)
+        self.assertNotIn("payment_choose", html)
+        self.assertNotIn("/covers/", html)
+
+    def test_the_form_s_own_answers_draw_the_line(self):
+        post = lambda **data: self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]), data, follow=True
+        )
+        # A day named: inclusive, as the box says.
+        post(covers="date", up_to=self.days[2].isoformat())
+        self.assertEqual(self._owed(), timedelta(hours=10))
+        # "date" with the box empty is a form to reject, not a sweep to now.
+        post(covers="date", up_to="")
+        self.assertEqual(self._owed(), timedelta(hours=10))
+        # Everything up to now.
+        post(covers="now")
+        self.assertEqual(self._owed(), timedelta())
 
 
 class PaidUpToADateOnACycleTests(TestCase):
@@ -1718,14 +1842,29 @@ class PaidUpToADateOnACycleTests(TestCase):
         payment = Payment.objects.filter(workplace=self.job).latest("created_at")
         self.assertIsNone(payment.covers_from)
 
-    def test_the_screen_is_open_to_a_job_on_a_cycle(self):
-        response = self.client.get(
-            reverse("timeclock:payment_choose", args=[self.job.pk])
+    def test_the_card_lists_the_runs_as_the_answers_and_never_a_sweep_to_now(self):
+        html = self.client.get(reverse("timeclock:payments")).content.decode()
+        state = self._state()
+        # Each run that is owed is an answer, oldest first — the order the
+        # money arrives in — and a day can still be named outright.
+        for run in state["due"]:
+            self.assertIn(f'<option value="run:{run["end"].isoformat()}"', html)
+        self.assertIn('<option value="date">', html)
+        # But not "everything up to now": a job with runs has to name one.
+        self.assertNotIn('<option value="now"', html)
+        # And the runs are read out on the card, the open one with them.
+        self.assertIn('class="runs"', html)
+        self.assertIn("This fortnight", html)
+
+    def test_a_run_answer_from_the_form_records_that_run(self):
+        run = self._state()["due"][0]
+        self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"covers": f"run:{run['end'].isoformat()}"}, follow=True,
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'name="up_to"')
-        # But not the one-tap sweep: a job with runs has to name what it means.
-        self.assertNotContains(response, "Everything up to now")
+        payment = Payment.objects.filter(workplace=self.job).latest("created_at")
+        self.assertEqual(payment.covers_from, _midnight(run["start"]))
+        self.assertEqual(payment.hours, round(run["hours"], 2))
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="mywork-remove-media-"))
@@ -2145,7 +2284,7 @@ class CashInHandTests(TestCase):
                 "hourly_rate": "33.25", "tax_rate": "10.80",
                 "hours_limit": "", "limit_period": Workplace.Period.FORTNIGHT,
                 "week_starts_on": Weekday.SUNDAY,
-                "fortnight_anchor": timezone.localdate().isoformat(),
+                "fortnight_starts_on": Weekday.THURSDAY, "fortnight_phase": "this",
                 "month_starts_on": "1",
             },
         )
@@ -2161,7 +2300,7 @@ class CashInHandTests(TestCase):
                 "name": "Butcher", "address": "", "hourly_rate": "30.00",
                 "hours_limit": "", "limit_period": Workplace.Period.FORTNIGHT,
                 "week_starts_on": Weekday.SUNDAY,
-                "fortnight_anchor": timezone.localdate().isoformat(),
+                "fortnight_starts_on": Weekday.THURSDAY, "fortnight_phase": "this",
                 "month_starts_on": "1",
             },
         )
@@ -2186,7 +2325,12 @@ class OneWayInTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("kiran", password="pw")
         self.client.force_login(self.user)
-        Workplace.objects.create(user=self.user, name="AUFS")
+        self.workplace = Workplace.objects.create(user=self.user, name="AUFS")
+        start = timezone.now() - timedelta(days=1)
+        self.shift = Shift.objects.create(
+            user=self.user, workplace=self.workplace, clock_in=start,
+            clock_out=start + timedelta(hours=8), status=Shift.Status.COMPLETED,
+        )
 
     def test_more_no_longer_offers_a_second_way_in(self):
         html = self.client.get(reverse("timeclock:more")).content.decode()
@@ -2211,21 +2355,44 @@ class OneWayInTests(TestCase):
         self.assertEqual(sheet.count(f'href="{calendar}"'), 1)
         self.assertNotIn(f'href="{calendar}"', clock)
 
-    def test_the_segments_are_three_destinations(self):
+    def test_timesheet_is_three_tabs_of_the_dock_and_no_segments(self):
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
-        # The app's own places are the segmented control at the top of the
-        # page, rendered once. "Clock" appears three times: once here, and
-        # twice as the app-wide tab (app bar on wide screens, tab bar on
-        # phones) — both from one template, so the two can never disagree.
-        self.assertEqual(html.count('class="tab__label">Timesheet</span>'), 1)
-        self.assertEqual(html.count('class="tab__label">More</span>'), 1)
-        self.assertEqual(html.count('class="tab__label">Clock</span>'), 3)
-        self.assertNotIn('class="tab__label">Calendar</span>', html)
+        # Each tab appears twice — the app bar on wide screens and the dock
+        # on phones, both from one template — and nowhere else: there is no
+        # segmented control on a TimeSheet page any more.
+        for label in ["Clock", "Timesheet", "More"]:
+            self.assertEqual(html.count('class="tab__label">' + label + "</span>"), 2, label)
+        self.assertNotIn('class="segments segments--places"', html)
+        self.assertNotIn('class="tab__label">Board</span>', html)
+
+    def lit(self, name, args=()):
+        """The href of the dock tab lit on a page, and how many are lit."""
+        html = self.client.get(reverse(name, args=args)).content.decode()
+        # The dock only — the List / Calendar switch on the timesheet is a
+        # pair of .tab links too, but it is the page's, not the app's.
+        dock = html[html.index('class="tabbar__inner"'):]
+        hrefs = re.findall(r'class="tab is-active"\s+href="([^"]+)"', dock)
+        self.assertEqual(len(hrefs), 1, (name, hrefs))
+        return hrefs[0]
+
+    def test_each_timesheet_page_lights_one_tab(self):
+        self.assertEqual(self.lit("timeclock:dashboard"), "/timesheet/")
+        for name, args in [
+            ("timeclock:timesheet", []), ("timeclock:calendar", []),
+            ("timeclock:shift_create", []), ("timeclock:shift_detail", [self.shift.pk]),
+        ]:
+            self.assertEqual(self.lit(name, args), "/timesheet/shifts/", name)
+        for name in ["timeclock:more", "timeclock:workplaces", "timeclock:payments"]:
+            self.assertEqual(self.lit(name), "/timesheet/more/", name)
+
+    def test_the_board_lights_home(self):
+        self.assertEqual(self.lit("notices:board"), "/")
+        self.assertEqual(self.lit("home"), "/")
 
     def test_the_cycles_still_save(self):
         response = self.client.post(reverse("timeclock:preferences"), {
             "week_starts_on": Weekday.MONDAY,
-            "fortnight_anchor": "2026-09-07",
+            "fortnight_starts_on": Weekday.MONDAY, "fortnight_phase": "this",
             "month_starts_on": "15",
         })
         self.assertRedirects(response, reverse("timeclock:workplaces"))
@@ -2566,3 +2733,149 @@ class ReminderSweepTests(TestCase):
                 resp = self.client.get(reverse("home"))
 
         self.assertEqual(resp.status_code, 200)
+
+
+class PayslipFillTests(TestCase):
+    """
+    The small button on the workplace form: a payslip in, the boxes filled.
+
+    The reader works from the words on the slip, so most of this is the
+    words — the layouts payroll systems actually print — and what the form
+    is told from each. The endpoint is checked with a PDF made on the spot,
+    since that is what nearly every payslip is.
+    """
+
+    FORTNIGHTLY = """Courtlands Aged Care Pty Ltd
+ABN 12 345 678 901
+PAYSLIP
+Employee: Kiran Lama    Employee No: 1042
+Pay Period: 27/08/2026 - 09/09/2026    Pay Date: 11/09/2026
+Description            Hours    Rate      Amount     YTD
+Ordinary Hours         62.50    32.4500   2,028.13   14,203.00
+Saturday Loading       8.00     48.6750   389.40     2,100.00
+Gross Pay                                  2,417.53   16,303.00
+PAYG Tax                                   -412.00    2,780.00
+Net Pay                                    2,005.53   13,523.00
+"""
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.user)
+
+    def test_reads_rate_tax_and_fortnight_off_a_slip(self):
+        from .payslip import parse
+
+        slip = parse(self.FORTNIGHTLY)
+        fields = slip.fields(today=date(2026, 9, 12))
+
+        self.assertEqual(fields["hourly_rate"], "32.45")
+        self.assertEqual(fields["tax_rate"], "17.04")  # 412 ÷ 2417.53 × 100
+        self.assertEqual(fields["pay_cycle"], PayCycle.FORTNIGHT)
+        self.assertEqual(fields["limit_period"], PayCycle.FORTNIGHT)
+        self.assertEqual(fields["fortnight_starts_on"], 3)  # 27 Aug 2026 is a Thursday
+        self.assertEqual(fields["fortnight_phase"], "this")  # the run from 10 Sep opened this week
+        self.assertEqual(fields["name"], "Courtlands Aged Care Pty Ltd")
+        # The ordinary line, not the loaded one; this pay, not the year's.
+        self.assertEqual(slip.gross, Decimal("2417.53"))
+        self.assertEqual(slip.tax, Decimal("412.00"))
+
+    def test_a_rate_printed_on_its_own_and_a_weekly_period(self):
+        from .payslip import parse
+
+        fields = parse("""Woolworths Group Limited
+Pay period 31 Aug 2026 to 6 Sep 2026
+Hourly rate: $28.75
+Gross $862.50    Tax $86.00   Net $776.50
+""").fields(today=date(2026, 9, 12))
+
+        self.assertEqual(fields["hourly_rate"], "28.75")
+        self.assertEqual(fields["tax_rate"], "9.97")
+        self.assertEqual(fields["pay_cycle"], PayCycle.WEEK)
+        self.assertEqual(fields["week_starts_on"], 0)  # Monday
+
+    def test_a_monthly_slip_with_no_gross_line(self):
+        from .payslip import parse
+
+        slip = parse("""Bunnings Group
+Pay Period 1 September 2026 to 30 September 2026
+Base salary 160.00 hrs @ 35.00 = 5600.00
+Taxable income 5600.00
+Tax withheld 1180.00
+Net pay 4420.00
+""")
+        fields = slip.fields()
+
+        self.assertEqual(slip.gross, Decimal("5600.00"))  # net + tax
+        self.assertEqual(fields["hourly_rate"], "35.00")
+        self.assertEqual(fields["tax_rate"], "21.07")
+        self.assertEqual(fields["pay_cycle"], PayCycle.MONTH)
+        self.assertEqual(fields["month_starts_on"], 1)
+
+    def test_says_what_it_could_not_find(self):
+        from .payslip import parse
+
+        slip = parse("Some Shop\nGross 500.00\n")
+
+        self.assertIsNone(slip.rate)
+        self.assertTrue(any("hourly rate" in note for note in slip.notes))
+        self.assertTrue(any("pay period" in note for note in slip.notes))
+
+    def _pdf(self, lines):
+        import io
+
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+
+        buffer = io.BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=A4)
+        y = 800
+        for line in lines.splitlines():
+            pdf.drawString(40, y, line)
+            y -= 16
+        pdf.save()
+        return SimpleUploadedFile("payslip.pdf", buffer.getvalue(), content_type="application/pdf")
+
+    def test_the_button_gets_the_boxes_back_as_json(self):
+        response = self.client.post(
+            reverse("timeclock:workplace_payslip"), {"payslip": self._pdf(self.FORTNIGHTLY)}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["fields"]["hourly_rate"], "32.45")
+        self.assertEqual(data["fields"]["tax_rate"], "17.04")
+        self.assertEqual(data["fields"]["pay_cycle"], "FORTNIGHT")
+        self.assertEqual(data["fields"]["fortnight_starts_on"], 3)
+        labels = [item["label"] for item in data["read"]]
+        self.assertIn("Hourly rate", labels)
+        self.assertIn("Tax withheld", labels)
+        self.assertIn("Pay period", labels)
+
+    def test_a_pdf_with_no_words_is_turned_away_with_advice(self):
+        response = self.client.post(
+            reverse("timeclock:workplace_payslip"), {"payslip": self._pdf("")}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("screenshot", response.json()["error"])
+
+    def test_a_slip_with_nothing_usable_is_a_400_not_an_empty_fill(self):
+        response = self.client.post(
+            reverse("timeclock:workplace_payslip"), {"payslip": self._pdf("Hello there, this is not a payslip at all, just some words on a page.")}
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
+
+    def test_no_file_and_not_signed_in(self):
+        self.assertEqual(self.client.post(reverse("timeclock:workplace_payslip")).status_code, 400)
+        self.client.logout()
+        self.assertEqual(self.client.post(reverse("timeclock:workplace_payslip")).status_code, 302)
+
+    def test_the_workplace_form_carries_the_button(self):
+        response = self.client.get(reverse("timeclock:workplace_create"))
+
+        self.assertContains(response, "Fill from a payslip")
+        self.assertContains(response, reverse("timeclock:workplace_payslip"))
+        # The file input has no name: it never travels with the form itself.
+        self.assertNotRegex(response.content.decode(), r'<input type="file"[^>]*\bname=')
