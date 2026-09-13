@@ -50,6 +50,14 @@
 </div>
 
 {% comment %}
+  Stories: a row of faces, each a photo from somebody's day, gone in
+  twenty-four hours. Above the board because it is looked at rather than
+  read — a glance on the way past — and under the tiles because the tiles
+  are still why the page is opened. The dialogs behind it sit at the end.
+{% endcomment %}
+{% include "stories/_tray.html" %}
+
+{% comment %}
   The notice board. It sits under the app tiles rather than above them: the
   reason you opened MyWork is one of the two apps, and the board is what you
   read on the way past. Everyone sees every notice; the edit and remove
@@ -78,5 +86,7 @@
     </a>
   {% endif %}
 </section>
+
+{% include "stories/_dialogs.html" %}
 
 {% endblock %}

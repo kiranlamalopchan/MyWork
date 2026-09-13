@@ -1,0 +1,277 @@
+"""
+Stories: up for a day, seen once, then gone.
+"""
+
+from datetime import timedelta
+from io import BytesIO
+
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone
+from PIL import Image
+
+from .models import LIFETIME, Story, StoryReaction
+from .views import tray_for
+
+
+def picture(width=1200, height=1800, colour=(200, 40, 40)):
+    image = Image.new("RGB", (width, height), colour)
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG")
+    return SimpleUploadedFile("photo.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class StoryTests(TestCase):
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")
+        self.client.force_login(self.kiran)
+
+    def post_story(self, user, caption="", when=None):
+        story = Story(author=user, caption=caption)
+        if when:
+            story.created_at = when
+        story.set_image(picture())
+        story.save()
+        return story
+
+    # ---- the day ---------------------------------------------------------
+
+    def test_a_story_lasts_a_day(self):
+        story = self.post_story(self.sam)
+        self.assertEqual(story.expires_at, story.created_at + LIFETIME)
+        self.assertTrue(story.is_live)
+        self.assertIn(story, Story.objects.live())
+
+    def test_an_old_story_is_not_live_and_is_swept(self):
+        old = self.post_story(self.sam, when=timezone.now() - timedelta(hours=25))
+        name = old.image.name
+        self.assertNotIn(old, Story.objects.live())
+        self.assertEqual(Story.sweep(), 1)
+        self.assertFalse(Story.objects.filter(pk=old.pk).exists())
+        self.assertFalse(old.image.storage.exists(name))
+
+    def test_the_picture_is_shrunk(self):
+        story = self.post_story(self.sam)
+        with Image.open(story.image.path) as image:
+            self.assertLessEqual(max(image.size), 1920)
+
+    # ---- the row ---------------------------------------------------------
+
+    def test_the_tray_puts_yours_first_then_unseen(self):
+        seen = self.post_story(self.sam, when=timezone.now() - timedelta(hours=2))
+        seen.seen_by(self.kiran)
+        other = User.objects.create_user("jo", password="pw")
+        self.post_story(other, when=timezone.now() - timedelta(hours=1))
+        self.post_story(self.kiran)
+        rows = tray_for(self.kiran)
+        self.assertEqual([r["user"].username for r in rows], ["kiran", "jo", "sam"])
+        self.assertTrue(rows[1]["unseen"])
+        self.assertFalse(rows[2]["unseen"])
+
+    def test_the_hub_shows_the_row(self):
+        self.post_story(self.sam, caption="Snow day")
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, 'data-story-of="sam"')
+        self.assertContains(resp, "Create story")
+
+    # ---- posting and taking down ----------------------------------------
+
+    def test_posting_returns_the_row_with_you_in_it(self):
+        resp = self.client.post(
+            reverse("stories:create"), {"image": picture(), "caption": "hi"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-story-of="kiran"')
+        self.assertEqual(Story.objects.filter(author=self.kiran).count(), 1)
+
+    def test_a_missing_photo_is_refused(self):
+        resp = self.client.post(reverse("stories:create"), {"caption": "hi"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("error", resp.json())
+
+    def test_only_the_author_can_delete(self):
+        story = self.post_story(self.sam)
+        resp = self.client.post(reverse("stories:delete", args=[story.pk]))
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Story.objects.filter(pk=story.pk).exists())
+        self.client.force_login(self.sam)
+        self.client.post(reverse("stories:delete", args=[story.pk]))
+        self.assertFalse(Story.objects.filter(pk=story.pk).exists())
+
+    # ---- looking ----------------------------------------------------------
+
+    def test_the_viewer_json_starts_at_the_first_unseen(self):
+        first = self.post_story(self.sam, when=timezone.now() - timedelta(hours=3))
+        second = self.post_story(self.sam, when=timezone.now() - timedelta(hours=1))
+        first.seen_by(self.kiran)
+        resp = self.client.get(reverse("stories:person", args=["sam"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        data = resp.json()
+        self.assertEqual([s["id"] for s in data["stories"]], [first.pk, second.pk])
+        self.assertEqual(data["start"], 1)
+        self.assertFalse(data["stories"][0]["mine"])
+
+    def test_seen_is_recorded_and_the_owner_sees_who(self):
+        story = self.post_story(self.sam)
+        self.client.post(reverse("stories:seen", args=[story.pk]))
+        self.assertEqual(story.seen_by_count, 1)
+        self.client.force_login(self.sam)
+        data = self.client.get(reverse("stories:person", args=["sam"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest").json()
+        self.assertEqual(data["stories"][0]["seen_count"], 1)
+        self.assertEqual(data["stories"][0]["viewers"][0]["name"], "kiran")
+
+    def test_your_own_view_does_not_count(self):
+        story = self.post_story(self.kiran)
+        self.client.post(reverse("stories:seen", args=[story.pk]))
+        self.assertEqual(story.seen_by_count, 0)
+
+    def test_reacting_toggles(self):
+        story = self.post_story(self.sam)
+        url = reverse("stories:react", args=[story.pk])
+        data = self.client.post(url, {"emoji": "❤️"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest").json()
+        self.assertEqual(data["my_emoji"], "❤️")
+        self.assertEqual(data["reactions"], [{"emoji": "❤️", "count": 1}])
+        data = self.client.post(url, {"emoji": "❤️"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest").json()
+        self.assertEqual(data["my_emoji"], "")
+        self.assertEqual(StoryReaction.objects.count(), 0)
+
+    def test_an_expired_story_cannot_be_seen_or_reacted_to(self):
+        old = self.post_story(self.sam, when=timezone.now() - timedelta(hours=25))
+        self.assertEqual(self.client.post(reverse("stories:seen", args=[old.pk])).status_code, 404)
+        resp = self.client.get(reverse("stories:person", args=["sam"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_the_plain_page_works_without_script(self):
+        self.post_story(self.sam, caption="Snow day")
+        resp = self.client.get(reverse("stories:person", args=["sam"]))
+        self.assertContains(resp, "Snow day")
+        resp = self.client.get(reverse("stories:compose"))
+        self.assertContains(resp, "Share to your story")
+
+
+def fixture(name):
+    from pathlib import Path
+    path = Path(__file__).parent / "fixtures" / name
+    return SimpleUploadedFile(name, path.read_bytes())
+
+
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class VideoStoryTests(TestCase):
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.kiran)
+
+    def test_a_short_video_is_kept_with_its_poster_and_length(self):
+        resp = self.client.post(
+            reverse("stories:create"),
+            {"video": fixture("short.mp4"), "poster": picture(320, 568), "duration": "3.0"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        story = Story.objects.get(author=self.kiran)
+        self.assertTrue(story.is_video)
+        self.assertTrue(story.video.name.endswith(".mp4"))
+        self.assertTrue(story.image)                      # the poster
+        self.assertAlmostEqual(story.duration, 3.0, delta=0.5)
+        self.assertContains(resp, "story-tile__play")
+
+    def test_a_video_over_sixty_seconds_is_refused(self):
+        resp = self.client.post(
+            reverse("stories:create"), {"video": fixture("long.mp4"), "duration": "65"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("60 seconds", resp.json()["error"])
+        self.assertEqual(Story.objects.count(), 0)
+
+    def test_a_file_that_is_not_a_video_is_refused(self):
+        resp = self.client.post(
+            reverse("stories:create"), {"video": SimpleUploadedFile("notes.txt", b"hello")},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("MP4", resp.json()["error"])
+
+    def test_the_viewer_json_says_it_is_a_video(self):
+        self.client.post(reverse("stories:create"), {"video": fixture("short.mp4"), "duration": "3"})
+        data = self.client.get(reverse("stories:person", args=["kiran"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest").json()
+        self.assertEqual(data["stories"][0]["kind"], "video")
+        self.assertTrue(data["stories"][0]["video"].endswith(".mp4"))
+        self.assertEqual(data["max_seconds"], 60)
+
+    def test_an_expired_video_is_swept_off_the_disk(self):
+        self.client.post(reverse("stories:create"), {"video": fixture("short.mp4"), "poster": picture(320, 568), "duration": "3"})
+        story = Story.objects.get()
+        video_name, poster_name = story.video.name, story.image.name
+        Story.objects.filter(pk=story.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
+        self.assertEqual(Story.sweep(), 1)
+        self.assertFalse(story.video.storage.exists(video_name))
+        self.assertFalse(story.image.storage.exists(poster_name))
+        self.assertEqual(Story.objects.count(), 0)
+
+    def test_an_iphone_heic_photo_is_turned_into_a_jpeg(self):
+        resp = self.client.post(
+            reverse("stories:create"), {"image": fixture("photo.heic")},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        story = Story.objects.get()
+        self.assertTrue(story.image.name.endswith(".jpg"))
+        with Image.open(story.image.path) as image:
+            self.assertEqual(image.format, "JPEG")
+
+    def test_neither_a_photo_nor_a_video_is_refused(self):
+        resp = self.client.post(reverse("stories:create"), {"caption": "hi"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("photo or a video", resp.json()["error"])
+
+
+import shutil as _shutil
+import unittest
+
+
+@unittest.skipUnless(_shutil.which("ffmpeg") and _shutil.which("ffprobe"), "needs ffmpeg")
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class VideoSizeTests(TestCase):
+    """Above 1080p, or in a codec phones don't all play, a video is re-encoded."""
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.kiran)
+
+    def probe_stored(self, story):
+        from .models import probe
+        with open(story.video.path, "rb") as f:
+            upload = SimpleUploadedFile(story.video.name, f.read())
+        return probe(upload)
+
+    def test_a_4k_portrait_video_is_shrunk_to_1080p(self):
+        resp = self.client.post(reverse("stories:create"), {"video": fixture("tall4k.mp4")}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        story = Story.objects.get()
+        info = self.probe_stored(story)
+        self.assertEqual((info["width"], info["height"]), (1080, 1920))
+        self.assertEqual(info["codec"], "h264")
+        self.assertTrue(story.video.name.endswith(".mp4"))
+
+    def test_an_hevc_video_is_re_encoded_so_every_phone_plays_it(self):
+        self.client.post(reverse("stories:create"), {"video": fixture("hevc.mp4")})
+        story = Story.objects.get()
+        self.assertEqual(self.probe_stored(story)["codec"], "h264")
+
+    def test_a_small_h264_video_is_kept_as_it_came(self):
+        original = fixture("short.mp4")
+        size = original.size
+        self.client.post(reverse("stories:create"), {"video": original})
+        story = Story.objects.get()
+        self.assertEqual(story.video.size, size)
+
+    def test_probe_reads_the_shape_and_length(self):
+        from .models import probe
+        info = probe(fixture("tall4k.mp4"))
+        self.assertEqual((info["width"], info["height"], info["short"]), (2160, 3840, 2160))
+        self.assertAlmostEqual(info["duration"], 2.0, delta=0.2)

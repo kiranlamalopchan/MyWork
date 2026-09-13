@@ -1,0 +1,36 @@
+{% load ui avatars %}
+{% comment %}
+  The row above the notice board: a tile to post your own story, then one
+  tile per person with a story up right now — their latest picture, their
+  face ringed in the brand colour until you have looked, their name.
+
+  Each tile is a real link to stories:person; app.js (initStories) opens
+  the viewer over the page instead. The row is redrawn from this partial
+  after a post or a take-down, so the container is what the script swaps.
+  `stories` comes from views.tray_for.
+{% endcomment %}
+<div class="stories" id="stories" data-stories>
+  <div class="stories__row">
+    <a class="story-tile story-tile--new" href="{% url 'stories:compose' %}" data-story-new data-handled>
+      <span class="story-tile__bg story-tile__bg--me" style="--hue: {{ me.hue }}">
+        {% if me.photo_url %}<img src="{{ me.photo_url }}" alt="">{% endif %}
+      </span>
+      <span class="story-tile__plus" aria-hidden="true">{% icon "plus" %}</span>
+      <span class="story-tile__foot">Create story</span>
+    </a>
+
+    {% for row in stories %}
+      <a class="story-tile{% if row.unseen %} is-unseen{% endif %}{% if row.mine %} is-mine{% endif %}"
+         href="{% url 'stories:person' row.user.username %}"
+         data-story-of="{{ row.user.username }}" data-handled
+         aria-label="{% if row.mine %}Your story{% else %}{{ row.profile.name }}'s story{% endif %}, {{ row.count }} photo{{ row.count|pluralize }}">
+        <span class="story-tile__bg">{% if row.latest.image %}<img src="{{ row.latest.image.url }}" alt="" loading="lazy">{% endif %}</span>
+        <span class="story-tile__ring">{% avatar row.user size="sm" %}</span>
+        {% if row.latest.is_video %}
+          <span class="story-tile__play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        {% endif %}
+        <span class="story-tile__name">{% if row.mine %}Your story{% else %}{{ row.profile.name }}{% endif %}</span>
+      </a>
+    {% endfor %}
+  </div>
+</div>

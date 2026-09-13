@@ -6573,3 +6573,495 @@ body::before {
   .holiday__name { font-size: 20px; }
   .hmonth__name { font-size: 16px; }
 }
+
+/* ==========================================================================
+   Stories — the row above the notice board, and the viewer behind it
+   ========================================================================== */
+
+/* ---- The row ---------------------------------------------------------------
+   Tall tiles, scrolled sideways with the thumb and snapped, the first one
+   for posting your own. Each other tile is somebody's latest picture with
+   their face ringed on top: brand-coloured until you have looked, then
+   quiet. The row bleeds to the gutter edges so the scroll feels like the
+   page's and not a box's. */
+.stories { margin: 0 calc(-1 * var(--gutter)); }
+.stories__row {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 2px var(--gutter) var(--sp-2);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--gutter);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.stories__row::-webkit-scrollbar { display: none; }
+.story-tile {
+  position: relative;
+  flex: none;
+  width: 104px;
+  aspect-ratio: 9 / 16;
+  scroll-snap-align: start;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-3);
+  color: #fff;
+  text-decoration: none;
+  isolation: isolate;
+  box-shadow: var(--shadow-1);
+  transition: transform var(--dur-2) var(--ease-snap);
+}
+.story-tile:hover { text-decoration: none; }
+.story-tile:active { transform: scale(.97); }
+.story-tile__bg { position: absolute; inset: 0; z-index: -1; background: var(--surface-3); }
+.story-tile__bg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.story-tile__bg--me { background: linear-gradient(160deg, hsl(var(--hue, 210) 58% 58%), hsl(var(--hue, 210) 50% 38%)); }
+/* The name at the bottom, over a shade so it reads on any picture. */
+.story-tile__name {
+  position: absolute;
+  z-index: 2;
+  left: 8px; right: 8px; bottom: 8px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.story-tile::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background: linear-gradient(to top, rgba(0, 0, 0, .65), transparent);
+  pointer-events: none;
+}
+.story-tile--new::after { display: none; }
+/* The face, top-left, in a ring: brand while unseen, grey once seen. */
+.story-tile__ring {
+  position: absolute;
+  z-index: 2;
+  top: 8px; left: 8px;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2.5px var(--line-strong);
+}
+.story-tile.is-unseen .story-tile__ring { box-shadow: 0 0 0 2.5px var(--brand); }
+.story-tile.is-mine .story-tile__ring { box-shadow: 0 0 0 2.5px var(--brand); }
+.story-tile__ring .avatar { width: 28px; height: 28px; font-size: 12px; }
+.story-tile__ring .avatar__live { display: none; }
+/* The create tile: your photo on top, a plus over the seam, the words in a
+   white foot — the tile that is an action rather than a picture. */
+.story-tile--new { color: var(--text); }
+.story-tile--new .story-tile__bg { bottom: 34%; }
+.story-tile--new .story-tile__foot {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 34%;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  background: var(--surface);
+  text-align: center;
+}
+.story-tile__plus {
+  position: absolute;
+  z-index: 2;
+  left: 50%; top: 66%;
+  width: 32px; height: 32px;
+  margin: -16px 0 0 -16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.story-tile__plus svg { width: 18px; height: 18px; }
+@media (min-width: 560px) {
+  .story-tile { width: 118px; }
+}
+
+/* ---- The viewer -------------------------------------------------------------
+   Full-screen on a phone; on anything wider a 9:16 stage in the middle of
+   a dark backdrop with an arrow either side for the next person. The
+   segments across the top are the stories, the one filling is the one up. */
+/* Doubled selector: the container's own child-spacing rule outranks a
+   class, and a dialog in the top layer must not inherit a page gap. */
+.story-viewer.story-viewer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+}
+.story-viewer::backdrop { background: #000; }
+.story-viewer__stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #111;
+  /* Room for the browser's own bars on a phone. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.story-viewer__bars {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 10px; right: 10px;
+  display: flex;
+  gap: 4px;
+  z-index: 3;
+}
+.story-viewer__bar {
+  flex: 1 1 0;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .35);
+  overflow: hidden;
+}
+.story-viewer__bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #fff;
+}
+.story-viewer__bar.is-done i { width: 100%; }
+.story-viewer__head {
+  position: absolute;
+  top: calc(18px + env(safe-area-inset-top));
+  left: 10px; right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 3;
+}
+.story-viewer__who .avatar { width: 36px; height: 36px; font-size: 14px; box-shadow: 0 0 0 2px rgba(255,255,255,.7); }
+.story-viewer__meta { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.story-viewer__meta b { font-weight: 650; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.story-viewer__meta span { font-size: 13px; opacity: .85; }
+.story-viewer__btn {
+  flex: none;
+  width: 36px; height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .25);
+  color: #fff;
+  cursor: pointer;
+}
+.story-viewer__btn svg { width: 20px; height: 20px; }
+.story-viewer.is-paused [data-pause] { background: rgba(255,255,255,.25); }
+.story-viewer__pic {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.story-viewer__pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  animation: mw-veil var(--dur-3) var(--ease) both;
+}
+.story-viewer__pic.is-loading img { opacity: 0; animation: none; }
+.story-viewer__pic.is-loading::after {
+  content: "";
+  position: absolute;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  animation: spin .7s linear infinite;
+}
+.story-viewer__caption {
+  position: absolute;
+  left: 16px; right: 16px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, .45);
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: center;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.story-viewer__caption[hidden] { display: none; }
+/* The two halves of the picture: tap left to go back, right to go on. */
+.story-viewer__tap {
+  position: absolute;
+  top: 70px; bottom: 100px;
+  width: 30%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+.story-viewer__tap--prev { left: 0; }
+.story-viewer__tap--next { right: 0; width: 70%; }
+.story-viewer__foot {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  padding: 0 12px;
+  z-index: 3;
+  display: grid;
+  gap: 10px;
+}
+/* The row of faces, for anyone else's story. */
+.story-viewer__react {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.story-viewer__react[hidden] { display: none; }
+.story-viewer__face {
+  width: 44px; height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease-snap), background var(--dur-2) var(--ease);
+}
+.story-viewer__face svg, .story-viewer__face .reaction { width: 30px; height: 30px; }
+.story-viewer__face:hover { transform: translateY(-3px) scale(1.12); }
+.story-viewer__face.is-on { background: rgba(255, 255, 255, .35); box-shadow: 0 0 0 2px #fff; }
+.story-viewer__face.is-on { animation: mw-pop var(--dur-3) var(--ease-snap) both; }
+/* Your own: who looked, and the way to take it down. */
+.story-viewer__own { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.story-viewer__own[hidden] { display: none; }
+.story-viewer__seen, .story-viewer__delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.story-viewer__seen svg, .story-viewer__delete svg { width: 16px; height: 16px; }
+.story-viewer__delete:hover { background: rgba(240, 40, 74, .6); }
+.story-viewer__viewers {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(20, 20, 20, .92);
+  font-size: 14px;
+}
+.story-viewer__viewers[hidden] { display: none; }
+.story-viewer__viewers h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; opacity: .7; }
+.story-viewer__viewers ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.story-viewer__viewers li { display: flex; justify-content: space-between; gap: 10px; }
+.story-viewer__viewers li span { opacity: .6; font-size: 12.5px; }
+.story-viewer__viewers .story-viewer__tally { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.story-viewer__viewers .story-viewer__tally b { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.story-viewer__viewers .story-viewer__tally svg { width: 18px; height: 18px; }
+.story-viewer__arrow { display: none; }
+@media (min-width: 720px) {
+  .story-viewer::backdrop { background: rgba(0, 0, 0, .92); }
+  .story-viewer { background: transparent; }
+  .story-viewer__stage {
+    width: auto;
+    height: min(92vh, 900px);
+    aspect-ratio: 9 / 16;
+    margin-top: 4vh;
+    border-radius: var(--r-lg);
+  }
+  .story-viewer__arrow {
+    position: absolute;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 48px; height: 48px;
+    margin-top: -24px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .15);
+    color: #fff;
+    cursor: pointer;
+  }
+  .story-viewer__arrow svg { width: 26px; height: 26px; }
+  .story-viewer__arrow:hover { background: rgba(255, 255, 255, .3); }
+  .story-viewer__arrow[disabled] { opacity: .25; cursor: default; }
+  .story-viewer__arrow--prev { left: calc(50% - min(46vh, 450px) * 1 - 70px); }
+  .story-viewer__arrow--next { right: calc(50% - min(46vh, 450px) * 1 - 70px); }
+}
+
+/* ---- Composing one ---------------------------------------------------------
+   The photo is the story, so the box is the picker: tap to choose, the
+   picture fills it, a line of caption under, and Share. */
+.story-compose { display: grid; gap: var(--sp-3); }
+.story-compose__drop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  max-height: 60vh;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  border: 1.5px dashed var(--line-strong);
+  background: var(--surface-2);
+  cursor: pointer;
+  text-align: center;
+}
+.story-compose__drop.has-photo { border-style: solid; background: #000; }
+.story-compose__preview { width: 100%; max-height: 60vh; object-fit: contain; display: block; }
+.story-compose__preview[hidden] { display: none; }
+.story-compose__empty { display: grid; justify-items: center; padding: var(--sp-5); }
+.story-compose__empty[hidden] { display: none; }
+.story-compose__status[hidden] { display: none; }
+
+/* A video story's tile wears a small play mark, bottom right. */
+.story-tile__play {
+  position: absolute;
+  z-index: 2;
+  right: 8px; top: 8px;
+  width: 22px; height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+}
+.story-tile__play svg { width: 14px; height: 14px; margin-left: 1px; }
+
+/* The speaker: waves when there is sound, a cross over them when not. */
+.story-viewer__btn .story-viewer__mute { display: none; }
+.story-viewer__btn.is-muted .story-viewer__wave { display: none; }
+.story-viewer__btn.is-muted .story-viewer__mute { display: block; }
+.story-viewer__pic video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+.story-viewer__pic video[hidden], .story-viewer__pic img[hidden] { display: none; }
+
+/* ---- The photo editor, in the composer -------------------------------------
+   The picture in a 9:16 frame, as it will be seen; drag it about, pinch or
+   scroll to zoom, a slider for the same, and a row of tools beneath. */
+.story-edit { display: grid; gap: var(--sp-3); }
+.story-edit__frame {
+  position: relative;
+  width: min(100%, 300px);
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #000;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.story-edit__frame:active { cursor: grabbing; }
+.story-edit__canvas { width: 100%; height: 100%; display: block; }
+.story-edit__hint {
+  position: absolute;
+  left: 50%; bottom: 10px;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: mw-veil var(--dur-3) var(--ease) both;
+}
+.story-edit__hint[hidden] { display: none; }
+.story-edit__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.story-edit__tool {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 52px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.story-edit__tool svg { width: 20px; height: 20px; }
+.story-edit__tool:hover { border-color: var(--brand); color: var(--text); }
+.story-edit__tool.is-on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.story-edit__zoom { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.story-edit__zoom input { width: 100%; accent-color: var(--brand); }
+.story-edit__filters {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.story-edit__filters::-webkit-scrollbar { display: none; }
+.story-edit__filter {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.story-edit__filter.is-on { border-color: var(--brand); background: var(--brand); color: var(--brand-ink); }
+
+/* The clip, before it goes: shown at the same 9:16, with its length. */
+.story-clip { display: grid; gap: var(--sp-2); }
+.story-clip__video {
+  width: min(100%, 300px);
+  aspect-ratio: 9 / 16;
+  margin: 0 auto;
+  border-radius: var(--r-md);
+  background: #000;
+  object-fit: contain;
+  display: block;
+}
+.story-clip__meta { text-align: center; font-size: 13px; color: var(--muted); }
+.story-compose__actions { display: flex; gap: var(--sp-2); }
+.story-compose__actions .btn { flex: 1 1 0; }
+.story-compose__actions .btn[hidden] { display: none; }
+.story-compose__drop[hidden], .story-edit[hidden], .story-clip[hidden] { display: none; }

@@ -8,3 +8,5 @@ pypdf>=4.0
 pywebpush>=2.0
 # Australian public holidays, national and per-state.
 holidays>=0.60
+# Opens HEIC/HEIF, the format an iPhone photographs in, for stories.
+pillow-heif>=0.16

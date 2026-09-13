@@ -28,6 +28,9 @@ urlpatterns = [
     # The shared notice board behind the hub
     path("notices/", include("apps.noticeboard.urls")),
 
+    # The row of stories above it.
+    path("stories/", include("apps.stories.urls")),
+
     # The bell in the app bar, and what is behind it.
     path("notifications/", include("apps.notifications.urls")),
 

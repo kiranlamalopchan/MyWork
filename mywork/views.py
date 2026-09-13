@@ -30,6 +30,8 @@ def home(request):
     to know and nobody wants to go looking for, which is the whole argument
     for it being on the page you land on rather than a screen you navigate to.
     """
+    from apps.stories.views import tray_for
+
     notices, total = recent_for_hub(request.user)
     holiday_state, holiday = card_for_user(request.user)
 
@@ -40,6 +42,7 @@ def home(request):
         next_url=request.path,
         holiday=holiday,
         holiday_state=holiday_state,
+        stories=tray_for(request.user),
     ))
 
 

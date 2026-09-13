@@ -23,6 +23,28 @@ entirely to that app.
   and the pay cycle are read off it
 - Set a weekly or fortnightly hours limit and track against it
 
+**Stories** (`apps.stories`, mounted at `/stories/`)
+- A row of faces above the notice board: a photo or a short video from
+  somebody's day, up for 24 hours, then gone
+- Any photo format (HEIC from an iPhone included, via `pillow-heif`), edited
+  before it goes: drag and pinch to crop in a 9:16 frame, rotate, flip,
+  fit or fill, a few tints — what is sent is the frame as shown, at
+  1080×1920
+- A video of up to 60 seconds; the length is checked on the phone before
+  it is sent and again on the server with `ffprobe`. Anything above 1080p,
+  or in a codec not every phone plays (an iPhone's HEVC), is re-encoded by
+  `ffmpeg` to 1080p H.264 — a 4K clip comes down to a fraction of its size.
+  Both tools are on PythonAnywhere already; without them what arrived is
+  kept. The phone grabs a frame for the tile
+- Tap a face for the full-screen viewer — five seconds a picture, a video
+  for as long as it runs, with a speaker to mute; hold to pause, tap either
+  side to move, arrows to the next person; react with the board's faces;
+  the ring goes quiet once you've looked
+- Your own tile shows who has seen it, and takes it down
+- Expired stories stop showing at once, and their files are deleted — by
+  `manage.py expire_stories` (run it hourly from the **Tasks** tab) and
+  quietly whenever the row is built, so a day of videos never fills the disk
+
 **Notifications** (`apps.notifications`, mounted at `/notifications/`)
 - A bell in the app bar with a count on it, and the inbox behind it
 - Web Push, so a notification arrives with the app closed
@@ -86,8 +108,10 @@ the web server has to. In the **Web** tab, under *Static files*, add:
 | URL | Directory |
 | --- | --- |
 | `/media/avatars/` | `/home/<user>/MyWork/media/avatars` |
+| `/media/stories/` | `/home/<user>/MyWork/media/stories` |
 
-Without it every profile photo 404s and each face falls back to its initial.
+Without them every profile photo 404s and each face falls back to its
+initial, and every story opens black.
 
 Map `/media/avatars/` rather than `/media/`: the mapping serves whatever is
 under it straight off the disk, with no view and no permission check in the

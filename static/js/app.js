@@ -1662,6 +1662,735 @@
   }
 
   /* ----------------------------------------------------------------------
+     Stories
+     The row of faces above the board, the viewer that opens over the page,
+     and the box for posting one. The tray is server-drawn (stories/_tray.html)
+     and swapped whole after a post or a take-down; the viewer is filled from
+     stories:person's JSON — the segments across the top, whose it is, the
+     picture, and the faces to react with — and runs each picture for five
+     seconds, held still while a finger is on it.
+     ---------------------------------------------------------------------- */
+  var STORY_MS = 5000;
+  var STORY_MAX_SECONDS = 60;
+
+  function initStories() {
+    var viewer = document.getElementById("story-viewer");
+    var compose = document.getElementById("story-compose");
+    if (!viewer || !document.querySelector("[data-stories]") || typeof viewer.showModal !== "function") return;
+
+    var csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value;
+    function post(url, body) {
+      var data = body || new FormData();
+      if (csrf && !data.has("csrfmiddlewaretoken")) data.append("csrfmiddlewaretoken", csrf);
+      return fetch(url, {
+        method: "POST", body: data, credentials: "same-origin",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+    }
+
+    // ---- the row ---------------------------------------------------------
+
+    function tray() { return document.querySelector("[data-stories]"); }
+    function people() {
+      return Array.prototype.map.call(document.querySelectorAll("[data-story-of]"), function (a) {
+        return a.getAttribute("data-story-of");
+      });
+    }
+    function swapTray(html) {
+      var old = tray();
+      if (!old) return;
+      var box = document.createElement("div");
+      box.innerHTML = html;
+      var fresh = box.querySelector("[data-stories]");
+      if (fresh) old.replaceWith(fresh);
+    }
+
+    document.body.addEventListener("click", function (event) {
+      var tile = event.target.closest && event.target.closest("[data-story-of]");
+      if (tile) { event.preventDefault(); open(tile.getAttribute("data-story-of")); return; }
+      var add = event.target.closest && event.target.closest("[data-story-new]");
+      if (add && compose) { event.preventDefault(); openModal(compose); }
+    });
+
+    // ---- the viewer ------------------------------------------------------
+
+    var q = function (sel) { return viewer.querySelector(sel); };
+    var bars = q("[data-bars]"), who = q("[data-who]"), name = q("[data-name]"), ago = q("[data-ago]");
+    var pic = q("[data-pic]"), img = q("[data-img]"), video = q("[data-video]"), caption = q("[data-caption]");
+    var sound = q("[data-sound]");
+    var muted = false;
+    var own = q("[data-own]"), seenBtn = q("[data-seen-btn]"), seenCount = q("[data-seen]");
+    var react = q("[data-react]"), viewers = q("[data-viewers]");
+    var prevPerson = q("[data-prev-person]"), nextPerson = q("[data-next-person]");
+
+    var current = null;   // the person's JSON
+    var index = 0;
+    var timer = null;
+    var startedAt = 0;
+    var remaining = STORY_MS;
+    var held = false;
+
+    function open(username) {
+      fetch("/stories/" + encodeURIComponent(username) + "/", {
+        credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+        .then(function (data) {
+          current = data;
+          if (!viewer.open) viewer.showModal();
+          viewer.classList.remove("is-paused");
+          viewers.hidden = true;
+          show(data.start || 0);
+        })
+        .catch(function () {
+          // Gone in the meantime: the row is stale, so redraw it.
+          fetch(location.href, { credentials: "same-origin" }).then(function (r) { return r.text(); })
+            .then(function (html) { swapTray(html); });
+        });
+    }
+
+    function close() {
+      stop();
+      unloadVideo();
+      if (viewer.open) viewer.close();
+      quieten(current);
+      current = null;
+    }
+
+    function avatarHtml(d) {
+      var inner = d.photo ? '<img class="avatar__img" src="' + escapeHtml(d.photo) + '" alt="">' : escapeHtml(d.initial);
+      return '<span class="avatar" style="--hue: ' + d.hue + '" aria-hidden="true">' + inner + "</span>";
+    }
+
+    function show(i) {
+      if (!current) return;
+      var list = current.stories;
+      if (i < 0 || i >= list.length) return;
+      stop();
+      index = i;
+      var story = list[i];
+
+      // The segments: done behind, live here, empty ahead.
+      bars.innerHTML = "";
+      list.forEach(function (_, n) {
+        var bar = document.createElement("span");
+        bar.className = "story-viewer__bar" + (n < i ? " is-done" : "");
+        bar.innerHTML = "<i></i>";
+        bars.appendChild(bar);
+      });
+      who.innerHTML = avatarHtml(current);
+      name.textContent = current.name;
+      ago.textContent = story.ago;
+
+      caption.hidden = !story.caption;
+      caption.textContent = story.caption || "";
+
+      own.hidden = !story.mine;
+      react.hidden = !!story.mine;
+      viewers.hidden = true;
+      if (story.mine) {
+        seenCount.textContent = story.seen_count === 1 ? "1 view" : story.seen_count + " views";
+      } else {
+        react.querySelectorAll("[data-emoji]").forEach(function (b) {
+          b.classList.toggle("is-on", b.getAttribute("data-emoji") === story.my_emoji);
+        });
+      }
+
+      var ppl = people(), at = ppl.indexOf(current.username);
+      prevPerson.disabled = at <= 0;
+      nextPerson.disabled = at < 0 || at >= ppl.length - 1;
+
+      // The clock starts once the picture is there, not before. A video
+      // runs for as long as it runs, and its own clock is the bar.
+      pic.classList.add("is-loading");
+      unloadVideo();
+      var isVideo = story.kind === "video" && story.video;
+      img.hidden = !!isVideo;
+      video.hidden = !isVideo;
+      sound.hidden = !isVideo;
+      if (isVideo) {
+        remaining = Math.round((story.duration || STORY_MS / 1000) * 1000);
+        video.muted = muted;
+        sound.classList.toggle("is-muted", muted);
+        video.onloadedmetadata = function () {
+          if (!current || current.stories[index] !== story) return;
+          if (video.duration && isFinite(video.duration)) remaining = Math.round(video.duration * 1000);
+        };
+        video.onplaying = function () {
+          if (!current || current.stories[index] !== story) return;
+          pic.classList.remove("is-loading");
+          run();
+        };
+        video.onended = function () { if (current && current.stories[index] === story) next(); };
+        video.onerror = function () { if (current && current.stories[index] === story) { pic.classList.remove("is-loading"); run(); } };
+        video.src = story.video;
+        var playing = video.play();
+        if (playing && playing.catch) {
+          playing.catch(function () {
+            // No sound without a tap on some phones: play silent, and
+            // offer the speaker to turn it on.
+            muted = true;
+            video.muted = true;
+            sound.classList.add("is-muted");
+            video.play().catch(function () {});
+          });
+        }
+      } else {
+        remaining = STORY_MS;
+        var loaded = function () {
+          if (!current || current.stories[index] !== story) return;
+          pic.classList.remove("is-loading");
+          run();
+        };
+        img.onload = loaded;
+        img.onerror = loaded;
+        img.src = story.image;
+        if (img.complete && img.naturalWidth) loaded();
+      }
+
+      if (!story.mine && !story.seen) {
+        story.seen = true;
+        post("/stories/" + story.id + "/seen/").catch(function () {});
+      }
+      quieten(current);
+    }
+
+    // The ring on their tile goes quiet once every one of theirs is seen.
+    function quieten(person) {
+      if (!person) return;
+      var tile = document.querySelector('[data-story-of="' + person.username + '"]');
+      if (tile && person.stories.every(function (s) { return s.seen || s.mine; })) tile.classList.remove("is-unseen");
+    }
+
+    // The live segment fills by a width transition timed to what is left,
+    // so a pause can read its width back and pick up from exactly there.
+    function fill(bar, ms) {
+      var i = bar.querySelector("i");
+      var total = video.hidden ? STORY_MS : Math.max(Math.round((video.duration || remaining / 1000) * 1000), 1);
+      i.style.transition = "none";
+      i.style.width = ((total - remaining) / total * 100) + "%";
+      void i.offsetWidth;
+      i.style.transition = "width " + ms + "ms linear";
+      i.style.width = "100%";
+    }
+
+    function unloadVideo() {
+      video.onplaying = video.onended = video.onerror = video.onloadedmetadata = null;
+      if (!video.paused) video.pause();
+      if (video.getAttribute("src")) { video.removeAttribute("src"); video.load(); }
+    }
+
+    function run() {
+      var bar = bars.children[index];
+      if (bar) fill(bar, remaining);
+      startedAt = Date.now();
+      clearTimeout(timer);
+      // A video ends itself; the timer is only there for one that stalls.
+      timer = setTimeout(next, remaining + (video.hidden ? 0 : 1500));
+      if (!video.hidden && video.paused) video.play().catch(function () {});
+    }
+
+    function stop() {
+      clearTimeout(timer);
+      timer = null;
+    }
+
+    function pause() {
+      if (!timer) return;
+      stop();
+      if (!video.hidden) {
+        video.pause();
+        remaining = Math.max(Math.round(((video.duration || remaining / 1000) - video.currentTime) * 1000), 0);
+      } else {
+        remaining = Math.max(remaining - (Date.now() - startedAt), 0);
+      }
+      var bar = bars.children[index];
+      if (bar) {
+        var i = bar.querySelector("i");
+        var width = i.getBoundingClientRect().width / bar.getBoundingClientRect().width * 100;
+        i.style.transition = "none";
+        i.style.width = width + "%";
+      }
+      viewer.classList.add("is-paused");
+    }
+
+    function resume() {
+      if (!viewer.classList.contains("is-paused") || !current) return;
+      viewer.classList.remove("is-paused");
+      run();
+    }
+
+    function next() {
+      if (!current) return;
+      if (index + 1 < current.stories.length) return show(index + 1);
+      var ppl = people(), at = ppl.indexOf(current.username);
+      if (at >= 0 && at + 1 < ppl.length) return open(ppl[at + 1]);
+      close();
+    }
+
+    function prev() {
+      if (!current) return;
+      if (index > 0) return show(index - 1);
+      var ppl = people(), at = ppl.indexOf(current.username);
+      if (at > 0) return open(ppl[at - 1]);
+      show(0);
+    }
+
+    q("[data-next]").addEventListener("click", next);
+    q("[data-prev]").addEventListener("click", prev);
+    nextPerson.addEventListener("click", function () {
+      var ppl = people(), at = ppl.indexOf(current && current.username);
+      if (at >= 0 && at + 1 < ppl.length) open(ppl[at + 1]);
+    });
+    prevPerson.addEventListener("click", function () {
+      var ppl = people(), at = ppl.indexOf(current && current.username);
+      if (at > 0) open(ppl[at - 1]);
+    });
+    q("[data-close]").addEventListener("click", close);
+    sound.addEventListener("click", function () {
+      muted = !muted;
+      video.muted = muted;
+      sound.classList.toggle("is-muted", muted);
+    });
+    q("[data-pause]").addEventListener("click", function () {
+      if (viewer.classList.contains("is-paused")) resume(); else pause();
+    });
+    viewer.addEventListener("cancel", function (event) { event.preventDefault(); close(); });
+    viewer.addEventListener("click", function (event) { if (event.target === viewer) close(); });
+
+    // A finger held on the picture holds the story.
+    var stage = q("[data-stage]");
+    stage.addEventListener("pointerdown", function (event) {
+      if (event.target.closest("button:not(.story-viewer__tap)")) return;
+      held = true;
+      setTimeout(function () { if (held) pause(); }, 180);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (type) {
+      stage.addEventListener(type, function () {
+        if (!held) return;
+        held = false;
+        if (viewer.classList.contains("is-paused")) resume();
+      });
+    });
+
+    listen(document, "keydown", function (event) {
+      if (!viewer.open) return;
+      if (event.key === "ArrowRight") next();
+      else if (event.key === "ArrowLeft") prev();
+      else if (event.key === " ") { event.preventDefault(); viewer.classList.contains("is-paused") ? resume() : pause(); }
+    });
+    listen(document, "visibilitychange", function () { if (document.hidden) pause(); });
+
+    // Reacting: the face lights, the server is told, and the row stays.
+    react.addEventListener("click", function (event) {
+      var face = event.target.closest("[data-emoji]");
+      if (!face || !current) return;
+      var story = current.stories[index];
+      var emoji = face.getAttribute("data-emoji");
+      var body = new FormData();
+      body.append("emoji", emoji);
+      var was = story.my_emoji;
+      story.my_emoji = was === emoji ? "" : emoji;
+      react.querySelectorAll("[data-emoji]").forEach(function (b) {
+        b.classList.toggle("is-on", b.getAttribute("data-emoji") === story.my_emoji);
+      });
+      post("/stories/" + story.id + "/react/", body)
+        .then(function (res) { return res.json(); })
+        .then(function (data) { story.my_emoji = data.my_emoji; })
+        .catch(function () {});
+    });
+
+    // Your own: who looked, and the way to take it down.
+    seenBtn.addEventListener("click", function () {
+      if (!current) return;
+      var story = current.stories[index];
+      if (!viewers.hidden) { viewers.hidden = true; resume(); return; }
+      pause();
+      var html = "<h3>" + (story.seen_count ? "Seen by" : "Nobody has seen this yet") + "</h3>";
+      if (story.viewers && story.viewers.length) {
+        html += "<ul>" + story.viewers.map(function (v) {
+          return "<li>" + escapeHtml(v.name) + "<span>" + escapeHtml(v.ago) + "</span></li>";
+        }).join("") + "</ul>";
+      }
+      if (story.reactions && story.reactions.length) {
+        html += '<div class="story-viewer__tally">' + story.reactions.map(function (r) {
+          var face = react.querySelector('[data-emoji="' + r.emoji + '"]');
+          return "<b>" + (face ? face.innerHTML : escapeHtml(r.emoji)) + " " + r.count + "</b>";
+        }).join("") + "</div>";
+      }
+      viewers.innerHTML = html;
+      viewers.hidden = false;
+    });
+    q("[data-delete]").addEventListener("click", function () {
+      if (!current) return;
+      var story = current.stories[index];
+      pause();
+      if (!window.confirm("Take this story down?")) { resume(); return; }
+      post(story.delete_url)
+        .then(function (res) { return res.text(); })
+        .then(function (html) {
+          swapTray(html);
+          current.stories.splice(index, 1);
+          if (!current.stories.length) return close();
+          show(Math.min(index, current.stories.length - 1));
+        })
+        .catch(function () { resume(); });
+    });
+
+    onLeave(function () { stop(); unloadVideo(); if (viewer.open) viewer.close(); });
+
+    // ---- posting one -----------------------------------------------------
+
+    if (!compose) return;
+    initStoryComposer(compose);
+  }
+
+  /* The box for posting a story. A photo goes through the editor: drawn on
+     a canvas in a 9:16 frame, dragged and pinched into place, turned,
+     flipped, tinted, and sent as the frame shows it. A video is checked
+     against the sixty seconds, a frame of it grabbed for the tile, and
+     sent as it is. */
+  var STORY_W = 1080, STORY_H = 1920;
+  var FILTERS = {
+    none: "",
+    vivid: "saturate(1.4) contrast(1.08)",
+    warm: "sepia(.25) saturate(1.2)",
+    cool: "saturate(.9) hue-rotate(-12deg) brightness(1.04)",
+    fade: "contrast(.85) brightness(1.1) saturate(.8)",
+    mono: "grayscale(1) contrast(1.05)",
+  };
+
+  function initStoryComposer(compose) {
+    var form = compose.querySelector("[data-story-form]");
+    var file = compose.querySelector("[data-story-file]");
+    var drop = compose.querySelector("[data-story-drop]");
+    var status = compose.querySelector("[data-story-status]");
+    var share = compose.querySelector("[data-story-post]");
+    var change = compose.querySelector("[data-story-change]");
+    var edit = compose.querySelector("[data-story-edit]");
+    var frame = compose.querySelector("[data-edit-frame]");
+    var canvas = compose.querySelector("[data-edit-canvas]");
+    var hint = compose.querySelector("[data-edit-hint]");
+    var zoom = compose.querySelector("[data-edit-zoom]");
+    var fitBtn = compose.querySelector("[data-edit-fit]");
+    var fitLabel = compose.querySelector("[data-edit-fit-label]");
+    var filters = compose.querySelector("[data-edit-filters]");
+    var clip = compose.querySelector("[data-story-clip]");
+    var clipVideo = compose.querySelector("[data-clip-video]");
+    var clipMeta = compose.querySelector("[data-clip-meta]");
+    var ctx = canvas.getContext("2d");
+    var canFilter = "filter" in ctx;
+    if (!canFilter) filters.hidden = true;
+
+    var reader = null;
+    var url = null;
+    var chosen = null;      // the File
+    var kind = "";          // "photo" | "video" | "raw" (a photo the browser can't draw)
+    var poster = null;      // a Blob, for a video
+    var duration = 0;
+
+    // ---- the editor's state --------------------------------------------
+    var image = null;       // the loaded Image
+    var turn = 0;           // quarter turns
+    var flipped = false;
+    var fit = false;        // whole photo in frame (letterboxed) rather than filling it
+    var scale = 1;          // the user's zoom, over the base
+    var dx = 0, dy = 0;     // pan, in frame pixels
+    var filter = "none";
+
+    function turned() {
+      // The image's size as it sits after the turn.
+      return (turn % 2) ? { w: image.naturalHeight, h: image.naturalWidth } : { w: image.naturalWidth, h: image.naturalHeight };
+    }
+
+    function base(fw, fh) {
+      var t = turned();
+      return fit ? Math.min(fw / t.w, fh / t.h) : Math.max(fw / t.w, fh / t.h);
+    }
+
+    // Keep the picture over the frame: no black edges unless fitting.
+    function clamp(fw, fh) {
+      var t = turned(), k = base(fw, fh) * scale;
+      var w = t.w * k, h = t.h * k;
+      var mx = Math.max((w - fw) / 2, 0), my = Math.max((h - fh) / 2, 0);
+      dx = Math.min(Math.max(dx, -mx), mx);
+      dy = Math.min(Math.max(dy, -my), my);
+    }
+
+    function paint(target, fw, fh) {
+      var c = target.getContext("2d");
+      c.save();
+      c.fillStyle = "#000";
+      c.fillRect(0, 0, fw, fh);
+      if (!image) { c.restore(); return; }
+      clamp(fw, fh);
+      var k = base(fw, fh) * scale;
+      c.translate(fw / 2 + dx, fh / 2 + dy);
+      c.rotate(turn * Math.PI / 2);
+      if (flipped) c.scale(-1, 1);
+      if (canFilter) c.filter = FILTERS[filter] || "none";
+      c.drawImage(image, -image.naturalWidth * k / 2, -image.naturalHeight * k / 2, image.naturalWidth * k, image.naturalHeight * k);
+      c.restore();
+    }
+
+    function draw() {
+      var r = frame.getBoundingClientRect();
+      var ratio = Math.min(window.devicePixelRatio || 1, 2);
+      var w = Math.round(r.width), h = Math.round(r.height);
+      if (canvas.width !== w * ratio || canvas.height !== h * ratio) {
+        canvas.width = w * ratio; canvas.height = h * ratio;
+      }
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      paint(canvas, w, h);
+    }
+
+    // What is sent: the frame as shown, at a phone's size.
+    function exportBlob() {
+      return new Promise(function (resolve) {
+        var out = document.createElement("canvas");
+        out.width = STORY_W; out.height = STORY_H;
+        var r = frame.getBoundingClientRect();
+        var k = STORY_W / r.width;
+        var sdx = dx, sdy = dy;
+        dx *= k; dy *= k;
+        paint(out, STORY_W, STORY_H);
+        dx = sdx; dy = sdy;
+        out.toBlob(function (blob) { resolve(blob); }, "image/jpeg", 0.88);
+      });
+    }
+
+    // ---- gestures: drag, pinch, wheel, slider ----------------------------
+    var pointers = {};
+    var pinchStart = null;
+    frame.addEventListener("pointerdown", function (event) {
+      if (!image) return;
+      frame.setPointerCapture(event.pointerId);
+      pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+      var ids = Object.keys(pointers);
+      if (ids.length === 2) {
+        var a = pointers[ids[0]], b = pointers[ids[1]];
+        pinchStart = { dist: Math.hypot(a.x - b.x, a.y - b.y), scale: scale };
+      }
+      hint.hidden = true;
+      event.preventDefault();
+    });
+    frame.addEventListener("pointermove", function (event) {
+      var p = pointers[event.pointerId];
+      if (!p || !image) return;
+      var ids = Object.keys(pointers);
+      if (ids.length >= 2 && pinchStart) {
+        pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+        var a = pointers[ids[0]], b = pointers[ids[1]];
+        var dist = Math.hypot(a.x - b.x, a.y - b.y);
+        scale = Math.min(Math.max(pinchStart.scale * (dist / pinchStart.dist), 1), 4);
+        zoom.value = scale;
+      } else if (!fit) {
+        dx += event.clientX - p.x;
+        dy += event.clientY - p.y;
+        pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+      }
+      draw();
+    });
+    function lift(event) {
+      delete pointers[event.pointerId];
+      if (Object.keys(pointers).length < 2) pinchStart = null;
+    }
+    frame.addEventListener("pointerup", lift);
+    frame.addEventListener("pointercancel", lift);
+    frame.addEventListener("wheel", function (event) {
+      if (!image) return;
+      event.preventDefault();
+      scale = Math.min(Math.max(scale * (event.deltaY < 0 ? 1.06 : 0.94), 1), 4);
+      zoom.value = scale;
+      draw();
+    }, { passive: false });
+    zoom.addEventListener("input", function () { scale = parseFloat(zoom.value) || 1; draw(); });
+
+    compose.querySelector("[data-edit-rotate]").addEventListener("click", function () {
+      turn = (turn + 1) % 4; dx = dy = 0; draw();
+    });
+    compose.querySelector("[data-edit-flip]").addEventListener("click", function () {
+      flipped = !flipped; dx = -dx; draw();
+    });
+    fitBtn.addEventListener("click", function () {
+      fit = !fit; dx = dy = 0; scale = 1; zoom.value = 1;
+      fitLabel.textContent = fit ? "Fill" : "Fit";
+      fitBtn.classList.toggle("is-on", fit);
+      draw();
+    });
+    filters.addEventListener("click", function (event) {
+      var b = event.target.closest("[data-filter]");
+      if (!b) return;
+      filter = b.getAttribute("data-filter");
+      filters.querySelectorAll("[data-filter]").forEach(function (x) { x.classList.toggle("is-on", x === b); });
+      draw();
+    });
+    listen(window, "resize", function () { if (!edit.hidden) draw(); });
+
+    // ---- choosing ----------------------------------------------------------
+    function say(text, bad) {
+      status.innerHTML = text ? '<div class="help' + (bad ? " help--error" : "") + '">' + escapeHtml(text) + "</div>" : "";
+      status.hidden = !text;
+    }
+
+    function reset() {
+      form.reset();
+      if (url) { URL.revokeObjectURL(url); url = null; }
+      chosen = null; kind = ""; poster = null; duration = 0; image = null;
+      turn = 0; flipped = false; fit = false; scale = 1; dx = dy = 0; filter = "none";
+      zoom.value = 1;
+      fitLabel.textContent = "Fit"; fitBtn.classList.remove("is-on");
+      filters.querySelectorAll("[data-filter]").forEach(function (x) { x.classList.toggle("is-on", x.getAttribute("data-filter") === "none"); });
+      drop.hidden = false; edit.hidden = true; clip.hidden = true; change.hidden = true;
+      hint.hidden = false;
+      if (clipVideo.getAttribute("src")) { clipVideo.pause(); clipVideo.removeAttribute("src"); clipVideo.load(); }
+      share.disabled = true;
+      share.textContent = "Share";
+      say("");
+      if (reader) { reader.abort(); reader = null; }
+    }
+
+    function picked(f) {
+      if (url) { URL.revokeObjectURL(url); url = null; }
+      chosen = f;
+      url = URL.createObjectURL(f);
+      drop.hidden = true;
+      change.hidden = false;
+      say("");
+      if (/^video\//.test(f.type) || /\.(mp4|mov|m4v|webm|3gp)$/i.test(f.name)) return pickedVideo(f);
+      pickedPhoto(f);
+    }
+
+    function pickedPhoto(f) {
+      kind = "photo";
+      var im = new Image();
+      im.onload = function () {
+        image = im;
+        edit.hidden = false;
+        share.disabled = false;
+        // The frame has just been shown; measure it once it has a size.
+        requestAnimationFrame(draw);
+      };
+      im.onerror = function () {
+        // A format this browser can't draw (HEIC on a laptop): it still
+        // goes up as it is, and the server turns it into a JPEG.
+        kind = "raw";
+        edit.hidden = true;
+        share.disabled = false;
+        say("This browser can't show that format, so it can't be edited here — it will still be posted, and straightened on the way.");
+      };
+      im.src = url;
+    }
+
+    function pickedVideo(f) {
+      kind = "video";
+      clip.hidden = false;
+      clipMeta.textContent = "Checking the length…";
+      clipVideo.src = url;
+      clipVideo.onloadedmetadata = function () {
+        duration = clipVideo.duration;
+        var secs = Math.round(duration);
+        if (duration > STORY_MAX_SECONDS + 0.5) {
+          clipMeta.textContent = secs + " seconds — a story video can be up to " + STORY_MAX_SECONDS + ".";
+          say("That video is " + secs + " seconds long. Trim it to " + STORY_MAX_SECONDS + " seconds or less, then choose it again.", true);
+          share.disabled = true;
+          return;
+        }
+        clipMeta.textContent = secs + " second" + (secs === 1 ? "" : "s") + " · " + fileSize(f.size);
+        share.disabled = false;
+        // A frame for the tile: the first moment of the clip.
+        clipVideo.currentTime = Math.min(0.1, duration / 2);
+      };
+      clipVideo.onseeked = function () {
+        if (poster) return;
+        try {
+          var c = document.createElement("canvas");
+          var w = clipVideo.videoWidth, h = clipVideo.videoHeight;
+          if (!w || !h) return;
+          var k = Math.min(720 / w, 1280 / h, 1);
+          c.width = Math.round(w * k); c.height = Math.round(h * k);
+          c.getContext("2d").drawImage(clipVideo, 0, 0, c.width, c.height);
+          c.toBlob(function (blob) { poster = blob; }, "image/jpeg", 0.8);
+        } catch (e) { /* a cross-origin frame can't be read; the tile goes plain */ }
+        clipVideo.onseeked = null;
+      };
+      clipVideo.onerror = function () {
+        say("This browser can't play that video. Send an MP4 (H.264) — a phone's camera app can export one.", true);
+        share.disabled = true;
+      };
+    }
+
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0];
+      if (!f) return;
+      picked(f);
+    });
+    change.addEventListener("click", function () { reset(); file.click(); });
+
+    // ---- sharing -------------------------------------------------------------
+    form.addEventListener("submit", function (event) {
+      if (!chosen) return;
+      event.preventDefault();
+      share.disabled = true;
+      share.textContent = "Sharing…";
+      var body = new FormData();
+      body.append("csrfmiddlewaretoken", form.querySelector('[name="csrfmiddlewaretoken"]').value);
+      body.append("caption", form.querySelector('[name="caption"]').value);
+
+      var ready;
+      if (kind === "photo") {
+        ready = exportBlob().then(function (blob) {
+          body.append("image", blob, "story.jpg");
+          return { file: blob, reading: "Fitting it to a phone screen" };
+        });
+      } else if (kind === "video") {
+        body.append("video", chosen, chosen.name);
+        body.append("duration", String(duration || ""));
+        if (poster) body.append("poster", poster, "poster.jpg");
+        // Above 1080p the server re-encodes it, which is the slow part.
+        var big = Math.min(clipVideo.videoWidth || 0, clipVideo.videoHeight || 0) > 1080;
+        ready = Promise.resolve({
+          file: chosen,
+          reading: big ? "Shrinking it to 1080p — up to a minute for a long clip" : "Checking it and keeping it for 24 hours",
+        });
+      } else {
+        body.append("image", chosen, chosen.name);
+        ready = Promise.resolve({ file: chosen, reading: "Straightening and shrinking it" });
+      }
+
+      ready.then(function (what) {
+        reader = makeReader(what.file.name ? what.file : new File([what.file], "story.jpg"), { into: status, reading: what.reading });
+        return reader.send(form.action, body, "text");
+      })
+        .then(function (res) {
+          if (res.status === 400) {
+            var data = null;
+            try { data = JSON.parse(res.text); } catch (e) { data = null; }
+            throw new Error((data && data.error) || "That couldn't be used.");
+          }
+          var old = document.querySelector("[data-stories]");
+          if (old) {
+            var box = document.createElement("div");
+            box.innerHTML = res.text;
+            var fresh = box.querySelector("[data-stories]");
+            if (fresh) old.replaceWith(fresh);
+          }
+          reader = null;
+          closeModal(compose);
+          reset();
+        })
+        .catch(function (err) {
+          if (reader) { reader.close(); reader = null; }
+          share.disabled = false;
+          share.textContent = "Share";
+          say(err && err.message === "abort" ? "Stopped." : (err && err.message) || sendFailure(err, "."), true);
+        });
+    });
+
+    onLeave(function () { if (reader) reader.abort(); if (url) URL.revokeObjectURL(url); });
+  }
+
+  /* ----------------------------------------------------------------------
      Sending a file, and showing it being read
      One panel for every upload that is read rather than kept — a payslip
      for the workplace form, a photo of a picking list: a thumbnail of the
@@ -3334,13 +4063,17 @@
      tabs, downloads, other origins, forms — and so is anything the response
      turns out not to be: a file, an error, or a page built for different
      stylesheets or scripts than this one (a deploy has landed, and only a
-     real load picks that up). Two attributes let a template opt a link out:
+     real load picks that up). Three attributes let a template opt a link out:
 
        data-full-load   a real navigation, always. For a link that redirects
                         to an anchor, which fetch cannot see.
        data-no-cache    never prefetched and never served from the cache.
                         For a page whose GET does something — the inbox
                         marks itself read.
+       data-handled     a link some other script answers itself — a story
+                        tile opens the viewer — so it is neither prefetched
+                        nor followed here; the script's preventDefault is
+                        what decides. With script off it is a plain link.
 
      Scripts in the fetched page are not run. Nothing here needs any beyond
      the two base.html loads, and the page's own initialisers are run again
@@ -3404,6 +4137,7 @@
       var href = link.getAttribute("href") || "";
       if (!href || href.charAt(0) === "#") return false;
       if (link.hasAttribute("download") || link.hasAttribute("data-full-load")) return false;
+      if (link.hasAttribute("data-handled")) return false;
       if (link.target && link.target !== "_self") return false;
       if (link.origin !== location.origin) return false;
       if (NOT_A_PAGE.test(link.pathname)) return false;
@@ -3719,6 +4453,7 @@
     initTally();
     initPeriodFields();
     initPayslipFill();
+    initStories();
     initPayForms();
     initStatementForm();
     initCashFields();

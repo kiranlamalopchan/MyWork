@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Create story · MyWork{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'home' %}">{% icon "back" %} Home</a>
+<div class="page-head"><h1 class="page-title">Create story</h1>
+  <p class="page-sub">A photo from your day, up for 24 hours.</p></div>
+<div class="card card__pad">
+  <form method="post" action="{% url 'stories:create' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="field">
+      <label class="label" for="story-image">Photo</label>
+      <input type="file" id="story-image" name="image" accept="image/*">
+    </div>
+    <div class="field">
+      <label class="label" for="story-video">Or a video (up to 60 seconds)</label>
+      <input type="file" id="story-video" name="video" accept="video/*">
+    </div>
+    <div class="field">
+      <label class="label" for="story-caption">Caption (optional)</label>
+      <input class="input" type="text" id="story-caption" name="caption" maxlength="200">
+    </div>
+    <button type="submit" class="btn btn--primary btn--block">Share to your story</button>
+  </form>
+</div>
+{% endblock %}
