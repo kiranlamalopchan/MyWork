@@ -26,9 +26,6 @@
          aria-label="{% if row.mine %}Your story{% else %}{{ row.profile.name }}'s story{% endif %}, {{ row.count }} photo{{ row.count|pluralize }}">
         <span class="story-tile__bg">{% if row.latest.image %}<img src="{{ row.latest.image.url }}" alt="" loading="lazy">{% endif %}</span>
         <span class="story-tile__ring">{% avatar row.user size="sm" %}</span>
-        {% if row.latest.is_video %}
-          <span class="story-tile__play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-        {% endif %}
         <span class="story-tile__name">{% if row.mine %}Your story{% else %}{{ row.profile.name }}{% endif %}</span>
       </a>
     {% endfor %}
