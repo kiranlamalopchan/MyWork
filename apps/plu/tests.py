@@ -268,3 +268,39 @@ class PhotoSearchPickTests(TestCase):
         resp = self.client.get(reverse("plu:photo_search"), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertNotContains(resp, 'id="photo-form"')
         self.assertContains(resp, "BEEF MINCE")
+
+
+class IphonePhotoTests(TestCase):
+    """
+    A photo straight off an iPhone is HEIC, which Pillow can't open unless
+    pillow-heif's opener is registered — and the form checks the upload
+    with Pillow before the view sees it. The opener is registered once,
+    when the process starts (AccountsConfig.ready), so these must pass in
+    a fresh process, not only after a story has been posted.
+    """
+
+    def heic(self):
+        from pathlib import Path
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        path = Path(__file__).parent.parent / "stories" / "fixtures" / "photo.heic"
+        return SimpleUploadedFile("photo.heic", path.read_bytes(), content_type="image/heic")
+
+    def test_the_form_accepts_a_heic(self):
+        from .forms import PhotoSearchForm
+
+        form = PhotoSearchForm({}, {"photo": self.heic()})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_the_reader_opens_a_heic(self):
+        from . import picking
+
+        image = picking.open_photo(self.heic())
+        self.assertGreater(image.width, 0)
+
+    def test_the_profile_photo_accepts_a_heic(self):
+        from apps.accounts.forms import PhotoForm
+
+        form = PhotoForm({}, {"photo": self.heic()})
+        self.assertTrue(form.is_valid(), form.errors)

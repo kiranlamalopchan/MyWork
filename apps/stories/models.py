@@ -358,14 +358,8 @@ def _fitted(upload):
     """The upload as a JPEG no bigger than MAX_SIDE on its long side."""
     from PIL import Image, ImageOps
 
-    try:
-        # HEIC/HEIF — what an iPhone photographs in — needs the opener
-        # registered before Pillow can read it.
-        from pillow_heif import register_heif_opener
-        register_heif_opener()
-    except ImportError:
-        pass
-
+    # HEIC/HEIF, what an iPhone photographs in, opens like any other format:
+    # AccountsConfig.ready registers the opener when the process starts.
     image = Image.open(upload)
     image = ImageOps.exif_transpose(image)
     if image.mode not in ("RGB", "L"):

@@ -85,7 +85,7 @@ def open_photo(uploaded):
         image = Image.open(uploaded)
         image.load()
     except Exception:
-        raise Unreadable("That file isn't a photo we can open. Try a JPEG or PNG.")
+        raise Unreadable("That file isn't a photo we can open. Try a JPEG, PNG or HEIC.")
     return image
 
 

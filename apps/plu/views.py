@@ -281,7 +281,7 @@ def photo_search(request):
     if request.method == "POST":
         form = PhotoSearchForm(request.POST, request.FILES)
         if not form.is_valid():
-            error = "Choose a photo — a JPEG or PNG of the list."
+            error = "Choose a photo of the list — a JPEG, PNG or HEIC."
         else:
             try:
                 lines = picking.read_lines(form.cleaned_data["photo"])
