@@ -104,7 +104,10 @@ def create(request):
     story = Story(author=request.user, caption=data["caption"].strip())
     try:
         if data["video"]:
-            story.set_video(data["video"], poster=data["poster"], duration=data["duration"])
+            story.set_video(
+                data["video"], poster=data["poster"], duration=data["duration"],
+                start=data["trim_start"], end=data["trim_end"],
+            )
         else:
             story.set_image(data["image"])
     except Unusable as why:

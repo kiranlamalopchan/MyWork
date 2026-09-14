@@ -30,12 +30,15 @@ entirely to that app.
   before it goes: drag and pinch to crop in a 9:16 frame, rotate, flip,
   fit or fill, a few tints — what is sent is the frame as shown, at
   1080×1920
-- A video of up to 60 seconds; the length is checked on the phone before
-  it is sent and again on the server with `ffprobe`. Anything above 1080p,
-  or in a codec not every phone plays (an iPhone's HEVC), is re-encoded by
-  `ffmpeg` to 1080p H.264 — a 4K clip comes down to a fraction of its size.
-  Both tools are on PythonAnywhere already; without them what arrived is
-  kept. The phone grabs a frame for the tile
+- A video of up to 60 seconds. A longer one isn't turned away: a trimmer
+  appears under it — a strip of its frames with a window to drag along,
+  or narrow from either end — and the part chosen is cut on the server by
+  `ffmpeg`, the length checked again there with `ffprobe`. Anything above
+  1080p, or in a codec not every phone plays (an iPhone's HEVC), is
+  re-encoded to 1080p H.264 — a 4K clip comes down to a fraction of its
+  size. Both tools are on PythonAnywhere already; without them what
+  arrived is kept, and a trim is refused in so many words. The phone grabs
+  a frame for the tile, from the start of the part kept
 - Tap a face for the full-screen viewer — five seconds a picture, a video
   for as long as it runs, with a speaker to mute; hold to pause, tap either
   side to move, arrows to the next person; react with the board's faces;

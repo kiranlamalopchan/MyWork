@@ -3461,6 +3461,15 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   box-shadow: var(--shadow-3);
   padding: var(--sp-4);
   animation: mw-modal .3s var(--ease-out) both;
+  /* Taller than the screen — the composer with a video and its trimmer on
+     a small phone — the box scrolls inside itself, so nothing below the
+     fold is out of reach. The cap is the dialog's own, from the browser's
+     stylesheet, which .modal's overflow: visible would otherwise let the
+     box hang past. */
+  max-height: calc(100vh - 6px - 2em);
+  max-height: calc(100dvh - 6px - 2em);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 @keyframes mw-modal {
   from { opacity: 0; transform: translateY(14px) scale(.96); }
@@ -7061,6 +7070,63 @@ body::before {
   display: block;
 }
 .story-clip__meta { text-align: center; font-size: 13px; color: var(--muted); }
+/* With the trimmer under it, the preview gives up some height so the
+   strip and Share are on screen together on a phone; still 9:16. */
+.story-clip.is-trimming .story-clip__video { width: min(100%, 300px, 42vh * 9 / 16); }
+
+/* Over sixty seconds: the trimmer. A strip of the clip's frames with a
+   window over it — the part that goes — dimming the rest. The window is
+   dragged by its body; its ends are the handles, thick enough for a
+   thumb, with a grip line so they read as something to pull. */
+.story-trim { display: grid; gap: var(--sp-2); }
+.story-trim__track {
+  position: relative;
+  height: 64px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+.story-trim__strip { display: flex; height: 100%; }
+.story-trim__strip canvas { flex: 1 1 0; min-width: 0; height: 100%; display: block; }
+.story-trim__window {
+  position: absolute;
+  top: 0; bottom: 0;
+  box-sizing: border-box;
+  border: 3px solid var(--brand);
+  border-left-width: 16px;
+  border-right-width: 16px;
+  border-radius: var(--r-sm);
+  /* The shade over what is left out, clipped by the track. */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .45);
+  cursor: grab;
+}
+.story-trim__window:active { cursor: grabbing; }
+.story-trim__handle {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  width: 16px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.story-trim__handle--start { left: -16px; }
+.story-trim__handle--end { right: -16px; }
+.story-trim__handle::before {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 3px; height: 18px;
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+  background: var(--brand-ink);
+  opacity: .9;
+}
+.story-trim__handle:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: -4px; }
+.story-trim__hint { text-align: center; font-size: 12px; color: var(--muted); }
+.story-trim[hidden] { display: none; }
 .story-compose__actions { display: flex; gap: var(--sp-2); }
 .story-compose__actions .btn { flex: 1 1 0; }
 .story-compose__actions .btn[hidden] { display: none; }

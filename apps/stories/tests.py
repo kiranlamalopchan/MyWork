@@ -188,6 +188,39 @@ class VideoStoryTests(TestCase):
         self.assertIn("60 seconds", resp.json()["error"])
         self.assertEqual(Story.objects.count(), 0)
 
+    def test_a_trim_longer_than_a_minute_is_refused(self):
+        resp = self.client.post(
+            reverse("stories:create"),
+            {"video": fixture("long.mp4"), "duration": "65", "trim_start": "0", "trim_end": "62"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("60 seconds", resp.json()["error"])
+        self.assertEqual(Story.objects.count(), 0)
+
+    def test_a_trim_past_the_end_or_back_to_front_is_refused(self):
+        for start, end in (("30", "90"), ("40", "30"), ("10", "")):
+            resp = self.client.post(
+                reverse("stories:create"),
+                {"video": fixture("long.mp4"), "duration": "65", "trim_start": start, "trim_end": end},
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+            self.assertEqual(resp.status_code, 400, (start, end))
+        self.assertEqual(Story.objects.count(), 0)
+
+    def test_without_ffmpeg_a_trim_is_refused_in_so_many_words(self):
+        from unittest.mock import patch
+
+        with patch("apps.stories.models.shutil.which", return_value=None):
+            resp = self.client.post(
+                reverse("stories:create"),
+                {"video": fixture("long.mp4"), "duration": "65", "trim_start": "2", "trim_end": "50"},
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("can't cut", resp.json()["error"])
+        self.assertEqual(Story.objects.count(), 0)
+
     def test_a_file_that_is_not_a_video_is_refused(self):
         resp = self.client.post(
             reverse("stories:create"), {"video": SimpleUploadedFile("notes.txt", b"hello")},
@@ -262,6 +295,44 @@ class VideoSizeTests(TestCase):
         self.client.post(reverse("stories:create"), {"video": fixture("hevc.mp4")})
         story = Story.objects.get()
         self.assertEqual(self.probe_stored(story)["codec"], "h264")
+
+    def test_a_long_video_is_cut_to_the_part_chosen(self):
+        resp = self.client.post(
+            reverse("stories:create"),
+            {"video": fixture("long.mp4"), "duration": "65", "trim_start": "3", "trim_end": "63"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        story = Story.objects.get()
+        self.assertAlmostEqual(story.duration, 60.0, delta=0.5)
+        info = self.probe_stored(story)
+        self.assertAlmostEqual(info["duration"], 60.0, delta=0.5)
+        self.assertEqual(info["codec"], "h264")
+        self.assertTrue(story.video.name.endswith(".mp4"))
+
+    def test_a_short_trim_of_a_long_video_keeps_only_that(self):
+        self.client.post(
+            reverse("stories:create"),
+            {"video": fixture("long.mp4"), "trim_start": "10", "trim_end": "14.5"},
+        )
+        story = Story.objects.get()
+        self.assertAlmostEqual(self.probe_stored(story)["duration"], 4.5, delta=0.3)
+
+    def test_a_trim_overshooting_the_end_by_a_hair_is_brought_in(self):
+        # A phone's reading of the length and ffprobe's can differ a little.
+        resp = self.client.post(
+            reverse("stories:create"),
+            {"video": fixture("long.mp4"), "duration": "65.4", "trim_start": "20", "trim_end": "65.4"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        self.assertAlmostEqual(self.probe_stored(Story.objects.get())["duration"], 45.0, delta=0.5)
+
+    def test_a_trim_over_the_whole_of_a_short_video_changes_nothing(self):
+        original = fixture("short.mp4")
+        size = original.size
+        self.client.post(reverse("stories:create"), {"video": original, "trim_start": "0", "trim_end": "3"})
+        self.assertEqual(Story.objects.get().video.size, size)
 
     def test_a_small_h264_video_is_kept_as_it_came(self):
         original = fixture("short.mp4")

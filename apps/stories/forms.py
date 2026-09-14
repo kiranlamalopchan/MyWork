@@ -14,4 +14,8 @@ class StoryForm(forms.Form):
     # How long the phone measured the video to be, believed only where the
     # server has no ffprobe to measure it itself.
     duration = forms.FloatField(required=False, min_value=0)
+    # The part of a long video to keep, in seconds from its start — what
+    # the composer's trimmer was left at. Both or neither.
+    trim_start = forms.FloatField(required=False, min_value=0)
+    trim_end = forms.FloatField(required=False, min_value=0)
     caption = forms.CharField(max_length=MAX_CAPTION, required=False)

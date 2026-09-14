@@ -2078,6 +2078,10 @@
     var clip = compose.querySelector("[data-story-clip]");
     var clipVideo = compose.querySelector("[data-clip-video]");
     var clipMeta = compose.querySelector("[data-clip-meta]");
+    var trimBox = compose.querySelector("[data-story-trim]");
+    var track = compose.querySelector("[data-trim-track]");
+    var strip = compose.querySelector("[data-trim-strip]");
+    var win = compose.querySelector("[data-trim-window]");
     var ctx = canvas.getContext("2d");
     var canFilter = "filter" in ctx;
     if (!canFilter) filters.hidden = true;
@@ -2086,8 +2090,9 @@
     var url = null;
     var chosen = null;      // the File
     var kind = "";          // "photo" | "video" | "raw" (a photo the browser can't draw)
-    var poster = null;      // a Blob, for a video
     var duration = 0;
+    var trim = null;        // { start, end } in seconds, once a video runs over the limit
+    var stripVideo = null;  // the hidden video the trimmer's frames are drawn from
 
     // ---- the editor's state --------------------------------------------
     var image = null;       // the loaded Image
@@ -2236,7 +2241,7 @@
     function reset() {
       form.reset();
       if (url) { URL.revokeObjectURL(url); url = null; }
-      chosen = null; kind = ""; poster = null; duration = 0; image = null;
+      chosen = null; kind = ""; duration = 0; image = null;
       turn = 0; flipped = false; fit = false; scale = 1; dx = dy = 0; filter = "none";
       zoom.value = 1;
       fitLabel.textContent = "Fit"; fitBtn.classList.remove("is-on");
@@ -2244,6 +2249,7 @@
       drop.hidden = false; edit.hidden = true; clip.hidden = true; change.hidden = true;
       hint.hidden = false;
       if (clipVideo.getAttribute("src")) { clipVideo.pause(); clipVideo.removeAttribute("src"); clipVideo.load(); }
+      endTrim();
       share.disabled = true;
       share.textContent = "Share";
       say("");
@@ -2290,35 +2296,198 @@
       clipVideo.onloadedmetadata = function () {
         duration = clipVideo.duration;
         var secs = Math.round(duration);
-        if (duration > STORY_MAX_SECONDS + 0.5) {
-          clipMeta.textContent = secs + " seconds — a story video can be up to " + STORY_MAX_SECONDS + ".";
-          say("That video is " + secs + " seconds long. Trim it to " + STORY_MAX_SECONDS + " seconds or less, then choose it again.", true);
-          share.disabled = true;
-          return;
+        if (isFinite(duration) && duration > STORY_MAX_SECONDS + 0.5) {
+          // Over the limit: not sent away to cut it elsewhere — a window
+          // over the clip to say which part of it goes.
+          startTrim();
+        } else {
+          // A length the browser can't tell (a stream with no header) is
+          // left for the server to measure.
+          clipMeta.textContent = (isFinite(duration) ? secs + " second" + (secs === 1 ? "" : "s") + " · " : "") + fileSize(f.size);
         }
-        clipMeta.textContent = secs + " second" + (secs === 1 ? "" : "s") + " · " + fileSize(f.size);
         share.disabled = false;
-        // A frame for the tile: the first moment of the clip.
+        // A frame in the preview, rather than black until it is played.
         clipVideo.currentTime = Math.min(0.1, duration / 2);
-      };
-      clipVideo.onseeked = function () {
-        if (poster) return;
-        try {
-          var c = document.createElement("canvas");
-          var w = clipVideo.videoWidth, h = clipVideo.videoHeight;
-          if (!w || !h) return;
-          var k = Math.min(720 / w, 1280 / h, 1);
-          c.width = Math.round(w * k); c.height = Math.round(h * k);
-          c.getContext("2d").drawImage(clipVideo, 0, 0, c.width, c.height);
-          c.toBlob(function (blob) { poster = blob; }, "image/jpeg", 0.8);
-        } catch (e) { /* a cross-origin frame can't be read; the tile goes plain */ }
-        clipVideo.onseeked = null;
       };
       clipVideo.onerror = function () {
         say("This browser can't play that video. Send an MP4 (H.264) — a phone's camera app can export one.", true);
         share.disabled = true;
       };
     }
+
+    /* A frame of the clip at `at`, as a JPEG blob for the tile — or null
+       when the browser can't draw it (a cross-origin source, a seek that
+       never lands), in which case the tile goes plain. */
+    function grabPoster(at) {
+      return new Promise(function (resolve) {
+        var done = false;
+        function finish(blob) {
+          if (done) return;
+          done = true;
+          clipVideo.removeEventListener("seeked", snap);
+          resolve(blob || null);
+        }
+        function snap() {
+          try {
+            var c = document.createElement("canvas");
+            var w = clipVideo.videoWidth, h = clipVideo.videoHeight;
+            if (!w || !h) return finish(null);
+            var k = Math.min(720 / w, 1280 / h, 1);
+            c.width = Math.round(w * k); c.height = Math.round(h * k);
+            c.getContext("2d").drawImage(clipVideo, 0, 0, c.width, c.height);
+            c.toBlob(function (blob) { finish(blob); }, "image/jpeg", 0.8);
+          } catch (e) { finish(null); }
+        }
+        if (!clipVideo.videoWidth) return finish(null);
+        clipVideo.pause();
+        // Already there: no seeked event is coming.
+        if (Math.abs(clipVideo.currentTime - at) < 0.05) return snap();
+        clipVideo.addEventListener("seeked", snap);
+        clipVideo.currentTime = at;
+        setTimeout(function () { finish(null); }, 2500);
+      });
+    }
+
+    // ---- trimming a long video ---------------------------------------------
+    // A window over a strip of the clip's frames: drag it along, or either
+    // edge of it, to say which part goes up. The preview follows the edge
+    // being moved, and once played, plays the window round and round. The
+    // cut itself is the server's — it re-encodes the clip anyway.
+    var TRIM_MIN = 1;   // the shortest a story video can be cut to, in seconds
+
+    function clock(secs) {
+      secs = Math.max(0, Math.round(secs));
+      return Math.floor(secs / 60) + ":" + ("0" + (secs % 60)).slice(-2);
+    }
+
+    function startTrim() {
+      trim = { start: 0, end: STORY_MAX_SECONDS };
+      trimBox.hidden = false;
+      clip.classList.add("is-trimming");
+      placeWindow();
+      buildStrip();
+    }
+
+    function endTrim() {
+      trim = null;
+      trimBox.hidden = true;
+      clip.classList.remove("is-trimming");
+      strip.innerHTML = "";
+      if (stripVideo) { stripVideo.removeAttribute("src"); stripVideo.load(); stripVideo = null; }
+    }
+
+    function placeWindow() {
+      win.style.left = (trim.start / duration * 100) + "%";
+      win.style.width = ((trim.end - trim.start) / duration * 100) + "%";
+      clipMeta.textContent =
+        "Keeping " + clock(trim.start) + " – " + clock(trim.end) +
+        " (" + Math.round(trim.end - trim.start) + " s) of " + clock(duration);
+      win.querySelectorAll("[data-trim-handle]").forEach(function (h) {
+        var at = h.getAttribute("data-trim-handle") === "start" ? trim.start : trim.end;
+        h.setAttribute("aria-valuemin", "0");
+        h.setAttribute("aria-valuemax", String(Math.round(duration)));
+        h.setAttribute("aria-valuenow", String(Math.round(at)));
+        h.setAttribute("aria-valuetext", clock(at));
+      });
+    }
+
+    /* Move the window: the whole of it, or one edge — kept inside the
+       clip, no longer than a story may be, no shorter than TRIM_MIN. The
+       preview shows the edge that moved. */
+    function moveTrim(what, start, end) {
+      var span = end - start;
+      if (what === "body") {
+        start = Math.min(Math.max(start, 0), duration - span);
+        end = start + span;
+      } else if (what === "start") {
+        start = Math.min(Math.max(start, end - STORY_MAX_SECONDS, 0), end - TRIM_MIN);
+      } else {
+        end = Math.max(Math.min(end, start + STORY_MAX_SECONDS, duration), start + TRIM_MIN);
+      }
+      trim.start = start; trim.end = end;
+      placeWindow();
+      clipVideo.pause();
+      clipVideo.currentTime = what === "end" ? end : start;
+    }
+
+    /* Frames along the clip for the track, drawn from a second, hidden
+       video so the preview isn't dragged about while they are fetched.
+       Should the browser not oblige, the track stays a plain bar. */
+    function buildStrip() {
+      var count = 8, i = 0, frames = [];
+      for (var n = 0; n < count; n++) {
+        var c = document.createElement("canvas");
+        c.width = 48; c.height = 64;
+        strip.appendChild(c);
+        frames.push(c);
+      }
+      var v = stripVideo = document.createElement("video");
+      v.muted = true; v.playsInline = true; v.preload = "auto";
+      function next() {
+        if (v !== stripVideo || i >= count) return;
+        v.currentTime = Math.min(duration * (i + 0.5) / count, Math.max(duration - 0.1, 0));
+      }
+      v.addEventListener("loadedmetadata", next);
+      v.addEventListener("seeked", function () {
+        if (v !== stripVideo) return;
+        var c = frames[i], vw = v.videoWidth, vh = v.videoHeight;
+        if (c && vw && vh) {
+          // Cover the little frame, as the tile would.
+          var k = Math.max(c.width / vw, c.height / vh), w = vw * k, h = vh * k;
+          try { c.getContext("2d").drawImage(v, (c.width - w) / 2, (c.height - h) / 2, w, h); } catch (e) { /* plain */ }
+        }
+        i++;
+        next();
+      });
+      v.src = url;
+    }
+
+    var drag = null;   // { what, x, start, end } while a finger is on the track
+    track.addEventListener("pointerdown", function (event) {
+      if (!trim) return;
+      var handle = event.target.closest("[data-trim-handle]");
+      var what = handle ? handle.getAttribute("data-trim-handle") : event.target.closest("[data-trim-window]") ? "body" : "";
+      if (!what) {
+        // Tapped beside the window: bring it there, centred on the tap.
+        var r = track.getBoundingClientRect();
+        var at = (event.clientX - r.left) / r.width * duration, half = (trim.end - trim.start) / 2;
+        moveTrim("body", at - half, at + half);
+        what = "body";
+      }
+      track.setPointerCapture(event.pointerId);
+      drag = { what: what, x: event.clientX, start: trim.start, end: trim.end };
+      if (handle) handle.focus();
+      event.preventDefault();
+    });
+    track.addEventListener("pointermove", function (event) {
+      if (!drag) return;
+      var dt = (event.clientX - drag.x) / track.getBoundingClientRect().width * duration;
+      moveTrim(
+        drag.what,
+        drag.start + (drag.what === "end" ? 0 : dt),
+        drag.end + (drag.what === "start" ? 0 : dt)
+      );
+    });
+    function letGo() { drag = null; }
+    track.addEventListener("pointerup", letGo);
+    track.addEventListener("pointercancel", letGo);
+    track.addEventListener("keydown", function (event) {
+      var handle = event.target.closest("[data-trim-handle]");
+      var step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+      if (!handle || !trim || !step) return;
+      if (event.shiftKey) step *= 5;
+      var what = handle.getAttribute("data-trim-handle");
+      moveTrim(what, trim.start + (what === "start" ? step : 0), trim.end + (what === "end" ? step : 0));
+      event.preventDefault();
+    });
+    // Played, the preview stays inside the window.
+    clipVideo.addEventListener("play", function () {
+      if (trim && (clipVideo.currentTime < trim.start || clipVideo.currentTime >= trim.end)) clipVideo.currentTime = trim.start;
+    });
+    clipVideo.addEventListener("timeupdate", function () {
+      if (!trim || clipVideo.paused) return;
+      if (clipVideo.currentTime >= trim.end || clipVideo.currentTime < trim.start - 0.5) clipVideo.currentTime = trim.start;
+    });
 
     file.addEventListener("change", function () {
       var f = file.files && file.files[0];
@@ -2345,13 +2514,20 @@
         });
       } else if (kind === "video") {
         body.append("video", chosen, chosen.name);
-        body.append("duration", String(duration || ""));
-        if (poster) body.append("poster", poster, "poster.jpg");
-        // Above 1080p the server re-encodes it, which is the slow part.
+        body.append("duration", isFinite(duration) ? String(duration) : "");
+        if (trim) {
+          body.append("trim_start", trim.start.toFixed(2));
+          body.append("trim_end", trim.end.toFixed(2));
+        }
+        // Cutting or shrinking means re-encoding, which is the slow part.
         var big = Math.min(clipVideo.videoWidth || 0, clipVideo.videoHeight || 0) > 1080;
-        ready = Promise.resolve({
-          file: chosen,
-          reading: big ? "Shrinking it to 1080p — up to a minute for a long clip" : "Checking it and keeping it for 24 hours",
+        var reading = trim ? "Cutting it to " + Math.round(trim.end - trim.start) + " seconds — up to a minute"
+          : big ? "Shrinking it to 1080p — up to a minute for a long clip"
+          : "Checking it and keeping it for 24 hours";
+        // The tile's frame: the first moment of what is kept.
+        ready = grabPoster(trim ? trim.start : Math.min(0.1, duration / 2)).then(function (blob) {
+          if (blob) body.append("poster", blob, "poster.jpg");
+          return { file: chosen, reading: reading };
         });
       } else {
         body.append("image", chosen, chosen.name);
@@ -2387,7 +2563,7 @@
         });
     });
 
-    onLeave(function () { if (reader) reader.abort(); if (url) URL.revokeObjectURL(url); });
+    onLeave(function () { if (reader) reader.abort(); if (url) URL.revokeObjectURL(url); endTrim(); });
   }
 
   /* ----------------------------------------------------------------------

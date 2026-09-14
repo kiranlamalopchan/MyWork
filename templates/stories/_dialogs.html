@@ -58,8 +58,9 @@
   {% comment %}
     Posting one. The picker first; then, for a photo, the editor — the
     picture in a 9:16 frame you drag and pinch to crop, turn, flip and
-    tint — and for a video, the clip itself, checked against the sixty
-    seconds before it is sent. Share draws the edited photo to a canvas
+    tint — and for a video, the clip itself, with a window to choose
+    which part goes when it runs over the sixty seconds a story may be.
+    Share draws the edited photo to a canvas
     and sends that, so what goes up is what was seen. Without script the
     form posts the file as chosen.
   {% endcomment %}
@@ -77,7 +78,7 @@
       <span class="story-compose__empty" data-story-empty>
         <span class="dropzone__icon">{% icon "camera" %}</span>
         <span class="dropzone__label">Choose a photo or video</span>
-        <span class="dropzone__sub">Any photo, or a video up to 60 seconds. Up for 24 hours.</span>
+        <span class="dropzone__sub">Any photo, or a video &mdash; up to 60 seconds of it. Up for 24 hours.</span>
       </span>
       <input type="file" name="image" accept="image/*,video/*" class="visually-hidden-input" data-story-file>
     </label>
@@ -117,6 +118,21 @@
     <div class="story-clip" data-story-clip hidden>
       <video class="story-clip__video" playsinline muted loop controls data-clip-video></video>
       <div class="story-clip__meta" data-clip-meta></div>
+      {% comment %}
+        Longer than a story may be: which part to keep. A window over a
+        strip of the clip's frames, dragged along by its body or narrowed
+        by either edge; app.js fills the strip and sends the two times.
+      {% endcomment %}
+      <div class="story-trim" data-story-trim hidden>
+        <div class="story-trim__track" data-trim-track>
+          <div class="story-trim__strip" data-trim-strip aria-hidden="true"></div>
+          <div class="story-trim__window" data-trim-window>
+            <span class="story-trim__handle story-trim__handle--start" data-trim-handle="start" role="slider" tabindex="0" aria-label="Start of the part to keep"></span>
+            <span class="story-trim__handle story-trim__handle--end" data-trim-handle="end" role="slider" tabindex="0" aria-label="End of the part to keep"></span>
+          </div>
+        </div>
+        <div class="story-trim__hint">Drag the window, or either end of it, to choose the part to keep.</div>
+      </div>
     </div>
 
     <input class="input story-compose__caption" type="text" name="caption" maxlength="200" placeholder="Say something (optional)" autocomplete="off">

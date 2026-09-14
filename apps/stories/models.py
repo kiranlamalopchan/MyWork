@@ -9,8 +9,10 @@ today. Nothing here is edited; a story is posted or taken down.
 A story is a photo or a short video. A photo is straightened, cropped
 the way the phone's editor left it, and shrunk to a phone-screen JPEG
 whatever it arrived as — HEIC from an iPhone included. A video is kept as
-it came, capped at sixty seconds and a file size, with a poster frame the
-phone took for the tile.
+it came where it can be — capped at a file size, re-encoded above 1080p
+or in a codec not every phone plays, and cut to the sixty seconds the
+composer's trimmer was left on when it ran longer — with a poster frame
+the phone took for the tile.
 
 Three rows: the story itself, who has seen it (so the ring around a face
 goes quiet once you have looked, and the owner can see who looked), and
@@ -145,11 +147,15 @@ class Story(models.Model):
         self.kind = Kind.PHOTO
         self.image.save(story_path(self, "story.jpg"), _fitted(upload), save=False)
 
-    def set_video(self, upload, poster=None, duration=None):
+    def set_video(self, upload, poster=None, duration=None, start=None, end=None):
         """
         Take a video as it came, once it is known to be one, short enough
         and small enough. The poster is the frame the phone grabbed for the
         tile; without one the tile is plain.
+
+        `start` and `end`, in seconds, are the part of a longer video to
+        keep — where the composer's trimmer was left. The cut is ffmpeg's;
+        a server without it can only say so.
         """
         self.kind = Kind.VIDEO
         ext = os.path.splitext(upload.name or "")[1].lower().lstrip(".")
@@ -161,15 +167,30 @@ class Story(models.Model):
         seconds = info.get("duration") if info else None
         if seconds is None:
             seconds = duration
-        if seconds is not None and seconds > MAX_VIDEO_SECONDS + 0.5:
-            raise Unusable(f"A story video can be up to {MAX_VIDEO_SECONDS} seconds — this one is {int(round(seconds))}.")
-        self.duration = seconds
-        if info and needs_transcode(info):
+        window = _window(start, end, seconds)
+        if window is not None:
+            cut = transcode(upload, info, window=window)
+            if cut is None:
+                if not shutil.which("ffmpeg"):
+                    raise Unusable(
+                        f"This server can't cut a video. Trim it to {MAX_VIDEO_SECONDS} seconds "
+                        "in your phone's photo app and try again."
+                    )
+                raise Unusable("That video couldn't be cut. Try a different clip, or trim it on your phone.")
+            upload, ext = cut, "mp4"
+            seconds = window[1] - window[0]
+        elif seconds is not None and seconds > MAX_VIDEO_SECONDS + 0.5:
+            raise Unusable(
+                f"A story video can be up to {MAX_VIDEO_SECONDS} seconds — this one is "
+                f"{int(round(seconds))}. Choose which {MAX_VIDEO_SECONDS} to keep."
+            )
+        elif info and needs_transcode(info):
             small = transcode(upload, info)
             if small is not None:
                 upload, ext = small, "mp4"
             elif info["short"] > MAX_VIDEO_SHORT_SIDE:
                 raise Unusable("That video is above 1080p and couldn't be shrunk. Export it at 1080p and try again.")
+        self.duration = seconds
         self.video.save(story_path(self, f"story.{ext}"), upload, save=False)
         if poster is not None:
             try:
@@ -304,17 +325,47 @@ def probe(upload):
                 pass
 
 
+def _window(start, end, seconds):
+    """
+    The (start, end) to cut a video to, checked — or None when there is
+    nothing to cut: no trim was asked for, or it covers the whole clip.
+
+    Raises Unusable for a window that isn't one: back to front, longer
+    than a story may be, or past the end of the video, where the video's
+    length is known.
+    """
+    if start is None and end is None:
+        return None
+    if start is None or end is None:
+        raise Unusable("A trim needs both a start and an end.")
+    if end - start < 0.5:
+        raise Unusable("A trim has to keep at least a moment of the video.")
+    if end - start > MAX_VIDEO_SECONDS + 0.5:
+        raise Unusable(f"A story video can be up to {MAX_VIDEO_SECONDS} seconds — that trim keeps {int(round(end - start))}.")
+    if seconds is not None:
+        # The phone's reading of the length and ffprobe's can differ by a
+        # few hundred milliseconds; a window that overshoots by that much
+        # is brought in, one well past the end is not a window.
+        if end > seconds + 1.0:
+            raise Unusable("That trim runs past the end of the video.")
+        end = min(end, seconds)
+    if start <= 0.05 and (seconds is None or end >= seconds - 0.05):
+        return None
+    return (start, end)
+
+
 def needs_transcode(info):
     """Above 1080p, or in a codec not every phone plays."""
     return info["short"] > MAX_VIDEO_SHORT_SIDE or info["codec"] not in PLAYABLE_CODECS
 
 
-def transcode(upload, info):
+def transcode(upload, info, window=None):
     """
     The video re-encoded by ffmpeg: H.264 in an MP4, no bigger than 1080p
-    on its short side, the long side following. Returns a file to save,
-    or None if ffmpeg is missing or failed — the caller decides whether
-    what arrived is good enough to keep instead.
+    on its short side, the long side following — and, given a `window`
+    of (start, end) seconds, only that part of it. Returns a file to
+    save, or None if ffmpeg is missing or failed — the caller decides
+    whether what arrived is good enough to keep instead.
     """
     if not shutil.which("ffmpeg"):
         return None
@@ -328,10 +379,15 @@ def transcode(upload, info):
     scale = (
         f"scale=w='if(gt(iw,ih),-2,min(iw,{cap}))':h='if(gt(iw,ih),min(ih,{cap}),-2)'"
     )
+    # The cut: seek before the input, which is the quick way in and, since
+    # the clip is re-encoded anyway, still lands on the exact frame.
+    cut = []
+    if window is not None:
+        cut = ["-ss", f"{window[0]:.3f}", "-t", f"{window[1] - window[0]:.3f}"]
     try:
         subprocess.run(
             [
-                "ffmpeg", "-v", "error", "-y", "-i", src,
+                "ffmpeg", "-v", "error", "-y", *cut, "-i", src,
                 "-vf", scale, "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
                 "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-ac", "2",
                 "-movflags", "+faststart", "-map_metadata", "-1", out.name,
