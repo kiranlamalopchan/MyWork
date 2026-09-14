@@ -11,7 +11,6 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import redirect, render
-
 from apps.holidays.services import card_for_user
 from apps.noticeboard.views import board_context, recent_for_hub
 
