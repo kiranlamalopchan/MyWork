@@ -2454,7 +2454,18 @@
     var thumbUrl = null;
     if (isImage && window.URL && URL.createObjectURL) {
       thumbUrl = URL.createObjectURL(file);
-      el.querySelector(".reader__img").src = thumbUrl;
+      var thumb = el.querySelector(".reader__img");
+      // A format this browser can't decode for display — HEIC, most
+      // places outside Safari — still uploads fine; it just can't be
+      // drawn here, so the broken-image icon gives way to the plain
+      // file glyph rather than sitting there looking like a bug.
+      thumb.addEventListener("error", function () {
+        var glyph = document.createElement("span");
+        glyph.className = "reader__glyph";
+        glyph.textContent = isPdf ? "PDF" : "FILE";
+        thumb.replaceWith(glyph);
+      });
+      thumb.src = thumbUrl;
     }
     var request = null;
     var started = Date.now();
