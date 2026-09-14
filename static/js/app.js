@@ -2348,11 +2348,38 @@
       });
     }
 
+    /* The window of a long clip, cut here (see cutVideo) so that only that
+       much is sent, and checked to play before it is trusted — or null,
+       when the file isn't one this browser can cut: then the whole clip
+       goes and the server cuts it, as it does anyway. */
+    function cutForSending() {
+      if (!trim) return Promise.resolve(null);
+      return cutVideo(chosen, trim.start, trim.end).then(function (cut) {
+        return new Promise(function (resolve, reject) {
+          var v = document.createElement("video"), src = URL.createObjectURL(cut.file), settled = false;
+          function settle(ok) {
+            if (settled) return;
+            settled = true;
+            URL.revokeObjectURL(src);
+            v.removeAttribute("src"); v.load();
+            ok ? resolve(cut) : reject(new Error("cut"));
+          }
+          v.muted = true; v.playsInline = true; v.preload = "metadata";
+          v.onloadedmetadata = function () { settle(isFinite(v.duration) && Math.abs(v.duration - cut.duration) < 2); };
+          v.onerror = function () { settle(false); };
+          setTimeout(function () { settle(false); }, 8000);
+          v.src = src;
+        });
+      }).catch(function () { return null; });
+    }
+
     // ---- trimming a long video ---------------------------------------------
     // A window over a strip of the clip's frames: drag it along, or either
     // edge of it, to say which part goes up. The preview follows the edge
     // being moved, and once played, plays the window round and round. The
-    // cut itself is the server's — it re-encodes the clip anyway.
+    // window is cut out of the file before it is sent, where the browser
+    // can (cutVideo), and cut exactly by the server, which re-encodes the
+    // clip anyway.
     var TRIM_MIN = 1;   // the shortest a story video can be cut to, in seconds
 
     function clock(secs) {
@@ -2513,21 +2540,27 @@
           return { file: blob, reading: "Fitting it to a phone screen" };
         });
       } else if (kind === "video") {
-        body.append("video", chosen, chosen.name);
-        body.append("duration", isFinite(duration) ? String(duration) : "");
-        if (trim) {
-          body.append("trim_start", trim.start.toFixed(2));
-          body.append("trim_end", trim.end.toFixed(2));
-        }
-        // Cutting or shrinking means re-encoding, which is the slow part.
+        // Every video is re-encoded to 1080p H.264, which is the slow part.
         var big = Math.min(clipVideo.videoWidth || 0, clipVideo.videoHeight || 0) > 1080;
         var reading = trim ? "Cutting it to " + Math.round(trim.end - trim.start) + " seconds — up to a minute"
-          : big ? "Shrinking it to 1080p — up to a minute for a long clip"
-          : "Checking it and keeping it for 24 hours";
-        // The tile's frame: the first moment of what is kept.
-        ready = grabPoster(trim ? trim.start : Math.min(0.1, duration / 2)).then(function (blob) {
-          if (blob) body.append("poster", blob, "poster.jpg");
-          return { file: chosen, reading: reading };
+          : big ? "Converting it to 1080p — up to a minute"
+          : "Converting it for every phone — up to a minute";
+        ready = cutForSending().then(function (cut) {
+          // What goes: the window cut out here, or the whole clip. The
+          // times sent are of the file sent, which begins `from` seconds
+          // into the original.
+          var sending = cut ? cut.file : chosen, from = cut ? cut.offset : 0;
+          body.append("video", sending, chosen.name);
+          body.append("duration", cut ? String(cut.duration) : isFinite(duration) ? String(duration) : "");
+          if (trim) {
+            body.append("trim_start", (trim.start - from).toFixed(2));
+            body.append("trim_end", (trim.end - from).toFixed(2));
+          }
+          // The tile's frame: the first moment of what is kept.
+          return grabPoster(trim ? trim.start : Math.min(0.1, duration / 2)).then(function (blob) {
+            if (blob) body.append("poster", blob, "poster.jpg");
+            return { file: sending, reading: reading, cut: !!cut };
+          });
         });
       } else {
         body.append("image", chosen, chosen.name);
@@ -2536,7 +2569,17 @@
 
       ready.then(function (what) {
         reader = makeReader(what.file.name ? what.file : new File([what.file], "story.jpg"), { into: status, reading: what.reading });
-        return reader.send(form.action, body, "text");
+        return reader.send(form.action, body, "text").then(function (res) {
+          // A cut made here that the server couldn't use: the whole clip
+          // goes instead, for the server to cut.
+          if (res.status !== 400 || !what.cut) return res;
+          body.set("video", chosen, chosen.name);
+          body.set("duration", isFinite(duration) ? String(duration) : "");
+          body.set("trim_start", trim.start.toFixed(2));
+          body.set("trim_end", trim.end.toFixed(2));
+          reader = makeReader(chosen, { into: status, reading: what.reading });
+          return reader.send(form.action, body, "text");
+        });
       })
         .then(function (res) {
           if (res.status === 400) {
@@ -2564,6 +2607,430 @@
     });
 
     onLeave(function () { if (reader) reader.abort(); if (url) URL.revokeObjectURL(url); endTrim(); });
+  }
+
+  /* ----------------------------------------------------------------------
+     Cutting a video in the browser
+     A long clip is cut before it goes, so the phone sends the minute that
+     was chosen and not the whole film. Not by re-encoding — that takes as
+     long as the clip, costs quality, and wants APIs not every phone has —
+     but by cutting the container: the MP4 (or MOV — the same boxes) is
+     read for its sample tables, the samples inside the window are kept,
+     from the keyframe before it, and new tables are written over the same
+     bytes, which the Blob refers to in place without copying them. The
+     cut lands on a keyframe up to a couple of seconds early; the server's
+     exact cut, which it makes anyway, takes the rest. A file this doesn't
+     understand — WebM, a fragmented MP4, an edit list in several parts —
+     is sent whole for the server to cut, as before.
+
+       cutVideo(file, start, end).then(function (cut) {
+         // cut.file — the shorter File, named as the original;
+         // cut.offset — how many seconds before `start` it begins;
+         // cut.duration — how long it runs
+       })
+     ---------------------------------------------------------------------- */
+  var CUT_SLACK = 0.5;   // seconds kept past the window, for frames decoded before they show
+
+  function readRange(file, offset, length) {
+    var part = file.slice(offset, offset + length);
+    if (part.arrayBuffer) return part.arrayBuffer();
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsArrayBuffer(part);
+    });
+  }
+
+  function fourcc(view, at) {
+    return String.fromCharCode(view.getUint8(at), view.getUint8(at + 1), view.getUint8(at + 2), view.getUint8(at + 3));
+  }
+
+  function u64(view, at) { return view.getUint32(at) * 4294967296 + view.getUint32(at + 4); }
+
+  /* The boxes laid end to end in [from, to) of a view: type, where the
+     box starts and ends, and where its payload begins. */
+  function boxesIn(view, from, to) {
+    var out = [], at = from;
+    while (at + 8 <= to) {
+      var size = view.getUint32(at), type = fourcc(view, at + 4), head = 8;
+      if (size === 1) { size = u64(view, at + 8); head = 16; }
+      else if (size === 0) size = to - at;
+      if (size < head || at + size > to) throw new Error("box");
+      out.push({ type: type, start: at, end: at + size, body: at + head });
+      at += size;
+    }
+    return out;
+  }
+
+  function boxOf(list, type) {
+    for (var i = 0; i < list.length; i++) if (list[i].type === type) return list[i];
+    return null;
+  }
+
+  /* The file's top-level boxes, from their headers alone — the mdat, which
+     is nearly all of the file, is stepped over, not read. */
+  function topBoxes(file) {
+    var out = [], at = 0;
+    function step() {
+      if (at + 8 > file.size) return Promise.resolve(out);
+      return readRange(file, at, Math.min(16, file.size - at)).then(function (buf) {
+        var view = new DataView(buf);
+        var size = view.getUint32(0), type = fourcc(view, 4), head = 8;
+        if (size === 1) { if (buf.byteLength < 16) throw new Error("box"); size = u64(view, 8); head = 16; }
+        else if (size === 0) size = file.size - at;
+        if (size < head) throw new Error("box");
+        out.push({ type: type, start: at, end: at + size, body: at + head });
+        at += size;
+        return step();
+      });
+    }
+    return step();
+  }
+
+  /* A track's sample tables unpacked: for every sample its size, decode
+     time, composition offset, place in the file and description; which
+     are keyframes; and what the edit list does to the timeline. Null for
+     a track that isn't picture or sound (timecode, metadata). */
+  function readTrack(view, trak, movieScale) {
+    var kids = boxesIn(view, trak.body, trak.end);
+    var tkhd = boxOf(kids, "tkhd"), mdia = boxOf(kids, "mdia"), edts = boxOf(kids, "edts");
+    if (!tkhd || !mdia) throw new Error("trak");
+    var mk = boxesIn(view, mdia.body, mdia.end);
+    var mdhd = boxOf(mk, "mdhd"), hdlr = boxOf(mk, "hdlr"), minf = boxOf(mk, "minf");
+    if (!mdhd || !hdlr || !minf) throw new Error("mdia");
+    var kind = fourcc(view, hdlr.body + 8);
+    if (kind !== "vide" && kind !== "soun") return null;
+    var stbl = boxOf(boxesIn(view, minf.body, minf.end), "stbl");
+    if (!stbl) throw new Error("minf");
+    var sk = boxesIn(view, stbl.body, stbl.end);
+    var stsd = boxOf(sk, "stsd"), stts = boxOf(sk, "stts"), stsc = boxOf(sk, "stsc");
+    var stsz = boxOf(sk, "stsz") || boxOf(sk, "stz2"), stco = boxOf(sk, "stco") || boxOf(sk, "co64");
+    var ctts = boxOf(sk, "ctts"), stss = boxOf(sk, "stss");
+    if (!stsd || !stts || !stsc || !stsz || !stco) throw new Error("stbl");
+    var t = { kind: kind, tkhd: tkhd, mdhd: mdhd, hdlr: hdlr, minf: minf, stsd: stsd };
+    t.scale = view.getUint32(mdhd.body + (view.getUint8(mdhd.body) ? 20 : 12));
+    var i, j, at, count, run, n;
+
+    // Sizes: one for all, or one each.
+    var sizes = [];
+    if (stsz.type === "stsz") {
+      var same = view.getUint32(stsz.body + 4);
+      n = view.getUint32(stsz.body + 8);
+      for (i = 0; i < n; i++) sizes.push(same || view.getUint32(stsz.body + 12 + i * 4));
+    } else {
+      var field = view.getUint8(stsz.body + 7);
+      n = view.getUint32(stsz.body + 8);
+      if (field !== 8 && field !== 16) throw new Error("stz2");
+      for (i = 0; i < n; i++) sizes.push(field === 8 ? view.getUint8(stsz.body + 12 + i) : view.getUint16(stsz.body + 12 + i * 2));
+    }
+
+    // Decode times, from runs of deltas. The last delta is how long the
+    // last sample lasts.
+    var dts = [], delta = 0, time = 0;
+    count = view.getUint32(stts.body + 4); at = stts.body + 8;
+    for (i = 0; i < count; i++, at += 8) {
+      run = view.getUint32(at); delta = view.getUint32(at + 4);
+      for (j = 0; j < run && dts.length < n; j++) { dts.push(time); time += delta; }
+    }
+    if (dts.length !== n) throw new Error("stts");
+
+    // Composition offsets, where frames are shown in another order than
+    // they are decoded. Version 1 lets them be negative.
+    var cts = null, signed = false;
+    if (ctts) {
+      signed = view.getUint8(ctts.body) === 1;
+      cts = []; count = view.getUint32(ctts.body + 4); at = ctts.body + 8;
+      for (i = 0; i < count; i++, at += 8) {
+        run = view.getUint32(at);
+        var offset = signed ? view.getInt32(at + 4) : view.getUint32(at + 4);
+        for (j = 0; j < run && cts.length < n; j++) cts.push(offset);
+      }
+      while (cts.length < n) cts.push(0);
+    }
+
+    // Where each sample lies, chunk by chunk, and which description it uses.
+    var offsets = [], desc = [];
+    var chunks = view.getUint32(stco.body + 4), entries = view.getUint32(stsc.body + 4);
+    at = stsc.body + 8;
+    for (i = 0; i < entries && offsets.length < n; i++, at += 12) {
+      var first = view.getUint32(at) - 1, per = view.getUint32(at + 4), index = view.getUint32(at + 8);
+      var until = i + 1 < entries ? view.getUint32(at + 12) - 1 : chunks;
+      for (var c = first; c < until && offsets.length < n; c++) {
+        var pos = stco.type === "stco" ? view.getUint32(stco.body + 8 + c * 4) : u64(view, stco.body + 8 + c * 8);
+        for (j = 0; j < per && offsets.length < n; j++) {
+          offsets.push(pos); desc.push(index);
+          pos += sizes[offsets.length - 1];
+        }
+      }
+    }
+    if (offsets.length !== n) throw new Error("stsc");
+
+    // Keyframes. Without the table, every sample is one.
+    var sync = null;
+    if (stss) {
+      sync = {}; count = view.getUint32(stss.body + 4);
+      for (i = 0; i < count; i++) sync[view.getUint32(stss.body + 8 + i * 4) - 1] = true;
+    }
+
+    // The edit list: an empty edit first holds the track back, and the
+    // one real edit says where in the media it starts (a phone's audio
+    // begins a few milliseconds in, to skip the encoder's warm-up). More
+    // than one real edit is a cut already made, and not understood here.
+    var delay = 0, skip = 0;
+    var elst = edts && boxOf(boxesIn(view, edts.body, edts.end), "elst");
+    if (elst) {
+      var v1 = view.getUint8(elst.body) === 1, real = 0;
+      count = view.getUint32(elst.body + 4); at = elst.body + 8;
+      for (i = 0; i < count; i++) {
+        var seg, media;
+        if (v1) { seg = u64(view, at); media = view.getInt32(at + 8) * 4294967296 + view.getUint32(at + 12); at += 20; }
+        else { seg = view.getUint32(at); media = view.getInt32(at + 4); at += 12; }
+        if (media === -1) { if (!real) delay += seg / movieScale; }
+        else { if (real++) throw new Error("elst"); skip = media; }
+      }
+    }
+
+    t.n = n; t.sizes = sizes; t.dts = dts; t.cts = cts; t.ctsSigned = signed;
+    t.offsets = offsets; t.desc = desc; t.sync = sync; t.lastDelta = delta;
+    t.delay = delay; t.skip = skip;
+    return t;
+  }
+
+  /* When a sample is shown, and when it is decoded, in seconds of the film. */
+  function shownAt(t, i) { return t.delay + (t.dts[i] + (t.cts ? t.cts[i] : 0) - t.skip) / t.scale; }
+  function decodedAt(t, i) { return t.delay + (t.dts[i] - t.skip) / t.scale; }
+
+  /* The run of a track's samples for [from, to] seconds — for a video
+     track from the keyframe before `from`, since the frames after it
+     can't be decoded without it — and the second the run starts at. */
+  function pickSamples(t, from, to) {
+    var first = 0, last = -1;
+    for (var i = 0; i < t.n; i++) {
+      if ((t.kind !== "vide" || !t.sync || t.sync[i]) && shownAt(t, i) <= from) first = i;
+      if (decodedAt(t, i) <= to + CUT_SLACK) last = i;
+    }
+    if (last < first) last = first;
+    return { first: first, last: last, at: shownAt(t, first) };
+  }
+
+  /* Bytes going out, big-endian, boxes sized once their payload is in. */
+  function Writer() {
+    this.buf = new Uint8Array(1 << 16);
+    this.view = new DataView(this.buf.buffer);
+    this.at = 0;
+  }
+  Writer.prototype.room = function (n) {
+    if (this.at + n <= this.buf.length) return;
+    var size = this.buf.length;
+    while (this.at + n > size) size *= 2;
+    var next = new Uint8Array(size);
+    next.set(this.buf);
+    this.buf = next;
+    this.view = new DataView(next.buffer);
+  };
+  Writer.prototype.u8 = function (v) { this.room(1); this.view.setUint8(this.at, v); this.at += 1; };
+  Writer.prototype.u16 = function (v) { this.room(2); this.view.setUint16(this.at, v); this.at += 2; };
+  Writer.prototype.u32 = function (v) { this.room(4); this.view.setUint32(this.at, v); this.at += 4; };
+  Writer.prototype.i32 = function (v) { this.room(4); this.view.setInt32(this.at, v); this.at += 4; };
+  Writer.prototype.bytes = function (view, from, to) {
+    this.room(to - from);
+    this.buf.set(new Uint8Array(view.buffer, view.byteOffset + from, to - from), this.at);
+    this.at += to - from;
+  };
+  Writer.prototype.box = function (type, payload) {
+    var start = this.at;
+    this.u32(0);
+    for (var i = 0; i < 4; i++) this.u8(type.charCodeAt(i));
+    payload();
+    this.view.setUint32(start, this.at - start);
+  };
+  Writer.prototype.full = function (type, version, payload) {
+    var self = this;
+    this.box(type, function () { self.u32(version << 24); payload(); });
+  };
+
+  /* A box copied as it was, given a new duration: at `v0` bytes into the
+     payload for version 0, `v1` for version 1, where it is 64 bits. */
+  function patchDuration(w, start, version, v0, v1, value) {
+    var at = start + 8 + (version ? v1 : v0);
+    if (version) { w.view.setUint32(at, 0); w.view.setUint32(at + 4, value); }
+    else w.view.setUint32(at, value);
+  }
+
+  /* A run of values as (count, value) runs. */
+  function runsOf(values) {
+    var runs = [];
+    values.forEach(function (v) {
+      if (runs.length && runs[runs.length - 1][1] === v) runs[runs.length - 1][0]++;
+      else runs.push([1, v]);
+    });
+    return runs;
+  }
+
+  /* One trak for the samples picked, on a timeline that starts at `at`
+     seconds of the original. Returns where the chunk offsets were written,
+     to be filled in once the mdat's place is known, and the track's length
+     in the movie's timescale. */
+  function writeTrack(w, view, t, pick, at, movieScale) {
+    var first = pick.first, last = pick.last, kept = last - first + 1, i;
+    var deltas = [], ctsList = [], syncList = [], descRuns = [];
+    for (i = first; i <= last; i++) {
+      deltas.push(i + 1 < t.n ? t.dts[i + 1] - t.dts[i] : t.lastDelta);
+      if (t.cts) ctsList.push(t.cts[i]);
+      if (t.sync && t.sync[i]) syncList.push(i - first + 1);
+      if (!descRuns.length || descRuns[descRuns.length - 1][1] !== t.desc[i]) descRuns.push([i - first + 1, t.desc[i]]);
+    }
+    var duration = deltas.reduce(function (a, b) { return a + b; }, 0);
+    // Where the first kept sample now falls: `skip` media units into the
+    // track (a keyframe's own composition delay, the audio's warm-up), or,
+    // for a track that only starts after `at`, held back by `delay`.
+    var m = t.skip + (at - t.delay) * t.scale - t.dts[first];
+    var skip = Math.max(0, Math.round(m)), delay = m < 0 ? -m / t.scale : 0;
+    var shown = Math.max(0, (duration - skip) / t.scale);
+    var out = { stcoAt: 0, duration: Math.round((delay + shown) * movieScale) };
+    w.box("trak", function () {
+      var start = w.at;
+      w.bytes(view, t.tkhd.start, t.tkhd.end);
+      patchDuration(w, start, view.getUint8(t.tkhd.body), 20, 28, out.duration);
+      w.box("edts", function () {
+        w.full("elst", 0, function () {
+          w.u32(delay > 0 ? 2 : 1);
+          if (delay > 0) { w.u32(Math.round(delay * movieScale)); w.i32(-1); w.u16(1); w.u16(0); }
+          w.u32(Math.round(shown * movieScale)); w.i32(skip); w.u16(1); w.u16(0);
+        });
+      });
+      w.box("mdia", function () {
+        var start = w.at;
+        w.bytes(view, t.mdhd.start, t.mdhd.end);
+        patchDuration(w, start, view.getUint8(t.mdhd.body), 16, 24, duration);
+        w.bytes(view, t.hdlr.start, t.hdlr.end);
+        w.box("minf", function () {
+          // Everything in minf but the sample tables goes as it was.
+          boxesIn(view, t.minf.body, t.minf.end).forEach(function (b) {
+            if (b.type !== "stbl") w.bytes(view, b.start, b.end);
+          });
+          w.box("stbl", function () {
+            w.bytes(view, t.stsd.start, t.stsd.end);
+            w.full("stts", 0, function () {
+              var runs = runsOf(deltas);
+              w.u32(runs.length);
+              runs.forEach(function (r) { w.u32(r[0]); w.u32(r[1]); });
+            });
+            if (t.cts) {
+              w.full("ctts", t.ctsSigned ? 1 : 0, function () {
+                var runs = runsOf(ctsList);
+                w.u32(runs.length);
+                runs.forEach(function (r) { w.u32(r[0]); if (t.ctsSigned) w.i32(r[1]); else w.u32(r[1]); });
+              });
+            }
+            if (t.sync) {
+              w.full("stss", 0, function () {
+                w.u32(syncList.length);
+                syncList.forEach(function (s) { w.u32(s); });
+              });
+            }
+            // One sample to a chunk: the simplest table, and nothing lost by it.
+            w.full("stsc", 0, function () {
+              w.u32(descRuns.length);
+              descRuns.forEach(function (r) { w.u32(r[0]); w.u32(1); w.u32(r[1]); });
+            });
+            w.full("stsz", 0, function () {
+              w.u32(0); w.u32(kept);
+              for (i = first; i <= last; i++) w.u32(t.sizes[i]);
+            });
+            w.full("stco", 0, function () {
+              w.u32(kept);
+              out.stcoAt = w.at;
+              for (i = first; i <= last; i++) w.u32(0);
+            });
+          });
+        });
+      });
+    });
+    return out;
+  }
+
+  function cutVideo(file, start, end) {
+    return topBoxes(file).then(function (top) {
+      var ftyp = boxOf(top, "ftyp"), moov = boxOf(top, "moov");
+      if (!moov) throw new Error("moov");
+      return Promise.all([
+        ftyp ? readRange(file, ftyp.start, ftyp.end - ftyp.start) : null,
+        readRange(file, moov.start, moov.end - moov.start),
+      ]);
+    }).then(function (parts) {
+      var view = new DataView(parts[1]);
+      var moov = boxesIn(view, 0, view.byteLength)[0];
+      var kids = boxesIn(view, moov.body, moov.end);
+      if (boxOf(kids, "mvex")) throw new Error("fragmented");
+      var mvhd = boxOf(kids, "mvhd");
+      if (!mvhd) throw new Error("mvhd");
+      var movieScale = view.getUint32(mvhd.body + (view.getUint8(mvhd.body) ? 20 : 12));
+      var tracks = [], video = null;
+      kids.forEach(function (b) {
+        if (b.type !== "trak") return;
+        var t = readTrack(view, b, movieScale);
+        if (!t || !t.n) return;
+        tracks.push(t);
+        if (!video && t.kind === "vide") video = t;
+      });
+      if (!video) throw new Error("video");
+
+      // The cut starts at the keyframe before the window; every other
+      // track is taken from the same moment.
+      var lead = pickSamples(video, start, end), at = lead.at;
+      var picks = tracks.map(function (t) { return t === video ? lead : pickSamples(t, at, end); });
+
+      // The samples that go, in the order they lie in the file, so what
+      // was interleaved stays so — as slices of the file, neighbours joined.
+      var samples = [];
+      tracks.forEach(function (t, k) {
+        for (var i = picks[k].first; i <= picks[k].last; i++) samples.push({ track: k, i: i, offset: t.offsets[i], size: t.sizes[i] });
+      });
+      samples.sort(function (a, b) { return a.offset - b.offset; });
+      var slices = [], total = 0, places = tracks.map(function () { return []; });
+      samples.forEach(function (s) {
+        var tail = slices[slices.length - 1];
+        if (tail && tail.end === s.offset) tail.end += s.size;
+        else slices.push({ start: s.offset, end: s.offset + s.size });
+        places[s.track][s.i] = total;
+        total += s.size;
+      });
+      if (!total) throw new Error("empty");
+
+      // The new moov: the header as it was, then one trak per track kept.
+      var w = new Writer(), written = [], longest = 0;
+      w.box("moov", function () {
+        var startAt = w.at;
+        w.bytes(view, mvhd.start, mvhd.end);
+        tracks.forEach(function (t, k) {
+          var got = writeTrack(w, view, t, picks[k], at, movieScale);
+          written.push(got);
+          longest = Math.max(longest, got.duration);
+        });
+        patchDuration(w, startAt, view.getUint8(mvhd.body), 16, 24, longest);
+      });
+      var ftypBytes = parts[0] ? new Uint8Array(parts[0]) : new Uint8Array(0);
+      var moovBytes = w.buf.subarray(0, w.at);
+      // Now the mdat's place is known, so are the chunk offsets.
+      var base = ftypBytes.length + moovBytes.length + 8;
+      tracks.forEach(function (t, k) {
+        var pos = written[k].stcoAt;
+        for (var i = picks[k].first; i <= picks[k].last; i++, pos += 4) w.view.setUint32(pos, base + places[k][i]);
+      });
+      var mdat = new Uint8Array(8);
+      new DataView(mdat.buffer).setUint32(0, total + 8);
+      mdat.set([109, 100, 97, 116], 4);
+      var blobParts = [ftypBytes, moovBytes, mdat];
+      slices.forEach(function (s) { blobParts.push(file.slice(s.start, s.end)); });
+      var blob = new Blob(blobParts, { type: file.type });
+      return {
+        file: new File([blob], file.name, { type: file.type }),
+        offset: at,
+        duration: written[tracks.indexOf(video)].duration / movieScale,
+      };
+    });
   }
 
   /* ----------------------------------------------------------------------

@@ -8,11 +8,11 @@ today. Nothing here is edited; a story is posted or taken down.
 
 A story is a photo or a short video. A photo is straightened, cropped
 the way the phone's editor left it, and shrunk to a phone-screen JPEG
-whatever it arrived as — HEIC from an iPhone included. A video is kept as
-it came where it can be — capped at a file size, re-encoded above 1080p
-or in a codec not every phone plays, and cut to the sixty seconds the
-composer's trimmer was left on when it ran longer — with a poster frame
-the phone took for the tile.
+whatever it arrived as — HEIC from an iPhone included. A video is
+re-encoded to 1080p H.264 whatever it arrived as, and cut to the sixty
+seconds the composer's trimmer was left on when it ran longer, with a
+poster frame the phone took for the tile. There is no cap on what may be
+sent: what is kept is bounded by the re-encoding.
 
 Three rows: the story itself, who has seen it (so the ring around a face
 goes quiet once you have looked, and the owner can see who looked), and
@@ -52,18 +52,17 @@ QUALITY = 84
 
 MAX_CAPTION = 200
 
-# A video story: how long, and how big. Sixty seconds of phone video at
-# 1080p is thirty to a hundred megabytes; the cap keeps a day of stories
-# from being the disk, and a story is a moment, not a film.
+# A video story is a moment, not a film: sixty seconds, no more.
 MAX_VIDEO_SECONDS = 60
-MAX_VIDEO_BYTES = 200 * 1024 * 1024
 
-# The most a video is kept at: 1080p, whichever way round. A phone films in
-# 4K by default now, and four times the pixels is four times the disk for
-# a picture looked at on a phone for a minute. Anything above this — or in
-# a codec not every phone plays, an iPhone's HEVC for one — is re-encoded
-# by ffmpeg to H.264 at this size. Needs ffmpeg on the server; without it,
-# what arrived is kept.
+# Every video is re-encoded by ffmpeg to H.264 in an MP4, no bigger than
+# 1080p on its short side, whichever way round — a phone films in 4K by
+# default now, and four times the pixels is four times the disk for a
+# picture looked at on a phone for a minute — so what is kept is bounded
+# by this, and there is no cap on what may be sent. Nothing is enlarged:
+# a 720p clip stays 720p. Needs ffmpeg on the server; without it, what
+# arrived is kept where every phone can play it as it is, and refused
+# where it can't.
 MAX_VIDEO_SHORT_SIDE = 1080
 PLAYABLE_CODECS = {"h264", "vp8", "vp9"}
 TRANSCODE_TIMEOUT = 240
@@ -149,9 +148,9 @@ class Story(models.Model):
 
     def set_video(self, upload, poster=None, duration=None, start=None, end=None):
         """
-        Take a video as it came, once it is known to be one, short enough
-        and small enough. The poster is the frame the phone grabbed for the
-        tile; without one the tile is plain.
+        Take a video, once it is known to be one and short enough, and
+        keep it as 1080p H.264. The poster is the frame the phone grabbed
+        for the tile; without one the tile is plain.
 
         `start` and `end`, in seconds, are the part of a longer video to
         keep — where the composer's trimmer was left. The cut is ffmpeg's;
@@ -161,8 +160,6 @@ class Story(models.Model):
         ext = os.path.splitext(upload.name or "")[1].lower().lstrip(".")
         if ext not in VIDEO_TYPES:
             raise Unusable("Send a video as MP4, MOV or WebM.")
-        if upload.size > MAX_VIDEO_BYTES:
-            raise Unusable(f"That video is too big — up to {MAX_VIDEO_BYTES // (1024 * 1024)} MB.")
         info = probe(upload)
         seconds = info.get("duration") if info else None
         if seconds is None:
@@ -184,12 +181,14 @@ class Story(models.Model):
                 f"A story video can be up to {MAX_VIDEO_SECONDS} seconds — this one is "
                 f"{int(round(seconds))}. Choose which {MAX_VIDEO_SECONDS} to keep."
             )
-        elif info and needs_transcode(info):
-            small = transcode(upload, info)
-            if small is not None:
-                upload, ext = small, "mp4"
-            elif info["short"] > MAX_VIDEO_SHORT_SIDE:
-                raise Unusable("That video is above 1080p and couldn't be shrunk. Export it at 1080p and try again.")
+        else:
+            converted = transcode(upload, info)
+            if converted is not None:
+                upload, ext = converted, "mp4"
+            elif info and not plays_as_it_is(info):
+                # No ffmpeg, or it failed: only a clip every phone can
+                # play as it is can be kept unconverted.
+                raise Unusable("That video couldn't be converted. Send an MP4 (H.264) at 1080p or under.")
         self.duration = seconds
         self.video.save(story_path(self, f"story.{ext}"), upload, save=False)
         if poster is not None:
@@ -354,9 +353,9 @@ def _window(start, end, seconds):
     return (start, end)
 
 
-def needs_transcode(info):
-    """Above 1080p, or in a codec not every phone plays."""
-    return info["short"] > MAX_VIDEO_SHORT_SIDE or info["codec"] not in PLAYABLE_CODECS
+def plays_as_it_is(info):
+    """1080p or under, in a codec every phone plays: fit to keep unconverted."""
+    return info["short"] <= MAX_VIDEO_SHORT_SIDE and info["codec"] in PLAYABLE_CODECS
 
 
 def transcode(upload, info, window=None):

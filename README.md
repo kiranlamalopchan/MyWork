@@ -32,13 +32,20 @@ entirely to that app.
   1080×1920
 - A video of up to 60 seconds. A longer one isn't turned away: a trimmer
   appears under it — a strip of its frames with a window to drag along,
-  or narrow from either end — and the part chosen is cut on the server by
-  `ffmpeg`, the length checked again there with `ffprobe`. Anything above
-  1080p, or in a codec not every phone plays (an iPhone's HEVC), is
-  re-encoded to 1080p H.264 — a 4K clip comes down to a fraction of its
-  size. Both tools are on PythonAnywhere already; without them what
-  arrived is kept, and a trim is refused in so many words. The phone grabs
-  a frame for the tile, from the start of the part kept
+  or narrow from either end — and only the part chosen is sent: the
+  browser cuts the MP4/MOV itself, at the keyframe before the window,
+  without re-encoding (`cutVideo` in `app.js` rewrites the sample tables
+  over the file's own bytes), and the server makes the exact cut with
+  `ffmpeg`, the length checked again there with `ffprobe`. A WebM, or a
+  file the browser can't cut, goes whole for the server to cut. Every
+  video is re-encoded to H.264 MP4 at up to 1080p (never enlarged) — a 4K
+  clip comes down to a fraction of its size, and an iPhone's HEVC plays on
+  every phone — so there is no cap on the size of what is sent; what is
+  kept is bounded by the re-encoding. Both tools are on PythonAnywhere
+  already; without them a clip every phone plays as it is (H.264 at 1080p
+  or under) is kept as it came, anything else is refused, and a trim is
+  refused in so many words. The phone grabs a frame for the tile, from the
+  start of the part kept
 - Tap a face for the full-screen viewer — five seconds a picture, a video
   for as long as it runs, with a speaker to mute; hold to pause, tap either
   side to move, arrows to the next person; react with the board's faces;

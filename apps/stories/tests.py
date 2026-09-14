@@ -328,18 +328,35 @@ class VideoSizeTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.content[:200])
         self.assertAlmostEqual(self.probe_stored(Story.objects.get())["duration"], 45.0, delta=0.5)
 
-    def test_a_trim_over_the_whole_of_a_short_video_changes_nothing(self):
-        original = fixture("short.mp4")
-        size = original.size
-        self.client.post(reverse("stories:create"), {"video": original, "trim_start": "0", "trim_end": "3"})
-        self.assertEqual(Story.objects.get().video.size, size)
+    def test_a_trim_over_the_whole_of_a_short_video_cuts_nothing(self):
+        self.client.post(reverse("stories:create"), {"video": fixture("short.mp4"), "trim_start": "0", "trim_end": "3"})
+        self.assertAlmostEqual(self.probe_stored(Story.objects.get())["duration"], 3.0, delta=0.2)
 
-    def test_a_small_h264_video_is_kept_as_it_came(self):
+    def test_a_small_h264_video_is_converted_too(self):
+        # Every video is re-encoded, so what is kept is always the same
+        # kind of file — but a small one is not enlarged.
         original = fixture("short.mp4")
         size = original.size
         self.client.post(reverse("stories:create"), {"video": original})
         story = Story.objects.get()
-        self.assertEqual(story.video.size, size)
+        info = self.probe_stored(story)
+        self.assertEqual((info["codec"], info["width"], info["height"]), ("h264", 320, 568))
+        self.assertNotEqual(story.video.size, size)
+        with open(story.video.path, "rb") as f:
+            head = f.read(64 * 1024)
+        # Re-encoded with faststart: the index before the picture.
+        self.assertLess(head.index(b"moov"), head.index(b"mdat"))
+
+    def test_there_is_no_cap_on_what_is_sent(self):
+        # A file said to be far larger than any cap there used to be: what
+        # is kept is bounded by the re-encoding, not by what arrived.
+        upload = fixture("short.mp4")
+        upload.size = 5 * 1024 ** 3
+        story = Story(author=self.kiran)
+        story.set_video(upload)
+        story.save()
+        self.assertAlmostEqual(story.duration, 3.0, delta=0.2)
+        self.assertEqual(self.probe_stored(story)["codec"], "h264")
 
     def test_probe_reads_the_shape_and_length(self):
         from .models import probe
