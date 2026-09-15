@@ -191,6 +191,10 @@ class Story(models.Model):
                 raise Unusable("That video couldn't be converted. Send an MP4 (H.264) at 1080p or under.")
         self.duration = seconds
         self.video.save(story_path(self, f"story.{ext}"), upload, save=False)
+        # The tile's frame: the one the phone grabbed, or, from the app,
+        # which sends none, the first moment of what was kept.
+        if poster is None:
+            poster = first_frame(upload)
         if poster is not None:
             try:
                 self.image.save(story_path(self, "poster.jpg"), _fitted(poster), save=False)
@@ -320,6 +324,30 @@ def probe(upload):
         if made:
             try:
                 os.unlink(path)
+            except OSError:
+                pass
+
+
+def first_frame(upload):
+    """
+    The first moment of a video as a JPEG, by ffmpeg — or None without it,
+    or if it could make nothing of the file; the tile then goes plain.
+    """
+    if not shutil.which("ffmpeg"):
+        return None
+    src, made = _on_disk(upload)
+    try:
+        out = subprocess.run(
+            ["ffmpeg", "-v", "error", "-ss", "0.1", "-i", src, "-frames:v", "1", "-f", "image2", "-c:v", "mjpeg", "-q:v", "3", "pipe:1"],
+            capture_output=True, timeout=30,
+        )
+        return ContentFile(out.stdout, name="poster.jpg") if out.stdout else None
+    except Exception:
+        return None
+    finally:
+        if made:
+            try:
+                os.unlink(src)
             except OSError:
                 pass
 

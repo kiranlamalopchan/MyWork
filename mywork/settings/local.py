@@ -51,3 +51,19 @@ DATABASES = {
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_CONTACT_EMAIL = os.environ.get('VAPID_CONTACT_EMAIL', '')
+
+
+# The browsable API — DRF's own pages for poking at /api/v1/ from a laptop
+# browser. Development only: the phone wants JSON and nothing else.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    # So the browsable API can use the laptop's own login too.
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+}

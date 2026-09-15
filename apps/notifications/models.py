@@ -365,3 +365,53 @@ class PushSubscription(models.Model):
             "endpoint": self.endpoint,
             "keys": {"p256dh": self.p256dh, "auth": self.auth},
         }
+
+
+class Device(models.Model):
+    """
+    One phone running the native app that has agreed to be interrupted.
+
+    The web has PushSubscription: an endpoint and keys from the browser. A
+    phone has this: the token Expo's push service hands the app, which is
+    the whole address — Expo carries the message on to Apple or Google.
+    One row per phone; a person with two phones has two.
+
+    Rows die on their own, as subscriptions do: a phone that has deleted the
+    app answers "DeviceNotRegistered" the next time something is sent, and
+    `apps.notifications.push` deletes it there.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="devices"
+    )
+
+    # "ExponentPushToken[...]"; unique because signing in again on the same
+    # phone must update the row it already has, not send everything twice.
+    expo_token = models.CharField(max_length=200, unique=True)
+
+    # "ios" or "android", and the phone's own name — only ever shown back
+    # to the owner, so they can tell which device a row is.
+    platform = models.CharField(max_length=10, blank=True)
+    name = models.CharField(max_length=120, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user}: {self.name or self.platform or self.expo_token[:24]}"
+
+    @classmethod
+    def store(cls, user, expo_token, platform="", name=""):
+        """
+        Remember a phone, moving it to `user` if it was somebody else's —
+        the same phone signed into a second account should buzz for whoever
+        is signed in now.
+        """
+        device, _ = cls.objects.update_or_create(
+            expo_token=expo_token,
+            defaults={"user": user, "platform": platform[:10], "name": name[:120]},
+        )
+        return device

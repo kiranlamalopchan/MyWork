@@ -67,6 +67,17 @@ own prefix in `mywork/urls.py`, and giving it an entry in
 people, give it a `notify.py` and call `apps.notifications.notify.notify()` —
 see [Notifications](#notifications).
 
+## The native app and its API
+
+`mobile/` is the Android/iOS app (Expo — see `mobile/README.md`). It talks
+to `apps/api`, a Django REST Framework layer at `/api/v1/` that wraps the
+same models, forms and notify calls the pages use: a token from
+`auth/login/` in an `Authorization: Token …` header, the phone's zone in
+`X-Timezone`. Pushes to the app go through Expo's push service
+(`Device` rows in `apps.notifications`, beside the browsers' `PushSubscription`
+rows). After pulling this on the server: `pip install -r requirements.txt`
+(DRF), `manage.py migrate` (tokens and devices), then Reload.
+
 ## Deploying (PythonAnywhere)
 
 The server runs its own WSGI file, kept in the **Web** tab under *WSGI

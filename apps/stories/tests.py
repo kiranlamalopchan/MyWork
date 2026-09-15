@@ -177,7 +177,7 @@ class VideoStoryTests(TestCase):
         self.assertTrue(story.video.name.endswith(".mp4"))
         self.assertTrue(story.image)                      # the poster
         self.assertAlmostEqual(story.duration, 3.0, delta=0.5)
-        self.assertContains(resp, "story-tile__play")
+        self.assertNotContains(resp, "story-tile__play")
 
     def test_a_video_over_sixty_seconds_is_refused(self):
         resp = self.client.post(

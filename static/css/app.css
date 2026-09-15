@@ -6950,20 +6950,6 @@ body::before {
 .story-compose__empty[hidden] { display: none; }
 .story-compose__status[hidden] { display: none; }
 
-/* A video story's tile wears a small play mark, bottom right. */
-.story-tile__play {
-  position: absolute;
-  z-index: 2;
-  right: 8px; top: 8px;
-  width: 22px; height: 22px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, .55);
-  color: #fff;
-}
-.story-tile__play svg { width: 14px; height: 14px; margin-left: 1px; }
-
 /* The speaker: waves when there is sound, a cross over them when not. */
 .story-viewer__btn .story-viewer__mute { display: none; }
 .story-viewer__btn.is-muted .story-viewer__wave { display: none; }

@@ -57,6 +57,9 @@ urlpatterns = [
     # The two apps
     path("plu/", include("apps.plu.urls")),
     path("timesheet/", include("apps.timeclock.urls")),
+
+    # The JSON API for the native app (mobile/): the same things, as data.
+    path("api/v1/", include("apps.api.urls")),
 ]
 
 # Uploaded profile photos. In production the web server serves MEDIA_ROOT

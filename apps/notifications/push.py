@@ -1,11 +1,14 @@
 """
 Getting a notification onto a phone that isn't looking at MyWork.
 
-Web Push, with VAPID. The browser gives out an endpoint on its own push
-service — Google's for Chrome, Apple's for Safari, Mozilla's for Firefox —
-and a pair of keys. MyWork encrypts the payload to those keys and signs the
-request with its own, so the push service can carry the message without being
-able to read it and cannot be used by anyone else to impersonate this site.
+Two ways there. Web Push, with VAPID, for the site on a phone's browser or
+Home Screen: the browser gives out an endpoint on its own push service —
+Google's for Chrome, Apple's for Safari, Mozilla's for Firefox — and a pair
+of keys. MyWork encrypts the payload to those keys and signs the request
+with its own, so the push service can carry the message without being able
+to read it and cannot be used by anyone else to impersonate this site. And
+Expo's push service, for the native app (mobile/): the app hands over a
+token, and Expo carries the message on to Apple or Google.
 
 Everything in here is optional and everything in here is quiet. If no VAPID
 keys are configured, `configured()` is False and sending is a no-op — the
@@ -22,6 +25,11 @@ task, not to a queue this project would otherwise have no reason to run.
 
 import json
 import logging
+
+try:
+    import requests
+except ImportError:  # pragma: no cover — pywebpush brings it; belt and braces
+    requests = None
 
 from django.conf import settings
 from django.urls import reverse
@@ -64,18 +72,23 @@ def _claims():
 
 def send_to_user(user, payload):
     """
-    Push `payload` to every device `user` has subscribed.
+    Push `payload` to every device `user` has subscribed — browsers by Web
+    Push, phones with the app by Expo.
 
-    Returns how many were reached. Dead subscriptions are deleted on the way
-    through, so the table cleans itself up as it is used.
+    Returns how many were reached. Dead subscriptions and gone phones are
+    deleted on the way through, so the tables clean themselves up as they
+    are used.
     """
-    from .models import PushSubscription
+    from .models import Device, PushSubscription
 
-    if not configured():
-        return 0
-
-    subscriptions = list(PushSubscription.objects.filter(user=user))
-    return sum(send(subscription, payload) for subscription in subscriptions)
+    reached = 0
+    if configured():
+        subscriptions = list(PushSubscription.objects.filter(user=user))
+        reached += sum(send(subscription, payload) for subscription in subscriptions)
+    devices = list(Device.objects.filter(user=user))
+    if devices:
+        reached += send_expo(devices, payload)
+    return reached
 
 
 def send(subscription, payload):
@@ -123,6 +136,62 @@ def send(subscription, payload):
     subscription.last_sent_at = timezone.now()
     subscription.save(update_fields=["last_sent_at"])
     return True
+
+
+# Expo's push service: one request carries a message per phone, and answers
+# with a ticket per message in the same order.
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+
+def send_expo(devices, payload):
+    """
+    Push to phones running the app. How many Expo took it for.
+
+    The same payload the service worker gets, rearranged the way Expo wants
+    it: the title and body to show, and the rest under `data` for the app to
+    act on when the banner is tapped. A phone that has deleted the app comes
+    back as DeviceNotRegistered, and its row goes; anything else is logged
+    and let go, as with Web Push.
+    """
+    if requests is None:
+        log.warning("requests is not installed — notifications recorded but not pushed to phones")
+        return 0
+
+    messages = [
+        {
+            "to": device.expo_token,
+            "title": payload["title"],
+            "body": payload["body"],
+            "data": {"url": payload["url"], "tag": payload["tag"]},
+            "badge": payload["badge"],
+            "sound": "default",
+            "priority": "high",
+        }
+        for device in devices
+    ]
+    try:
+        response = requests.post(
+            EXPO_PUSH_URL, json=messages, timeout=TIMEOUT,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+        )
+        tickets = response.json().get("data", [])
+    except Exception as exc:  # network down, DNS, Expo having a bad afternoon
+        log.warning("push to %s's phones could not be sent: %s", devices[0].user, exc)
+        return 0
+
+    reached = 0
+    now = timezone.now()
+    for device, ticket in zip(devices, tickets):
+        if ticket.get("status") == "ok":
+            device.last_sent_at = now
+            device.save(update_fields=["last_sent_at"])
+            reached += 1
+        elif (ticket.get("details") or {}).get("error") == "DeviceNotRegistered":
+            device.delete()
+            log.info("dropped a phone that no longer has the app for %s", device.user)
+        else:
+            log.warning("push to %s's phone failed (%s)", device.user, ticket.get("message") or ticket)
+    return reached
 
 
 def payload_for(notification, unread):

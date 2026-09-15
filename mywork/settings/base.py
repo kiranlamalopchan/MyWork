@@ -44,11 +44,20 @@ LOCAL_APPS = [
     # Australian public holidays — the card on the hub, and the API the
     # mobile app reads it from.
     'apps.holidays',
+    # The JSON API the native app (mobile/) talks to: every screen above,
+    # as data. Last because it only wraps what the others do.
+    'apps.api',
 ]
 
-# Split in two so that "which of these did we write?" is answered by reading
-# rather than by recognising names.
-INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS
+THIRD_PARTY_APPS = [
+    # Django REST Framework, for apps.api; authtoken holds the app's tokens.
+    'rest_framework',
+    'rest_framework.authtoken',
+]
+
+# Split in three so that "which of these did we write?" is answered by
+# reading rather than by recognising names.
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 
 MIDDLEWARE = [
@@ -174,3 +183,25 @@ VAPID_CONTACT_EMAIL = ''
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# --------------------------------------------------------------------------
+# The API (apps.api)
+# --------------------------------------------------------------------------
+# Token in an Authorization header, which is how a phone signs in: no
+# session, no cookies, no CSRF — the token is the proof. Everything needs a
+# signed-in user unless a view says otherwise (login and register do).
+# --------------------------------------------------------------------------
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.TokenAuthentication'],
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'EXCEPTION_HANDLER': 'apps.api.errors.exception_handler',
+}

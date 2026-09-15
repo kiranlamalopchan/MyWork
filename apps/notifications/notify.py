@@ -95,8 +95,6 @@ def _deliver(notification):
     notice, and a push service having a bad afternoon must not turn somebody
     else's post into an error page.
     """
-    if not push.configured():
-        return
     try:
         unread = Notification.unread_count(notification.recipient)
         push.send_to_user(notification.recipient, push.payload_for(notification, unread))

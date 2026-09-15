@@ -28,11 +28,12 @@ class UserTimezoneMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # The cookie is written by app.js on every page load, so it's the
-        # freshest word on where the phone is and it costs no query. The
+        # The header is what the native app sends on every request; the
+        # cookie is written by app.js on every page load. Either is the
+        # freshest word on where the phone is and costs no query. The
         # stored preference is the fallback for the first visit, and for a
         # browser that has cleared its cookies.
-        name = (request.COOKIES.get("plu_tz") or "").strip()[:64]
+        name = (request.headers.get("X-Timezone") or request.COOKIES.get("plu_tz") or "").strip()[:64]
 
         if not name:
             user = getattr(request, "user", None)

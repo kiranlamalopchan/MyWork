@@ -21,16 +21,16 @@ class PresenceMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        user = getattr(request, "user", None)
+        # Never on the way in: a page nobody is waiting for should not be
+        # held up by a write, and a request that turns out to be a 404 or
+        # a redirect still means the person is here. And only after: the
+        # API signs its user in by token inside the view, so who this is
+        # isn't known until the view has run.
+        response = self.get_response(request)
 
+        user = getattr(request, "user", None)
         if user is not None and user.is_authenticated:
-            # Never on the way in: a page nobody is waiting for should not be
-            # held up by a write, and a request that turns out to be a 404 or
-            # a redirect still means the person is here.
-            response = self.get_response(request)
             profile = Profile.of(user)
             if profile is not None:
                 profile.touch()
-            return response
-
-        return self.get_response(request)
+        return response
