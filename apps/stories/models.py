@@ -185,9 +185,10 @@ class Story(models.Model):
             converted = transcode(upload, info)
             if converted is not None:
                 upload, ext = converted, "mp4"
-            elif info and not plays_as_it_is(info):
-                # No ffmpeg, or it failed: only a clip every phone can
-                # play as it is can be kept unconverted.
+            elif not (info and plays_as_it_is(info)):
+                # No ffmpeg, or it failed, or its shape couldn't even be
+                # read: only a clip known to play as it is can be kept
+                # unconverted — one that can't be checked is not that.
                 raise Unusable("That video couldn't be converted. Send an MP4 (H.264) at 1080p or under.")
         self.duration = seconds
         self.video.save(story_path(self, f"story.{ext}"), upload, save=False)

@@ -20,7 +20,11 @@
         "NSCameraUsageDescription": "To take a photo or video for your story.",
         "NSPhotoLibraryUsageDescription": "To choose a photo or video for your story, or a profile photo.",
         "NSMicrophoneUsageDescription": "To record sound with a story video.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoadsInMedia": true
+        }
       }
     },
     "android": {

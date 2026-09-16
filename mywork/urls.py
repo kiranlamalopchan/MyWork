@@ -11,7 +11,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.views.generic import TemplateView
 
-from . import views
+from . import media_serve, views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -62,7 +62,9 @@ urlpatterns = [
     path("api/v1/", include("apps.api.urls")),
 ]
 
-# Uploaded profile photos. In production the web server serves MEDIA_ROOT
-# directly; this is only so they load while running `manage.py runserver`.
+# Uploaded profile photos and story videos. In production the web server
+# serves MEDIA_ROOT directly; this is only so they load while running
+# `manage.py runserver` — with Range support, which a story video's iOS
+# playback depends on (see media_serve.py).
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, view=media_serve.serve, document_root=settings.MEDIA_ROOT)
