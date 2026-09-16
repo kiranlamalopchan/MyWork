@@ -142,6 +142,12 @@ def send(subscription, payload):
 # with a ticket per message in the same order.
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
+# The Android channel the app creates for itself. Must stay the same string
+# as the one in mobile/src/push/register.ts — a channel named here that the
+# phone has never made is created by the system at default importance, which
+# is the quiet outcome this is meant to avoid.
+ANDROID_CHANNEL = "default"
+
 
 def send_expo(devices, payload):
     """
@@ -166,6 +172,13 @@ def send_expo(devices, payload):
             "badge": payload["badge"],
             "sound": "default",
             "priority": "high",
+            # Android shows a notification with the importance of the channel
+            # it arrives on, not the priority of the message. The app makes
+            # this one at HIGH on first launch (mobile/src/push/register.ts)
+            # so the banner drops in over whatever is on screen; unnamed, the
+            # message would land on Expo's fallback channel instead and sit
+            # silently in the shade. iOS has no channels and ignores it.
+            "channelId": ANDROID_CHANNEL,
         }
         for device in devices
     ]

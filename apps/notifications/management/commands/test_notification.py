@@ -26,7 +26,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from apps.notifications import push
-from apps.notifications.models import Kind, Notification, PushSubscription
+from apps.notifications.models import Device, Kind, Notification, PushSubscription
 from apps.notifications.notify import notify
 
 # What marks a row as this command's doing, so --clear can find them again
@@ -76,22 +76,48 @@ class Command(BaseCommand):
     # ---- what it can tell you before it tries ---------------------------
 
     def _report_push(self, user):
-        devices = PushSubscription.objects.filter(user=user).count()
+        """
+        What can be reached, before anything is tried.
+
+        The two routes out fail independently and are reported separately: a
+        browser needs VAPID keys on this server, where a phone running the app
+        needs nothing but the token Expo already gave it. Said together, a
+        server with no keys claimed "nothing will reach a phone" — while
+        `push.send_to_user` was pushing every phone the whole time, because
+        the Expo fan-out never looked at `configured()`.
+        """
+        browsers = PushSubscription.objects.filter(user=user).count()
+        phones = list(Device.objects.filter(user=user))
 
         if not push.configured():
             self.stdout.write(self.style.WARNING(
-                "Push is not configured — no VAPID keys. The notification will be "
-                "recorded and shown on the bell, but nothing will reach a phone.\n"
+                "No VAPID keys, so no browser will be reached.\n"
                 "  Fix: python manage.py vapid_keys, put the lines in .env, reload."
             ))
-        elif devices == 0:
+        elif browsers == 0:
             self.stdout.write(self.style.WARNING(
-                f"{user} has no subscribed devices. The notification will be "
-                "recorded and shown on the bell, but there is nowhere to push it.\n"
-                "  Fix: open the bell on the device, tap Turn on, accept the prompt."
+                f"{user} has no browser subscribed.\n"
+                "  Fix: open the bell on the site, tap Turn on, accept the prompt."
             ))
         else:
-            self.stdout.write(f"Push is configured; {user} has {devices} device(s).")
+            self.stdout.write(f"Browsers: {browsers} subscribed.")
+
+        if phones:
+            # Named, because the point of running this is usually to find out
+            # whether the phone in your hand is the one that registered.
+            named = ", ".join(d.name or d.platform or "unnamed" for d in phones)
+            self.stdout.write(f"Phones: {len(phones)} ({named}).")
+        else:
+            self.stdout.write(self.style.WARNING(
+                f"{user} has no phone running the app.\n"
+                "  Fix: sign in on the app — it registers the phone itself. "
+                "Expo Go on Android has no push at all; that needs a build."
+            ))
+
+        if not phones and (browsers == 0 or not push.configured()):
+            self.stdout.write(
+                "The notification will still be recorded and counted on the bell."
+            )
 
     # ---- the two things it makes ----------------------------------------
 

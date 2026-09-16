@@ -12,6 +12,7 @@ and a reminder that runs every twenty minutes buzzes once.
 
 import json
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -20,7 +21,8 @@ from django.utils import timezone
 
 from apps.noticeboard.models import Comment, CommentReaction, Notice, Reaction
 
-from .models import Kind, Notification, PushSubscription
+from . import push
+from .models import Device, Kind, Notification, PushSubscription
 from .notify import notify
 
 
@@ -354,6 +356,72 @@ class PushOffTests(TestCase):
         self.assertNotContains(resp, 'id="push-setup"')
 
 
+class ExpoPushTests(TestCase):
+    """
+    The other way out: phones running the app, by way of Expo.
+
+    Worth its own class because it does not depend on VAPID at all — a laptop
+    with no keys configured still buzzes every registered phone — and because
+    what Expo is handed decides whether Android shows a banner or says nothing.
+    """
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.phone = Device.store(
+            self.kiran, "ExponentPushToken[abc]", "android", "Kiran's Pixel"
+        )
+
+    def _send(self, tickets=None):
+        """Notify, with Expo's HTTP call stood in for. Returns what was posted."""
+        answer = mock.Mock()
+        answer.json.return_value = {"data": tickets or [{"status": "ok"}]}
+        with mock.patch.object(push.requests, "post", return_value=answer) as posted:
+            notify(self.kiran, Kind.NOTICE, "sam posted a notice",
+                   body="Fridge is fixed.", url="/notices/")
+        return posted
+
+    def test_a_phone_is_pushed_with_no_vapid_keys_configured(self):
+        self.assertFalse(push.configured())
+
+        posted = self._send()
+
+        self.assertEqual(posted.call_count, 1)
+        sent = posted.call_args.kwargs["json"]
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0]["to"], "ExponentPushToken[abc]")
+        self.assertEqual(sent[0]["title"], "sam posted a notice")
+
+    def test_it_names_the_channel_the_app_made(self):
+        """
+        Android takes its importance from the channel, not from `priority`.
+        Unnamed, the banner never drops in — it lands silently in the shade.
+        """
+        sent = self._send().call_args.kwargs["json"]
+        self.assertEqual(sent[0]["channelId"], "default")
+
+    def test_the_tap_target_travels_with_it(self):
+        sent = self._send().call_args.kwargs["json"]
+
+        # The go-link, not the notice: opening it is what marks it read.
+        self.assertIn("/notifications/", sent[0]["data"]["url"])
+        self.assertEqual(sent[0]["badge"], 1)
+
+    def test_a_phone_that_lost_the_app_is_forgotten(self):
+        self._send([{"status": "error", "details": {"error": "DeviceNotRegistered"}}])
+
+        self.assertFalse(Device.objects.filter(pk=self.phone.pk).exists())
+
+    def test_expo_having_a_bad_afternoon_is_not_the_poster_s_problem(self):
+        with mock.patch.object(push.requests, "post", side_effect=OSError("down")):
+            told = notify(self.kiran, Kind.NOTICE, "sam posted a notice",
+                          url="/notices/")
+
+        # Recorded and counted regardless: the send is best-effort.
+        self.assertIsNotNone(told)
+        self.assertEqual(Notification.unread_count(self.kiran), 1)
+        self.assertTrue(Device.objects.filter(pk=self.phone.pk).exists())
+
+
 class SweepTests(TestCase):
     """
     The claim that stands in for a cron.
@@ -552,9 +620,26 @@ class TestNotificationCommandTests(TestCase):
         self.assertEqual(left.count(), 1)
         self.assertEqual(left.get().pk, real.pk)
 
-    def test_it_says_when_push_cannot_reach_anybody(self):
+    def test_it_says_when_no_browser_can_be_reached(self):
         out = self._run("wayne")
-        self.assertIn("no VAPID keys", out)
+
+        self.assertIn("VAPID", out)
+        self.assertIn("no phone running the app", out)
+        self.assertIn("still be recorded", out)
+
+    def test_a_phone_is_reported_although_there_are_no_vapid_keys(self):
+        """
+        The Expo fan-out never looks at `configured()`, so a phone is reached
+        on a server with no VAPID keys at all. Saying otherwise sent people
+        off generating keys they did not need.
+        """
+        Device.store(self.wayne, "ExponentPushToken[abc]", "android", "Kiran's Pixel")
+
+        out = self._run("wayne")
+
+        self.assertIn("Phones: 1", out)
+        self.assertIn("Kiran's Pixel", out)
+        self.assertNotIn("still be recorded", out)
 
     def test_the_demo_inbox_renders(self):
         self._run("wayne", "--demo")

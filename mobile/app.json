@@ -29,6 +29,7 @@
     },
     "android": {
       "package": "com.mywork.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#121c2d",
         "foregroundImage": "./assets/android-icon-foreground.png",

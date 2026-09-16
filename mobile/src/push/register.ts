@@ -33,9 +33,21 @@ export function notifications(): NotificationsModule | null {
 
 let registered: string | null = null;
 
-export async function registerForPush(): Promise<string | null> {
+/**
+ * Ask the phone, and nothing else.
+ *
+ * Separate from registering because the two happen at different moments: the
+ * way in explains why it wants to buzz you and asks before you have signed
+ * in, where telling the server *which* phone to buzz needs an account. The
+ * OS only ever prompts once, so by the time sign-in registers the device the
+ * answer is already given and nobody is asked twice.
+ *
+ * Returns whether it may buzz this phone — false on the web, in Expo Go on
+ * Android, on a simulator, and when the answer was no.
+ */
+export async function askForPush(): Promise<boolean> {
   const Notifications = notifications();
-  if (!Notifications || !Device.isDevice) return null;
+  if (!Notifications || !Device.isDevice) return false;
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
       name: "MyWork",
@@ -45,11 +57,15 @@ export async function registerForPush(): Promise<string | null> {
     });
   }
   const current = await Notifications.getPermissionsAsync();
-  let status = current.status;
-  if (status !== "granted") {
-    status = (await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowBadge: true, allowSound: true } })).status;
-  }
-  if (status !== "granted") return null;
+  if (current.status === "granted") return true;
+  const asked = await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowBadge: true, allowSound: true } });
+  return asked.status === "granted";
+}
+
+export async function registerForPush(): Promise<string | null> {
+  const Notifications = notifications();
+  if (!Notifications || !Device.isDevice) return null;
+  if (!(await askForPush())) return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   const token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
   await me.registerDevice(token, Platform.OS, Device.deviceName || Device.modelName || "");

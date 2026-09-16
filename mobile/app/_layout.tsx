@@ -11,6 +11,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
 import { SessionProvider, useSession } from "@/auth/session";
+import { OnboardingProvider, useOnboarding } from "@/onboarding/seen";
 import { Crashed } from "@/ui/Crashed";
 import { Splash } from "@/ui/Splash";
 import { navigateTo } from "@/nav/paths";
@@ -36,6 +37,7 @@ notifications()?.setNotificationHandler({
 
 function Guard() {
   const { ready, me } = useSession();
+  const { checked, seen } = useOnboarding();
   const t = useTheme();
 
   // A notification tapped: cold start or while running, the same path.
@@ -52,16 +54,25 @@ function Guard() {
   }, [me]);
 
   // Nothing until the keychain has been asked: the splash stays up that long.
-  if (!ready) return null;
+  if (!ready || !checked) return null;
 
-  // Signed out, only the sign-in screens exist; signed in, everything but.
-  // Every screen draws its own app bar (ui/AppBar), so the stack draws none.
+  // Somebody already signed in has been here before, whatever the flag says —
+  // an update should not hand a regular a tour of their own app.
+  const tour = !seen && !me;
+
+  // The way in first if it is owed, then the sign-in screens while signed
+  // out, then everything else. Every screen draws its own app bar
+  // (ui/AppBar), so the stack draws none.
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
-      <Stack.Protected guard={!me}>
-        <Stack.Screen name="(auth)" />
+      <Stack.Protected guard={tour}>
+        {/* Faded, not pushed: the splash is dissolving into this. */}
+        <Stack.Screen name="(onboarding)" options={{ animation: "fade" }} />
       </Stack.Protected>
-      <Stack.Protected guard={!!me}>
+      <Stack.Protected guard={!tour && !me}>
+        <Stack.Screen name="(auth)" options={{ animation: "fade" }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!tour && !!me}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="board" />
         <Stack.Screen name="notifications" />
@@ -102,13 +113,14 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 function Shell() {
   const t = useTheme();
   const { ready } = useSession();
+  const { checked } = useOnboarding();
   const [wayIn, setWayIn] = useState(true);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
       {/* The splash is navy whichever way the phone is set. */}
       <StatusBar style={wayIn || t.dark ? "light" : "dark"} />
       <Guard />
-      {wayIn ? <Splash ready={ready} onDone={() => setWayIn(false)} /> : null}
+      {wayIn ? <Splash ready={ready && checked} onDone={() => setWayIn(false)} /> : null}
     </GestureHandlerRootView>
   );
 }
@@ -118,7 +130,9 @@ export default function Root() {
     <ThemeProvider>
       <QueryClientProvider client={client}>
         <SessionProvider>
-          <Shell />
+          <OnboardingProvider>
+            <Shell />
+          </OnboardingProvider>
         </SessionProvider>
       </QueryClientProvider>
     </ThemeProvider>

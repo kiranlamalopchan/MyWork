@@ -9,6 +9,13 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+
+# The Firebase service account key, however it was named on the way out of
+# the console. It can send push as this project and read a good deal else, so
+# it is a secret — unlike google-services.json, which ships inside the APK and
+# is committed on purpose.
+*-firebase-adminsdk-*.json
+service-account*.json
 .env
 .env.local
 ios/
