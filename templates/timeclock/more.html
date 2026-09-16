@@ -14,50 +14,62 @@
   the Timesheet page stays a list of shifts and nothing else. This page is
   the dock's More tab. PLU's own features are not here — they belong to the
   other app, one tab over.
+
+  Each row carries the figure behind it as well as the way to it: what you
+  are owed, how many places you work. Half the reason to open Pay is to read
+  one number, and a row that already says it has saved the trip.
 {% endcomment %}
-<ul class="result-list">
-  <li>
-    <a class="menu-row" href="{% url 'timeclock:shift_create' %}">
-      <span class="menu-row__icon">
+<h2 class="section-label more__label">TimeSheet</h2>
+
+<ul class="more">
+  <li class="more__item">
+    <a class="more__row more__row--violet" href="{% url 'timeclock:shift_create' %}">
+      <span class="more__icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M12 3a9 9 0 0 1 0 18"/>
         </svg>
       </span>
-      <span class="menu-row__body">
-        <span class="menu-row__title">Add a past shift</span>
-        <span class="menu-row__sub">For a day you forgot to clock in</span>
+      <span class="more__body">
+        <span class="more__title">Add a past shift</span>
+        <span class="more__sub">For a day you forgot to clock in</span>
       </span>
-      {% icon "chev" class="result__chev" %}
+      {% icon "chev" class="more__chev" %}
     </a>
   </li>
 
-  <li>
-    <a class="menu-row" href="{% url 'timeclock:payments' %}">
-      <span class="menu-row__icon">
+  <li class="more__item">
+    <a class="more__row more__row--orange" href="{% url 'timeclock:payments' %}">
+      <span class="more__icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M7 12h.01M17 12h.01"/>
         </svg>
       </span>
-      <span class="menu-row__body">
-        <span class="menu-row__title">Pay</span>
-        <span class="menu-row__sub">
-          {% if unpaid_total %}{{ unpaid_total|hm }} owed across your jobs{% else %}Nothing outstanding{% endif %}
+      <span class="more__body">
+        <span class="more__title">Pay</span>
+        <span class="more__sub">
+          {% if unpaid_total %}Owed across your jobs{% else %}Nothing outstanding{% endif %}
         </span>
       </span>
-      {% icon "chev" class="result__chev" %}
+      {% if unpaid_total %}<span class="more__value">{{ unpaid_total|hm }}</span>{% endif %}
+      {% icon "chev" class="more__chev" %}
     </a>
   </li>
 
-  <li>
-    <a class="menu-row" href="{% url 'timeclock:workplaces' %}">
-      <span class="menu-row__icon">
+  <li class="more__item">
+    <a class="more__row more__row--blue" href="{% url 'timeclock:workplaces' %}">
+      <span class="more__icon">
         {% icon "home" %}
       </span>
-      <span class="menu-row__body">
-        <span class="menu-row__title">Workplaces</span>
-        <span class="menu-row__sub"><span data-tally="{{ workplace_count }}" data-tally-format="int">{{ workplace_count }}</span> saved · rates, caps and cycles</span>
+      <span class="more__body">
+        <span class="more__title">Workplaces</span>
+        <span class="more__sub">
+          {% if workplace_count %}Rates, caps and cycles{% else %}Add the places you work{% endif %}
+        </span>
       </span>
-      {% icon "chev" class="result__chev" %}
+      {% if workplace_count %}
+        <span class="more__value" data-tally="{{ workplace_count }}" data-tally-format="int">{{ workplace_count }}</span>
+      {% endif %}
+      {% icon "chev" class="more__chev" %}
     </a>
   </li>
 

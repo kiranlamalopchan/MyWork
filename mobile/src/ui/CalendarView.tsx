@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCalendar, type CalendarCell } from "@/api";
 import { Card, ErrorBanner, IconButton, Loading, useLayout } from "@/ui";
 import { radius, sp, useTheme } from "@/ui/theme";
-import { cssColour, ShiftRow, Swatch } from "@/ui/timesheet";
+import { cssColour, hslAlpha, ShiftRow, Swatch } from "@/ui/timesheet";
 
 export function CalendarView() {
   const t = useTheme();
@@ -102,11 +102,6 @@ function Cell({ cell, picked, onPress }: { cell: CalendarCell; picked: boolean; 
       ) : null}
     </Pressable>
   );
-}
-
-/** "hsl(212, 62%, 50%)" with an alpha — the wash a worked day sits on. */
-function hslAlpha(css: string, a: number) {
-  return css.replace(/^hsl\((.*)\)$/, `hsla($1, ${a})`);
 }
 
 const styles = StyleSheet.create({

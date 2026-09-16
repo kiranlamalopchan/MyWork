@@ -2371,7 +2371,7 @@ class OneWayInTests(TestCase):
 
     def test_more_no_longer_offers_a_second_way_in(self):
         html = self.client.get(reverse("timeclock:more")).content.decode()
-        titles = re.findall(r'menu-row__title">([^<]+)<', html)
+        titles = re.findall(r'more__title">([^<]+)<', html)
         self.assertEqual(titles, ["Add a past shift", "Pay", "Workplaces"])
 
     def test_the_cycles_form_lives_on_workplaces(self):

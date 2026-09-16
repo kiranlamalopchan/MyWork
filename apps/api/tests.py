@@ -357,6 +357,31 @@ class PluTests(ApiTestCase):
         self.assertEqual(data["count"], 2)
         self.assertEqual(self.api("get", "plu_search", {"q": ""}).json()["results"], [])
 
+    def test_the_idle_box_is_given_real_rows_to_show(self):
+        # What the search box shows before anything is typed comes from the
+        # list that was imported, not from anything invented here.
+        idle = self.api("get", "plu_search", {"q": ""}).json()
+        self.assertEqual(idle["total"], 3)
+        mine = {(i["plu_no"], i["description"]) for i in idle["samples"]}
+        self.assertEqual(mine, {(7012, "LAMB LEG CHOPS"), (1319, "LAMB LOIN CHOPS"), (900, "BEEF MINCE")})
+
+    def test_a_name_too_long_to_watch_being_typed_is_passed_over(self):
+        PluItem.objects.all().delete()
+        PluItem.objects.create(plu_no=1, description="BEEF MINCE")
+        PluItem.objects.create(plu_no=2, description="LAMB FOREQUARTER CHOPS FAMILY VALUE PACK")
+        samples = self.api("get", "plu_search", {"q": ""}).json()["samples"]
+        self.assertEqual([i["plu_no"] for i in samples], [1])
+
+    def test_when_every_name_is_long_it_shows_one_anyway(self):
+        PluItem.objects.all().delete()
+        PluItem.objects.create(plu_no=2, description="LAMB FOREQUARTER CHOPS FAMILY VALUE PACK")
+        samples = self.api("get", "plu_search", {"q": ""}).json()["samples"]
+        self.assertEqual([i["plu_no"] for i in samples], [2])
+
+    def test_an_empty_list_has_nothing_to_show(self):
+        PluItem.objects.all().delete()
+        self.assertEqual(self.api("get", "plu_search", {"q": ""}).json()["samples"], [])
+
     def test_one_item(self):
         self.assertEqual(self.api("get", "plu_item", args=[900]).json()["description"], "BEEF MINCE")
         self.assertEqual(self.api("get", "plu_item", args=[1]).status_code, 404)

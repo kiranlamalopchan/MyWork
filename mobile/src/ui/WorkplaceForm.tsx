@@ -7,15 +7,17 @@
  */
 import React, { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { ApiError, timesheet, type Workplace, type WorkplaceInput, type WorkplacesPage } from "@/api";
 import type { FilePart } from "@/api/client";
 
-import { Button, Card, Field, Input } from "./index";
+import { Button, Card, Field, Input, SectionLabel } from "./index";
 import { native } from "./native";
 import { notify } from "./confirm";
-import { radius, sp, useTheme } from "./theme";
-import { Choices, cssColour, Switch } from "./timesheet";
+import { alpha, mix, radius, sp, useTheme } from "./theme";
+import { cssColour, Switch } from "./timesheet";
+import { Select } from "./Select";
 import { fail, success } from "./haptics";
 
 type Choices = WorkplacesPage["choices"];
@@ -100,23 +102,37 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
     }
   };
 
-  const short = (label: string) => label.slice(0, 3);
-
   return (
     <>
       {detail ? <Text style={{ color: t.danger, fontSize: 14 }}>{detail}</Text> : null}
-      <Card style={{ gap: sp[4] }}>
-        <View style={{ gap: sp[2] }}>
-          <Button title={reading ? "Reading…" : "Fill from a payslip"} icon="document-text-outline" kind="plain" size="sm" onPress={fillFromPayslip} busy={reading} style={{ alignSelf: "flex-start" }} />
-          <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>PDF, photo or screenshot — the rate, tax and pay cycle are read off it for you to check.</Text>
-          {read ? (
-            <View style={[styles.read, { backgroundColor: t.surface2 }]}>
-              {read.map((r) => <Text key={r.label} style={{ color: t.text2, fontSize: 13 }}><Text style={{ fontWeight: "700", color: t.text }}>{r.label}:</Text> {r.value} <Text style={{ color: t.muted }}>— {r.how}</Text></Text>)}
-              {notes.map((n) => <Text key={n} style={{ color: t.warn, fontSize: 13 }}>{n}</Text>)}
-            </View>
-          ) : null}
+
+      {/* The payslip reader fills half of what is below it, so it leads rather
+          than sitting inside the first group as a small grey button. */}
+      <View style={[styles.payslip, { backgroundColor: mix(t.violet, t.surface, 0.1) }]}>
+        <View style={styles.payslipHead}>
+          <View style={[styles.payslipIcon, { backgroundColor: alpha(t.violet, 0.16) }]}>
+            <Ionicons name="document-text-outline" size={21} color={t.violet} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: t.text, fontWeight: "700", fontSize: 16 }}>Fill from a payslip</Text>
+            <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18, marginTop: 2 }}>PDF, photo or screenshot — the rate, tax and pay cycle are read off it for you to check.</Text>
+          </View>
         </View>
-        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
+        <Button title={reading ? "Reading…" : "Choose a file"} icon="cloud-upload-outline" kind="plain" size="sm" onPress={fillFromPayslip} busy={reading} style={{ alignSelf: "flex-start" }} />
+        {read ? (
+          <View style={[styles.read, { backgroundColor: t.surface }]}>
+            {read.map((r) => <Text key={r.label} style={{ color: t.text2, fontSize: 13 }}><Text style={{ fontWeight: "700", color: t.text }}>{r.label}:</Text> {r.value} <Text style={{ color: t.muted }}>— {r.how}</Text></Text>)}
+            {notes.map((n) => <Text key={n} style={{ color: t.warn, fontSize: 13 }}>{n}</Text>)}
+          </View>
+        ) : null}
+      </View>
+
+      {/* Four groups rather than one column of fourteen boxes: what the job
+          is, how it pays, the cap on it, and the cycles that cap is counted
+          over. They are four different questions and only the first is
+          always worth answering. */}
+      <SectionLabel>The job</SectionLabel>
+      <Card style={{ gap: sp[4] }}>
         <Field label="Workplace name" error={errors.name}>
           <Input value={name} onChangeText={setName} placeholder="e.g. Courtlands Aged Care" testID="wp-name" />
         </Field>
@@ -124,22 +140,32 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
           <Input value={address} onChangeText={setAddress} placeholder="Street, suburb" />
         </Field>
         <Field label="Colour" help="How this job is marked on the calendar and beside its shifts." error={errors.color}>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[3] }}>
+          {/* Eight across one row, and a tick rather than only a ring: a ring
+              alone is a difference in colour, which is the one thing this
+              control cannot rely on. */}
+          <View style={{ flexDirection: "row", gap: 3 }}>
             {choices.colors.map((c) => {
               const on = c.value === color;
               return (
-                <Pressable key={c.value} onPress={() => setColor(c.value)} accessibilityLabel={c.label} accessibilityState={{ selected: on }} style={[styles.swatchRing, { borderColor: on ? cssColour(c.css) : "transparent" }]}>
-                  <View style={[styles.swatch, { backgroundColor: cssColour(c.css) }]} />
+                <Pressable key={c.value} onPress={() => setColor(c.value)} accessibilityRole="button" accessibilityLabel={c.label} accessibilityState={{ selected: on }} style={[styles.swatchRing, { borderColor: on ? cssColour(c.css) : "transparent" }]}>
+                  <View style={[styles.swatch, { backgroundColor: cssColour(c.css) }]}>
+                    {on ? <Ionicons name="checkmark" size={17} color="#fff" /> : null}
+                  </View>
                 </Pressable>
               );
             })}
           </View>
         </Field>
+        <Switch value={isDefault} onChange={setIsDefault} label="Use as my default workplace" />
+      </Card>
+
+      <SectionLabel>How it pays</SectionLabel>
+      <Card style={{ gap: sp[4] }}>
         <Field label="How this job pays" help="On a cycle, the pay run uses the same week / fortnight / month settings below — payday is the last day of each run." error={errors.pay_cycle}>
-          <Choices value={payCycle} onChange={(v) => setPayCycle(v as Workplace["pay_cycle"])} options={choices.pay_cycles.map((c) => ({ value: String(c.value), label: c.label }))} />
+          <Select label="How this job pays" value={payCycle} onChange={(v) => setPayCycle(v as Workplace["pay_cycle"])} options={choices.pay_cycles.map((c) => ({ value: String(c.value), label: c.label }))} />
         </Field>
         <Field label="How you're paid" help="Cash in hand has no tax to take off, so the withholding below drops away and every figure is simply what you earned." error={errors.paid_in}>
-          <Choices value={paidIn} onChange={(v) => setPaidIn(v as Workplace["paid_in"])} options={choices.paid_in.map((c) => ({ value: String(c.value), label: c.label }))} />
+          <Select label="How you're paid" value={paidIn} onChange={(v) => setPaidIn(v as Workplace["paid_in"])} options={choices.paid_in.map((c) => ({ value: String(c.value), label: c.label }))} />
         </Field>
         <Field label="Hourly rate (optional)" help="Optional. Used to estimate pay alongside your hours." error={errors.hourly_rate}>
           <Input value={rate} onChangeText={setRate} keyboardType="decimal-pad" placeholder="e.g. 28.50" style={{ maxWidth: 160 }} />
@@ -149,25 +175,35 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
             <Input value={tax} onChangeText={setTax} keyboardType="decimal-pad" placeholder="e.g. 10.8" style={{ maxWidth: 160 }} />
           </Field>
         ) : null}
+      </Card>
+
+      <SectionLabel>Hours cap</SectionLabel>
+      <Card style={{ gap: sp[4] }}>
         <Field label="Hours limit here (optional)" help="Counted against this workplace only. Leave blank for no limit." error={errors.hours_limit}>
           <Input value={limit} onChangeText={setLimit} keyboardType="decimal-pad" placeholder="e.g. 48" style={{ maxWidth: 160 }} />
         </Field>
-        <Field label="Applies" error={errors.limit_period}>
-          <Choices value={limitPeriod} onChange={(v) => setLimitPeriod(v as Workplace["limit_period"])} options={choices.limit_periods.map((c) => ({ value: String(c.value), label: c.label }))} />
-        </Field>
+        {/* Nothing to apply until there is a number to apply it to. */}
+        {limit.trim() ? (
+          <Field label="Applies" error={errors.limit_period}>
+            <Select label="Applies" value={limitPeriod} onChange={(v) => setLimitPeriod(v as Workplace["limit_period"])} options={choices.limit_periods.map((c) => ({ value: String(c.value), label: c.label }))} />
+          </Field>
+        ) : null}
+      </Card>
+
+      <SectionLabel>This job's cycles</SectionLabel>
+      <Card style={{ gap: sp[4] }}>
         <Field label="Week starts on" help="Used for a weekly limit, and for this job's week totals." error={errors.week_starts_on}>
-          <Choices value={week} onChange={setWeek} options={choices.weekdays.map((d) => ({ value: d.value, label: short(d.label) }))} />
+          <Select label="Week starts on" value={String(week)} onChange={(v) => setWeek(Number(v))} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
         </Field>
         <Field label="Fortnight starts on" help="Every fortnight opens on this day; the count starts again with it." error={errors.fortnight_starts_on}>
-          <Choices value={fortnight} onChange={setFortnight} options={choices.weekdays.map((d) => ({ value: d.value, label: short(d.label) }))} />
+          <Select label="Fortnight starts on" value={String(fortnight)} onChange={(v) => setFortnight(Number(v))} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
         </Field>
         <Field label="The fortnight you are in now began" help={w?.fortnight_hint || cycles.fortnight_hint} error={errors.fortnight_phase}>
-          <Choices value={phase} onChange={setPhase} options={choices.phases.map((p) => ({ value: String(p.value), label: p.label }))} />
+          <Select label="The fortnight you are in now began" value={phase} onChange={setPhase} options={choices.phases.map((p) => ({ value: String(p.value), label: p.label }))} />
         </Field>
         <Field label="Month starts on day" help={`1–${choices.max_month_start}. Use the day your pay month opens.`} error={errors.month_starts_on}>
           <Input value={month} onChangeText={setMonth} keyboardType="number-pad" style={{ maxWidth: 120 }} />
         </Field>
-        <Switch value={isDefault} onChange={setIsDefault} label="Use as my default workplace" />
       </Card>
       <View style={{ gap: sp[3] }}>
         <Button title={w ? "Save changes" : "Add workplace"} onPress={save} busy={busy} testID="save-workplace" />
@@ -178,7 +214,10 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
 }
 
 const styles = StyleSheet.create({
+  payslip: { borderRadius: radius.lg, padding: sp[4], gap: sp[3] },
+  payslipHead: { flexDirection: "row", gap: sp[3] },
+  payslipIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   read: { padding: sp[3], borderRadius: radius.md, gap: 4 },
-  swatchRing: { padding: 3, borderRadius: 26, borderWidth: 2.5 },
-  swatch: { width: 40, height: 40, borderRadius: 20 },
+  swatchRing: { padding: 2.5, borderRadius: 21, borderWidth: 2 },
+  swatch: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
 });

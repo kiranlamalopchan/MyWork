@@ -21,6 +21,13 @@
   --warn:         #b45309;
   --warn-soft:    rgba(180, 83, 9, .12);
 
+  /* Accents that are nobody's status — they only tell one way in apart from
+     the next on the More page. The same three the app carries in
+     mobile/src/ui/theme.ts, so a row is the same colour on both. */
+  --violet:       #7c3aed;
+  --orange:       #ea580c;
+  --blue:         #2563eb;
+
   /* The reactions, for the word beside a face you have left: the blue of
      the thumb, the red of the heart, and one darker yellow that reads as
      text where the faces' own yellow would not. */
@@ -170,6 +177,10 @@
     --warn:        #fbbf24;
     --warn-soft:   rgba(251, 191, 36, .13);
 
+    --violet:      #a78bfa;
+    --orange:      #fb923c;
+    --blue:        #60a5fa;
+
     --rx-like:  #5aa0f2;
     --rx-love:  #f5607a;
     --rx-face:  #f2c14e;
@@ -237,6 +248,10 @@
   --danger-soft: rgba(248, 113, 113, .13);
   --warn:        #fbbf24;
   --warn-soft:   rgba(251, 191, 36, .13);
+
+  --violet:      #a78bfa;
+  --orange:      #fb923c;
+  --blue:        #60a5fa;
 
   --rx-like:  #5aa0f2;
   --rx-love:  #f5607a;
@@ -2445,9 +2460,8 @@ a.cal__day.is-picked {
 }
 .day-shift__worked { flex: none; font-weight: 650; font-variant-numeric: tabular-nums; }
 
-/* ---- Workplaces + menu rows -------------------------------------------- */
-.workplace,
-.menu-row {
+/* ---- Workplaces --------------------------------------------------------- */
+.workplace {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -2456,10 +2470,8 @@ a.cal__day.is-picked {
   color: var(--text);
   transition: background var(--dur-2) var(--ease);
 }
-.menu-row:hover { background: var(--surface-2); text-decoration: none; }
 
-.workplace__mark,
-.menu-row__icon {
+.workplace__mark {
   flex: none;
   width: 40px; height: 40px;
   display: grid;
@@ -2471,13 +2483,9 @@ a.cal__day.is-picked {
   font-size: 16px;
   transition: transform var(--dur-3) var(--ease-snap);
 }
-.menu-row:hover .menu-row__icon { transform: scale(1.08) rotate(-4deg); }
-.menu-row__icon svg { width: 20px; height: 20px; }
 
-.workplace__body,
-.menu-row__body { flex: 1; min-width: 0; }
-.workplace__name,
-.menu-row__title {
+.workplace__body { flex: 1; min-width: 0; }
+.workplace__name {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -2496,8 +2504,7 @@ a.cal__day.is-picked {
   min-width: 0;
 }
 .workplace__name .chip__tag { flex: none; }
-.workplace__sub,
-.menu-row__sub {
+.workplace__sub {
   margin-top: 2px;
   font-size: 12.5px;
   color: var(--muted);
@@ -2512,6 +2519,151 @@ a.cal__day.is-picked {
 .icon-btn--sm svg { width: 17px; height: 17px; }
 .icon-btn--danger { color: var(--danger); }
 .icon-btn--danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+/* ---- More: the TimeSheet's back rooms -----------------------------------
+
+   Three ways in, each carrying the figure that answers it without being
+   opened — what you are owed, how many places you work.
+
+   The icon sits in a tinted container in its own colour rather than white on
+   a solid block: three solid blocks read as three buttons shouting at once,
+   where the tint says the same thing quietly and leaves the words the
+   loudest part of the row. The colour is allowed to be strong in one place,
+   which is the state layer under your finger.
+
+   On a phone the three are one card with hairlines between them. From 640px
+   they become tiles across the page, because three rows down the left of a
+   wide screen is mostly empty screen.
+   ------------------------------------------------------------------------- */
+.more__label { margin: 0 0 var(--sp-2); }
+
+.more {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.more__item + .more__item .more__row { border-top: 1px solid var(--line); }
+
+.more__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 72px;
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--text);
+  text-decoration: none;
+}
+.more__row:hover { text-decoration: none; }
+
+/* The state layer, over the whole row and under everything in it — hence the
+   relative positioning on the pieces below, which would otherwise be under
+   it rather than over. */
+.more__row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--tint, var(--brand));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease);
+}
+.more__row:hover::after { opacity: .07; }
+.more__row:active::after { opacity: .12; }
+
+.more__icon {
+  position: relative;
+  flex: none;
+  width: 44px; height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tint, var(--brand)) 14%, transparent);
+  color: var(--tint, var(--brand));
+}
+.more__icon svg { width: 21px; height: 21px; }
+
+.more__body { position: relative; flex: 1; min-width: 0; }
+.more__title { display: block; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.more__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tabular, because these are figures that change under you on a refresh and
+   a row that re-flows when 9 becomes 10 reads as a glitch. */
+.more__value {
+  position: relative;
+  flex: none;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.more__chev {
+  position: relative;
+  flex: none;
+  width: 18px; height: 18px;
+  color: var(--line-strong);
+  transition: transform var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.more__row:hover .more__chev { transform: translateX(3px); color: var(--tint, var(--brand)); }
+
+/* One accent per way in. They are nobody's status — they only tell the three
+   apart, which is why none of them is the brand. */
+.more__row--violet { --tint: var(--violet); }
+.more__row--orange { --tint: var(--orange); }
+.more__row--blue   { --tint: var(--blue); }
+
+/* ---- Wide enough for tiles ---- */
+
+@media (min-width: 640px) {
+  .more {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--sp-3);
+    background: none;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+  .more__item + .more__item .more__row { border-top: 0; }
+  /* The item is the grid cell and the row is what is drawn, so the row has to
+     be told to fill the cell — otherwise a tile with no figure in it is
+     shorter than the two beside it. */
+  .more__item { display: flex; }
+  .more__row {
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-height: 0;
+    padding: var(--sp-4);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+  }
+  .more__icon { width: 48px; height: 48px; border-radius: 16px; }
+  .more__icon svg { width: 23px; height: 23px; }
+  .more__body { flex: none; margin-top: var(--sp-3); }
+  /* Room to wrap: a tile is narrower than a row, and clipping a sentence
+     that now has somewhere to go would be a worse read, not a tidier one. */
+  .more__sub { white-space: normal; }
+  /* Pushed to the bottom of the tile, so the three figures share a baseline
+     however many lines the sentence above each of them ran to. */
+  .more__value { margin-top: auto; padding-top: var(--sp-3); font-size: 15px; color: var(--tint, var(--brand)); }
+  .more__chev { position: absolute; top: var(--sp-4); right: var(--sp-4); }
+}
 
 /* --------------------------------------------------------------------------
    17. Motion
@@ -2552,7 +2704,6 @@ html { scroll-behavior: smooth; }
 .result__chev { transition: transform var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease); }
 .result:hover .result__chev,
 .shift:hover .result__chev,
-.menu-row:hover .result__chev { transform: translateX(3px); color: var(--brand); }
 
 .searchbar__clear {
   transition: background var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
@@ -5674,7 +5825,6 @@ body::before {
      instead, which is what the glass is doing to the page in the first place. */
   .result:hover,
   .shift:hover,
-  .menu-row:hover,
   .day__head:hover,
   .panel__head:hover,
   .appmenu__item:hover,
@@ -6392,11 +6542,13 @@ body::before {
 .holiday__text { flex: 1 1 auto; min-width: 0; display: grid; gap: var(--sp-3); }
 
 /* Pulled into the padding on three sides so the drawing meets the card's
-   edges. clamp() is what keeps a long holiday name readable: the drawing
-   never takes more than a bit over a third, and never shrinks to a stamp. */
+   edges. clamp() is what keeps the words readable: the drawing never takes
+   more than about a third, and never shrinks to a stamp. A third is also
+   what leaves the kicker and the scope pill room to share one line on a
+   360px phone, which they do with nothing to spare. */
 .holiday__art {
   flex: none;
-  width: clamp(116px, 38%, 188px);
+  width: clamp(112px, 36%, 180px);
   margin: calc(var(--sp-3) * -1) calc(var(--sp-4) * -1) calc(var(--sp-3) * -1) 0;
 }
 

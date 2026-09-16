@@ -5,6 +5,7 @@ here without a session: the phone keeps the read and sends the rows back
 for the PDF.
 """
 
+from django.db.models.functions import Length
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -30,12 +31,40 @@ def _item(item):
     return {"plu_no": item.plu_no, "description": item.description}
 
 
+# How many real rows the idle box is given, and how long a name may be to be
+# one of them.
+SAMPLE_LIMIT = 6
+SAMPLE_MAX_LEN = 24
+
+
+def _samples():
+    """
+    A few real rows for the search box to show before anything is typed.
+
+    Drawn from the list that was actually imported, because an invented
+    example teaches the shape of somebody else's data: "red capsicum" is no
+    help in a shop whose list says "CAPSICUM RED LOOSE".
+
+    Short names are preferred — the box types them a character at a time, and
+    a thirty-letter description is four seconds of watching rather than a
+    hint — but if every name is long, any name beats none.
+    """
+    short = PluItem.objects.annotate(length=Length("description")).filter(length__lte=SAMPLE_MAX_LEN)
+    rows = list(short.order_by("?")[:SAMPLE_LIMIT])
+    return [_item(i) for i in rows or PluItem.objects.order_by("?")[:SAMPLE_LIMIT]]
+
+
 class Search(APIView):
     def get(self, request):
         q = (request.GET.get("q") or "").strip()
         if not q:
-            # Nothing asked for yet: how many there are to search, for the words under the box.
-            return Response({"q": q, "results": [], "page": 1, "pages": 1, "count": 0, "next": None, "total": PluItem.objects.count()})
+            # Nothing asked for yet: how many there are to search, for the
+            # words under the box, and a few of them for the box itself.
+            return Response({
+                "q": q, "results": [], "page": 1, "pages": 1, "count": 0, "next": None,
+                "total": PluItem.objects.count(),
+                "samples": _samples(),
+            })
         page, meta = serialize.page_of(request, search_plu_items(q), PER_PAGE)
         meta["q"] = q
         meta["results"] = [_item(i) for i in page.object_list]

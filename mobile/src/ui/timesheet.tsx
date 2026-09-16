@@ -51,6 +51,17 @@ export function cssColour(css: string | null | undefined): string {
   return css.replace(/hsl\(\s*([\d.]+)\s+([\d.]+%)\s+([\d.]+%)\s*\)/, "hsl($1, $2, $3)");
 }
 
+/**
+ * The same colour, faint — the wash a workplace's own hue sits on.
+ *
+ * theme.ts's alpha() cannot do this: a workplace's colour arrives as hsl()
+ * and is a different hue for every job, where the theme's are hexes fixed at
+ * build time.
+ */
+export function hslAlpha(css: string, a: number): string {
+  return css.replace(/^hsl\((.*)\)$/, `hsla($1, ${a})`);
+}
+
 // ---- figures -----------------------------------------------------------------
 
 export function Ledger({ children }: { children: React.ReactNode }) {

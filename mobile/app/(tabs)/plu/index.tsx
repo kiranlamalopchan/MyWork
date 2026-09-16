@@ -11,7 +11,7 @@ import { FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput,
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { plu as pluApi, usePluChanged, usePluImportable, usePluSearch, usePluTotal, type PluItem } from "@/api";
+import { plu as pluApi, usePluChanged, usePluIdle, usePluImportable, usePluSearch, type PluItem } from "@/api";
 import type { FilePart } from "@/api/client";
 import { Card, Empty, ErrorBanner, Loading, Screen } from "@/ui";
 import { notify } from "@/ui/confirm";
@@ -20,7 +20,19 @@ import { useLayout } from "@/ui/layout";
 import { native } from "@/ui/native";
 import { PhotoSearch } from "@/ui/PhotoSearch";
 import { SkeletonRows } from "@/ui/Skeleton";
+import { TypedPlaceholder } from "@/ui/TypedPlaceholder";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
+
+/**
+ * A description as somebody would type it.
+ *
+ * Import files shout — "LAMB LEG CHOPS" — and a box appearing to type in
+ * capitals reads as a label again rather than as a person searching. A name
+ * that already has a case of its own is left alone.
+ */
+function spoken(description: string): string {
+  return description === description.toUpperCase() ? description.toLowerCase() : description;
+}
 
 export default function Plu() {
   const t = useTheme();
@@ -30,32 +42,54 @@ export default function Plu() {
   const [typed, setTyped] = useState("");
   const [q, setQ] = useState("");
   const box = useRef<TextInput>(null);
+  const [on, setOn] = useState(false);
   useEffect(() => {
     const id = setTimeout(() => setQ(typed.trim()), 250);
     return () => clearTimeout(id);
   }, [typed]);
   const search = usePluSearch(q);
-  const total = usePluTotal().data;
+  const idleData = usePluIdle().data;
+  const total = idleData?.total;
+  // What the box types to itself, from the list that was imported: a name,
+  // then its number, then the next name. An invented example would teach the
+  // shape of somebody else's data.
+  const examples = React.useMemo(
+    () => (idleData?.samples ?? []).flatMap((i) => [spoken(i.description), String(i.plu_no)]),
+    [idleData],
+  );
   const rows = search.data?.pages.flatMap((p) => p.results) ?? [];
   const count = search.data?.pages[0]?.count ?? 0;
   const looking = !!q && search.isLoading;
   const idle = !typed.trim();
+  // The box types to itself only while nobody else is using it — and only if
+  // the server had rows to give it. Without them the plain placeholder
+  // stands, rather than an empty box with nothing in it at all.
+  const ghost = !typed && !on && examples.length > 0;
 
   const field = (
     <View style={[styles.field, { backgroundColor: t.surface }, !t.dark && styles.fieldShadow, !t.dark && { shadowColor: t.shadow }]}>
       <Ionicons name="search-outline" size={22} color={t.muted} />
-      <TextInput
-        ref={box}
-        value={typed}
-        onChangeText={setTyped}
-        placeholder="PLU number or description"
-        placeholderTextColor={t.muted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-        testID="plu-q"
-        style={[styles.input, { color: t.text }]}
-      />
+      <View style={{ flex: 1, justifyContent: "center" }}>
+        <TextInput
+          ref={box}
+          value={typed}
+          onChangeText={setTyped}
+          onFocus={() => setOn(true)}
+          onBlur={() => setOn(false)}
+          // The real placeholder is empty while the typed one is running, or
+          // the two would sit on top of each other; it comes back the moment
+          // the animation stands down.
+          placeholder={ghost ? "" : "PLU number or description"}
+          placeholderTextColor={t.muted}
+          accessibilityLabel="Search PLU by number or description"
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          testID="plu-q"
+          style={[styles.input, { color: t.text }]}
+        />
+        <TypedPlaceholder show={ghost} prefix="Search " phrases={examples} style={{ fontSize: 17, color: t.muted }} />
+      </View>
       {typed ? (
         <Pressable onPress={() => { tick(); setTyped(""); box.current?.focus(); }} accessibilityLabel="Clear search" style={[styles.clear, { backgroundColor: t.surface3 }]}>
           <Ionicons name="close" size={18} color={t.text2} />

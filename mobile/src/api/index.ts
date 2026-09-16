@@ -161,7 +161,8 @@ export function useInboxChanged() {
 
 export const plu = {
   search: (q: string, page: number) => api<Page<PluItem> & { q: string; total?: number }>("plu/search/", { query: { q, page } }),
-  total: () => api<{ total: number }>("plu/search/", { query: { q: "" } }).then((r) => r.total),
+  /** What the box shows before anything is typed: how many codes, and a few of them. */
+  idle: () => api<{ total: number; samples: PluItem[] }>("plu/search/", { query: { q: "" } }),
   one: (plu_no: number) => api<PluItem>(`plu/${plu_no}/`),
   /** A photographed picking list: every line named as a PLU. */
   photo: (photo: FilePart) => api<PhotoRead>("plu/photo/", { method: "POST", form: formWith({ photo }) }),
@@ -198,8 +199,8 @@ export function usePluSearch(q: string) {
   });
 }
 
-export function usePluTotal() {
-  return useQuery({ queryKey: ["plu-total"], queryFn: plu.total, staleTime: 5 * 60_000 });
+export function usePluIdle() {
+  return useQuery({ queryKey: ["plu-idle"], queryFn: plu.idle, staleTime: 5 * 60_000 });
 }
 
 // ---- holidays --------------------------------------------------------------------------

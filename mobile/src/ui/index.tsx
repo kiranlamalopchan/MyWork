@@ -18,7 +18,7 @@ import { Backdrop } from "./Backdrop";
 import { tap, tick } from "./haptics";
 import { KeyboardPad, RevealProvider, useKeyboardScroll, useReveal } from "./keyboard";
 import { useLayout } from "./layout";
-import { alpha, radius, sp, useTheme } from "./theme";
+import { alpha, mix, radius, sp, useTheme } from "./theme";
 
 export { Avatar } from "./Avatar";
 export { useLayout } from "./layout";
@@ -286,19 +286,52 @@ export function Chip({ children, on, colour, onPress, dot, style }: { children: 
   );
 }
 
-/** A row in a menu list: icon, words, chevron — the site's .menu-row. */
-export function MenuRow({ icon, title, sub, onPress, tint, last, testID }: { icon: keyof typeof Ionicons.glyphMap; title: string; sub?: string; onPress: () => void; tint?: string; last?: boolean; testID?: string }) {
+/**
+ * A row into somewhere else — the site's .more__row.
+ *
+ * The icon sits in a tinted container in its own colour rather than being
+ * white on a solid block: a page of solid blocks reads as six buttons
+ * shouting at once, where the tint says the same thing quietly and leaves
+ * the words the loudest part of the row. Pressing lays the row's own tint
+ * over it, which is where the colour is allowed to be strong.
+ *
+ * `value` is the figure that answers the row without opening it — what you
+ * are owed, how many places you work. `stacked` turns the row into a tile
+ * for a wide screen, where three rows would leave most of it empty.
+ */
+export function MenuRow({ icon, title, sub, value, onPress, tint, last, stacked, testID }: {
+  icon: keyof typeof Ionicons.glyphMap; title: string; sub?: string; value?: string;
+  onPress: () => void; tint?: string; last?: boolean; stacked?: boolean; testID?: string;
+}) {
   const t = useTheme();
+  const ink = tint || t.brand;
+  const press = (pressed: boolean) => ({ backgroundColor: pressed ? alpha(ink, 0.09) : "transparent" });
+  const mark = (
+    <View style={[styles.menuIcon, stacked && styles.menuIconLg, { backgroundColor: alpha(ink, 0.14) }]}>
+      <Ionicons name={icon} size={stacked ? 22 : 19} color={ink} />
+    </View>
+  );
+
+  if (stacked) {
+    return (
+      <Pressable testID={testID} onPress={() => { tap("light"); onPress(); }} style={({ pressed }) => [styles.menuTile, { backgroundColor: pressed ? mix(ink, t.surface, 0.09) : t.surface, borderColor: t.dark ? t.line : "transparent", ...glassShadow(t.shadow, t.dark) }]}>
+        {mark}
+        <Text style={{ color: t.text, fontWeight: "700", fontSize: 16, marginTop: sp[3] }}>{title}</Text>
+        {sub ? <Text style={{ color: t.muted, fontSize: 13, marginTop: 2, lineHeight: 18 }}>{sub}</Text> : null}
+        {value ? <Text style={{ color: ink, fontWeight: "700", fontSize: 15, marginTop: sp[2], fontVariant: ["tabular-nums"] }}>{value}</Text> : null}
+      </Pressable>
+    );
+  }
+
   return (
-    <Pressable testID={testID} onPress={() => { tap("light"); onPress(); }} style={({ pressed }) => [styles.menuRow, { backgroundColor: pressed ? t.surface2 : "transparent" }]}>
-      <View style={[styles.menuIcon, { backgroundColor: tint || t.brand }]}>
-        <Ionicons name={icon} size={19} color="#fff" />
-      </View>
+    <Pressable testID={testID} onPress={() => { tap("light"); onPress(); }} style={({ pressed }) => [styles.menuRow, press(pressed)]}>
+      {mark}
       <View style={[styles.menuBody, { borderBottomColor: t.line, borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: t.text, fontWeight: "600", fontSize: 16.5 }}>{title}</Text>
-          {sub ? <Text style={{ color: t.muted, fontSize: 13.5, marginTop: 2 }}>{sub}</Text> : null}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ color: t.text, fontWeight: "600", fontSize: 16 }} numberOfLines={1}>{title}</Text>
+          {sub ? <Text style={{ color: t.muted, fontSize: 13, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
         </View>
+        {value ? <Text style={{ color: t.text2, fontWeight: "700", fontSize: 14.5, fontVariant: ["tabular-nums"] }}>{value}</Text> : null}
         <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
       </View>
     </Pressable>
@@ -368,7 +401,8 @@ const styles = StyleSheet.create({
   pageHead: { marginBottom: sp[1], paddingTop: sp[2] },
   pageTitle: { fontSize: 34, fontWeight: "800", letterSpacing: -1, lineHeight: 40 },
   pageSub: { marginTop: sp[1], fontSize: 15, lineHeight: 21 },
-  sectionLabel: { fontSize: 13.5, fontWeight: "700", letterSpacing: -0.1 },
+  // The site's .section-label: an overline over a group, not a heading in it.
+  sectionLabel: { fontSize: 12, fontWeight: "600", letterSpacing: 0.72, textTransform: "uppercase" },
   card: { borderRadius: radius.lg, borderWidth: 1, overflow: Platform.OS === "android" ? "hidden" : "visible" },
   title: { fontSize: 22, fontWeight: "800", letterSpacing: -0.5 },
   sub: { fontSize: 13.5, lineHeight: 19 },
@@ -388,9 +422,12 @@ const styles = StyleSheet.create({
   segments: { flexDirection: "row", padding: 3, borderRadius: radius.sm + 2 },
   segment: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40, borderRadius: radius.sm },
   chip: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 40, paddingHorizontal: 16, borderRadius: radius.pill },
-  menuRow: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingLeft: sp[4], minHeight: 64 },
-  menuBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: sp[2], paddingVertical: sp[3], paddingRight: sp[4], minHeight: 64 },
-  menuIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingLeft: sp[4], minHeight: 68 },
+  menuBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: sp[3], paddingVertical: sp[3], paddingRight: sp[4], minHeight: 68 },
+  menuIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  menuIconLg: { width: 48, height: 48, borderRadius: 16 },
+  // A tile is a card in its own right, so it carries the card's shape.
+  menuTile: { flex: 1, minWidth: 190, padding: sp[4], borderRadius: radius.lg, borderWidth: 1 },
   emojiRow: { flexDirection: "row", justifyContent: "space-between" },
   emoji: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   tallyRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: sp[2] },
