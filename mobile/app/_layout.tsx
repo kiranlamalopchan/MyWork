@@ -12,7 +12,9 @@ import { StatusBar } from "expo-status-bar";
 
 import { SessionProvider, useSession } from "@/auth/session";
 import { Crashed } from "@/ui/Crashed";
+import { Splash } from "@/ui/Splash";
 import { navigateTo } from "@/nav/paths";
+import { nativeOrNull } from "@/ui/native";
 import { notifications } from "@/push/register";
 import { loadThemeMode, saveThemeMode, ThemeContext, type ThemeMode, useTheme } from "@/ui/theme";
 
@@ -22,6 +24,10 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
 }
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
+
+// The still stays up until ui/Splash has painted over it; a build without the
+// module simply never had one to hold.
+nativeOrNull(() => require("expo-splash-screen"))?.preventAutoHideAsync?.()?.catch?.(() => {});
 
 // Where the phone can be buzzed at all (not the web, not Expo Go on Android).
 notifications()?.setNotificationHandler({
@@ -95,10 +101,14 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 function Shell() {
   const t = useTheme();
+  const { ready } = useSession();
+  const [wayIn, setWayIn] = useState(true);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
-      <StatusBar style={t.dark ? "light" : "dark"} />
+      {/* The splash is navy whichever way the phone is set. */}
+      <StatusBar style={wayIn || t.dark ? "light" : "dark"} />
       <Guard />
+      {wayIn ? <Splash ready={ready} onDone={() => setWayIn(false)} /> : null}
     </GestureHandlerRootView>
   );
 }

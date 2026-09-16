@@ -33,18 +33,18 @@
      Three steps, close together. With the shadows gone the separation between
      a card and the page behind it is this half-tone and one hairline, which
      is all it needs to be. */
-  --bg:        #f6f7f9;
+  --bg:        #f2f3f6;
   --surface:   #ffffff;
-  --surface-2: #f4f6f8;
-  --surface-3: #eaedf1;
+  --surface-2: #f3f4f7;
+  --surface-3: #e8eaef;
 
   /* Text */
-  --text:   #0f172a;
-  --text-2: #475569;
-  --muted:  #64748b;
+  --text:   #0f1420;
+  --text-2: #3f4756;
+  --muted:  #6b7385;
 
-  --line:        #e8ebf0;
-  --line-strong: #d4dae2;
+  --line:        #e6e8ee;
+  --line-strong: #d3d7e0;
 
   /* The floating tab bar: a slab of clear glass the way an iPhone's own is,
      the page blurred and brightened through it, in the theme's own light
@@ -87,35 +87,24 @@
   --shadow-2: 0 2px 8px rgba(15, 23, 42, .05);
   --shadow-3: 0 16px 40px rgba(15, 23, 42, .12), 0 2px 8px rgba(15, 23, 42, .04);
 
-  /* Glass — see §32. The material every panel is made of, wherever the
-     browser can blur what sits behind it.
+  /* Panels are solid now, as they are in the app — see §32, which still
+     describes the glass these names were built for. The names are kept so
+     every rule that asks for the material still gets one; what they carry is
+     a plain surface, a hairline and nothing else. Flat, per the app. */
+  --glass:        #ffffff;
+  --glass-line:   rgba(15, 20, 32, .05);
+  --glass-hi:     transparent;
+  --glass-glow:   transparent;
+  --glass-base:   transparent;
+  --glass-hover:  #fbfcfd;
+  --glass-blur:   none;
+  --lens-blur:    none;
+  --glass-shadow: 0 8px 24px rgba(26, 37, 64, .07), 0 1px 2px rgba(26, 37, 64, .04);
 
-     --glass is the material itself, --glass-line the semi-transparent white
-     rim that catches light along the edge, --glass-hi the brighter specular
-     across the top. --amb-* are the three soft washes on the page behind it:
-     glass only reads as glass when there is something to see through it, and
-     a flat grey page gives it nothing. */
-  --glass:        rgba(255, 255, 255, .48);
-  --glass-line:   rgba(255, 255, 255, .75);
-  --glass-hi:     rgba(255, 255, 255, .92);
-  /* The bevel: a glow just inside the lit rim, and the body of the material
-     gathering at the foot of the panel. Named per theme because on a light
-     ground the glow is white and the base is a shadow, and on a dark ground
-     both are lifts of white at different strengths. */
-  --glass-glow:   rgba(255, 255, 255, .70);
-  --glass-base:   rgba(15, 23, 42, .07);
-  --glass-hover:  rgba(255, 255, 255, .55);
-  --glass-blur:   saturate(180%) blur(30px);
-  /* §33: light enough that there is still detail for the lens to bend. */
-  --lens-blur:    saturate(180%) blur(4px);
-  --glass-shadow: 0 8px 32px rgba(15, 23, 42, .09), 0 1px 2px rgba(15, 23, 42, .05);
-
-  /* Turned up from a whisper. Frosted glass can only show what is behind it,
-     and on a near-white page behind a near-white panel there was nothing for
-     it to show — which is why the light theme read as plain cards. */
-  --amb-1: rgba(5, 150, 105, .26);
-  --amb-2: rgba(59, 130, 246, .24);
-  --amb-3: rgba(168, 85, 247, .18);
+  /* The page is flat: there is nothing behind a solid panel to wash. */
+  --amb-1: transparent;
+  --amb-2: transparent;
+  --amb-3: transparent;
 
   /* Shape */
   --r-sm: 10px;
@@ -186,20 +175,20 @@
     --rx-face:  #f2c14e;
     --rx-angry: #f2795c;
 
-    --bg:        #0b1120;
-    --surface:   #131c2e;
-    --surface-2: #18233a;
-    --surface-3: #1f2c47;
+    --bg:        #0a0c12;
+    --surface:   #161a24;
+    --surface-2: #1e2330;
+    --surface-3: #28303f;
 
-    --text:   #e8edf5;
-    --text-2: #b3c0d4;
-    --muted:  #8b9bb4;
+    --text:   #f1f3f8;
+    --text-2: #c3cad8;
+    --muted:  #8d97ab;
 
-    --line:        #26334d;
-    --line-strong: #35455f;
+    --line:        #252b39;
+    --line-strong: #343c4d;
 
     /* Lifted off the dark background rather than sunk into it. */
-    --pill:        #1c2640;
+    --pill:        #1e2330;
     --pill-glass:  rgba(36, 48, 74, .58);
     --pill-ink:    rgba(232, 237, 245, .62);
     --pill-line:   rgba(255, 255, 255, .16);
@@ -220,20 +209,20 @@
     --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
     --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
 
-    --glass:        rgba(26, 37, 62, .55);
-    --glass-line:   rgba(255, 255, 255, .11);
-    --glass-hi:     rgba(255, 255, 255, .16);
-    --glass-glow:   rgba(255, 255, 255, .10);
-    --glass-base:   rgba(0, 0, 0, .28);
-    --glass-hover:  rgba(255, 255, 255, .06);
-    --glass-blur:   saturate(180%) blur(30px);
-    /* §33: light enough that there is still detail for the lens to bend. */
-    --lens-blur:    saturate(180%) blur(4px);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, .38), 0 1px 2px rgba(0, 0, 0, .28);
+    /* Solid here too: a dark card is told apart by its own lighter surface. */
+    --glass:        #161a24;
+    --glass-line:   rgba(255, 255, 255, .07);
+    --glass-hi:     transparent;
+    --glass-glow:   transparent;
+    --glass-base:   transparent;
+    --glass-hover:  #1b2029;
+    --glass-blur:   none;
+    --lens-blur:    none;
+    --glass-shadow: 0 8px 28px rgba(0, 0, 0, .40), 0 1px 2px rgba(0, 0, 0, .24);
 
-    --amb-1: rgba(52, 211, 153, .13);
-    --amb-2: rgba(59, 130, 246, .15);
-    --amb-3: rgba(168, 85, 247, .11);
+    --amb-1: transparent;
+    --amb-2: transparent;
+    --amb-3: transparent;
   }
 }
 
@@ -254,19 +243,19 @@
   --rx-face:  #f2c14e;
   --rx-angry: #f2795c;
 
-  --bg:        #0b1120;
-  --surface:   #131c2e;
-  --surface-2: #18233a;
-  --surface-3: #1f2c47;
+  --bg:        #0a0c12;
+  --surface:   #161a24;
+  --surface-2: #1e2330;
+  --surface-3: #28303f;
 
-  --text:   #e8edf5;
-  --text-2: #b3c0d4;
-  --muted:  #8b9bb4;
+  --text:   #f1f3f8;
+  --text-2: #c3cad8;
+  --muted:  #8d97ab;
 
-  --line:        #26334d;
-  --line-strong: #35455f;
+  --line:        #252b39;
+  --line-strong: #343c4d;
 
-  --pill:        #1c2640;
+  --pill:        #1e2330;
   --pill-glass:  rgba(36, 48, 74, .58);
   --pill-ink:    rgba(232, 237, 245, .62);
   --pill-line:   rgba(255, 255, 255, .16);
@@ -285,20 +274,20 @@
   --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
   --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
 
-  --glass:        rgba(26, 37, 62, .55);
-  --glass-line:   rgba(255, 255, 255, .11);
-  --glass-hi:     rgba(255, 255, 255, .16);
-  --glass-glow:   rgba(255, 255, 255, .10);
-  --glass-base:   rgba(0, 0, 0, .28);
-  --glass-hover:  rgba(255, 255, 255, .06);
-  --glass-blur:   saturate(180%) blur(30px);
-  /* §33: light enough that there is still detail for the lens to bend. */
-  --lens-blur:    saturate(180%) blur(4px);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, .38), 0 1px 2px rgba(0, 0, 0, .28);
+  /* Solid here too: a dark card is told apart by its own lighter surface. */
+  --glass:        #161a24;
+  --glass-line:   rgba(255, 255, 255, .07);
+  --glass-hi:     transparent;
+  --glass-glow:   transparent;
+  --glass-base:   transparent;
+  --glass-hover:  #1b2029;
+  --glass-blur:   none;
+  --lens-blur:    none;
+  --glass-shadow: 0 8px 28px rgba(0, 0, 0, .40), 0 1px 2px rgba(0, 0, 0, .24);
 
-  --amb-1: rgba(52, 211, 153, .13);
-  --amb-2: rgba(59, 130, 246, .15);
-  --amb-3: rgba(168, 85, 247, .11);
+  --amb-1: transparent;
+  --amb-2: transparent;
+  --amb-3: transparent;
 }
 
 /* --------------------------------------------------------------------------
@@ -474,6 +463,8 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .brand:hover { text-decoration: none; }
 
+/* The mark carries its own tile and its own colour, so the square behind it
+   is only there to be turned and lifted on hover. */
 .brand__mark {
   flex: none;
   width: 32px;
@@ -481,12 +472,10 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: var(--brand);
-  color: var(--brand-ink);
   transition: transform var(--dur-2) var(--ease-snap),
               box-shadow var(--dur-2) var(--ease);
 }
-.brand__mark svg { width: 19px; height: 19px; }
+.brand__mark svg { width: 100%; height: 100%; display: block; }
 .brand:hover .brand__mark {
   transform: rotate(-6deg) scale(1.06);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 40%, transparent);
@@ -1138,11 +1127,12 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  min-height: 50px;
-  padding: 0 var(--sp-5);
-  border-radius: var(--r-md);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
+  /* A pill, as in the app: the plain one is a filled surface with no rim. */
+  min-height: 52px;
+  padding: 0 var(--sp-6);
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-size: 16px;
@@ -1153,7 +1143,7 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-1) var(--ease), background .12s ease, opacity .12s ease, box-shadow var(--dur-2) var(--ease);
 }
-.btn:hover { background: var(--surface-2); text-decoration: none; }
+.btn:hover { background: var(--surface-3); text-decoration: none; }
 .btn:active { transform: scale(.97); }
 .btn svg { width: 18px; height: 18px; flex: none; }
 
@@ -1171,7 +1161,7 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 .btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-soft); }
 
 .btn--block { width: 100%; }
-.btn--sm { min-height: 40px; font-size: 14px; padding: 0 var(--sp-3); border-radius: var(--r-sm); }
+.btn--sm { min-height: 40px; font-size: 14px; padding: 0 var(--sp-4); }
 
 .btn[disabled], .btn[aria-disabled="true"] {
   opacity: .5;
@@ -1200,12 +1190,14 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
 select,
 textarea {
+  /* Filled and borderless, as in the app: the fill is what marks the box out,
+     so the rim is only kept transparent for the invalid state to colour in. */
   width: 100%;
-  min-height: var(--tap);
-  padding: 12px var(--sp-3);
+  min-height: 52px;
+  padding: 13px var(--sp-4);
   border-radius: var(--r-md);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
+  border: 1.5px solid transparent;
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-size: 16px;  /* 16px or larger stops iOS Safari zooming on focus */
@@ -1649,18 +1641,13 @@ input[type="file"] { font-size: 15px; }
   margin: 0 auto;
   padding-top: var(--sp-6);
 }
+/* The mark brings its own tile and colour; this only sets how big it sits. */
 .auth__logo {
   width: 56px;
   height: 56px;
   margin: 0 auto var(--sp-4);
-  border-radius: var(--r-lg);
-  display: grid;
-  place-items: center;
-  background: var(--brand);
-  color: var(--brand-ink);
-  font-weight: 700;
-  font-size: 20px;
 }
+.auth__logo svg { width: 100%; height: 100%; display: block; }
 .auth__title { text-align: center; font-size: 24px; font-weight: 650; letter-spacing: -.02em; }
 .auth__sub { text-align: center; color: var(--muted); font-size: 14px; margin-top: var(--sp-1); margin-bottom: var(--sp-5); }
 .auth__footer { text-align: center; margin-top: var(--sp-4); font-size: 14px; color: var(--muted); }

@@ -1,16 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MyWork">
   <defs>
-    <linearGradient id="mw-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#34d399"/>
-      <stop offset="1" stop-color="#047857"/>
+    <linearGradient id="mw-plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a2740"/>
+      <stop offset="1" stop-color="#0b111a"/>
     </linearGradient>
+    <linearGradient id="mw-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#40e7a0"/>
+      <stop offset="1" stop-color="#24bd82"/>
+    </linearGradient>
+    <mask id="mw-ticks">
+      <rect width="512" height="512" fill="#fff"/>
+      <!-- The four gaps at 12, 3, 6 and 9. -->
+      <rect x="250" y="94" width="12" height="54" fill="#000"/>
+      <rect x="364" y="250" width="54" height="12" fill="#000"/>
+      <rect x="250" y="364" width="12" height="54" fill="#000"/>
+      <rect x="94" y="250" width="54" height="12" fill="#000"/>
+    </mask>
   </defs>
 
-  <rect width="512" height="512" rx="120" fill="url(#mw-bg)"/>
+  <rect width="512" height="512" rx="102" fill="url(#mw-plate)"/>
 
-  <!-- The M of MyWork as one continuous stroke. Kept inside the middle 80% so
-       Android's maskable crop can round the corners off without clipping it. -->
-  <path d="M136 358V178l120 106 120-106v180"
-        fill="none" stroke="#ffffff" stroke-width="44"
-        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- The dial, the pin and the hand. Everything sits inside the middle 60%,
+       so Android's maskable crop can round the corners off without clipping. -->
+  <g fill="none" stroke="url(#mw-mark)">
+    <circle cx="256" cy="256" r="138" stroke-width="18" mask="url(#mw-ticks)"/>
+    <path d="M256 256l66 42" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <circle cx="256" cy="256" r="15" fill="url(#mw-mark)"/>
 </svg>

@@ -9,7 +9,7 @@ import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Mask, Path, Rect, Stop } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useUnread } from "@/api";
@@ -25,15 +25,41 @@ import { alpha, APPBAR_H, useTheme } from "./theme";
 /** iOS's frosted glass, when this build has it; otherwise the bar is simply opaque. */
 const Blur = Platform.OS === "ios" ? nativeOrNull(() => require("expo-blur").BlurView as typeof import("expo-blur").BlurView) : null;
 
-/** The brand mark: the "M" of the site's logo on the brand square. */
+/**
+ * The brand mark: the app's own icon, the clock on its navy tile. Drawn
+ * rather than loaded so it is sharp at any size, and its gradient stops get
+ * ids of their own — on the web every one of these lands in the one document,
+ * and a shared id would have them all wear the first one's paint.
+ */
 export function BrandMark({ size = 32 }: { size?: number }) {
-  const t = useTheme();
+  const id = React.useId();
+  const plate = `bm-plate-${id}`;
+  const mark = `bm-mark-${id}`;
+  const ticks = `bm-ticks-${id}`;
   return (
-    <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: t.brand, alignItems: "center", justifyContent: "center" }}>
-      <Svg width={size * 0.6} height={size * 0.6} viewBox="0 0 512 512" fill="none" stroke={t.brandInk} strokeWidth={44} strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M136 358V178l120 106 120-106v180" />
-      </Svg>
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 512 512">
+      <Defs>
+        <LinearGradient id={plate} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#1a2740" />
+          <Stop offset="1" stopColor="#0b111a" />
+        </LinearGradient>
+        <LinearGradient id={mark} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#40e7a0" />
+          <Stop offset="1" stopColor="#24bd82" />
+        </LinearGradient>
+        <Mask id={ticks}>
+          <Rect width={512} height={512} fill="#fff" />
+          <Rect x={250} y={94} width={12} height={54} fill="#000" />
+          <Rect x={364} y={250} width={54} height={12} fill="#000" />
+          <Rect x={250} y={364} width={12} height={54} fill="#000" />
+          <Rect x={94} y={250} width={54} height={12} fill="#000" />
+        </Mask>
+      </Defs>
+      <Rect width={512} height={512} rx={102} fill={`url(#${plate})`} />
+      <Circle cx={256} cy={256} r={138} fill="none" stroke={`url(#${mark})`} strokeWidth={18} mask={`url(#${ticks})`} />
+      <Path d="M256 256l66 42" stroke={`url(#${mark})`} strokeWidth={14} strokeLinecap="round" />
+      <Circle cx={256} cy={256} r={15} fill={`url(#${mark})`} />
+    </Svg>
   );
 }
 
