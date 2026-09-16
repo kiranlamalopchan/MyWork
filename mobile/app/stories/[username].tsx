@@ -5,7 +5,7 @@
  * react with; for your own, who has looked, and a way to take it down.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEvent } from "expo";
@@ -22,6 +22,7 @@ import { sp } from "@/ui/theme";
 const PHOTO_SECONDS = 5;
 
 export default function Viewer() {
+  const { width } = useWindowDimensions();
   const { username } = useLocalSearchParams<{ username: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -62,8 +63,11 @@ export default function Viewer() {
     setIndex(Math.max(0, index - 1));
   }, [index]);
 
-  // A photo runs on a clock; a clip on the player's own.
-  const player = useVideoPlayer(story?.kind === "video" ? story.video : null, (p) => {
+  // A photo runs on a clock; a clip on the player's own. The player is
+  // made once, empty (nothing is shown yet when it is made), and given
+  // each clip as it comes up — the hook only reads its source the first
+  // time, so a clip set later has to be put in with `replace`.
+  const player = useVideoPlayer(null, (p) => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.25;
   });
@@ -71,13 +75,22 @@ export default function Viewer() {
   const { status } = useEvent(player, "statusChange", { status: player.status });
 
   useEffect(() => {
+    try { player.replace(story?.kind === "video" && story.video ? { uri: story.video } : null); } catch {}
+  }, [story?.id]);
+  // A clip just put in isn't ready at once (on the web a play() before the
+  // load is done is thrown away): start it when the player says it can.
+  useEffect(() => {
+    if (story?.kind === "video" && status === "readyToPlay" && !paused) player.play();
+  }, [status, story?.id]);
+
+  useEffect(() => {
     if (!story) return;
     setProgress(0);
     elapsed.current = 0;
     started.current = Date.now();
     if (story.kind === "video") {
+      // Started by the effect above, once the clip is ready.
       player.currentTime = 0;
-      if (!paused) player.play();
       return;
     }
     if (paused) return;
@@ -131,7 +144,6 @@ export default function Viewer() {
   if (!q.data || !story) return <View style={styles.stage}><Loading /></View>;
 
   const shown = tally[story.id] || { my_emoji: story.my_emoji, reactions: story.reactions };
-  const { width } = Dimensions.get("window");
 
   return (
     <View style={styles.stage}>

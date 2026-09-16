@@ -75,6 +75,7 @@ def me(request, user):
         "address": profile.address,
         "is_staff": user.is_staff,
         "holiday_state": HolidayPreference.state_for(user),
+        "since": user.date_joined.strftime("%b %Y"),
     })
     return data
 

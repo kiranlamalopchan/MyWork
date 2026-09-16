@@ -353,6 +353,15 @@ def photo_search_pdf(request):
     one row per picking-list line that was matched to a PLU.
     """
     lines = [row for row in request.session.get(SESSION_KEY) or [] if row.get("plu_no") is not None]
+    return picking_list_pdf(lines)
+
+
+def picking_list_pdf(lines):
+    """
+    The picking list as a PDF: one row per line that was matched to a PLU.
+    `lines` are {"plu_no", "line"} dicts — the page's session rows, or the
+    rows the phone app sends back (apps.api.views.plu.PhotoPdf).
+    """
     plu_nos = {row["plu_no"] for row in lines}
     items_by_plu = {item.plu_no: item for item in PluItem.objects.filter(plu_no__in=plu_nos)}
 

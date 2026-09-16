@@ -4,7 +4,10 @@
  */
 import { Alert, Platform } from "react-native";
 
+import { fail, warn } from "./haptics";
+
 export function confirm(title: string, message: string | undefined, action: string, onYes: () => void, destructive = true): void {
+  if (destructive) warn();
   if (Platform.OS === "web") {
     if (globalThis.confirm?.(message ? `${title}\n\n${message}` : title)) onYes();
     return;
@@ -16,6 +19,7 @@ export function confirm(title: string, message: string | undefined, action: stri
 }
 
 export function notify(title: string, message?: string): void {
+  fail();
   if (Platform.OS === "web") globalThis.alert?.(message ? `${title}\n\n${message}` : title);
   else Alert.alert(title, message);
 }

@@ -9,7 +9,7 @@
 
   It is the one thing on this page that is true of the whole year rather than
   of right now, and the one thing people open an app to check and then close
-  it again. Putting it above the tiles means that check costs nothing: you see
+  it again. Putting it first means that check costs nothing: you see
   it on the way in, without choosing to go and look.
 
   Absent entirely when there is nothing stored, rather than showing a card
@@ -21,39 +21,15 @@
 {% endif %}
 
 {% comment %}
-  The hub. Two apps, two tiles, side by side even on the narrowest phone —
-  the choice is the whole page, so nothing else competes for the tap. Picking
-  one hands navigation over to that app and its own tab bar takes over.
-
-  No heading above them: the app bar already says MyWork, and who is signed in
-  is the face in the corner of it. Repeating both here spent the top third of
-  the hub on two things you could already see.
+  No tiles for PLU and TimeSheet here: they are tabs of the dock, a thumb
+  away on every screen, so the hub keeps to the things that are its own —
+  the holiday, the stories, the board.
 {% endcomment %}
-<div class="app-grid">
-
-  <a class="app-card" href="{% url 'plu:list' %}">
-    <span class="app-card__icon" aria-hidden="true">
-      {% icon "search" width="1.8" %}
-    </span>
-    <span class="app-card__title">PLU</span>
-    <span class="app-card__sub">Product codes</span>
-  </a>
-
-  <a class="app-card" href="{% url 'timeclock:dashboard' %}">
-    <span class="app-card__icon" aria-hidden="true">
-      {% icon "clock" width="1.8" %}
-    </span>
-    <span class="app-card__title">TimeSheet</span>
-    <span class="app-card__sub">Shifts &amp; hours</span>
-  </a>
-
-</div>
 
 {% comment %}
   Stories: a row of faces, each a photo from somebody's day, gone in
   twenty-four hours. Above the board because it is looked at rather than
-  read — a glance on the way past — and under the tiles because the tiles
-  are still why the page is opened. The dialogs behind it sit at the end.
+  read — a glance on the way past. The dialogs behind it sit at the end.
 {% endcomment %}
 {% include "stories/_tray.html" %}
 

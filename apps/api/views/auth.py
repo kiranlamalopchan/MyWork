@@ -55,11 +55,17 @@ class Register(APIView):
 
 
 class Logout(APIView):
-    """Forget the token — and the phone, if the app says which."""
+    """
+    Forget the token — and the phone, if the app says which. With
+    `keep_token` the token stays: the app has put it behind the phone's
+    own lock (Face ID, a fingerprint) to sign in with next time, and only
+    the screen is signed out.
+    """
 
     def post(self, request):
         expo_token = request.data.get("device")
         if expo_token:
             Device.objects.filter(user=request.user, expo_token=expo_token).delete()
-        Token.objects.filter(user=request.user).delete()
+        if not request.data.get("keep_token"):
+            Token.objects.filter(user=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

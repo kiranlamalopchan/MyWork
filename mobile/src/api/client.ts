@@ -5,10 +5,10 @@
  */
 import { getToken, signOutEverywhere } from "@/auth/token";
 
-const BASE = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+import { serverUrl } from "./server";
 
-export const apiUrl = (path: string) => `${BASE}/api/v1/${path.replace(/^\/+/, "")}`;
-export const siteUrl = (path: string) => `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
+export const apiUrl = (path: string) => `${serverUrl()}/api/v1/${path.replace(/^\/+/, "")}`;
+export const siteUrl = (path: string) => `${serverUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 
 export class ApiError extends Error {
   status: number;
@@ -35,7 +35,35 @@ type Options = {
   query?: Record<string, string | number | undefined>;
   /** Send without a token — signing in and up. */
   anonymous?: boolean;
+  /** For a multipart post: how much of it has gone, 0–1. */
+  onProgress?: (sent: number) => void;
 };
+
+// A file upload waits this long for the server's answer: a video is
+// converted before it is answered, which can take a minute or more.
+// (fetch's own limit on iOS is a minute, which is exactly too short.)
+const UPLOAD_TIMEOUT = 10 * 60_000;
+
+type Reply = { status: number; ok: boolean; text: string; contentType: string };
+
+/** One request, as fetch or — with a form to send — as XMLHttpRequest, which reports progress and takes a longer timeout. */
+function send(url: string, method: string, headers: Record<string, string>, body: BodyInit | undefined, form: boolean, onProgress?: (sent: number) => void): Promise<Reply> {
+  if (!form) {
+    return fetch(url, { method, headers, body }).then(async (r) => ({ status: r.status, ok: r.ok, text: r.status === 204 ? "" : await r.text(), contentType: r.headers?.get?.("content-type") || "" }));
+  }
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.timeout = UPLOAD_TIMEOUT;
+    for (const [key, value] of Object.entries(headers)) xhr.setRequestHeader(key, value);
+    if (onProgress && xhr.upload) xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total) onProgress(e.loaded / e.total); };
+    xhr.onload = () => resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, text: xhr.responseText || "", contentType: xhr.getResponseHeader("content-type") || "" });
+    xhr.onerror = () => reject(new Error("Network request failed"));
+    xhr.ontimeout = () => reject(new Error("The server took too long to answer"));
+    xhr.onabort = () => reject(new Error("The upload was cancelled"));
+    xhr.send(body as XMLHttpRequestBodyInit);
+  });
+}
 
 export async function api<T = unknown>(path: string, options: Options = {}): Promise<T> {
   const url = new URL(apiUrl(path));
@@ -60,20 +88,29 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
     body = JSON.stringify(options.body);
   }
 
-  let response: Response;
+  let response: Reply;
   try {
-    response = await fetch(url.toString(), { method: options.method || "GET", headers, body });
-  } catch (error) {
-    throw new ApiError(0, "It couldn't be sent. Check the connection and try again.");
+    response = await send(url.toString(), options.method || "GET", headers, body, !!options.form, options.onProgress);
+  } catch (error: any) {
+    const why = String(error?.message || "").replace(/^Network request failed$/i, "");
+    throw new ApiError(0, `Couldn't reach ${serverUrl()}${why ? ` (${why.toLowerCase()})` : ""}. Check the connection — or the server address on the sign-in screen.`);
   }
 
   if (response.status === 204) return undefined as T;
-  const text = await response.text();
+  const text = response.text;
   let data: any = null;
+  let parsed = false;
   try {
-    data = text ? JSON.parse(text) : null;
+    if (text) { data = JSON.parse(text); parsed = true; }
   } catch {
     data = null;
+  }
+  // An answer that isn't JSON — a site without the API on it, an old
+  // deploy, a wrong address, a captive Wi-Fi page — is not something a
+  // screen can use, whatever its status says.
+  const type = response.contentType;
+  if (!parsed && !/json/i.test(type) && (response.ok || response.status === 404)) {
+    throw new ApiError(response.status, `${serverUrl()} doesn't have the MyWork app API. Update the site there, or change the server address on the sign-in screen.`);
   }
   if (!response.ok) {
     if (response.status === 401 && !options.anonymous) await signOutEverywhere();

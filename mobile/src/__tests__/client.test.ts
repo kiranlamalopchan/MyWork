@@ -25,8 +25,31 @@ describe("the API client", () => {
     await expect(api("me/")).rejects.toBeInstanceOf(ApiError);
     expect(signOutEverywhere).toHaveBeenCalled();
   });
-  it("says so when there is no connection", async () => {
+  it("says so when there is no connection, naming the server", async () => {
     globalThis.fetch = jest.fn(async () => { throw new Error("Network request failed"); }) as any;
-    await expect(api("me/")).rejects.toMatchObject({ status: 0, message: expect.stringMatching(/connection/) });
+    await expect(api("me/")).rejects.toMatchObject({ status: 0, message: expect.stringMatching(/Couldn't reach http:\/\/.*connection.*server address/) });
+  });
+  it("tells a site without the API apart from a missing thing", async () => {
+    // Django's own HTML 404 page: the site is there, the API is not.
+    globalThis.fetch = jest.fn(async () => ({ status: 404, ok: false, text: async () => "<!DOCTYPE html><title>Page not found</title>" })) as any;
+    await expect(api("home/")).rejects.toMatchObject({ status: 404, message: expect.stringMatching(/doesn't have the MyWork app API/) });
+    // The API's own JSON 404 stays what the server said.
+    globalThis.fetch = reply(404, { detail: "Not found." }) as any;
+    await expect(api("notices/999/")).rejects.toMatchObject({ status: 404, message: "Not found." });
+    // A page that answers 200 with HTML (the site's own pointer page, a captive portal) is no API either.
+    globalThis.fetch = jest.fn(async () => ({ status: 200, ok: true, headers: { get: () => "text/html; charset=utf-8" }, text: async () => "<!doctype html><title>PLU is in the app</title>" })) as any;
+    await expect(api("auth/login/", { method: "POST", body: {}, anonymous: true })).rejects.toMatchObject({ message: expect.stringMatching(/doesn't have the MyWork app API/) });
+  });
+});
+
+describe("the server address", () => {
+  const { clean, defaultServer } = require("@/api/server");
+  it("fills in http:// and drops trailing slashes", () => {
+    expect(clean("192.168.0.11:8000/")).toBe("http://192.168.0.11:8000");
+    expect(clean("https://example.com//")).toBe("https://example.com");
+  });
+  it("never defaults to localhost on a phone running from Metro", () => {
+    // In this test environment EXPO_PUBLIC_API_URL is unset and there is no Metro host, so the last resort applies.
+    expect(defaultServer()).toMatch(/^https?:\/\//);
   });
 });

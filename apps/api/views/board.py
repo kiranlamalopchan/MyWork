@@ -136,6 +136,7 @@ class Person(APIView):
         notices = list(Notice.visible().filter(author=user)[:PROFILE_LIMIT])
         return Response({
             "person": serialize.person(request, user, request.user),
+            "since": user.date_joined.strftime("%-d %b %Y"),
             "notice_count": user.notice_count,
             "comment_count": user.comment_count,
             "received": (

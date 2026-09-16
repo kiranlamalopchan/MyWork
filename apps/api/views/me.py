@@ -80,3 +80,30 @@ class Devices(APIView):
         token = (request.data.get("token") or "").strip()
         Device.objects.filter(user=request.user, expo_token=token).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class Activity(APIView):
+    """
+    The profile page's other two panels: what you have done in MyWork, and
+    where the statement form opens — the same figures accounts.views gathers.
+    """
+
+    def get(self, request):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.accounts.views import _activity
+        from apps.timeclock.models import Workplace
+
+        today = timezone.localdate()
+        last_month_end = today.replace(day=1) - timedelta(days=1)
+        return Response({
+            **_activity(request.user),
+            "statement": {
+                "this_month": [today.replace(day=1).isoformat(), today.isoformat()],
+                "last_month": [last_month_end.replace(day=1).isoformat(), last_month_end.isoformat()],
+                "today": today.isoformat(),
+                "workplaces": [{"id": w.pk, "name": w.name} for w in Workplace.objects.filter(user=request.user)],
+            },
+        })

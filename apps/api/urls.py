@@ -8,7 +8,7 @@ an `Authorization: Token …` header on everything else.
 
 from django.urls import path
 
-from .views import auth, board, holidays, home, me, notifications, plu, stories
+from .views import auth, board, holidays, home, me, notifications, plu, stories, timeclock
 
 app_name = "api"
 
@@ -18,6 +18,7 @@ urlpatterns = [
     path("auth/logout/", auth.Logout.as_view(), name="logout"),
 
     path("me/", me.Me.as_view(), name="me"),
+    path("me/activity/", me.Activity.as_view(), name="activity"),
     path("me/photo/", me.Photo.as_view(), name="me_photo"),
     path("me/holiday-state/", me.HolidayState.as_view(), name="me_holiday_state"),
     path("devices/", me.Devices.as_view(), name="devices"),
@@ -46,8 +47,33 @@ urlpatterns = [
     path("notifications/<int:pk>/read/", notifications.Read.as_view(), name="notification_read"),
 
     path("plu/search/", plu.Search.as_view(), name="plu_search"),
+    path("plu/photo/", plu.Photo.as_view(), name="plu_photo"),
+    path("plu/photo/pdf/", plu.PhotoPdf.as_view(), name="plu_photo_pdf"),
     path("plu/<int:plu_no>/", plu.Detail.as_view(), name="plu_item"),
 
     path("holidays/next/", holidays.Next.as_view(), name="holidays_next"),
     path("holidays/upcoming/", holidays.Upcoming.as_view(), name="holidays_upcoming"),
+
+    # ---- TimeSheet ------------------------------------------------------------
+    path("timesheet/clock/", timeclock.Clock.as_view(), name="clock"),
+    path("timesheet/clock-in/", timeclock.ClockIn.as_view(), name="clock_in"),
+    path("timesheet/break/start/", timeclock.StartBreak.as_view(), name="start_break"),
+    path("timesheet/break/end/", timeclock.EndBreak.as_view(), name="end_break"),
+    path("timesheet/clock-out/", timeclock.ClockOut.as_view(), name="clock_out"),
+    path("timesheet/", timeclock.Timesheet.as_view(), name="timesheet"),
+    path("timesheet/calendar/", timeclock.Calendar.as_view(), name="calendar"),
+    path("timesheet/shifts/", timeclock.Shifts.as_view(), name="shifts"),
+    path("timesheet/shifts/new/", timeclock.NewShift.as_view(), name="shift_new"),
+    path("timesheet/shifts/<int:pk>/", timeclock.ShiftDetail.as_view(), name="shift"),
+    path("timesheet/workplaces/", timeclock.Workplaces.as_view(), name="workplaces"),
+    path("timesheet/workplaces/payslip/", timeclock.Payslip.as_view(), name="payslip"),
+    path("timesheet/workplaces/<int:pk>/", timeclock.WorkplaceDetail.as_view(), name="workplace"),
+    path("timesheet/workplaces/<int:pk>/removal/", timeclock.WorkplaceRemoval.as_view(), name="workplace_removal"),
+    path("timesheet/workplaces/<int:pk>/default/", timeclock.WorkplaceDefault.as_view(), name="workplace_default"),
+    path("timesheet/preferences/", timeclock.Preferences.as_view(), name="preferences"),
+    path("timesheet/pay/", timeclock.Pay.as_view(), name="pay"),
+    path("timesheet/pay/<int:pk>/received/", timeclock.PaymentRecord.as_view(), name="payment_record"),
+    path("timesheet/pay/<int:pk>/undo/", timeclock.PaymentUndo.as_view(), name="payment_undo"),
+    path("timesheet/more/", timeclock.More.as_view(), name="more"),
+    path("timesheet/statement/", timeclock.Statement.as_view(), name="statement"),
 ]

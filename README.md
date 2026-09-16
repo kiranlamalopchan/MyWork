@@ -2,7 +2,9 @@
 
 MyWork is the mother project. It hosts two independent apps, and signing in
 lands you on a hub where you pick one; from there the navigation belongs
-entirely to that app.
+entirely to that app. The same two, and the shared half — board, stories,
+alerts, holidays, profiles — are also the native phone app (`mobile/`, over
+the API in `apps/api`).
 
 **PLU Management** (`apps.plu`, mounted at `/plu/`)
 - Search PLUs by number or description (live, as you type)
@@ -73,10 +75,21 @@ see [Notifications](#notifications).
 to `apps/api`, a Django REST Framework layer at `/api/v1/` that wraps the
 same models, forms and notify calls the pages use: a token from
 `auth/login/` in an `Authorization: Token …` header, the phone's zone in
-`X-Timezone`. Pushes to the app go through Expo's push service
+`X-Timezone`; `auth/logout/` drops the token unless the app sends
+`keep_token` — it has put it behind the phone's Face ID or fingerprint to
+sign in with next time. Pushes to the app go through Expo's push service
 (`Device` rows in `apps.notifications`, beside the browsers' `PushSubscription`
-rows). After pulling this on the server: `pip install -r requirements.txt`
-(DRF), `manage.py migrate` (tokens and devices), then Reload.
+rows). TimeSheet is `timesheet/…` there: the clock and its three actions,
+the timesheet and calendar, shifts (with the same `ShiftForm` and break
+rows), workplaces (with the payslip reader), pay, and the statement PDF —
+`apps/api/views/timeclock.py` calls the page views' own helpers so the
+app's figures are the site's. PLU's photo search is `plu/photo/`
+(the read as rows, the phone keeps them) and `plu/photo/pdf/` (the rows
+back, as the picking-list PDF). After pulling this on the server:
+`pip install -r requirements.txt` (DRF), `manage.py migrate` (tokens and
+devices), then Reload — a store-style build of the app is pointed at the
+live site and can't sign in until that has happened (the phone can be
+pointed elsewhere from the sign-in screen meanwhile).
 
 ## Deploying (PythonAnywhere)
 

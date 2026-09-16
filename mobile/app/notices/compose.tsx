@@ -1,11 +1,13 @@
+/** A new notice (templates/noticeboard/notice_form.html), or a change to one of yours. */
 import React, { useState } from "react";
 import { Text, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 
 import { board, useBoardChanged, usePostNotice } from "@/api";
-import { Button, Input, Screen, Sub } from "@/ui";
 import { goBack } from "@/nav/paths";
+import { Button, Card, Field, Input, Page, PageTitle, Screen } from "@/ui";
 import { sp, useTheme } from "@/ui/theme";
+import { fail, success } from "@/ui/haptics";
 
 const MAX = 600;
 
@@ -29,8 +31,10 @@ export default function Compose() {
       } else {
         await post.mutateAsync(body);
       }
+      success();
       goBack();
     } catch (e: any) {
+      fail();
       setError(e?.message || "That couldn't be posted.");
     } finally {
       setBusy(false);
@@ -38,24 +42,29 @@ export default function Compose() {
   };
 
   return (
-    <Screen style={{ padding: sp[4] }}>
-      <Input
-        placeholder="What does everyone need to know?"
-        value={body}
-        onChangeText={setBody}
-        multiline
-        autoFocus
-        maxLength={MAX}
-        style={{ minHeight: 140, textAlignVertical: "top" }}
-        testID="notice-body"
-      />
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: sp[2] }}>
-        <Sub>Everyone signed in will see it.</Sub>
-        <Sub>{body.length}/{MAX}</Sub>
-      </View>
-      {error ? <Text style={{ color: t.danger, marginTop: sp[2] }}>{error}</Text> : null}
-      <View style={{ height: sp[4] }} />
-      <Button title={editing ? "Save" : "Post to the board"} onPress={go} busy={busy} disabled={!body.trim()} />
+    <Screen back backLabel="Notice board">
+      <Page>
+        <PageTitle sub={editing ? "Everyone who reads the board sees the change." : "Everyone signed in will see this on the board."}>{editing ? "Edit notice" : "New notice"}</PageTitle>
+        <Card>
+          <Field label="Notice" error={error || undefined}>
+            <Input
+              placeholder="Share something with everyone…"
+              value={body}
+              onChangeText={setBody}
+              multiline
+              autoFocus
+              maxLength={MAX}
+              style={{ minHeight: 140, textAlignVertical: "top" }}
+              testID="notice-body"
+            />
+          </Field>
+          <Text style={{ color: t.muted, fontSize: 12, textAlign: "right", marginTop: sp[2] }}>{body.length}/{MAX}</Text>
+        </Card>
+        <View style={{ gap: sp[3] }}>
+          <Button title={editing ? "Save changes" : "Post notice"} onPress={go} busy={busy} disabled={!body.trim()} testID="post-notice" />
+          <Button title="Cancel" kind="plain" onPress={goBack} />
+        </View>
+      </Page>
     </Screen>
   );
 }

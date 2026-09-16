@@ -5,15 +5,19 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { auth, me as meApi, type Me } from "@/api";
+import { ApiError, auth, me as meApi, type Me } from "@/api";
+import { loadServer } from "@/api/server";
 import { forgetPushToken, registerForPush } from "@/push/register";
 
+import { armBiometric, biometricUser, disarmBiometric } from "./biometric";
 import { getToken, onTokenChange, setToken } from "./token";
 
 type Session = {
   ready: boolean;
   me: Me | null;
   signIn: (username: string, password: string) => Promise<void>;
+  /** With a token the phone's lock has just released (see auth/biometric). */
+  signInWithToken: (token: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -28,6 +32,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const client = useQueryClient();
 
   const load = useCallback(async () => {
+    await loadServer();
     const token = await getToken();
     if (!token) {
       setMe(null);
@@ -59,6 +64,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     await setToken(result.token);
     setMe(result.me);
     registerForPush().catch(() => {});
+    // The phone's lock opens for one person: someone else signing in
+    // with a password takes that away; the same person keeps it current.
+    const kept = await biometricUser();
+    if (kept && kept !== result.me.username) await disarmBiometric();
+    else if (kept) await armBiometric(kept, result.token);
   }, []);
 
   const value = useMemo<Session>(
@@ -66,10 +76,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       ready,
       me,
       signIn: async (username, password) => signedIn(await auth.login(username, password)),
+      signInWithToken: async (token) => {
+        await setToken(token);
+        try {
+          const who = await meApi.get();
+          setMe(who);
+          registerForPush().catch(() => {});
+        } catch (e) {
+          await setToken(null);
+          // A token the server no longer knows (signed out everywhere, or
+          // the account is gone): the lock can't open it any more. No
+          // network is another matter — the lock keeps it for later.
+          if (e instanceof ApiError && e.status === 401) {
+            await disarmBiometric();
+            throw new Error("That sign-in has expired. Sign in with your password once more.");
+          }
+          throw e;
+        }
+      },
       register: async (username, password) => signedIn(await auth.register(username, password)),
       signOut: async () => {
+        // Signed in by the phone's lock next time? Then the token stays
+        // alive on the server; only this screen forgets it.
+        const keep = !!me && (await biometricUser()) === me.username;
         try {
-          await auth.logout(await forgetPushToken());
+          await auth.logout(await forgetPushToken(), keep);
         } catch {
           /* the token is going anyway */
         }

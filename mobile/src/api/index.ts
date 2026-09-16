@@ -4,8 +4,9 @@
  */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, FilePart, formWith } from "./client";
+import { api, apiUrl, FilePart, formWith } from "./client";
 import type {
+  PhotoRead,
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
   Reactors, Story, StoryPerson, TrayRow,
 } from "./types";
@@ -20,7 +21,8 @@ export const auth = {
     api<{ token: string; me: Me }>("auth/login/", { method: "POST", body: { username, password }, anonymous: true }),
   register: (username: string, password: string) =>
     api<{ token: string; me: Me }>("auth/register/", { method: "POST", body: { username, password }, anonymous: true }),
-  logout: (device?: string | null) => api("auth/logout/", { method: "POST", body: { device: device || "" } }),
+  /** `keep` leaves the token alive on the server: it is behind the phone's lock for next time. */
+  logout: (device?: string | null, keep = false) => api("auth/logout/", { method: "POST", body: { device: device || "", keep_token: keep } }),
 };
 
 // ---- me --------------------------------------------------------------------------
@@ -105,7 +107,7 @@ export const stories = {
   post: (fields: {
     image?: FilePart; video?: FilePart; poster?: FilePart; duration?: number;
     trim_start?: number; trim_end?: number; caption?: string;
-  }) => api<{ story: Story; stories: TrayRow[] }>("stories/", { method: "POST", form: formWith(fields) }),
+  }, onProgress?: (sent: number) => void) => api<{ story: Story; stories: TrayRow[] }>("stories/", { method: "POST", form: formWith(fields), onProgress }),
   remove: (id: number) => api<{ stories: TrayRow[] }>(`stories/${id}/`, { method: "DELETE" }),
   seen: (id: number) => api(`stories/${id}/seen/`, { method: "POST" }),
   react: (id: number, emoji: string) =>
@@ -158,8 +160,12 @@ export function useInboxChanged() {
 // ---- PLU -----------------------------------------------------------------------------
 
 export const plu = {
-  search: (q: string, page: number) => api<Page<PluItem> & { q: string }>("plu/search/", { query: { q, page } }),
+  search: (q: string, page: number) => api<Page<PluItem> & { q: string; total?: number }>("plu/search/", { query: { q, page } }),
+  total: () => api<{ total: number }>("plu/search/", { query: { q: "" } }).then((r) => r.total),
   one: (plu_no: number) => api<PluItem>(`plu/${plu_no}/`),
+  /** A photographed picking list: every line named as a PLU. */
+  photo: (photo: FilePart) => api<PhotoRead>("plu/photo/", { method: "POST", form: formWith({ photo }) }),
+  photoPdfUrl: () => apiUrl("plu/photo/pdf/"),
 };
 
 export function usePluSearch(q: string) {
@@ -172,6 +178,10 @@ export function usePluSearch(q: string) {
   });
 }
 
+export function usePluTotal() {
+  return useQuery({ queryKey: ["plu-total"], queryFn: plu.total, staleTime: 5 * 60_000 });
+}
+
 // ---- holidays --------------------------------------------------------------------------
 
 export const holidays = {
@@ -182,4 +192,93 @@ export const holidays = {
 
 export function useUpcomingHolidays(state?: string) {
   return useQuery({ queryKey: ["holidays", state || "mine"], queryFn: () => holidays.upcoming(state) });
+}
+
+// ---- TimeSheet -----------------------------------------------------------------
+
+import type {
+  Activity, CalendarPage, ClockState, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
+  TimesheetPage, Workplace, WorkplaceBrief, WorkplaceInput, WorkplacesPage,
+} from "./types";
+
+/** The phone's own clock, stamped on every clock action as the site's forms do. */
+function stamp() {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const off = -now.getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const iso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${String(now.getMilliseconds()).padStart(3, "0")}${sign}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+  let tz = "";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { /* no zone */ }
+  return { client_time: iso, client_tz: tz };
+}
+
+export const timesheet = {
+  clock: (workplace?: number) => api<ClockState>("timesheet/clock/", { query: { workplace } }),
+  clockIn: (workplace: number) => api<ClockState>("timesheet/clock-in/", { method: "POST", body: { workplace, ...stamp() } }),
+  startBreak: () => api<ClockState>("timesheet/break/start/", { method: "POST", body: stamp() }),
+  endBreak: () => api<ClockState>("timesheet/break/end/", { method: "POST", body: stamp() }),
+  clockOut: () => api<ClockState>("timesheet/clock-out/", { method: "POST", body: stamp() }),
+  page: (page: number, workplace?: number | null) => api<TimesheetPage>("timesheet/", { query: { page, workplace: workplace ?? undefined } }),
+  calendar: (year?: number, month?: number, day?: string | null) => api<CalendarPage>("timesheet/calendar/", { query: { year, month, day: day ?? undefined } }),
+  newShift: (day?: string) => api<NewShift>("timesheet/shifts/new/", { query: { day } }),
+  shift: (id: number) => api<ShiftDetail>(`timesheet/shifts/${id}/`),
+  addShift: (input: ShiftInput) => api<ShiftDetail>("timesheet/shifts/", { method: "POST", body: input }),
+  editShift: (id: number, input: ShiftInput) => api<ShiftDetail>(`timesheet/shifts/${id}/`, { method: "PATCH", body: input }),
+  removeShift: (id: number) => api(`timesheet/shifts/${id}/`, { method: "DELETE" }),
+  workplaces: () => api<WorkplacesPage>("timesheet/workplaces/"),
+  workplace: (id: number) => api<Workplace>(`timesheet/workplaces/${id}/`),
+  addWorkplace: (input: WorkplaceInput) => api<Workplace>("timesheet/workplaces/", { method: "POST", body: input }),
+  editWorkplace: (id: number, input: WorkplaceInput) => api<Workplace>(`timesheet/workplaces/${id}/`, { method: "PATCH", body: input }),
+  removal: (id: number) => api<{ workplace: WorkplaceBrief; going: Going; clocked_in: boolean }>(`timesheet/workplaces/${id}/removal/`),
+  removeWorkplace: (id: number) => api<{ removed: Going }>(`timesheet/workplaces/${id}/`, { method: "DELETE" }),
+  makeDefault: (id: number) => api<Workplace>(`timesheet/workplaces/${id}/default/`, { method: "POST" }),
+  readPayslip: (payslip: FilePart) => api<PayslipRead>("timesheet/workplaces/payslip/", { method: "POST", form: formWith({ payslip }) }),
+  savePreferences: (input: Omit<Cycles, "week_label" | "fortnight_hint">) => api<Cycles>("timesheet/preferences/", { method: "PUT", body: input }),
+  pay: () => api<PayPage>("timesheet/pay/"),
+  recordPayment: (id: number, covers: string, up_to?: string) => api<PayPage>(`timesheet/pay/${id}/received/`, { method: "POST", body: { covers, up_to: up_to || "" } }),
+  undoPayment: (id: number) => api<PayPage>(`timesheet/pay/${id}/undo/`, { method: "POST" }),
+  more: () => api<MorePage>("timesheet/more/"),
+  activity: () => api<Activity>("me/activity/"),
+  statementUrl: (from: string, to: string, workplace?: number | "") => apiUrl(`timesheet/statement/?from=${from}&to=${to}${workplace ? `&workplace=${workplace}` : ""}`),
+};
+
+export function useClock() {
+  return useQuery({ queryKey: ["clock"], queryFn: () => timesheet.clock(), staleTime: 10_000 });
+}
+export function useTimesheet(workplace: number | null) {
+  return useInfiniteQuery({
+    queryKey: ["timesheet", workplace],
+    queryFn: ({ pageParam }) => timesheet.page(pageParam, workplace),
+    initialPageParam: 1,
+    getNextPageParam: (last) => last.next ?? undefined,
+  });
+}
+export function useCalendar(year?: number, month?: number, day?: string | null) {
+  return useQuery({ queryKey: ["calendar", year, month, day], queryFn: () => timesheet.calendar(year, month, day) });
+}
+export function useShift(id: number) {
+  return useQuery({ queryKey: ["shift", id], queryFn: () => timesheet.shift(id) });
+}
+export function useWorkplaces() {
+  return useQuery({ queryKey: ["workplaces"], queryFn: timesheet.workplaces });
+}
+export function usePay() {
+  return useQuery({ queryKey: ["pay"], queryFn: timesheet.pay });
+}
+export function useMore() {
+  return useQuery({ queryKey: ["more"], queryFn: timesheet.more, staleTime: 15_000 });
+}
+export function useActivity() {
+  return useQuery({ queryKey: ["activity"], queryFn: timesheet.activity });
+}
+
+/** After the clock moves or a shift, workplace or payment changes, every figure is stale. */
+export function useTimesheetChanged() {
+  const client = useQueryClient();
+  return () => {
+    for (const key of ["clock", "timesheet", "calendar", "shift", "workplaces", "pay", "more", "activity", "home"]) {
+      client.invalidateQueries({ queryKey: [key] });
+    }
+  };
 }
