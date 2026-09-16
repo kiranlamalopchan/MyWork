@@ -1,52 +1,70 @@
 /**
  * The timesheet (templates/timeclock/timesheet.html): List or Calendar, a
  * chip per workplace to filter by, the period cards and the pay written
- * over the longest of them, each workplace's limit, then the shifts a day
- * at a time — the first day open, the rest a tap away.
+ * over the longest of them, then the shifts — the week being read written
+ * out a day at a time, and every week behind it folded into one row that
+ * says how many shifts and how long. The caps are the clock's, not this
+ * page's.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { useTimesheet, type Summary, type TimesheetDay } from "@/api";
+import { useTimesheet, type Summary, type TimesheetDay, type TimesheetWeek } from "@/api";
 import { Button, Card, Chip, Empty, ErrorBanner, Loading, Page, PageTitle, Screen, Segments } from "@/ui";
-import { sp, useTheme } from "@/ui/theme";
-import { cssColour, Ledger, LedgerRow, LimitBar, ShiftRow, Swatch } from "@/ui/timesheet";
+import { radius, sp, useTheme } from "@/ui/theme";
+import { cssColour, Ledger, LedgerRow, ShiftRow } from "@/ui/timesheet";
+import { CalendarView } from "@/ui/CalendarView";
+import { joinWeeks, weekLabel } from "@/ui/weeks";
 
 export default function Timesheet() {
   const t = useTheme();
   const router = useRouter();
   const [workplace, setWorkplace] = useState<number | null>(null);
+  // List or Calendar are two faces of one screen, not two screens. A link in
+  // from outside (`/timesheet/calendar` on the site) arrives asking for one.
+  const asked = useLocalSearchParams<{ view?: string }>().view;
+  const [view, setView] = useState<"list" | "calendar">(asked === "calendar" ? "calendar" : "list");
+  // A link arriving while this screen is already up changes the params without
+  // building it again, so the ask has to be followed as well as read.
+  useEffect(() => { if (asked === "calendar") setView("calendar"); }, [asked]);
   const q = useTimesheet(workplace);
   const first = q.data?.pages[0];
   const days = q.data?.pages.flatMap((p) => p.days) ?? [];
+  const weeks = joinWeeks(q.data?.pages.flatMap((p) => p.weeks ?? []) ?? []);
 
   return (
     <Screen>
-      <Page refreshControl={<RefreshControl refreshing={q.isRefetching && !q.isFetchingNextPage} onRefresh={q.refetch} tintColor={t.brand} />}>
+      <Page refreshControl={view === "list" ? <RefreshControl refreshing={q.isRefetching && !q.isFetchingNextPage} onRefresh={q.refetch} tintColor={t.brand} /> : undefined}>
         <PageTitle>Timesheet</PageTitle>
-        <Segments value="list" onChange={(v) => v === "calendar" && router.push("/timesheet/calendar")} options={[{ value: "list", label: "List" }, { value: "calendar", label: "Calendar" }]} />
-        {first && first.workplaces.length ? (
-          <View style={styles.chips}>
-            <Chip on={workplace === null} onPress={() => setWorkplace(null)}>All</Chip>
-            {first.workplaces.map((w) => (
-              <Chip key={w.id} on={workplace === w.id} onPress={() => setWorkplace(w.id)} dot={cssColour(w.css)}>{w.name}</Chip>
-            ))}
-          </View>
-        ) : null}
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
-        {first ? <SummaryBlock summary={first.summary} /> : null}
-        {days.length ? days.map((day, i) => <Day key={day.date} day={day} open={i === 0} />) : first ? (
-          <Empty
-            icon="time-outline"
-            title="No shifts yet"
-            sub={workplace ? `Nothing recorded for ${first.workplaces.find((w) => w.id === workplace)?.name}.` : "Clock in to start your first one."}
-            action={<Button title="Go to the clock" onPress={() => router.navigate("/clock")} />}
-          />
-        ) : null}
-        {q.hasNextPage ? <Button title={q.isFetchingNextPage ? "Loading…" : "Older shifts"} kind="plain" onPress={() => q.fetchNextPage()} busy={q.isFetchingNextPage} /> : null}
+        <Segments value={view} onChange={(v) => setView(v as "list" | "calendar")} options={[{ value: "list", label: "List" }, { value: "calendar", label: "Calendar" }]} />
+        {view === "calendar" ? <CalendarView /> : (
+          <>
+          {first && first.workplaces.length ? (
+            <View style={styles.chips}>
+              <Chip on={workplace === null} onPress={() => setWorkplace(null)}>All</Chip>
+              {first.workplaces.map((w) => (
+                <Chip key={w.id} on={workplace === w.id} onPress={() => setWorkplace(w.id)} dot={cssColour(w.css)}>{w.name}</Chip>
+              ))}
+            </View>
+          ) : null}
+          {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+          {q.isLoading ? <Loading /> : null}
+          {first ? <SummaryBlock summary={first.summary} /> : null}
+          {days.map((day) => <Day key={day.date} day={day} open />)}
+          {weeks.map((week) => <Week key={week.start} week={week} />)}
+          {!days.length && !weeks.length && first ? (
+            <Empty
+              icon="time-outline"
+              title="No shifts yet"
+              sub={workplace ? `Nothing recorded for ${first.workplaces.find((w) => w.id === workplace)?.name}.` : "Clock in to start your first one."}
+              action={<Button title="Go to the clock" onPress={() => router.navigate("/clock")} />}
+            />
+          ) : null}
+          {q.hasNextPage ? <Button title={q.isFetchingNextPage ? "Loading…" : "Older shifts"} kind="plain" onPress={() => q.fetchNextPage()} busy={q.isFetchingNextPage} /> : null}
+          </>
+        )}
       </Page>
     </Screen>
   );
@@ -97,8 +115,36 @@ export function SummaryBlock({ summary }: { summary: Summary }) {
           </View>
         </Card>
       ) : null}
-      {summary.limits.map((limit) => <LimitBar key={limit.workplace.id} limit={limit} />)}
+      {/* The caps live on the clock, where you want them before pressing the
+          button. One per capped workplace here pushed the shifts off screen. */}
     </>
+  );
+}
+
+/** A week behind the one being read: shut, saying only what is inside it. */
+function Week({ week }: { week: TimesheetWeek }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <View>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={[styles.weekHead, { backgroundColor: t.surface, borderColor: t.line }]}
+        testID={`week-${week.start}`}
+      >
+        <Text style={{ color: t.text, fontWeight: "700", fontSize: 15 }}>{weekLabel(week)}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: sp[3] }}>
+          <Text style={{ color: t.muted, fontSize: 13 }}>{week.shifts} shift{week.shifts === 1 ? "" : "s"}</Text>
+          <Text style={{ color: t.text2, fontWeight: "600", fontSize: 14, fontVariant: ["tabular-nums"] }}>{week.total.hm}</Text>
+          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={t.muted} />
+        </View>
+      </Pressable>
+      {open ? (
+        <View style={styles.weekDays}>
+          {week.days.map((day) => <Day key={day.date} day={day} open={false} />)}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -125,16 +171,6 @@ function Day({ day, open: initially }: { day: TimesheetDay; open: boolean }) {
   );
 }
 
-export function LegendSwatch({ css, name }: { css: string; name: string }) {
-  const t = useTheme();
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-      <Swatch css={cssColour(css)} size={12} />
-      <Text style={{ color: t.text, fontWeight: "600", fontSize: 13.5 }}>{name}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: sp[2] },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: sp[3] },
@@ -146,4 +182,9 @@ const styles = StyleSheet.create({
   payHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: sp[2], marginBottom: sp[2] },
   payBig: { fontSize: 38, fontWeight: "800", letterSpacing: -1.5, fontVariant: ["tabular-nums"] },
   dayHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: sp[3], paddingHorizontal: sp[1] },
+  // A panel, not a tint: surface2 against bg is a single value apart, and the
+  // row read as loose text rather than as something to open.
+  weekHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: sp[3], paddingHorizontal: sp[4], borderRadius: radius.md, borderWidth: 1 },
+  // Stepped in, so a day's head inside is never taken for a week's.
+  weekDays: { paddingLeft: sp[3], paddingTop: sp[1] },
 });

@@ -391,6 +391,82 @@ class PluTests(ApiTestCase):
         self.assertEqual(self.api("post", "plu_photo", {}, fmt="multipart").status_code, 400)
 
 
+class PluImportTests(ApiTestCase):
+    """The site's staff-only CSV import, reached with a token."""
+
+    def csv(self, text, name="plu.csv"):
+        return SimpleUploadedFile(name, text.encode("utf-8"), content_type="text/csv")
+
+    def staff_token(self):
+        self.kiran.is_staff = True
+        self.kiran.save()
+        return self.token
+
+    def test_an_ordinary_account_is_told_it_may_not_and_cannot(self):
+        self.assertFalse(self.api("get", "plu_import").json()["allowed"])
+        resp = self.api(
+            "post", "plu_import",
+            {"file": self.csv("plu_no,description\n7012,LAMB LEG CHOPS\n")},
+            fmt="multipart",
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(PluItem.objects.count(), 0)
+
+    def test_a_manager_may_and_the_rows_go_in(self):
+        token = self.staff_token()
+        self.assertTrue(self.api("get", "plu_import", token=token).json()["allowed"])
+        PluItem.objects.create(plu_no=900, description="OLD NAME")
+
+        resp = self.api(
+            "post", "plu_import",
+            # A till export's extra columns are ignored, as on the site.
+            {"file": self.csv(
+                "plu_no,description,price,tare\n"
+                "7012,LAMB LEG CHOPS,12.50,0\n"
+                "900,BEEF MINCE,8.00,0\n"
+            )},
+            fmt="multipart", token=token,
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        self.assertEqual((data["created"], data["updated"], data["skipped"]), (1, 1, 0))
+        self.assertEqual(data["total"], 2)
+        self.assertEqual(PluItem.objects.get(plu_no=900).description, "BEEF MINCE")
+
+    def test_a_row_without_a_number_or_a_name_is_skipped_not_guessed_at(self):
+        token = self.staff_token()
+        resp = self.api(
+            "post", "plu_import",
+            {"file": self.csv(
+                "plu_no,description\n"
+                "7012,LAMB LEG CHOPS\n"
+                "abc,NOT A NUMBER\n"
+                ",NO NUMBER\n"
+                "1319,\n"
+            )},
+            fmt="multipart", token=token,
+        )
+        self.assertEqual(resp.json()["skipped"], 3)
+        self.assertEqual(PluItem.objects.count(), 1)
+
+    def test_a_file_missing_its_headers_is_refused_in_so_many_words(self):
+        token = self.staff_token()
+        resp = self.api(
+            "post", "plu_import",
+            {"file": self.csv("code,name\n7012,LAMB\n")},
+            fmt="multipart", token=token,
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("missing headers", resp.json()["detail"])
+        self.assertEqual(PluItem.objects.count(), 0)
+
+    def test_sending_nothing_asks_for_a_file(self):
+        token = self.staff_token()
+        resp = self.api("post", "plu_import", {}, fmt="multipart", token=token)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Choose a CSV", resp.json()["detail"])
+
+
 class HolidayTests(ApiTestCase):
     def setUp(self):
         super().setUp()
@@ -417,6 +493,60 @@ class TimesheetTests(ApiTestCase):
 
         self.shop = Workplace.objects.create(user=self.kiran, name="Butcher Shop", hourly_rate=Decimal("28.50"), is_default=True)
         self.cafe = Workplace.objects.create(user=self.kiran, name="Cafe Verde", hourly_rate=Decimal("25.00"), hours_limit=Decimal("20"))
+
+    def _worked(self, workplace, hours):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.timeclock.models import Shift
+
+        at = (timezone.localtime() - timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+        Shift.objects.create(
+            user=self.kiran, workplace=workplace, clock_in=at,
+            clock_out=at + timedelta(hours=hours), status=Shift.Status.COMPLETED,
+        )
+
+    def test_the_clock_answers_for_the_workplace_it_is_asked_about(self):
+        # The cap under the dial is the picked job's, not whichever is default.
+        self._worked(self.cafe, 5)
+        default = self.api("get", "clock").json()
+        self.assertEqual(default["selected"], self.shop.pk)
+        self.assertIsNone(default["limit"])          # the shop has no cap
+
+        picked = self.api("get", "clock", {"workplace": self.cafe.pk}).json()
+        self.assertEqual(picked["selected"], self.cafe.pk)
+        self.assertEqual(picked["limit"]["workplace"]["name"], "Cafe Verde")
+        self.assertEqual(picked["limit"]["cap"]["hm"], "20h")
+
+    def test_a_cash_job_without_a_cap_counts_what_is_owed_instead(self):
+        from apps.timeclock.models import PaidIn, Workplace
+
+        Workplace.objects.filter(pk=self.shop.pk).update(paid_in=PaidIn.CASH)
+        self._worked(self.shop, 4)
+
+        state = self.api("get", "clock", {"workplace": self.shop.pk}).json()
+        self.assertIsNone(state["limit"])            # nothing to draw a bar against
+        self.assertEqual(state["tally"]["workplace"]["name"], "Butcher Shop")
+        self.assertEqual(state["tally"]["total"]["hm"], "4h")
+        self.assertEqual(state["tally"]["label"], "Since you were paid")
+
+    def test_a_cap_is_the_better_answer_and_keeps_its_place(self):
+        # Cash, but capped: the cap is what was asked for, so the cap is shown.
+        from apps.timeclock.models import PaidIn, Workplace
+
+        Workplace.objects.filter(pk=self.cafe.pk).update(paid_in=PaidIn.CASH)
+        self._worked(self.cafe, 4)
+
+        state = self.api("get", "clock", {"workplace": self.cafe.pk}).json()
+        self.assertIsNone(state["tally"])
+        self.assertEqual(state["limit"]["workplace"]["name"], "Cafe Verde")
+
+    def test_a_bank_job_without_a_cap_says_nothing_either_way(self):
+        self._worked(self.shop, 4)
+        state = self.api("get", "clock", {"workplace": self.shop.pk}).json()
+        self.assertIsNone(state["limit"])
+        self.assertIsNone(state["tally"])
 
     def test_clock_in_break_and_out(self):
         from apps.timeclock.models import Shift

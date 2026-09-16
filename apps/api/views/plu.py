@@ -6,14 +6,22 @@ for the PDF.
 """
 
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.plu import picking
 from apps.plu.forms import PhotoSearchForm
 from apps.plu.models import PluItem
-from apps.plu.views import PER_PAGE, picking_list_pdf, search_plu_items
+from apps.plu.views import (
+    PER_PAGE,
+    REQUIRED_CSV_HEADERS,
+    CsvProblem,
+    import_rows,
+    is_staff_user,
+    picking_list_pdf,
+    search_plu_items,
+)
 
 from .. import serialize
 
@@ -37,6 +45,42 @@ class Search(APIView):
 class Detail(APIView):
     def get(self, request, plu_no):
         return Response(_item(get_object_or_404(PluItem, plu_no=plu_no)))
+
+
+class Import(APIView):
+    """
+    The site's staff-only CSV import (`plu:import`), for the app.
+
+    GET says whether this account may import and what the file needs, so the
+    screen can show the button — or not — without guessing at the rules.
+    POST file=<csv> writes it in and answers with what it did.
+    """
+
+    def get(self, request):
+        return Response({
+            "allowed": is_staff_user(request.user),
+            "headers": list(REQUIRED_CSV_HEADERS),
+            "total": PluItem.objects.count(),
+        })
+
+    def post(self, request):
+        # The same gate the site's page is behind, said in the API's words.
+        if not is_staff_user(request.user):
+            raise PermissionDenied("Only a manager can import the PLU list.")
+        upload = request.FILES.get("file")
+        if upload is None:
+            raise ValidationError({"detail": "Choose a CSV file to import."})
+        try:
+            created, updated, skipped = import_rows(upload)
+        except CsvProblem as problem:
+            raise ValidationError({"detail": str(problem)})
+        return Response({
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+            "total": PluItem.objects.count(),
+            "message": f"Import complete. Created: {created}, updated: {updated}, skipped: {skipped}.",
+        })
 
 
 class Photo(APIView):

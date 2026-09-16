@@ -229,6 +229,29 @@ def _form_data(data, prefix=None):
 # ---- the clock ------------------------------------------------------------------
 
 
+def cash_tally(workplace):
+    """
+    What a cash job has piled up since the money last came.
+
+    A job paid in hand has no cycle to count over and — where no cap is set —
+    nothing to draw a bar against, so the dial had nothing under it at all.
+    The figure that means something there is the one the payment button
+    clears: the hours not yet paid for, the same notepad the pay screen keeps
+    (`_since_paid`). A cap, where there is one, is the more useful thing to
+    show and keeps its place.
+    """
+    if workplace is None or workplace.has_limit or not workplace.in_cash:
+        return None
+    card = site._since_paid(workplace)
+    return {
+        "workplace": workplace_brief(workplace),
+        "label": card["label"],
+        "sub": card["sub"],
+        "total": duration(card["total"]),
+        "pay": pay(card["pay"]["pay"]) if card["pay"] else None,
+    }
+
+
 def clock_state(user, selected_id=None):
     workplaces = list(Workplace.objects.filter(user=user).prefetch_related("payments"))
     shift = Shift.open_for(user)
@@ -267,6 +290,8 @@ def clock_state(user, selected_id=None):
         "target_hours": site.SHIFT_TARGET_HOURS,
         "long_shift": bool(shift and shift.total_duration > timedelta(hours=site.SHIFT_TARGET_HOURS)),
         "limit": limit_card(site._limit_for(user, selected)),
+        # A cash job with no cap: the hours owed for, in the cap's place.
+        "tally": cash_tally(selected),
     }
 
 
@@ -362,15 +387,33 @@ class Timesheet(APIView):
         for day in days:
             day["shifts"] = site._in_order(day["shifts"])
 
-        meta["days"] = [
-            {
+        def day_json(day):
+            return {
                 "date": day["date"].isoformat(),
                 "label": day_label(day["date"]),
                 "total": duration(day["total"]),
                 "is_run": len(day["shifts"]) > 1,
                 "shifts": [shift_row(s, getattr(s, "seq", None)) for s in day["shifts"]],
             }
-            for day in days
+
+        # The week being read comes as days; everything older comes already
+        # gathered into weeks, by the site's own helper, so the two agree on
+        # where a week starts. A week split across two pages arrives as two
+        # entries with the same `start` — the app joins them back up.
+        recent, weeks = site.group_by_week(days, request.user)
+        meta["days"] = [day_json(day) for day in recent]
+        meta["weeks"] = [
+            {
+                "start": week["start"].isoformat(),
+                # The two ends of what is in the fold, apart, so the app can
+                # write the range again after joining a week split over a page.
+                "first_label": day_label(week["first"], "%-d %b"),
+                "last_label": day_label(week["last"], "%-d %b"),
+                "total": duration(week["total"]),
+                "shifts": week["shifts"],
+                "days": [day_json(day) for day in week["days"]],
+            }
+            for week in weeks
         ]
         meta["workplaces"] = [workplace_brief(w) for w in workplaces]
         meta["workplace"] = workplace.pk if workplace else None

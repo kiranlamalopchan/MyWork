@@ -414,6 +414,60 @@ def picking_list_pdf(lines):
 REQUIRED_CSV_HEADERS = ("plu_no", "description")
 
 
+class CsvProblem(Exception):
+    """The file can't be imported — the message is meant for whoever sent it."""
+
+
+def import_rows(upload):
+    """
+    Write a CSV of PLUs in, and say what it did: `(created, updated, skipped)`.
+
+    The file needs a header row with plu_no and description. Any other column
+    — sales_mode, price, tare and the rest — is ignored, so an export from the
+    till system goes up unedited. A row without a whole number and a
+    description is skipped rather than guessed at.
+
+    Raises CsvProblem where the file cannot be used at all, with a sentence
+    that can be shown as it is. Everything is written in one transaction: a
+    file that fails halfway leaves the list as it was.
+    """
+    try:
+        decoded = upload.read().decode("utf-8-sig")
+    except Exception:
+        raise CsvProblem("Could not read that file. Please upload a valid UTF-8 CSV.")
+
+    reader = csv.DictReader(io.StringIO(decoded))
+    headers = {(h or "").strip() for h in (reader.fieldnames or [])}
+    missing = [h for h in REQUIRED_CSV_HEADERS if h not in headers]
+    if missing:
+        raise CsvProblem(f"CSV is missing headers: {', '.join(missing)}")
+
+    created = updated = skipped = 0
+    with transaction.atomic():
+        for row in reader:
+            plu_no_raw = (row.get("plu_no") or "").strip()
+            description = (row.get("description") or "").strip()
+
+            # A row is only usable with a numeric PLU and a description.
+            if not plu_no_raw or not description:
+                skipped += 1
+                continue
+            try:
+                plu_no = int(plu_no_raw)
+            except ValueError:
+                skipped += 1
+                continue
+
+            _, was_created = PluItem.objects.update_or_create(
+                plu_no=plu_no, defaults={"description": description[:255]},
+            )
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+    return created, updated, skipped
+
+
 @login_required
 @user_passes_test(is_staff_user)
 def import_csv(request):
@@ -427,50 +481,11 @@ def import_csv(request):
     if request.method == "POST":
         form = CsvImportForm(request.POST, request.FILES)
         if form.is_valid():
-            f = form.cleaned_data["csv_file"]
-
             try:
-                decoded = f.read().decode("utf-8-sig")
-            except Exception:
-                messages.error(request, "Could not read that file. Please upload a valid UTF-8 CSV.")
+                created, updated, skipped = import_rows(form.cleaned_data["csv_file"])
+            except CsvProblem as problem:
+                messages.error(request, str(problem))
                 return redirect("plu:import")
-
-            reader = csv.DictReader(io.StringIO(decoded))
-            headers = {(h or "").strip() for h in (reader.fieldnames or [])}
-            missing = [h for h in REQUIRED_CSV_HEADERS if h not in headers]
-
-            if missing:
-                messages.error(request, f"CSV is missing headers: {', '.join(missing)}")
-                return redirect("plu:import")
-
-            created = 0
-            updated = 0
-            skipped = 0
-
-            with transaction.atomic():
-                for row in reader:
-                    plu_no_raw = (row.get("plu_no") or "").strip()
-                    description = (row.get("description") or "").strip()
-
-                    # A row is only usable with a numeric PLU and a description.
-                    if not plu_no_raw or not description:
-                        skipped += 1
-                        continue
-
-                    try:
-                        plu_no = int(plu_no_raw)
-                    except ValueError:
-                        skipped += 1
-                        continue
-
-                    _, was_created = PluItem.objects.update_or_create(
-                        plu_no=plu_no,
-                        defaults={"description": description[:255]},
-                    )
-                    if was_created:
-                        created += 1
-                    else:
-                        updated += 1
 
             messages.success(
                 request,

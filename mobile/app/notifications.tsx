@@ -57,6 +57,7 @@ export default function Inbox() {
   return (
     <Screen back backLabel="Home">
       <FlatList
+        showsVerticalScrollIndicator={false}
         data={rows}
         keyExtractor={(n) => String(n.id)}
         contentContainerStyle={[layout.column, { paddingTop: sp[4], paddingBottom: layout.bottom + sp[6] }]}

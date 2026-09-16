@@ -846,6 +846,61 @@ def clock_out(request):
 # Timesheet
 # ---------------------------------------------------------------------------
 
+# How much of the timesheet is read out in full before it starts folding up.
+# A week is what anyone is actually checking — did I work Tuesday, how long
+# was Saturday — and past that the list is history, worth keeping but not
+# worth the screen.
+DETAIL_DAYS = 7
+
+
+def group_by_week(days, user, today=None):
+    """
+    Split days (newest first) into the week being read and the weeks behind it.
+
+    Returns `(recent, weeks)`: the last DETAIL_DAYS days as they came, then one
+    entry per week for everything older, each with its own total so the fold
+    can say what is inside it without being opened.
+
+    Days are grouped by the week the user's own week starts on, so a fold holds
+    a week as they count one. It is *labelled* by the days actually inside it
+    (`first`..`last`) rather than by the week's own two ends, because the last
+    seven days are written out above and will have taken the back of that week
+    with them: a fold holding the 6th to the 9th says so, instead of claiming a
+    12th that is already on screen.
+
+    A week split across two pages of a paginated list comes out as two groups,
+    one at the foot of one page and one at the head of the next — which is what
+    the page is, rather than a lie about it.
+    """
+    today = today or timezone.localdate()
+    starts_on = TimePreference.for_user(user).week_starts_on
+    cutoff = today - timedelta(days=DETAIL_DAYS - 1)
+
+    recent, weeks = [], []
+    for day in days:
+        if day["date"] >= cutoff:
+            recent.append(day)
+            continue
+        start = week_start(day["date"], starts_on)
+        if not weeks or weeks[-1]["start"] != start:
+            weeks.append({
+                "start": start,
+                "end": start + timedelta(days=6),
+                "days": [],
+                "total": timedelta(),
+                "shifts": 0,
+            })
+        weeks[-1]["days"].append(day)
+        weeks[-1]["total"] += day["total"]
+        weeks[-1]["shifts"] += len(day["shifts"])
+
+    # The days run newest first, here and inside each group.
+    for week in weeks:
+        week["last"] = week["days"][0]["date"]
+        week["first"] = week["days"][-1]["date"]
+    return recent, weeks
+
+
 @login_required
 def timesheet(request):
     workplaces = list(Workplace.objects.filter(user=request.user))
@@ -875,9 +930,13 @@ def timesheet(request):
         day["shifts"] = _in_order(day["shifts"])
         day["is_run"] = len(day["shifts"]) > 1
 
+    recent_days, older_weeks = group_by_week(days, request.user)
+
     return render(request, "timeclock/timesheet.html", {
         "page_obj": page_obj,
         "days": days,
+        "recent_days": recent_days,
+        "older_weeks": older_weeks,
         "workplaces": workplaces,
         "workplace": workplace,
         "summary": _summary(request.user, workplace),

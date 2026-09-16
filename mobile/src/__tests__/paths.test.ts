@@ -20,6 +20,8 @@ describe("the site's paths map to screens", () => {
     expect(targetFor("/timesheet/shifts/3/edit/")).toEqual({ screen: "/shifts/3/edit" });
     expect(targetFor("/timesheet/pay/")).toEqual({ screen: "/pay" });
     expect(targetFor("/timesheet/workplaces/")).toEqual({ screen: "/workplaces" });
+    // The calendar is a face of the timesheet now, not a screen of its own.
+    expect(targetFor("/timesheet/calendar/")).toEqual({ screen: "/timesheet?view=calendar" });
   });
   it("keeps every PLU and timesheet path in the app, which draws them all", () => {
     expect(targetFor("/plu/photo-search/")).toEqual({ screen: "/plu" });

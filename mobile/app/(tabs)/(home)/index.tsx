@@ -71,41 +71,52 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 
-/** The next public holiday: a deep-green hero, the date as a tile beside the name. */
+/**
+ * The next public holiday (templates/holidays/_card.html): the day in words
+ * on the left, a drawing of it on the right, on one mint-tinted panel.
+ *
+ * The drawing says nothing the words do not — it is here because this is the
+ * first thing on the hub and the one thing on it that is good news, and four
+ * fields and a chevron do not read that way. It gives up its width first.
+ */
 export function Holiday({ card, state }: { card: HolidayCard; state: string }) {
   const t = useTheme();
   const router = useRouter();
-  const ink = t.heroInk, soft = t.heroSoft, chip = t.heroChip;
   return (
-    <Pressable onPress={() => router.push("/holidays")} testID="holiday-card" style={({ pressed }) => [styles.hero, { backgroundColor: t.hero }, glow(t.brand), { transform: [{ scale: pressed ? 0.985 : 1 }] }]}>
-      <View style={[styles.orb, { backgroundColor: "rgba(255,255,255,0.08)" }]} />
-      <View style={styles.hHead}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Ionicons name="calendar" size={14} color={soft} />
-          <Text style={[styles.kicker, { color: soft }]}>Next public holiday</Text>
+    <Pressable onPress={() => router.push("/holidays")} testID="holiday-card" style={({ pressed }) => [styles.hero, { backgroundColor: mix(t.brand, t.surface, 0.1) }, { transform: [{ scale: pressed ? 0.985 : 1 }] }]}>
+      <View style={styles.hText}>
+        <View style={styles.hHead}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Ionicons name="calendar" size={13} color={t.brandStrong} />
+            <Text style={[styles.kicker, { color: t.brandStrong }]}>Public holiday</Text>
+          </View>
+          <Text style={[styles.pill, card.is_national ? { backgroundColor: alpha(t.brand, 0.18), color: t.brandStrong } : { backgroundColor: t.warnSoft, color: t.warn }]}>{card.scope || state}</Text>
         </View>
-        <Text style={[styles.pill, { backgroundColor: chip, color: ink }]}>{card.scope || state}</Text>
+        <View style={styles.hBody}>
+          <View style={[styles.date, { backgroundColor: t.surface, borderColor: alpha(t.brand, 0.22) }]}>
+            <Text style={[styles.month, { color: t.brandStrong }]}>{card.month_short.toUpperCase()}</Text>
+            <Text style={[styles.day, { color: t.text }]}>{card.day}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.hName, { color: t.text }]}>{card.name}</Text>
+            <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }}>{card.weekday}</Text>
+          </View>
+        </View>
+        {/* The countdown before the way in: it is the reason the card exists,
+            and everything above it is only which holiday it is about. */}
+        <View style={styles.hFoot}>
+          <View style={[styles.countdown, { backgroundColor: t.warnSoft }]}>
+            <Ionicons name="time-outline" size={13} color={t.warn} />
+            <Text style={{ color: t.warn, fontSize: 12.5, fontWeight: "700" }}>{card.countdown}</Text>
+          </View>
+          <View style={[styles.more, { backgroundColor: t.surface, borderColor: alpha(t.brand, 0.2) }]}>
+            <Text style={{ color: t.brandStrong, fontSize: 13, fontWeight: "700" }}>Full calendar</Text>
+            <Ionicons name="chevron-forward" size={14} color={t.brandStrong} />
+          </View>
+        </View>
       </View>
-      <View style={styles.hBody}>
-        <View style={[styles.date, { backgroundColor: "rgba(255,255,255,0.16)" }]}>
-          <Text style={[styles.month, { color: soft }]}>{card.month_short.toUpperCase()}</Text>
-          <Text style={[styles.day, { color: ink }]}>{card.day}</Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.hName, { color: ink }]}>{card.name}</Text>
-          <Text style={{ color: soft, fontSize: 14.5, marginTop: 2 }}>{card.weekday}</Text>
-        </View>
-      </View>
-      <View style={styles.hFoot}>
-        <View style={[styles.countdown, { backgroundColor: chip }]}>
-          <Ionicons name="time-outline" size={14} color={ink} />
-          <Text style={{ color: ink, fontSize: 13, fontWeight: "700" }}>{card.countdown}</Text>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-          <Text style={{ color: ink, fontSize: 13.5, fontWeight: "700" }}>Full calendar</Text>
-          <Ionicons name="chevron-forward" size={15} color={ink} />
-        </View>
-      </View>
+      {/* Bled into the padding on the right so it meets the card's edge. */}
+      <View style={styles.hArt}><HolidayArt /></View>
     </Pressable>
   );
 }

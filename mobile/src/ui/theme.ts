@@ -177,3 +177,20 @@ export function alpha(hex: string, a: number): string {
   if (!m) return hex;
   return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
 }
+
+/**
+ * `color-mix(in srgb, <a> <pct>%, <b>)` — an opaque blend of two hexes.
+ *
+ * Not the same thing as alpha(): a tinted panel has to be a colour of its
+ * own, because what is under it on a screen is the page and what is under it
+ * on the site is the card, and a translucent tint would come out differently
+ * on each. This is how the site paints the same panel, so both agree.
+ */
+export function mix(a: string, b: string, amount: number): string {
+  const parse = (hex: string) => hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  const [ma, mb] = [parse(a), parse(b)];
+  if (!ma || !mb) return b;
+  const at = (m: RegExpMatchArray, i: number) => parseInt(m[i], 16);
+  const blend = (i: number) => Math.round(at(ma, i) * amount + at(mb, i) * (1 - amount));
+  return `#${[1, 2, 3].map((i) => blend(i).toString(16).padStart(2, "0")).join("")}`;
+}

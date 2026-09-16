@@ -11,7 +11,7 @@ export function Crashed({ error, retry }: { error: Error; retry: () => Promise<v
   const t = useTheme();
   const router = useRouter();
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={styles.wrap}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={styles.wrap} showsVerticalScrollIndicator={false}>
       <View style={[styles.icon, { backgroundColor: t.dangerSoft }]}>
         <Ionicons name="alert-circle" size={30} color={t.danger} />
       </View>

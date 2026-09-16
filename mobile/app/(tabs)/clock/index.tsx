@@ -15,7 +15,7 @@ import { Button, Chip, Empty, ErrorBanner, Loading, Page, Screen, useLayout } fr
 import { confirm, notify } from "@/ui/confirm";
 import { success, tap } from "@/ui/haptics";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
-import { LimitBar, StatusPill } from "@/ui/timesheet";
+import { CashTallyCard, LimitBar, StatusPill } from "@/ui/timesheet";
 
 const R = 52, C = 2 * Math.PI * R;
 
@@ -25,13 +25,17 @@ export default function Clock() {
   const layout = useLayout();
   // The dial: as big as the column allows, never more than a hand's span.
   const DIAL = Math.round(Math.min(300, Math.max(220, layout.width - 2 * layout.gutter - 60)));
-  const q = useClock();
   const changed = useTimesheetChanged();
   const [state, setState] = useState<ClockState | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
+  // The job chosen drives the ask: the cap under the dial belongs to whichever
+  // job is picked, and asking again is the only way to know what it is.
+  const q = useClock(picked);
   const [busy, setBusy] = useState(false);
   const shown = state || q.data || null;
-  useEffect(() => { if (q.data) { setState(q.data); if (picked === null) setPicked(q.data.selected); } }, [q.data]);
+  // Picked here, or else whichever the server said was yours.
+  const selected = picked ?? shown?.selected ?? null;
+  useEffect(() => { if (q.data) setState(q.data); }, [q.data]);
 
   // The phone's clock may be off; count from the server's, as app.js does.
   const [skew, setSkew] = useState(0);
@@ -82,7 +86,7 @@ export default function Clock() {
   }
   const progress = shift ? Math.min(elapsed / (shown.target_hours * 3600), 1) : 0;
   const ring = status === "ON_BREAK" ? t.warn : status === "WORKING" ? t.brand : t.lineStrong;
-  const where = shift ? shift.workplace?.name || "No workplace" : shown.workplaces.find((w) => w.id === picked)?.name;
+  const where = shift ? shift.workplace?.name || "No workplace" : shown.workplaces.find((w) => w.id === selected)?.name;
 
   return (
     <Screen>
@@ -130,14 +134,14 @@ export default function Clock() {
                     <Text style={[styles.sectionLabel, { color: t.muted }]}>Where are you working?</Text>
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[2] }}>
                       {shown.workplaces.map((w) => (
-                        <Chip key={w.id} on={w.id === picked} onPress={() => setPicked(w.id)}>{w.name}{w.is_default ? "  ·  Default" : ""}</Chip>
+                        <Chip key={w.id} on={w.id === selected} onPress={() => setPicked(w.id)}>{w.name}{w.is_default ? "  ·  Default" : ""}</Chip>
                       ))}
                     </View>
                   </View>
                 ) : (
                   <Where name={where} />
                 )}
-                <BigButton title="Clock in" icon="time-outline" kind="go" busy={busy} onPress={() => picked && act(() => timesheet.clockIn(picked))} testID="clock-in" />
+                <BigButton title="Clock in" icon="time-outline" kind="go" busy={busy} onPress={() => selected && act(() => timesheet.clockIn(selected))} testID="clock-in" />
               </>
             ) : status === "ON_BREAK" ? (
               <>
@@ -153,7 +157,7 @@ export default function Clock() {
                 </View>
               </>
             )}
-            {shown.limit ? <LimitBar limit={shown.limit} /> : null}
+            {shown.limit ? <LimitBar limit={shown.limit} /> : shown.tally ? <CashTallyCard tally={shown.tally} /> : null}
           </>
         )}
       </Page>

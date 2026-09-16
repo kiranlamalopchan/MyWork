@@ -58,6 +58,7 @@ export function Page({ children, contentContainerStyle, onScroll, ...rest }: Scr
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         scrollEventThrottle={32}
+        showsVerticalScrollIndicator={false}
         {...rest}
         onScroll={(e) => { keyboard.onScroll(e); onScroll?.(e); }}
         contentContainerStyle={[styles.page, layout.column, { paddingBottom: layout.bottom + sp[6] }, contentContainerStyle]}

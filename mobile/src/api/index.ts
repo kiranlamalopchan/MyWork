@@ -6,7 +6,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { api, apiUrl, FilePart, formWith } from "./client";
 import type {
-  PhotoRead,
+  PhotoRead, PluImportable, PluImported,
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
   Reactors, Story, StoryPerson, TrayRow,
 } from "./types";
@@ -166,7 +166,27 @@ export const plu = {
   /** A photographed picking list: every line named as a PLU. */
   photo: (photo: FilePart) => api<PhotoRead>("plu/photo/", { method: "POST", form: formWith({ photo }) }),
   photoPdfUrl: () => apiUrl("plu/photo/pdf/"),
+  /** Whether this account may import the list, and what the file needs. */
+  importable: () => api<PluImportable>("plu/import/"),
+  /** The whole list, replaced from a CSV. Managers only; the server says so too. */
+  importCsv: (file: FilePart, onProgress?: (sent: number) => void) =>
+    api<PluImported>("plu/import/", { method: "POST", form: formWith({ file }), onProgress }),
 };
+
+/** Whether the import button belongs on this phone's screen at all. */
+export function usePluImportable() {
+  return useQuery({ queryKey: ["plu-importable"], queryFn: plu.importable, staleTime: 5 * 60_000 });
+}
+
+/** After an import: every search and every count is of the old list. */
+export function usePluChanged() {
+  const client = useQueryClient();
+  return () => {
+    client.invalidateQueries({ queryKey: ["plu"] });
+    client.invalidateQueries({ queryKey: ["plu-total"] });
+    client.invalidateQueries({ queryKey: ["plu-importable"] });
+  };
+}
 
 export function usePluSearch(q: string) {
   return useInfiniteQuery({
@@ -243,8 +263,17 @@ export const timesheet = {
   statementUrl: (from: string, to: string, workplace?: number | "") => apiUrl(`timesheet/statement/?from=${from}&to=${to}${workplace ? `&workplace=${workplace}` : ""}`),
 };
 
-export function useClock() {
-  return useQuery({ queryKey: ["clock"], queryFn: () => timesheet.clock(), staleTime: 10_000 });
+/**
+ * The clock, for the job asked about. The cap under the dial is that job's
+ * alone, so the workplace is part of the key: picking another has to ask
+ * again, or the bar goes on describing the one you were looking at before.
+ */
+export function useClock(workplace?: number | null) {
+  return useQuery({
+    queryKey: ["clock", workplace ?? null],
+    queryFn: () => timesheet.clock(workplace ?? undefined),
+    staleTime: 10_000,
+  });
 }
 export function useTimesheet(workplace: number | null) {
   return useInfiniteQuery({

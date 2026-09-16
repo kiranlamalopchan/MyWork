@@ -31,6 +31,7 @@ export default function Board() {
     <Screen back backLabel="Home">
       <RevealProvider value={keyboard.reveal}>
         <FlatList
+          showsVerticalScrollIndicator={false}
           ref={list}
           data={notices}
           keyExtractor={(n) => String(n.id)}

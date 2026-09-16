@@ -295,6 +295,17 @@
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* No scrollbar drawn anywhere, as on a phone. Everything still scrolls — this
+   takes away the bar, not the scrolling — and the room it used to occupy goes
+   back to the page, so nothing shifts sideways when content grows past the
+   fold. Firefox and old Edge want a property on the element itself; WebKit
+   wants the pseudo-element, which needs no selector to reach the lot. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+::-webkit-scrollbar { display: none; }
+
 html {
   -webkit-text-size-adjust: 100%; /* stop iOS resizing text in landscape */
 }
@@ -2067,6 +2078,63 @@ code, .code {
 
 /* Opening one drops the list in rather than snapping it into place. */
 .day[open] .shift-list { animation: mw-rise var(--dur-3) var(--ease-out) both; }
+
+/* ---- A week behind the one being read -------------------------------------
+   The current week is written out a day at a time. Everything older is folded
+   a week at a time: the fold's head carries the dates, the shift count and the
+   hours, which is enough to decide whether to open it without opening it. It
+   reads heavier than a day's head because it holds days rather than shifts. */
+.week { margin-bottom: var(--sp-3); }
+
+.week__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  /* A panel, not a tint: --surface-2 against --bg is a single value apart and
+     the row read as loose text rather than as something to open. */
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-2) var(--ease);
+}
+.week__head::-webkit-details-marker { display: none; }
+.week__head:hover { background: var(--surface-2); }
+.week__head:active { background: var(--surface-3); }
+.week[open] .week__head { margin-bottom: var(--sp-2); }
+
+.week__dates { font-size: 14px; font-weight: 650; letter-spacing: .01em; }
+
+.week__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  color: var(--muted);
+}
+.week__count { font-size: 12px; }
+.week__total { font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.week__chev {
+  flex: none;
+  width: 16px; height: 16px;
+  color: var(--muted);
+  transition: transform var(--dur-2) var(--ease);
+}
+.week[open] .week__chev { transform: rotate(180deg); }
+
+/* The days inside step in, so a day's head is never mistaken for a week's. */
+.week__days {
+  padding-left: var(--sp-3);
+  animation: mw-rise var(--dur-3) var(--ease-out) both;
+}
+.week__days .day:last-child { margin-bottom: 0; }
 
 .shift-list {
   list-style: none;
@@ -6294,76 +6362,96 @@ body::before {
 /* --------------------------------------------------------------------------
    36. Public holidays — the next one, on the way in
 
-   A date is read as one object: the month and the numeral together, in a tile,
-   the way every calendar and every ticket prints it. Everything else hangs off
-   that tile — what the day is called, which weekday it falls on, and the only
-   number anybody actually came for, which is how many sleeps away it is.
+   Two columns on one tinted panel: the day in words on the left, a drawing of
+   it on the right. The words are the part that has to work — the month and
+   the numeral together in a tile, the way every calendar and every ticket
+   prints a date, and under it the name, the weekday and the number anybody
+   actually came for, which is how many sleeps away it is.
 
-   It sits above the app tiles on the hub and is the first thing on the page,
-   so it is deliberately quiet: one accent, one pill, no shadow. A card that
-   shouted would make the two apps beneath it look like an afterthought.
+   The drawing says nothing the words do not. It is there because this is the
+   first thing on the hub and the one thing on it that is good news, and a
+   card made of four fields and a chevron does not read that way. It bleeds
+   off the right edge rather than sitting in a box of its own, and it gives up
+   its width first: everything in it is decoration, and none of it is missed.
    -------------------------------------------------------------------------- */
 .holiday {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
   margin-bottom: var(--sp-4);
   padding: var(--sp-4);
-  border: 1px solid var(--line);
   border-radius: var(--r-xl);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
   color: inherit;
   text-decoration: none;
+  overflow: hidden;
 }
-.holiday:hover { text-decoration: none; border-color: var(--line-strong); }
+.holiday:hover { text-decoration: none; }
 .holiday:active { transform: scale(.995); }
+
+.holiday__text { flex: 1 1 auto; min-width: 0; display: grid; gap: var(--sp-3); }
+
+/* Pulled into the padding on three sides so the drawing meets the card's
+   edges. clamp() is what keeps a long holiday name readable: the drawing
+   never takes more than a bit over a third, and never shrinks to a stamp. */
+.holiday__art {
+  flex: none;
+  width: clamp(116px, 38%, 188px);
+  margin: calc(var(--sp-3) * -1) calc(var(--sp-4) * -1) calc(var(--sp-3) * -1) 0;
+}
 
 /* ---- The line above: what this is, and whose it is ---- */
 
 .holiday__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2);
 }
 .holiday__kicker {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 11.5px;
+  gap: 5px;
+  color: var(--brand-strong);
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: .05em;
   text-transform: uppercase;
 }
-.holiday__kicker svg { width: 14px; height: 14px; }
+.holiday__kicker svg { width: 13px; height: 13px; }
 
 /* National in the brand colour, a state's own in amber: the difference
    matters on a board where not everybody is in the same state, and it is the
    kind of thing you want to catch without reading. */
 .holiday__pill {
   flex: none;
-  padding: 3px 9px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: var(--warn-soft);
   color: var(--warn);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: .04em;
 }
-.holiday__pill--national { background: var(--brand-soft); color: var(--brand-strong); }
+.holiday__pill--national {
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  color: var(--brand-strong);
+}
 
 /* ---- The date tile, and what it is ---- */
 
 .holiday__body {
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
-  margin-top: var(--sp-3);
+  gap: var(--sp-3);
 }
 
+/* Shared with the rows on the calendar page, which sit on a plain surface —
+   hence the tint here, and the plain fill the card overrides it with below. */
 .holiday__date {
   flex: none;
-  width: 64px;
-  padding: var(--sp-2) 0 10px;
+  width: 52px;
+  padding: 5px 0 7px;
   display: grid;
   justify-items: center;
   gap: 1px;
@@ -6371,67 +6459,107 @@ body::before {
   background: color-mix(in srgb, var(--brand) 9%, var(--surface-2));
   border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
 }
+.holiday__body .holiday__date {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--brand) 18%, var(--line));
+}
 .holiday__month {
   color: var(--brand-strong);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: .08em;
 }
 .holiday__day {
-  /* The one big number on the hub. Tabular so a 9 and a 25 sit on the same
-     baseline width and the tile never changes shape between months. */
-  font-size: 28px;
+  /* Tabular so a 9 and a 25 sit on the same baseline width and the tile
+     never changes shape between months. */
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
 
-.holiday__what { min-width: 0; display: grid; gap: 2px; }
+.holiday__what { min-width: 0; display: grid; gap: 1px; }
 .holiday__name {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -.015em;
+  font-size: 19px;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -.02em;
   overflow-wrap: anywhere;
 }
-.holiday__weekday { color: var(--muted); font-size: 14px; }
+.holiday__weekday { color: var(--muted); font-size: 13px; }
 
 /* ---- The line below: the countdown, and the way in ---- */
 
+/* Allowed to become two lines, and usually is on a phone: the countdown
+   first either way, because the button is only how you leave. */
 .holiday__foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2) var(--sp-3);
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--line);
 }
 .holiday__countdown {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--warn-soft);
   color: var(--warn);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
 }
-.holiday__countdown svg { width: 14px; height: 14px; }
+.holiday__countdown svg { width: 13px; height: 13px; }
 .holiday__more {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  min-height: 32px;
+  padding: 8px 14px;
+  border-radius: 999px;
   white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
   color: var(--brand-strong);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
 }
-.holiday__more svg { width: 15px; height: 15px; }
+.holiday__more svg { width: 14px; height: 14px; }
+
+/* ---- The drawing (templates/holidays/_art.html) -------------------------
+
+   Every colour is a token, so the dark theme takes it over without a second
+   drawing: the paper goes to the dark surface, the band and the rings to the
+   pale mint that reads as the accent there, and the cells are cut from the
+   text colour, which is what keeps them visible either way round.
+   ------------------------------------------------------------------------- */
+.hart { width: 100%; height: auto; display: block; }
+.hart__blob { fill: color-mix(in srgb, var(--brand) 13%, transparent); }
+.hart__doodle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--brand) 34%, transparent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+.hart__dot { fill: color-mix(in srgb, var(--brand) 34%, transparent); }
+.hart__sun { fill: var(--warn); }
+.hart__ray { fill: none; stroke: var(--warn); stroke-width: 3.5; stroke-linecap: round; }
+.hart__paper { fill: var(--surface); }
+.hart__band,
+.hart__ring { fill: var(--brand-strong); }
+.hart__cell { fill: color-mix(in srgb, var(--text) 13%, transparent); }
+.hart__disc { fill: var(--brand); }
+.hart__tick {
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hart__leaf { fill: var(--brand); }
+.hart__stem { fill: none; stroke: var(--brand-strong); stroke-width: 3.5; stroke-linecap: round; }
+.hart__vein { fill: none; stroke: var(--surface); stroke-width: 2; stroke-linecap: round; opacity: .5; }
 
 /* ---- The calendar behind it ---------------------------------------------
 

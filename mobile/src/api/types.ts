@@ -145,6 +145,9 @@ export type PluItem = { plu_no: number; description: string };
 /** One line of a photographed picking list, named. */
 export type PhotoRow = { line: string; item: PluItem; score: number; sureness: "sure" | "likely" | "unsure" | "picked"; by_code: boolean; alternatives: PluItem[] };
 export type PhotoRead = { rows: PhotoRow[]; skipped: number };
+/** Whether this account may replace the PLU list, and what the file needs. */
+export type PluImportable = { allowed: boolean; headers: string[]; total: number };
+export type PluImported = { created: number; updated: number; skipped: number; total: number; message: string };
 
 // ---- TimeSheet -----------------------------------------------------------------
 
@@ -181,7 +184,9 @@ export type Summary = {
   limits: LimitCard[];
 };
 export type TimesheetDay = { date: string; label: string; total: Duration; is_run: boolean; shifts: ShiftRow[] };
-export type TimesheetPage = Page<never> & { days: TimesheetDay[]; workplaces: WorkplaceBrief[]; workplace: number | null; summary: Summary };
+/** A week behind the one being read: shut, and saying what is inside it. */
+export type TimesheetWeek = { start: string; first_label: string; last_label: string; total: Duration; shifts: number; days: TimesheetDay[] };
+export type TimesheetPage = Page<never> & { days: TimesheetDay[]; weeks: TimesheetWeek[]; workplaces: WorkplaceBrief[]; workplace: number | null; summary: Summary };
 export type CalendarCell = { date: string; day: number; in_month: boolean; is_today: boolean; total: Duration | null; track: { css: string; left: number; width: number }[]; lead: string | null };
 export type CalendarPage = {
   year: number; month: number; label: string; weekday_labels: string[]; weeks: CalendarCell[][];
@@ -196,8 +201,12 @@ export type ClockState = {
     worked: Duration; total_break: Duration; banked_break_seconds: number;
     running_break: { start: string; start_at: string; duration: Duration } | null;
   } | null;
-  target_hours: number; long_shift: boolean; limit: LimitCard | null; message?: string; finished?: number;
+  target_hours: number; long_shift: boolean; limit: LimitCard | null;
+  /** A cash job with no cap: the hours owed for, where the cap bar would be. */
+  tally: CashTally | null;
+  message?: string; finished?: number;
 };
+export type CashTally = { workplace: WorkplaceBrief; label: string; sub: string; total: Duration; pay: Money | null };
 export type NewShift = { workplaces: WorkplaceBrief[]; workplace: number | null; clock_in: string; clock_out: string };
 export type ShiftInput = { workplace: number | ""; clock_in: string; clock_out: string; note: string; breaks: { id?: number; break_start: string; break_end: string; delete?: boolean }[] };
 export type Choice<T = string | number> = { value: T; label: string; css?: string };

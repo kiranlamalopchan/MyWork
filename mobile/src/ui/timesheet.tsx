@@ -8,7 +8,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View, ViewStyle } fro
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import type { Choice, LimitCard, ShiftRow as ShiftRowType, ShiftStatus } from "@/api";
+import type { CashTally as CashTallyType, Choice, LimitCard, ShiftRow as ShiftRowType, ShiftStatus } from "@/api";
 
 import { Card, Chip } from "./index";
 import { tick } from "./haptics";
@@ -109,6 +109,38 @@ export function LimitBar({ limit }: { limit: LimitCard }) {
           Counting again from your payment on {limit.paid_at}. The {limit.settled.hm} before it still counts toward this {limit.period_label}’s {limit.cap.hm} — {limit.used.hm} used so far.
         </Text>
       ) : null}
+    </Card>
+  );
+}
+
+/**
+ * A cash job with no cap, in the bar's place: the hours not yet paid for.
+ *
+ * There is no cycle to count over and no cap to fill, so there is no bar to
+ * draw — only the figure the payment button clears, which is the whole of how
+ * a job paid in hand is kept track of.
+ */
+export function CashTallyCard({ tally }: { tally: CashTallyType }) {
+  const t = useTheme();
+  const router = useRouter();
+  return (
+    <Card>
+      <View style={styles.limitHead}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[styles.sectionLabel, { color: t.muted }]}>{tally.workplace.name} · cash in hand</Text>
+          <Text style={{ marginTop: 2 }}>
+            <Text style={{ color: t.text, fontSize: 26, fontWeight: "700", letterSpacing: -0.5 }}>{tally.total.hm}</Text>
+            <Text style={{ color: t.muted, fontSize: 14 }}>  {tally.label.toLowerCase()}</Text>
+          </Text>
+        </View>
+        <Pressable onPress={() => router.push("/pay")} hitSlop={8}>
+          <Text style={{ color: t.text2, fontWeight: "600", fontSize: 14 }}>Pay</Text>
+        </Pressable>
+      </View>
+      <Text style={{ color: t.muted, fontSize: 13, marginTop: sp[2] }}>
+        {tally.sub}
+        {tally.pay ? <Text style={{ color: t.brand, fontWeight: "700" }}>  ·  ${tally.pay.net.toFixed(2)}</Text> : null}
+      </Text>
     </Card>
   );
 }

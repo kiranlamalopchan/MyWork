@@ -23,7 +23,7 @@ export function targetFor(path: string): Target {
   }
   if (p === "/timesheet") return { screen: "/clock" };
   if (p === "/timesheet/shifts") return { screen: "/timesheet" };
-  if (p === "/timesheet/calendar") return { screen: "/timesheet/calendar" };
+  if (p === "/timesheet/calendar") return { screen: "/timesheet?view=calendar" };
   if (p === "/timesheet/shifts/add") return { screen: "/shifts/new" };
   if ((m = p.match(/^\/timesheet\/shifts\/(\d+)\/edit$/))) return { screen: `/shifts/${m[1]}/edit` };
   if ((m = p.match(/^\/timesheet\/shifts\/(\d+)$/))) return { screen: `/shifts/${m[1]}` };

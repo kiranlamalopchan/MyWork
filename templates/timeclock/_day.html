@@ -1,0 +1,76 @@
+{% load timeclock_extras ui %}
+{% comment %}
+  One day, one row. Collapsed, the header still answers the question the list
+  is usually asked — which day, how many shifts, how long — so opening one is
+  a choice rather than the only way to read the page.
+
+  `open` says whether it starts unfolded: the week being read does, the weeks
+  behind it do not.
+{% endcomment %}
+<details class="day"{% if open %} open{% endif %}>
+  <summary class="day__head">
+    <span class="day__date">{{ day.date|date:"D j M" }}</span>
+    <span class="day__meta">
+      <span class="day__count">{{ day.shifts|length }} shift{{ day.shifts|length|pluralize }}</span>
+      <span class="day__total" data-tally="{{ day.total|seconds }}">{{ day.total|hm|default:"0m" }}</span>
+      {% icon "chev-down" class="day__chev" width="2.2" %}
+    </span>
+  </summary>
+
+  {% comment %}
+    A day worked in one go is one row. A day worked in two or three is a run:
+    the shifts numbered in the order they happened, with the time off between
+    them written in the join. Same rows, but you can see the shape of the day
+    without reading a single clock.
+  {% endcomment %}
+  <ul class="shift-list{% if day.is_run %} shift-run{% endif %}">
+    {% for shift in day.shifts %}
+      {% if shift.gap_before %}
+        <li class="shift-gap">
+          <span class="shift-gap__rule" aria-hidden="true"></span>
+          <span class="shift-gap__text">{{ shift.gap_before|hm }} off</span>
+          <span class="shift-gap__rule" aria-hidden="true"></span>
+        </li>
+      {% endif %}
+      <li>
+        <a class="shift" href="{% url 'timeclock:shift_detail' shift.pk %}">
+          <span class="shift__bar shift__bar--{{ shift.status|lower }}" aria-hidden="true"></span>
+          {% if day.is_run %}
+            {# Which of the day's shifts this is, in its workplace's colour. #}
+            <span class="shift__seq" style="--wp-css: {{ shift.workplace|wp_color }}"
+                  aria-label="Shift {{ shift.seq }} of {{ day.shifts|length }}">{{ shift.seq }}</span>
+          {% endif %}
+
+          <span class="shift__body">
+            <span class="shift__top">
+              <span class="shift__where">
+                {# The colour this job wears on the calendar. #}
+                <span class="swatch swatch--sm" style="--wp-css: {{ shift.workplace|wp_color }}" aria-hidden="true"></span>
+                <span class="shift__name">{{ shift.workplace.name|default:"No workplace" }}</span>
+              </span>
+              {% if shift.is_open %}
+                <span class="status-pill status-pill--{{ shift.status|lower }} status-pill--sm">
+                  <span class="status-pill__dot" aria-hidden="true"></span>
+                  {{ shift.get_status_display|upper }}
+                </span>
+              {% else %}
+                <span class="shift__worked">{{ shift.worked_duration|hm }}</span>
+              {% endif %}
+            </span>
+
+            <span class="shift__times">
+              <span>{{ shift.clock_in|time:"g:i A" }}</span>
+              <span class="shift__arrow" aria-hidden="true">→</span>
+              <span>{% if shift.clock_out %}{{ shift.clock_out|time:"g:i A" }}{% else %}now{% endif %}</span>
+              {% if shift.total_break %}
+                <span class="shift__break">· {{ shift.total_break|minutes }} break</span>
+              {% endif %}
+            </span>
+          </span>
+
+          {% icon "chev" class="result__chev" %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</details>

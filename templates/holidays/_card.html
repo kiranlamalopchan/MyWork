@@ -2,10 +2,12 @@
 {% comment %}
   The next public holiday, on the hub.
 
-  Laid out as a calendar tile beside the name, because that is how a date is
-  read at a glance: the month and the numeral are one object your eye lands
-  on, and everything else — what it is called, which day of the week it falls
-  on, how far off it is — hangs to the right of it.
+  Two columns: what the day is on the left, a drawing of it on the right.
+  The words are unchanged — the date as a tile, because that is how a date is
+  read at a glance, then the name, the weekday, and the only number anybody
+  came for, which is how many sleeps away it is. The drawing carries none of
+  that; it is there so the card reads as something good rather than as a row
+  of fields, and it is the first thing on the hub.
 
   Takes: holiday (a services.HolidayCard) and holiday_state. Rendered only
   when there is one; the hub decides that, so this file never has to say
@@ -14,44 +16,49 @@
 
 <a class="holiday" href="{% url 'holidays:calendar' %}?state={{ holiday_state }}">
 
-  <div class="holiday__head">
-    <span class="holiday__kicker">
-      {% icon "calendar" %}
-      Public holiday
-    </span>
-    {# National or one state's own: the difference is worth a glance, because #}
-    {# a state holiday is the one your interstate colleagues will not have.   #}
-    <span class="holiday__pill{% if holiday.is_national %} holiday__pill--national{% endif %}">
-      {{ holiday.scope }}
-    </span>
-  </div>
+  <div class="holiday__text">
 
-  <div class="holiday__body">
-    <div class="holiday__date" aria-hidden="true">
-      <span class="holiday__month">{{ holiday.month_short }}</span>
-      <span class="holiday__day">{{ holiday.day_number }}</span>
+    <div class="holiday__head">
+      <span class="holiday__kicker">
+        {% icon "calendar" %}
+        Public holiday
+      </span>
+      {# National or one state's own: the difference is worth a glance, because #}
+      {# a state holiday is the one your interstate colleagues will not have.   #}
+      <span class="holiday__pill{% if holiday.is_national %} holiday__pill--national{% endif %}">
+        {{ holiday.scope }}
+      </span>
     </div>
 
-    <div class="holiday__what">
-      <span class="holiday__name">{{ holiday.name }}</span>
-      <span class="holiday__weekday">{{ holiday.weekday }}</span>
+    <div class="holiday__body">
+      <div class="holiday__date" aria-hidden="true">
+        <span class="holiday__month">{{ holiday.month_short }}</span>
+        <span class="holiday__day">{{ holiday.day_number }}</span>
+      </div>
+
+      <div class="holiday__what">
+        <span class="holiday__name">{{ holiday.name }}</span>
+        <span class="holiday__weekday">{{ holiday.weekday }}</span>
+      </div>
+    </div>
+
+    <div class="holiday__foot">
+      {# The countdown before the way in: it is the reason the card exists, #}
+      {# and everything above it is only which holiday it is about.         #}
+      <span class="holiday__countdown">
+        {% icon "clock" %}
+        {{ holiday.countdown }}
+      </span>
+      <span class="holiday__more">
+        Full calendar
+        {% icon "chev" %}
+      </span>
     </div>
   </div>
 
-  <div class="holiday__foot">
-    {# The countdown is the reason the card exists: everything above it is #}
-    {# which holiday, this is how long you have to wait for it.            #}
-    <span class="holiday__countdown">
-      {% icon "clock" %}
-      {{ holiday.countdown }}
-    </span>
-    <span class="holiday__more">
-      View full calendar
-      {% icon "chev" %}
-    </span>
-  </div>
+  <div class="holiday__art">{% include "holidays/_art.html" %}</div>
 
-  {# Said properly for a screen reader, which cannot see a tile. #}
+  {# Said properly for a screen reader, which cannot see a tile or a drawing. #}
   <span class="sr-only">
     {{ holiday.name }}, {{ holiday.weekday }} {{ holiday.day_number }}
     {{ holiday.month_short }} — {{ holiday.countdown|lower }}.

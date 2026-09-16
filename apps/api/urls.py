@@ -47,6 +47,7 @@ urlpatterns = [
     path("notifications/<int:pk>/read/", notifications.Read.as_view(), name="notification_read"),
 
     path("plu/search/", plu.Search.as_view(), name="plu_search"),
+    path("plu/import/", plu.Import.as_view(), name="plu_import"),
     path("plu/photo/", plu.Photo.as_view(), name="plu_photo"),
     path("plu/photo/pdf/", plu.PhotoPdf.as_view(), name="plu_photo_pdf"),
     path("plu/<int:plu_no>/", plu.Detail.as_view(), name="plu_item"),

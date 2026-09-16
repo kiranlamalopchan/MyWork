@@ -7,14 +7,17 @@
  * (PhotoSearch) and has a way back to Search.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { usePluSearch, usePluTotal, type PluItem } from "@/api";
+import { plu as pluApi, usePluChanged, usePluImportable, usePluSearch, usePluTotal, type PluItem } from "@/api";
+import type { FilePart } from "@/api/client";
 import { Card, Empty, ErrorBanner, Loading, Screen } from "@/ui";
-import { tick } from "@/ui/haptics";
+import { notify } from "@/ui/confirm";
+import { fail, success, tick } from "@/ui/haptics";
 import { useLayout } from "@/ui/layout";
+import { native } from "@/ui/native";
 import { PhotoSearch } from "@/ui/PhotoSearch";
 import { SkeletonRows } from "@/ui/Skeleton";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
@@ -64,7 +67,7 @@ export default function Plu() {
   if (mode === "photo") {
     return (
       <Screen>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[layout.column, { paddingTop: sp[3], gap: sp[4], paddingBottom: layout.bottom + sp[6] }]}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[layout.column, { paddingTop: sp[3], gap: sp[4], paddingBottom: layout.bottom + sp[6] }]}>
           <View style={styles.photoHead}>
             <Pressable onPress={() => { tick(); setMode("search"); }} accessibilityLabel="Back to search" style={({ pressed }) => [styles.back, { backgroundColor: t.surface, opacity: pressed ? 0.7 : 1 }]}>
               <Ionicons name="chevron-back" size={18} color={t.text} />
@@ -108,7 +111,9 @@ export default function Plu() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
           </Pressable>
-        ) : (
+        ) : null}
+        {idle ? <ImportRow /> : null}
+        {idle ? null : (
           <View style={styles.metaRow}>
             <Text style={{ color: t.muted, fontSize: 14, flex: 1 }} numberOfLines={1}>{meta}</Text>
             <Pressable onPress={() => { tick(); setMode("photo"); }} hitSlop={6} style={styles.metaPhoto}>
@@ -121,6 +126,7 @@ export default function Plu() {
       </View>
       {idle ? null : (
         <FlatList
+          showsVerticalScrollIndicator={false}
           data={looking ? [] : rows}
           keyExtractor={(i) => String(i.plu_no)}
           contentContainerStyle={[layout.column, { paddingBottom: layout.bottom + sp[6] }]}
@@ -137,6 +143,83 @@ export default function Plu() {
         />
       )}
     </Screen>
+  );
+}
+
+/**
+ * The manager's way in: the site's staff-only CSV import (`plu:import`), as a
+ * row under Photo. The server says who may see it and says so again when the
+ * file lands, so a stale answer on the phone can't let anything through.
+ */
+function ImportRow() {
+  const t = useTheme();
+  const may = usePluImportable();
+  const changed = usePluChanged();
+  const [sent, setSent] = useState<number | null>(null);
+
+  if (!may.data?.allowed) return null;
+
+  const busy = sent !== null;
+
+  const pick = async () => {
+    tick();
+    try {
+      // Loaded on tap, so a build made before the picker still shows the page.
+      const DocumentPicker = native<typeof import("expo-document-picker")>(() => require("expo-document-picker"));
+      // Phones are vague about what a .csv is, so the net is wide and the
+      // server is what actually decides whether the file can be read.
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: ["text/csv", "text/comma-separated-values", "application/csv", "text/plain", "*/*"],
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled) return;
+      const asset = picked.assets[0];
+      const file: FilePart = Platform.OS === "web"
+        ? ((asset as any).file
+            || new File([await (await fetch(asset.uri)).blob()], asset.name, { type: asset.mimeType || "text/csv" })) as unknown as FilePart
+        : { uri: asset.uri, name: asset.name, type: asset.mimeType || "text/csv" };
+
+      setSent(0);
+      const done = await pluApi.importCsv(file, setSent);
+      changed();
+      success();
+      notify(
+        "Import complete",
+        `Created ${done.created}, updated ${done.updated}, skipped ${done.skipped}. ${done.total.toLocaleString()} codes now.`,
+      );
+    } catch (e: any) {
+      fail();
+      notify("That didn't import", e?.message || "The file couldn't be used.");
+    } finally {
+      setSent(null);
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={busy ? undefined : pick}
+      disabled={busy}
+      testID="plu-import"
+      style={({ pressed }) => [
+        styles.photo,
+        { backgroundColor: t.surface, borderColor: t.dark ? t.line : "transparent", opacity: busy ? 0.6 : pressed ? 0.8 : 1 },
+        !t.dark && styles.fieldShadow,
+        !t.dark && { shadowColor: t.shadow },
+      ]}
+    >
+      <View style={[styles.photoIcon, { backgroundColor: alpha(t.teal, 0.12) }]}>
+        <Ionicons name="cloud-upload" size={20} color={t.teal} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ color: t.text, fontWeight: "700", fontSize: 15.5 }}>Import CSV</Text>
+        <Text style={{ color: t.muted, fontSize: 13.5, marginTop: 1 }} numberOfLines={2}>
+          {busy
+            ? `Uploading ${Math.round((sent ?? 0) * 100)}%…`
+            : `Replace the list from a file with ${(may.data.headers || []).join(" and ")}`}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
+    </Pressable>
   );
 }
 

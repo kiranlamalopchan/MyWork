@@ -256,7 +256,7 @@ class DashboardViewTests(TestCase):
             clock_out=timezone.now() - timedelta(hours=1),
             status=Shift.Status.COMPLETED,
         )
-        self.assertContains(self.client.get(reverse("timeclock:timesheet")), "over your limit")
+        self.assertContains(self.client.get(reverse("timeclock:dashboard")), "over your limit")
 
 
 class PerWorkplaceLimitTests(TestCase):
@@ -323,18 +323,27 @@ class PerWorkplaceLimitTests(TestCase):
 
         self.assertNotEqual(tight.limit_window(today)[0], roomy.limit_window(today)[0])
 
-    def test_timesheet_shows_one_bar_per_capped_workplace(self):
+    def test_the_shifts_page_carries_no_caps_at_all(self):
+        # The caps belong to the clock. Repeating one per capped workplace here
+        # pushed the shifts — which is what the page is for — off the screen.
         self._worked(self.tight, 9)
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
-        self.assertIn("Courtlands", html)
-        self.assertIn("over your limit at Courtlands", html)
+        self.assertIn("Courtlands", html)          # the shift is still listed
+        # `limit--<state>` is the bar's own class and nothing else carries it.
+        self.assertNotIn("limit--", html)
+        self.assertNotIn("over your limit", html)
 
-    def test_filtering_the_timesheet_shows_only_that_workplaces_limit(self):
+    def test_the_clock_shows_the_cap_for_the_job_in_front_of_you(self):
         self._worked(self.tight, 9)
         html = self.client.get(
-            reverse("timeclock:timesheet"), {"workplace": self.roomy.pk}
+            reverse("timeclock:dashboard"), {"workplace": self.tight.pk}
         ).content.decode()
-        self.assertNotIn("over your limit at Courtlands", html)
+        self.assertIn("over your limit at Courtlands", html)
+        # And only that job's: the bakery's roomy cap is not the one on screen.
+        other = self.client.get(
+            reverse("timeclock:dashboard"), {"workplace": self.roomy.pk}
+        ).content.decode()
+        self.assertNotIn("over your limit at Courtlands", other)
 
 
 class PersistenceTests(TestCase):
@@ -904,21 +913,52 @@ class NavigationTests(TestCase):
         # Its figures are still real, server-rendered numbers.
         self.assertContains(resp, "data-tally=")
 
-    def test_days_collapse_with_the_newest_left_open(self):
-        # A second, older day, so there is something to keep shut.
-        older = (timezone.localtime() - timedelta(days=6)).replace(
-            hour=9, minute=0, second=0, microsecond=0
-        )
-        Shift.objects.create(
-            user=self.user, workplace=self.workplace, clock_in=older,
-            clock_out=older + timedelta(hours=4), status=Shift.Status.COMPLETED,
-        )
+    def test_this_weeks_days_are_open_and_older_ones_fold_up_by_week(self):
+        # One more day inside the week, and one well behind it.
+        def shift_on(days_ago, hours=4):
+            at = (timezone.localtime() - timedelta(days=days_ago)).replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            Shift.objects.create(
+                user=self.user, workplace=self.workplace, clock_in=at,
+                clock_out=at + timedelta(hours=hours), status=Shift.Status.COMPLETED,
+            )
+
+        shift_on(6)    # still this week
+        shift_on(20)   # a couple of weeks back
 
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
-        self.assertEqual(html.count('<details class="day"'), 2)
-        # Only the newest starts open; a shut day still shows its own count.
-        self.assertEqual(html.count('<details class="day" open>'), 1)
-        self.assertIn('class="day__count"', html)
+
+        # Every day inside the week is written out; the old one is not.
+        self.assertEqual(html.count('<details class="day" open>'), 2)
+        # The old day is still there, shut, inside a week that is also shut.
+        self.assertIn('<details class="week">', html)
+        self.assertIn('<details class="day">', html)
+        self.assertNotIn('<details class="week" open>', html)
+        # The fold says what is inside it without being opened.
+        self.assertIn('class="week__count"', html)
+        self.assertIn('class="week__total"', html)
+
+    def test_a_week_fold_totals_the_days_inside_it(self):
+        from .views import group_by_week
+
+        today = date(2026, 9, 16)          # a Wednesday
+        days = [
+            {"date": date(2026, 9, 15), "shifts": [1], "total": timedelta(hours=5)},
+            {"date": date(2026, 9, 2),  "shifts": [1, 1], "total": timedelta(hours=8)},
+            {"date": date(2026, 9, 1),  "shifts": [1], "total": timedelta(hours=3)},
+            {"date": date(2026, 8, 26), "shifts": [1], "total": timedelta(hours=4)},
+        ]
+        recent, weeks = group_by_week(days, self.user, today=today)
+
+        self.assertEqual([d["date"] for d in recent], [date(2026, 9, 15)])
+        # 1–2 Sep fall in one week, 26 Aug in the one before it.
+        self.assertEqual(len(weeks), 2)
+        self.assertEqual(weeks[0]["total"], timedelta(hours=11))
+        self.assertEqual(weeks[0]["shifts"], 3)
+        self.assertEqual(weeks[1]["total"], timedelta(hours=4))
+        # A week runs from its start to six days later, whatever is in it.
+        self.assertEqual((weeks[0]["end"] - weeks[0]["start"]).days, 6)
 
     def test_adding_a_past_shift_lives_behind_more(self):
         self.assertContains(self.client.get(reverse("timeclock:more")), "Add a past shift")
@@ -1415,7 +1455,7 @@ class LimitResetOnPaymentTests(TestCase):
         self._worked(5, offset=0)
         self._paid_at(1, hours=5)
 
-        html = self.client.get(reverse("timeclock:timesheet")).content.decode()
+        html = self.client.get(reverse("timeclock:dashboard")).content.decode()
         self.assertIn("Counting again from your payment", html)
         # The reset is a place to count from, and the bar has to say so.
         self.assertIn("still counts toward this", html)
@@ -1589,9 +1629,6 @@ class LiveFilterTests(TestCase):
         self.assertIn("Fresh Meat", theirs)
         self.assertNotIn("AUFS Meats", theirs)
 
-    def test_a_cap_follows_the_filter_it_belongs_to(self):
-        self.assertIn("limit at AUFS Meats", self._swapped(self._page(self.capped)))
-        self.assertNotIn("limit at AUFS Meats", self._swapped(self._page(self.other)))
 
     def test_a_chips_url_is_a_page_in_its_own_right(self):
         # Without JavaScript the chip is followed, so it has to be a whole
