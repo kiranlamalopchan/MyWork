@@ -8,7 +8,8 @@ import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { usePerson } from "@/api";
-import { Avatar, Card, Empty, ErrorBanner, Loading, Page, Screen } from "@/ui";
+import { Avatar, Card, Empty, ErrorBanner, Page, Screen } from "@/ui";
+import { SkeletonPerson } from "@/ui/Skeleton";
 import { NoticeCard } from "@/ui/NoticeCard";
 import { sp, useTheme } from "@/ui/theme";
 
@@ -28,7 +29,7 @@ export default function PersonScreen() {
     <Screen back backLabel="Notice board">
       <Page>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonPerson /> : null}
         {q.data ? (
           <>
             <View style={styles.who}>

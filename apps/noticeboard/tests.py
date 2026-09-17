@@ -9,8 +9,11 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.accounts.models import Friendship
+
 from .models import (
     MAX_BODY, MAX_COMMENT, Comment, CommentReaction, Emoji, Notice, Reaction,
+    Visibility,
 )
 from .views import COMMENTS_SHOWN, REPLIES_SHOWN, _fold
 
@@ -979,5 +982,187 @@ class NotificationLandingTests(TestCase):
 
         url = Notification.objects.filter(recipient=self.kiran).get().url
         resp = self.client.get(url.split("#")[0])
-
         self.assertContains(resp, f'id="comment-{comment.pk}"')
+
+
+class VisibilityTests(TestCase):
+    """Who a notice or a comment reaches, when it isn't Public."""
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")
+        self.jo = User.objects.create_user("jo", password="pw")
+        self.client.force_login(self.kiran)
+
+    # ---- the model rule itself -------------------------------------------
+
+    def test_public_is_visible_to_anyone(self):
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PUBLIC)
+        self.assertTrue(notice.visible_to(self.kiran))
+        self.assertTrue(notice.visible_to(self.jo))
+
+    def test_private_is_visible_only_to_its_author(self):
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PRIVATE)
+        self.assertTrue(notice.visible_to(self.sam))
+        self.assertFalse(notice.visible_to(self.kiran))
+
+    def test_friends_only_is_visible_to_friends_and_not_to_strangers(self):
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.FRIENDS)
+        self.assertFalse(notice.visible_to(self.kiran))
+
+        Friendship.befriend(self.sam, self.kiran)
+        self.assertTrue(notice.visible_to(self.kiran))
+        self.assertFalse(notice.visible_to(self.jo))
+
+    def test_a_comment_is_never_visible_past_its_notice(self):
+        """A public comment under a private notice is still private — you
+        reach a comment through its notice."""
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PRIVATE)
+        comment = Comment.objects.create(
+            notice=notice, author=self.sam, body="ha", visibility=Visibility.PUBLIC
+        )
+        self.assertTrue(comment.visible_to(self.sam))
+        self.assertFalse(comment.visible_to(self.kiran))
+
+    def test_a_comments_own_visibility_still_applies_under_a_visible_notice(self):
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PUBLIC)
+        comment = Comment.objects.create(
+            notice=notice, author=self.jo, body="just us", visibility=Visibility.FRIENDS
+        )
+        self.assertFalse(comment.visible_to(self.kiran))
+        Friendship.befriend(self.jo, self.kiran)
+        self.assertTrue(comment.visible_to(self.kiran))
+
+    # ---- the board only ever shows what you're allowed to see -----------
+
+    def test_the_board_hides_a_friends_only_notice_from_a_stranger(self):
+        Notice.objects.create(author=self.sam, body="just friends", visibility=Visibility.FRIENDS)
+        html = self.client.get(reverse("notices:board")).content.decode()
+        self.assertNotIn("just friends", html)
+
+    def test_but_shows_it_to_a_friend(self):
+        Friendship.befriend(self.sam, self.kiran)
+        Notice.objects.create(author=self.sam, body="just friends", visibility=Visibility.FRIENDS)
+        html = self.client.get(reverse("notices:board")).content.decode()
+        self.assertIn("just friends", html)
+
+    def test_and_always_to_its_own_author(self):
+        self.client.force_login(self.sam)
+        Notice.objects.create(author=self.sam, body="just for me", visibility=Visibility.PRIVATE)
+        html = self.client.get(reverse("notices:board")).content.decode()
+        self.assertIn("just for me", html)
+
+    def test_a_private_notice_is_hidden_from_everyone_else(self):
+        Notice.objects.create(author=self.sam, body="just for sam", visibility=Visibility.PRIVATE)
+        html = self.client.get(reverse("notices:board")).content.decode()
+        self.assertNotIn("just for sam", html)
+
+    def test_a_hidden_comment_does_not_count_toward_the_tally(self):
+        notice = Notice.objects.create(author=self.sam, body="hi")
+        Comment.objects.create(notice=notice, author=self.jo, body="secret", visibility=Visibility.PRIVATE)
+        Comment.objects.create(notice=notice, author=self.jo, body="open one")
+
+        self.assertEqual(notice.comment_total(self.kiran), 1)
+        self.assertEqual(notice.comment_total(self.jo), 2)
+
+    def test_a_hidden_reply_surfaces_as_a_root_rather_than_vanishing(self):
+        """The same fallback a deleted parent already gets."""
+        notice = Notice.objects.create(author=self.sam, body="hi")
+        parent = Comment.objects.create(
+            notice=notice, author=self.jo, body="just us", visibility=Visibility.PRIVATE
+        )
+        reply = Comment.objects.create(
+            notice=notice, author=self.jo, parent=parent, body="visible reply"
+        )
+
+        roots = notice.thread(self.kiran)
+        self.assertIn(reply, roots)
+
+    # ---- posting defaults to Public, whatever wrote the request ---------
+
+    def test_omitting_visibility_from_the_post_defaults_to_public(self):
+        resp = self.client.post(reverse("notices:create"), {"body": "hello"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Notice.objects.get().visibility, Visibility.PUBLIC)
+
+    def test_posting_friends_only_saves_that_choice(self):
+        self.client.post(
+            reverse("notices:create"), {"body": "just us", "visibility": "friends"}
+        )
+        self.assertEqual(Notice.objects.get().visibility, Visibility.FRIENDS)
+
+    # ---- reacting to, or seeing who reacted to, what you can't see ------
+
+    def test_you_cannot_react_to_a_private_notice_that_is_not_yours(self):
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PRIVATE)
+        resp = self.client.post(reverse("notices:react", args=[notice.pk]), {"emoji": "👍"})
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(Reaction.objects.exists())
+
+    def test_you_cannot_see_who_reacted_to_a_notice_you_cannot_see(self):
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PRIVATE)
+        resp = self.client.get(reverse("notices:reactors", args=[notice.pk]))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_you_cannot_react_to_a_private_comment_that_is_not_yours(self):
+        notice = Notice.objects.create(author=self.sam, body="hi")
+        comment = Comment.objects.create(
+            notice=notice, author=self.sam, body="secret", visibility=Visibility.PRIVATE
+        )
+        resp = self.client.post(reverse("notices:comment_react", args=[comment.pk]), {"emoji": "👍"})
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(CommentReaction.objects.exists())
+
+    def test_you_cannot_reply_to_a_comment_you_cannot_see(self):
+        """A reply's `parent` is resolved against what the writer may
+        actually see — guessing a hidden comment's id must not attach a
+        reply to it, or even reveal that it exists."""
+        notice = Notice.objects.create(author=self.sam, body="hi")
+        hidden = Comment.objects.create(
+            notice=notice, author=self.sam, body="secret", visibility=Visibility.PRIVATE
+        )
+
+        self.client.post(
+            reverse("notices:comment", args=[notice.pk]),
+            {"body": "guessed it", "parent": hidden.pk},
+        )
+
+        new_comment = Comment.objects.get(body="guessed it")
+        # Fell back to a top-level comment rather than attaching to — or
+        # erroring on — a parent that was never shown to its writer.
+        self.assertIsNone(new_comment.parent)
+
+    # ---- notifications never point at something you can't open ----------
+
+    def test_a_friends_only_notice_notifies_only_friends(self):
+        from apps.noticeboard import notify
+        from apps.notifications.models import Notification
+
+        Friendship.befriend(self.sam, self.jo)
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.FRIENDS)
+        notify.notice_posted(notice)
+
+        self.assertTrue(Notification.objects.filter(recipient=self.jo).exists())
+        self.assertFalse(Notification.objects.filter(recipient=self.kiran).exists())
+
+    def test_a_private_notice_notifies_nobody(self):
+        from apps.noticeboard import notify
+        from apps.notifications.models import Notification
+
+        notice = Notice.objects.create(author=self.sam, body="hi", visibility=Visibility.PRIVATE)
+        notify.notice_posted(notice)
+        self.assertFalse(Notification.objects.exists())
+
+    def test_a_private_reply_does_not_notify_the_person_it_answers(self):
+        from apps.noticeboard import notify
+        from apps.notifications.models import Notification
+
+        notice = Notice.objects.create(author=self.kiran, body="hi")
+        parent = Comment.objects.create(notice=notice, author=self.sam, body="when?")
+        reply = Comment.objects.create(
+            notice=notice, author=self.jo, parent=parent, body="just between us",
+            visibility=Visibility.PRIVATE,
+        )
+        notify.comment_posted(reply)
+
+        self.assertFalse(Notification.objects.filter(recipient=self.sam).exists())

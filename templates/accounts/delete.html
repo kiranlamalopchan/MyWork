@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}
+  Deleting your account: the whole of what goes, then the password, then the
+  button — in that order, so nobody reaches the button without passing the
+  list. The same page the app opens.
+{% endcomment %}
+{% block title %}Delete account · MyWork{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'accounts:profile' %}">{% icon "back" %} Profile</a>
+
+<div class="page-head">
+  <h1 class="page-title">Delete your account?</h1>
+  <p class="page-sub">This cannot be undone.</p>
+</div>
+
+  <div class="card card__pad">
+    <p class="section-label" style="margin-bottom: var(--sp-2)">What goes with it</p>
+    <ul style="margin: 0; padding-left: 1.2em; line-height: 1.6">
+      <li>Your profile — name, contact details and photo</li>
+      <li>Every shift, break, workplace and payment you recorded</li>
+      <li>Your notices, comments, reactions and stories</li>
+      <li>Your friends, and any requests either way</li>
+      <li>The phones registered for notifications</li>
+    </ul>
+    <p class="muted text-sm" style="margin-top: var(--sp-3)">
+      Where you commented on someone else's notice, they keep the notification they
+      were sent at the time — with no name on it. Nothing else of yours remains.
+    </p>
+  </div>
+
+  <form method="post" class="card card__pad" style="margin-top: var(--sp-4)">
+    {% csrf_token %}
+    <div class="field">
+      <label class="label" for="delete-password">Your password, to be sure</label>
+      <input type="password" id="delete-password" name="password" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn btn--danger btn--block" style="margin-top: var(--sp-4)">Delete my account</button>
+    <a class="btn btn--block" href="{% url 'accounts:profile' %}" style="margin-top: var(--sp-2)">Keep it</a>
+  </form>
+{% endblock %}

@@ -18,13 +18,12 @@ import { ActionSheetIOS, Platform, Pressable, StyleSheet, Text, View } from "rea
 import { Ionicons } from "@expo/vector-icons";
 
 import { Chip } from "./index";
-import { rowValue, sheetRows } from "./choose";
+import { rowValue, sheetRows, type Option } from "./choose";
 import { tick } from "./haptics";
 import { nativeOrNull } from "./native";
 import { radius, sp, useTheme } from "./theme";
 
 export type { Option } from "./choose";
-import type { Option } from "./choose";
 
 type PickerModule = typeof import("@react-native-picker/picker");
 

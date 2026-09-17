@@ -9,7 +9,7 @@
  * same row floating over the whole screen, so a tap anywhere else closes it.
  */
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import type { Emoji } from "@/api";
 

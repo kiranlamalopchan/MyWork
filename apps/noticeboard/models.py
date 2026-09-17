@@ -40,6 +40,21 @@ EDIT_GRACE = timedelta(minutes=2)
 NAMES_SHOWN = 2
 
 
+class Visibility(models.TextChoices):
+    """
+    Who a notice or a comment reaches, chosen when it's written.
+
+    Independent on each — a public notice can carry a friends-only reply and
+    the other way round — because a notice and its comments are written by
+    different people making their own call about their own words, not one
+    audience inherited down the thread.
+    """
+
+    PUBLIC = "public", "Public"
+    FRIENDS = "friends", "Friends only"
+    PRIVATE = "private", "Only me"
+
+
 class Emoji(models.TextChoices):
     """
     The faces available on a notice and on a comment alike.
@@ -111,6 +126,51 @@ class Social:
     def is_new(self):
         """Whether this landed recently enough to still be worth a dot."""
         return timezone.now() - self.created_at <= FRESH_FOR
+
+    # ---- who may see it ---------------------------------------------------
+
+    def visible_to(self, user, friend_ids=None):
+        """
+        Whether `user` may see this notice or comment.
+
+        Your own is always yours to see, whatever you set it to — a private
+        note you wrote is not hidden from you. Otherwise it comes down to
+        `visibility`: everyone for a public one, nobody but you for a
+        private one, and your friends for the one in between.
+
+        `friend_ids` is `Friendship.ids_for(user)` — the caller's, computed
+        once for a whole page of notices and their comments rather than
+        queried again for every row.
+        """
+        if user is not None and getattr(user, "is_authenticated", False) and self.author_id == user.pk:
+            return True
+        if self.visibility == Visibility.PUBLIC:
+            return True
+        if self.visibility == Visibility.PRIVATE:
+            return False
+        # FRIENDS
+        if friend_ids is None:
+            from apps.accounts.models import Friendship
+            friend_ids = Friendship.ids_for(user)
+        return self.author_id in friend_ids
+
+    @classmethod
+    def visibility_q(cls, user, friend_ids=None):
+        """
+        The same rule as `visible_to`, as a filter a queryset can use —
+        what lets the board apply it at the database, before pagination
+        cuts the page, rather than after.
+        """
+        if user is None or not getattr(user, "is_authenticated", False):
+            return models.Q(visibility=Visibility.PUBLIC)
+        if friend_ids is None:
+            from apps.accounts.models import Friendship
+            friend_ids = Friendship.ids_for(user)
+        return (
+            models.Q(visibility=Visibility.PUBLIC)
+            | models.Q(author=user)
+            | models.Q(visibility=Visibility.FRIENDS, author_id__in=friend_ids)
+        )
 
     # ---- what other people made of it -----------------------------------
 
@@ -189,6 +249,9 @@ class Notice(Social, models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notices"
     )
     body = models.TextField(max_length=MAX_BODY)
+    visibility = models.CharField(
+        max_length=8, choices=Visibility.choices, default=Visibility.PUBLIC
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -200,16 +263,28 @@ class Notice(Social, models.Model):
         return f"{self.author}: {self.body[:40]}"
 
     @classmethod
-    def visible(cls):
+    def visible(cls, viewer=None, friend_ids=None):
         """
-        Everything on the board. Reading is what everyone shares.
+        What's on the board for `viewer` to read: everything public, their
+        own whatever they set it to, and their friends' friends-only notices.
+
+        `viewer=None` (or signed out) is the anonymous read — public only —
+        which nothing in the app actually serves since the board itself
+        requires signing in, but is the honest answer to give rather than
+        one that happens to work because every caller remembers to pass a
+        user.
 
         Reactions and comments come along for the ride — including the people
         behind them, since the board names who reacted rather than only
         counting them. Fetching any of it per row would turn one page into
-        dozens of queries.
+        dozens of queries. Comments are fetched unfiltered; which of them
+        `viewer` may actually see is decided in Python by `thread()`, off
+        the same `friend_ids` — filtering the prefetch itself would need a
+        second query per notice instead of the one this already shares.
         """
-        return cls.objects.select_related("author", "author__profile").prefetch_related(
+        return cls.objects.filter(cls.visibility_q(viewer, friend_ids)).select_related(
+            "author", "author__profile"
+        ).prefetch_related(
             "reactions__user",
             "comments__author",
             "comments__author__profile",
@@ -239,31 +314,46 @@ class Notice(Social, models.Model):
     def was_edited(self):
         return self.updated_at - self.created_at > EDIT_GRACE
 
-    def thread(self):
+    def thread(self, viewer=None, friend_ids=None):
         """
-        The comments under this notice, replies nested under the comment they
-        answer, oldest first.
+        The comments under this notice that `viewer` may see, replies nested
+        under the comment they answer, oldest first.
 
         Built in Python out of the one flat prefetched list rather than by
         following `replies` per comment, so a thread of any shape still costs
-        the page nothing.
+        the page nothing — and filtering here rather than in the prefetch
+        keeps it that way, since the comments were already fetched once for
+        every notice on the page.
+
+        A reply whose parent was filtered out — a friends-only aside under a
+        public notice, read by somebody who isn't that friend — surfaces as
+        if it answered the notice directly rather than vanishing with a
+        parent it never had, the same fallback `by_id.get` already gives a
+        reply whose parent was deleted.
         """
         by_id, roots = {}, []
         for comment in self.comments.all():
+            # Populates Comment.visible_to's own check of the notice it's
+            # under (see there) from the notice already in hand, rather than
+            # a query per comment to fetch what this already is.
+            comment.notice = self
+            if not comment.visible_to(viewer, friend_ids):
+                continue
             comment.reply_list = []
             by_id[comment.pk] = comment
 
         for comment in by_id.values():
             parent = by_id.get(comment.parent_id)
-            # A reply whose parent is gone would otherwise vanish with it;
-            # it reads as a comment on the notice, which is what it now is.
             (parent.reply_list if parent else roots).append(comment)
 
         return roots
 
-    def comment_total(self):
-        """Replies count as comments — the tally is what was said, not where."""
-        return len(self.comments.all())
+    def comment_total(self, viewer=None, friend_ids=None):
+        """Replies count as comments — the tally is what was said, not where —
+        but only the ones `viewer` can actually see."""
+        return sum(
+            1 for comment in self.comments.all() if comment.visible_to(viewer, friend_ids)
+        )
 
 
 class ReactionBase(models.Model):
@@ -354,6 +444,9 @@ class Comment(Social, models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comments"
     )
     body = models.TextField(max_length=MAX_COMMENT)
+    visibility = models.CharField(
+        max_length=8, choices=Visibility.choices, default=Visibility.PUBLIC
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -374,14 +467,17 @@ class Comment(Social, models.Model):
         return cls.objects.filter(author=user)
 
     @classmethod
-    def under(cls, notice, pk):
+    def under(cls, notice, pk, viewer=None, friend_ids=None):
         """
         The comment `pk` is answering, or None.
 
         Only ever a comment on this notice, so a reply can't be smuggled onto
         a thread the writer is not looking at, and only ever a top-level one:
         an answer to a reply joins that reply's thread rather than starting a
-        deeper one nothing on the page could show.
+        deeper one nothing on the page could show. And only ever one `viewer`
+        can actually see — otherwise the id of a friends-only comment,
+        guessed or copied from somewhere it was visible, would let a stranger
+        attach a reply to a conversation they were never shown.
         """
         if not pk:
             return None
@@ -393,11 +489,26 @@ class Comment(Social, models.Model):
             return None
         if parent is None:
             return None
+        parent.notice = notice  # already in hand; avoids a query in visible_to
+        if not parent.visible_to(viewer, friend_ids):
+            return None
         return parent.parent or parent
 
     @property
     def is_reply(self):
         return self.parent_id is not None
+
+    def visible_to(self, user, friend_ids=None):
+        """
+        The same rule as any notice or comment, with one thing checked
+        first: a comment is reached through its notice, so nobody sees one
+        under a notice they couldn't see in the first place — a comment
+        marked Public under a notice marked Only me is still only for its
+        author, whatever the comment itself says.
+        """
+        if not self.notice.visible_to(user, friend_ids):
+            return False
+        return super().visible_to(user, friend_ids)
 
 
 class CommentReaction(ReactionBase):

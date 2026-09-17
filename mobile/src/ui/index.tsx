@@ -152,15 +152,6 @@ export function Empty({ icon, title, sub, action, card = true }: { icon: keyof t
   return card ? <Card pad={false}>{body}</Card> : body;
 }
 
-export function Loading() {
-  const t = useTheme();
-  return (
-    <View style={styles.loading}>
-      <ActivityIndicator color={t.brand} />
-    </View>
-  );
-}
-
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   const t = useTheme();
   return (
@@ -411,7 +402,6 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: sp[3] },
   emptyTitle: { fontSize: 17, fontWeight: "700", letterSpacing: -0.2 },
   emptySub: { marginTop: sp[1], fontSize: 14, lineHeight: 20, textAlign: "center" },
-  loading: { padding: sp[6], alignItems: "center" },
   alert: { flexDirection: "row", alignItems: "center", gap: sp[3], padding: sp[3], paddingHorizontal: sp[4], borderRadius: radius.md, borderWidth: 1 },
   button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: sp[2], minHeight: 52, paddingHorizontal: sp[6], borderRadius: radius.pill },
   buttonSm: { minHeight: 40, paddingHorizontal: sp[4] },

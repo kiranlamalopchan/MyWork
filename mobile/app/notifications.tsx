@@ -12,7 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { inbox, useInbox, useInboxChanged, type Notification } from "@/api";
 import { navigateTo } from "@/nav/paths";
-import { Avatar, Button, Card, Empty, ErrorBanner, Loading, PageTitle, Screen } from "@/ui";
+import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen } from "@/ui";
+import { SkeletonNotifications } from "@/ui/Skeleton";
 import { useLayout } from "@/ui/layout";
 import { hsl, sp, useTheme } from "@/ui/theme";
 
@@ -70,7 +71,7 @@ export default function Inbox() {
             {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
           </>
         }
-        ListEmptyComponent={q.isLoading ? <Loading /> : (
+        ListEmptyComponent={q.isLoading ? <SkeletonNotifications /> : (
           <View style={{ marginTop: sp[3] }}>
             <Empty
               icon="notifications-outline"

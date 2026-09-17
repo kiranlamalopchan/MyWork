@@ -1,8 +1,11 @@
 /** The frame the two sign-in pages share: the mark, a heading, a card of fields, a line under it. */
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import Constants from "expo-constants";
 import { Link, type Href } from "expo-router";
+import { openBrowserAsync } from "expo-web-browser";
 
+import { siteUrl } from "@/api/client";
 import { Card, Page, Screen } from "@/ui";
 import { BrandMark } from "@/ui/AppBar";
 import { ServerPicker } from "@/ui/ServerPicker";
@@ -22,7 +25,11 @@ export function AuthFrame({ title, sub, children, foot, link, linkHref }: { titl
         <Text style={{ color: t.muted, fontSize: 15, marginTop: sp[2] }}>
           {foot} <Link href={linkHref} style={{ color: t.brand, fontWeight: "700" }}>{link}</Link>
         </Text>
-        <ServerPicker />
+        {/* Pointing a build at a laptop: not something a store build offers. */}
+        {__DEV__ || Constants.expoConfig?.extra?.devServerPicker ? <ServerPicker /> : null}
+        <Pressable onPress={() => openBrowserAsync(siteUrl("/privacy/")).catch(() => {})} hitSlop={8} accessibilityRole="link">
+          <Text style={{ color: t.muted, fontSize: 13.5, textDecorationLine: "underline" }}>Privacy</Text>
+        </Pressable>
       </Page>
     </Screen>
   );

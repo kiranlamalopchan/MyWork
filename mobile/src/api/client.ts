@@ -43,13 +43,21 @@ type Options = {
 // converted before it is answered, which can take a minute or more.
 // (fetch's own limit on iOS is a minute, which is exactly too short.)
 const UPLOAD_TIMEOUT = 10 * 60_000;
+// A plain request gives up after this: fetch on Android would otherwise
+// wait forever on a connection that has quietly died.
+const REQUEST_TIMEOUT = 20_000;
 
 type Reply = { status: number; ok: boolean; text: string; contentType: string };
 
 /** One request, as fetch or — with a form to send — as XMLHttpRequest, which reports progress and takes a longer timeout. */
 function send(url: string, method: string, headers: Record<string, string>, body: BodyInit | undefined, form: boolean, onProgress?: (sent: number) => void): Promise<Reply> {
   if (!form) {
-    return fetch(url, { method, headers, body }).then(async (r) => ({ status: r.status, ok: r.ok, text: r.status === 204 ? "" : await r.text(), contentType: r.headers?.get?.("content-type") || "" }));
+    const ctl = new AbortController();
+    const id = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT);
+    return fetch(url, { method, headers, body, signal: ctl.signal })
+      .then(async (r) => ({ status: r.status, ok: r.ok, text: r.status === 204 ? "" : await r.text(), contentType: r.headers?.get?.("content-type") || "" }))
+      .catch((e) => { throw e?.name === "AbortError" ? new Error("The server took too long to answer") : e; })
+      .finally(() => clearTimeout(id));
   }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

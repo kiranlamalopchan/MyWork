@@ -10,7 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useHome, type HolidayCard } from "@/api";
 import { useSession } from "@/auth/session";
-import { Card, ErrorBanner, Loading, Page, Screen } from "@/ui";
+import { Card, ErrorBanner, Page, Screen } from "@/ui";
+import { SkeletonHome } from "@/ui/Skeleton";
 import { HolidayArt } from "@/ui/HolidayArt";
 import { NoticeCard } from "@/ui/NoticeCard";
 import { StoriesTray } from "@/ui/StoriesTray";
@@ -30,7 +31,7 @@ export default function Home() {
           <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
         </View>
         {error ? <ErrorBanner message={(error as Error).message} onRetry={refetch} /> : null}
-        {isLoading ? <Loading /> : null}
+        {isLoading ? <SkeletonHome /> : null}
         {data ? (
           <>
             {data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} /> : null}

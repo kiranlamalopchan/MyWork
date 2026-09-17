@@ -255,7 +255,8 @@ class ShiftForm(forms.ModelForm):
         if self.instance.pk and self.instance.workplace_id:
             qs = qs | Workplace.objects.filter(pk=self.instance.workplace_id)
         self.fields["workplace"].queryset = qs.distinct()
-        self.fields["workplace"].empty_label = "No workplace"
+        self.fields["workplace"].required = True
+        self.fields["workplace"].empty_label = None
 
     def _clashing_shift(self, start, end):
         """
@@ -298,7 +299,7 @@ class ShiftForm(forms.ModelForm):
         if start and not self.errors:
             clash = self._clashing_shift(start, end)
             if clash is not None:
-                where = clash.workplace.name if clash.workplace else "no workplace"
+                where = f" at {clash.workplace.name}" if clash.workplace else ""
                 when = timezone.localtime(clash.clock_in)
                 if clash.clock_out:
                     span = f"{when:%-I:%M %p}–{timezone.localtime(clash.clock_out):%-I:%M %p}"
@@ -306,7 +307,7 @@ class ShiftForm(forms.ModelForm):
                     span = f"{when:%-I:%M %p} and still running"
                 self.add_error(
                     "clock_in",
-                    f"This overlaps a shift you already have at {where} on {when:%-d %b} ({span}).",
+                    f"This overlaps a shift you already have{where} on {when:%-d %b} ({span}).",
                 )
 
         return cleaned

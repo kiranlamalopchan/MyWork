@@ -5,7 +5,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { timesheet, useShift, useTimesheetChanged } from "@/api";
 import { goBack } from "@/nav/paths";
-import { Button, Card, ErrorBanner, Loading, Page, Screen } from "@/ui";
+import { Button, Card, ErrorBanner, Page, Screen } from "@/ui";
+import { SkeletonShift } from "@/ui/Skeleton";
 import { confirm } from "@/ui/confirm";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
 import { Ledger, LedgerRow, Rule, StatusPill } from "@/ui/timesheet";
@@ -28,14 +29,14 @@ export default function ShiftScreen() {
     <Screen back backLabel="Timesheet">
       <Page>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonShift /> : null}
         {s ? (
           <>
             <Card pad={false} style={styles.hero}>
               <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(s.status === "ON_BREAK" ? t.warn : t.brand, 0.08) }]} />
               <StatusPill status={s.status} label={s.status_label} />
               <Text style={[styles.worked, { color: t.text }]}>{s.worked.hm}</Text>
-              <Text style={{ color: t.text2, fontSize: 14 }}>{s.workplace?.name || "No workplace"} · {s.date_label}</Text>
+              <Text style={{ color: t.text2, fontSize: 14 }}>{s.workplace ? `${s.workplace.name} · ` : ""}{s.date_label}</Text>
             </Card>
             <Card>
               <Ledger>

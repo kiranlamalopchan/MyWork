@@ -7,7 +7,6 @@
  */
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { ApiError, type ShiftInput, type WorkplaceBrief } from "@/api";
 
@@ -73,7 +72,7 @@ export function ShiftForm({ workplaces, initial, editing, onSave, onCancel }: {
       {detail ? <Text style={{ color: t.danger, fontSize: 14 }}>{detail}</Text> : null}
       <Card style={{ gap: sp[4] }}>
         <Field label="Workplace" error={errors.workplace}>
-          <Choices value={workplace} onChange={setWorkplace} options={[...workplaces.map((w) => ({ value: w.id as number | "", label: w.name })), { value: "" as number | "", label: "No workplace" }]} />
+          <Choices value={workplace} onChange={setWorkplace} options={workplaces.map((w) => ({ value: w.id as number | "", label: w.name }))} />
         </Field>
         <Field label="Clock in" error={errors.clock_in}>
           <DateTimeField value={clockIn} onChange={setClockIn} testID="clock-in-at" invalid={!!errors.clock_in} />

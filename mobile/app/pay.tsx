@@ -19,14 +19,14 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, usePay, useTimesheetChanged, type PayRow } from "@/api";
-import { Button, Card, Empty, ErrorBanner, Field, Input, Loading, Page, PageTitle, Screen, useLayout } from "@/ui";
+import { Button, Card, Empty, ErrorBanner, Field, Input, Page, PageTitle, Screen, useLayout } from "@/ui";
+import { SkeletonPay } from "@/ui/Skeleton";
 import { confirm, notify } from "@/ui/confirm";
 import { alpha, mix, radius, sp, useTheme } from "@/ui/theme";
 import { Choices, cssColour, hslAlpha } from "@/ui/timesheet";
 import { success } from "@/ui/haptics";
 
 export default function Pay() {
-  const t = useTheme();
   const router = useRouter();
   const { wide } = useLayout();
   const q = usePay();
@@ -38,7 +38,7 @@ export default function Pay() {
       <Page>
         <PageTitle>Pay</PageTitle>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonPay /> : null}
         {q.data && rows.length === 0 ? (
           <Empty icon="cash-outline" title="No workplaces yet" sub="Add one and the hours you work there start counting here." action={<Button title="Add a workplace" onPress={() => router.push("/workplaces/new")} />} />
         ) : null}

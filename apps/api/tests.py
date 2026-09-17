@@ -15,6 +15,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import Profile
@@ -119,6 +120,20 @@ class MeTests(ApiTestCase):
         bad = self.api("patch", "me", {"email": "not-an-email"})
         self.assertEqual(bad.status_code, 400)
         self.assertIn("email", bad.json()["fields"])
+
+    def test_the_account_can_be_deleted_behind_the_password(self):
+        from apps.timeclock.models import Shift, Workplace
+        place = Workplace.objects.create(user=self.kiran, name="Butcher Shop")
+        Shift.objects.create(user=self.kiran, workplace=place, clock_in=timezone.now(), clock_out=timezone.now())
+        wrong = self.api("delete", "me", {"password": "nope"})
+        self.assertEqual(wrong.status_code, 400)
+        self.assertTrue(User.objects.filter(username="kiran").exists())
+        gone = self.api("delete", "me", {"password": "pw12345678"})
+        self.assertEqual(gone.status_code, 204)
+        self.assertFalse(User.objects.filter(username="kiran").exists())
+        self.assertFalse(Shift.objects.filter(workplace__name="Butcher Shop").exists())
+        # The token died with the account.
+        self.assertEqual(self.api("get", "me").status_code, 401)
 
     @override_settings(MEDIA_ROOT="/tmp/mywork-test-media-api")
     def test_a_photo_goes_up_and_comes_off(self):
@@ -236,6 +251,95 @@ class BoardTests(ApiTestCase):
         self.assertEqual(data["notice_count"], 1)
         self.assertEqual(data["received"], 1)
         self.assertEqual(data["notices"][0]["my_emoji"], "👍")
+
+
+class VisibilityApiTests(ApiTestCase):
+    """Who can see this — the same rule as the site, reachable with a token."""
+
+    def test_posting_with_an_audience_saves_and_returns_it(self):
+        resp = self.api("post", "notices", {"body": "just us", "visibility": "friends"})
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.json()["visibility"], "friends")
+        self.assertEqual(Notice.objects.get().visibility, "friends")
+
+    def test_omitting_it_defaults_to_public(self):
+        resp = self.api("post", "notices", {"body": "hello"})
+        self.assertEqual(resp.json()["visibility"], "public")
+
+    def test_a_friends_only_notice_is_hidden_from_the_list_until_youre_friends(self):
+        Notice.objects.create(author=self.sam, body="just friends", visibility="friends")
+
+        page = self.api("get", "notices").json()
+        self.assertEqual(page["count"], 0)
+
+        from apps.accounts.models import Friendship
+        Friendship.befriend(self.sam, self.kiran)
+
+        page = self.api("get", "notices").json()
+        self.assertEqual(page["count"], 1)
+
+    def test_a_private_notice_404s_for_anyone_but_its_author(self):
+        notice = Notice.objects.create(author=self.sam, body="only sam", visibility="private")
+        self.assertEqual(self.api("get", "notice", args=[notice.pk]).status_code, 404)
+        self.assertEqual(
+            self.api("post", "notice_react", {"emoji": "👍"}, args=[notice.pk]).status_code, 404
+        )
+
+    def test_the_home_endpoint_does_not_choke_on_a_page_of_notices(self):
+        """Regression: the hub used to hand the same decorated notice
+        objects to two different code paths that each expected to be the
+        one calling `comment_total()`."""
+        notice = Notice.objects.create(author=self.sam, body="Sam's")
+        Comment.objects.create(notice=notice, author=self.kiran, body="hi")
+        resp = self.api("get", "home")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.json()["notices"][0]["comment_total"], 1)
+
+
+class FriendsApiTests(ApiTestCase):
+    def test_sending_accepting_and_listing(self):
+        resp = self.api("post", "friend_request_send", args=["sam"])
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        from apps.accounts.models import FriendRequest
+        req = FriendRequest.objects.get()
+
+        sam_token = self.client.post(
+            reverse("api:login"), {"username": "sam", "password": "pw12345678"}
+        ).json()["token"]
+        resp = self.api("post", "friend_request_accept", args=[req.pk], token=sam_token)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "friends")
+
+        data = self.api("get", "friends").json()
+        self.assertEqual([f["username"] for f in data["friends"]], ["sam"])
+        self.assertEqual(data["received"], [])
+        self.assertEqual(data["sent"], [])
+
+    def test_a_crossed_pair_settles_into_one_friendship(self):
+        from apps.accounts.models import FriendRequest
+
+        FriendRequest.objects.create(from_user=self.sam, to_user=self.kiran)
+        resp = self.api("post", "friend_request_send", args=["sam"])
+        self.assertEqual(resp.json()["status"], "friends")
+        self.assertFalse(FriendRequest.objects.exists())
+
+    def test_declining_removes_the_request_only(self):
+        from apps.accounts.models import FriendRequest, Friendship
+
+        self.api("post", "friend_request_send", args=["sam"])
+        req = FriendRequest.objects.get()
+        self.assertEqual(self.api("post", "friend_request_decline", args=[req.pk]).status_code, 204)
+        self.assertFalse(FriendRequest.objects.exists())
+        self.assertFalse(Friendship.are_friends(self.kiran, self.sam))
+
+    def test_removing_a_friend(self):
+        from apps.accounts.models import Friendship
+
+        Friendship.befriend(self.kiran, self.sam)
+        resp = self.api("post", "friend_remove", args=["sam"])
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Friendship.are_friends(self.kiran, self.sam))
 
 
 @override_settings(MEDIA_ROOT="/tmp/mywork-test-media-api")

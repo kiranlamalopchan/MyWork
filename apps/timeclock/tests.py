@@ -1172,7 +1172,11 @@ class PayTests(TestCase):
 
     def test_the_timesheet_totals_the_fortnight(self):
         self.shift_of(6)
-        self.shift_of(4, day=1)
+        # Yesterday is in this fortnight unless today is the day one begins;
+        # then the second shift goes on tomorrow, which is still inside it.
+        pref = TimePreference.for_user(self.user)
+        begins_today = fortnight_start(timezone.localdate(), pref.fortnight_anchor) == timezone.localdate()
+        self.shift_of(4, day=-1 if begins_today else 1)
 
         pay = self.client.get(reverse("timeclock:timesheet")).context["summary"]["fortnight_pay"]
         self.assertEqual(pay["pay"].gross, round(10 * 33.25, 2))

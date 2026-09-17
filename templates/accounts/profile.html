@@ -144,6 +144,157 @@
 </div>
 
 {% comment %}
+  ---- Friends ----------------------------------------------------------
+
+  Who your "Friends only" posts and comments reach, right here rather than
+  behind a link to a page of their own — search, requests and your list,
+  all answered by the profile that already answers everything else about
+  you. `#friends` is what the tally above jumps to, and what a friend
+  request notification now opens straight onto — landOnHash (app.js) opens
+  this fold for either, the same way it opens Statement and Activity.
+{% endcomment %}
+<details class="panel" id="friends">
+  <summary class="panel__head">
+    <span class="panel__title">Friends</span>
+    <span class="panel__hint">{{ friend_count }} friend{{ friend_count|pluralize }}</span>
+    {% icon "chev-down" class="panel__chev" width="2.2" %}
+  </summary>
+
+  <div class="panel__body">
+    <p class="muted text-sm" style="margin-top:0; margin-bottom: var(--sp-4)">
+      Posts and comments marked "Friends only" are shown to the people here.
+    </p>
+
+    {% if friends_received %}
+      <p class="section-label" style="margin-bottom: var(--sp-2)">Waiting on you</p>
+      <ul class="result-list" style="margin-bottom: var(--sp-4)">
+        {% for req in friends_received %}
+          <li>
+            <div class="friend-row">
+              {% avatar req.from_user size="md" link=True %}
+              <div class="friend-row__body">
+                <div class="friend-row__name">{{ req.from_user.profile.name }}</div>
+                <div class="friend-row__sub">wants to be friends</div>
+              </div>
+              <div class="friend-row__actions">
+                <form method="post" action="{% url 'accounts:friend_request_accept' req.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_friends_q" value="{{ friends_query }}">
+                  <button type="submit" class="btn btn--primary btn--sm">Accept</button>
+                </form>
+                <form method="post" action="{% url 'accounts:friend_request_decline' req.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_friends_q" value="{{ friends_query }}">
+                  <button type="submit" class="btn btn--sm">Decline</button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if friends_sent %}
+      <p class="section-label" style="margin-bottom: var(--sp-2)">Waiting on them</p>
+      <ul class="result-list" style="margin-bottom: var(--sp-4)">
+        {% for req in friends_sent %}
+          <li>
+            <div class="friend-row">
+              {% avatar req.to_user size="md" link=True %}
+              <div class="friend-row__body">
+                <div class="friend-row__name">{{ req.to_user.profile.name }}</div>
+                <div class="friend-row__sub">Request sent</div>
+              </div>
+              <div class="friend-row__actions">
+                <form method="post" action="{% url 'accounts:friend_request_decline' req.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_friends_q" value="{{ friends_query }}">
+                  <button type="submit" class="btn btn--sm">Cancel</button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <p class="section-label" style="margin-bottom: var(--sp-2)">Your friends</p>
+    {% if friend_list %}
+      <ul class="result-list" style="margin-bottom: var(--sp-4)">
+        {% for person in friend_list %}
+          <li>
+            <div class="friend-row">
+              {% avatar person size="md" link=True %}
+              <div class="friend-row__body">
+                <div class="friend-row__name">{{ person.profile.name }}</div>
+                <div class="friend-row__sub">@{{ person.username }}</div>
+              </div>
+              <div class="friend-row__actions">
+                <form method="post" action="{% url 'accounts:friend_remove' person.username %}"
+                      onsubmit="return confirm('Remove {{ person.profile.name }} from your friends?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_friends_q" value="{{ friends_query }}">
+                  <button type="submit" class="icon-btn icon-btn--sm icon-btn--danger" title="Remove" aria-label="Remove {{ person.profile.name }}">
+                    {% icon "trash" %}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty" style="margin-bottom: var(--sp-4)">
+        <div class="empty__icon">{% icon "people" width="1.8" %}</div>
+        <div class="empty__title">No friends yet</div>
+        <div class="empty__sub">Add people below — once you're friends, "Friends only" posts reach them.</div>
+      </div>
+    {% endif %}
+
+    <p class="section-label" style="margin-bottom: var(--sp-2)">Everyone else</p>
+
+    {% if friends_show_search %}
+      <form method="get" action="{% url 'accounts:profile' %}#friends" style="margin-bottom: var(--sp-3)">
+        <input type="search" name="friends_q" value="{{ friends_query }}" placeholder="Search by username" aria-label="Search by username">
+      </form>
+    {% endif %}
+
+    {% if friends_others %}
+      <ul class="result-list">
+        {% for person in friends_others %}
+          <li>
+            <div class="friend-row">
+              {% avatar person size="md" link=True %}
+              <div class="friend-row__body">
+                <div class="friend-row__name">{{ person.profile.name }}</div>
+                <div class="friend-row__sub">@{{ person.username }}</div>
+              </div>
+              <div class="friend-row__actions">
+                <form method="post" action="{% url 'accounts:friend_request_send' person.username %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next_friends_q" value="{{ friends_query }}">
+                  <button type="submit" class="btn btn--sm">
+                    {% icon "person-plus" %}
+                    Add
+                  </button>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty">
+        <div class="empty__icon">{% icon "search" width="1.8" %}</div>
+        <div class="empty__title">
+          {% if friends_query %}No one matches "{{ friends_query }}"{% else %}That's everyone{% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</details>
+
+{% comment %}
   ---- A statement, to download ----------------------------------------------
 
   Your record as a PDF, laid out like a payslip: the dates you choose, one
@@ -232,6 +383,10 @@
         <div class="tally__value">{{ workplace_count }}</div>
         <div class="tally__label">workplace{{ workplace_count|pluralize }}</div>
       </div>
+      <a class="tally" href="#friends">
+        <div class="tally__value">{{ friend_count }}</div>
+        <div class="tally__label">friend{{ friend_count|pluralize }}</div>
+      </a>
       <div class="tally">
         <div class="tally__value">{{ notice_count }}</div>
         <div class="tally__label">notice{{ notice_count|pluralize }}</div>
@@ -247,5 +402,9 @@
     </div>
   </div>
 </details>
+
+<p class="muted text-sm" style="text-align: center; margin-top: var(--sp-4)">
+  <a href="{% url 'privacy' %}">Privacy</a> · <a href="{% url 'accounts:delete' %}" style="color: var(--danger)">Delete account</a>
+</p>
 
 {% endblock %}

@@ -181,6 +181,11 @@ VAPID_PRIVATE_KEY = ''
 # require one, and all of them require it to be an address.
 VAPID_CONTACT_EMAIL = ''
 
+# Who to write to about your data — named on the privacy page the app stores
+# require. Set CONTACT_EMAIL in .env; the push contact address stands in.
+import os  # noqa: E402
+CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', '') or os.environ.get('VAPID_CONTACT_EMAIL', '')
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

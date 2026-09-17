@@ -15,7 +15,7 @@
   </div>
   <div class="shift-hero__worked" data-tally="{{ shift.worked_duration|seconds }}">{{ shift.worked_duration|hm|default:"0m" }}</div>
   <div class="shift-hero__meta">
-    {{ shift.workplace.name|default:"No workplace" }} · {{ shift.clock_in|date:"l, j F" }}
+    {% if shift.workplace %}{{ shift.workplace.name }} · {% endif %}{{ shift.clock_in|date:"l, j F" }}
   </div>
 </div>
 

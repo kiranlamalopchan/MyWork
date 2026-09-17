@@ -102,6 +102,7 @@
           {% endif %}
           <div class="compose__foot">
             <span class="compose__count" id="notice-count" aria-live="polite"></span>
+            {% include "noticeboard/_visibility_select.html" %}
             <button type="submit" class="btn btn--primary btn--sm" id="notice-post">
               {% icon "arrow-right" %}
               Post

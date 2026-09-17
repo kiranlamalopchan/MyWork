@@ -1,0 +1,11 @@
+{% load ui %}
+{% comment %}
+  The mark that says a notice or a comment isn't Public — nothing shown for
+  Public itself, since that's what everything on the board has always meant
+  and the common case earns no badge. Takes: item (a notice or a comment).
+{% endcomment %}
+{% if item.visibility == "friends" %}
+  <span class="vis-badge" title="Friends only">{% icon "people" label="Friends only" %}</span>
+{% elif item.visibility == "private" %}
+  <span class="vis-badge" title="Only me">{% icon "lock" label="Only me" %}</span>
+{% endif %}

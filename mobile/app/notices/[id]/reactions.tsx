@@ -5,7 +5,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { board } from "@/api";
-import { Avatar, Card, Empty, ErrorBanner, Loading, Page, PageTitle, Screen } from "@/ui";
+import { Avatar, Card, Empty, ErrorBanner, Page, PageTitle, Screen } from "@/ui";
+import { SkeletonReactions } from "@/ui/Skeleton";
 import { sp, useTheme } from "@/ui/theme";
 
 export default function Reactions() {
@@ -23,7 +24,7 @@ export default function Reactions() {
       <Page>
         {q.data ? <PageTitle sub={comment ? "On a comment" : "On the notice"}>{total} reaction{total === 1 ? "" : "s"}</PageTitle> : null}
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonReactions /> : null}
         {q.data && total === 0 ? <Empty icon="happy-outline" title="No reactions yet" sub="Be the first — the faces are under the post." /> : null}
         {q.data?.groups.map((g) => (
           <Card key={g.emoji} pad={false}>

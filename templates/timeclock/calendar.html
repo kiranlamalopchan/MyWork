@@ -116,7 +116,7 @@
                   <span class="day-shift__where">
                     {# The same colour the date above was filled with. #}
                     <span class="swatch swatch--sm" style="--wp-css: {{ shift.workplace|wp_color }}" aria-hidden="true"></span>
-                    <span class="shift__name">{{ shift.workplace.name|default:"No workplace" }}</span>
+                    <span class="shift__name">{{ shift.workplace.name|default:"" }}</span>
                   </span>
                   <span class="shift__times">
                     <span>{{ shift.clock_in|time:"g:i A" }}</span>

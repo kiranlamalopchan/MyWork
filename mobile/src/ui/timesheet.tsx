@@ -179,7 +179,7 @@ export function ShiftRow({ shift, count, last }: { shift: ShiftRowType; count: n
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: sp[2] }}>
             <Swatch css={cssColour(shift.workplace?.css)} />
-            <Text style={{ color: t.text, fontWeight: "700", fontSize: 15, flexShrink: 1 }} numberOfLines={1}>{shift.workplace?.name || "No workplace"}</Text>
+            <Text style={{ color: t.text, fontWeight: "700", fontSize: 15, flexShrink: 1 }} numberOfLines={1}>{shift.workplace?.name || ""}</Text>
             {shift.is_open ? <StatusPill status={shift.status} label={shift.status_label} small /> : null}
           </View>
           <Text style={{ color: t.text2, fontSize: 13.5 }}>

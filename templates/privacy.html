@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% comment %}
+  What MyWork keeps about you, in plain words. Public — reachable signed out,
+  from the way in — because the app stores ask for exactly this page.
+{% endcomment %}
+{% block title %}Privacy · MyWork{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Privacy</h1>
+  <p class="page-sub">What MyWork keeps about you, and what it does with it.</p>
+</div>
+
+<div class="card card__pad" style="line-height: 1.6">
+  <h2 style="font-size: 17px; margin: 0 0 var(--sp-2)">What is kept</h2>
+  <ul style="margin: 0; padding-left: 1.2em">
+    <li><strong>Your account:</strong> a username and password (the password is stored hashed, never as typed), and the date you joined.</li>
+    <li><strong>Your profile, if you fill it in:</strong> a display name, email address, phone number, one line of address, and a photo.</li>
+    <li><strong>Your work:</strong> the workplaces you add, with their pay settings, and every shift, break and payment you record.</li>
+    <li><strong>What you post:</strong> notices, comments, reactions and stories, with who they are shown to as you chose.</li>
+    <li><strong>Your friends:</strong> who you are friends with, and requests either way.</li>
+    <li><strong>Your phone, for notifications:</strong> a push token and the phone's name, only if you turn notifications on.</li>
+    <li><strong>Your time zone</strong>, so times show in your own.</li>
+  </ul>
+
+  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">What it is used for</h2>
+  <p style="margin: 0">Running MyWork for you: keeping your timesheet, showing the notice board, and telling you when somebody answers. Nothing is used for advertising, sold, or handed to anyone else. There is no analytics or tracking in the app.</p>
+
+  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Who can see it</h2>
+  <p style="margin: 0">Your shifts, pay and profile details are yours alone. A notice, comment or story is shown to the people you chose when you posted it — everyone signed in, your friends, or only you — along with your name and photo. Public holidays and PLU codes are shared reference data, not yours.</p>
+
+  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Where it lives, and for how long</h2>
+  <p style="margin: 0">On the server this site runs on, for as long as you have an account. Deleting your account removes all of it at once; where you commented on someone else's notice, they keep the notification they were sent at the time, with no name on it.</p>
+
+  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Deleting your account</h2>
+  <p style="margin: 0">In the app: Profile → Delete account. On the site: <a href="{% url 'accounts:delete' %}">your profile's delete page</a>. Either asks for your password and then removes everything above.</p>
+
+  {% if contact_email %}
+    <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Questions</h2>
+    <p style="margin: 0">Write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  {% endif %}
+</div>
+{% endblock %}

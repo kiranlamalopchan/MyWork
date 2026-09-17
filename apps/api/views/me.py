@@ -1,5 +1,6 @@
 """You: what the app shows in its own corner, and lets you change."""
 
+from django.contrib.auth.models import AnonymousUser
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.forms import PhotoForm, ProfileForm
 from apps.accounts.models import Profile
+from apps.accounts.views import delete_account
 from apps.holidays.models import HolidayPreference, State
 from apps.notifications.models import Device
 
@@ -33,6 +35,18 @@ class Me(APIView):
             return Response(form_errors(form), status=status.HTTP_400_BAD_REQUEST)
         form.save()
         return Response(serialize.me(request, request.user))
+
+    def delete(self, request):
+        """
+        The account and everything in it, behind the password — what the
+        app's "Delete account" does (see apps/accounts/views.delete_account
+        for what goes).
+        """
+        if not request.user.check_password(str(request.data.get("password", ""))):
+            return Response({"detail": "That password isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+        delete_account(request.user)
+        request._request.user = AnonymousUser()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class Photo(APIView):

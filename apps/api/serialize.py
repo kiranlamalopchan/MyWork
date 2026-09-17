@@ -123,6 +123,7 @@ def comment(request, item, viewer, folded=True):
         "id": item.pk,
         "author": person(request, item.author, viewer),
         "body": item.body,
+        "visibility": item.visibility,
         "created": item.created_at.isoformat(),
         "ago": ago(item.created_at),
         "mine": item.author_id == viewer.pk,
@@ -134,24 +135,29 @@ def comment(request, item, viewer, folded=True):
     return data
 
 
-def notice(request, item, viewer, folded=True):
+def notice(request, item, viewer, folded=True, friend_ids=None):
     """
     A notice as the board shows it. `folded` keeps only the newest few
     comments and replies, as the board does, with a count of what folded
     away; the notice's own screen asks for the whole thread.
+
+    `friend_ids` — `Friendship.ids_for(viewer)` — is worth passing in when
+    serializing a page of these; left out, `Notice.thread` and
+    `Notice.comment_total` each work it out themselves, one query apiece.
     """
-    thread = item.thread()
+    thread = item.thread(viewer, friend_ids)
     older, recent = _fold(thread, COMMENTS_SHOWN) if folded else ([], thread)
     data = {
         "id": item.pk,
         "author": person(request, item.author, viewer),
         "body": item.body,
+        "visibility": item.visibility,
         "created": item.created_at.isoformat(),
         "ago": ago(item.created_at),
         "edited": item.was_edited,
         "is_new": item.is_new,
         "mine": item.author_id == viewer.pk,
-        "comment_total": item.comment_total(),
+        "comment_total": item.comment_total(viewer, friend_ids),
         "comments": [comment(request, c, viewer, folded) for c in recent],
         "older_comments": len(older),
     }

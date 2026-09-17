@@ -143,6 +143,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
         renderItem={({ item, index }) => <Card slide={item} index={index} x={x} width={width} tall={tall} />}
       />
 

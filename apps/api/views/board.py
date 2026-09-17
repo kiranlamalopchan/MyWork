@@ -8,11 +8,13 @@ notified, folded and owned exactly like one posted from the board.
 
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import Friendship
 from apps.noticeboard import notify
 from apps.noticeboard.forms import CommentForm, NoticeForm
 from apps.noticeboard.models import Comment, CommentReaction, Notice, Reaction
@@ -24,8 +26,12 @@ from ..errors import form_errors
 
 class Notices(APIView):
     def get(self, request):
-        page, meta = serialize.page_of(request, Notice.visible(), PER_PAGE)
-        meta["results"] = [serialize.notice(request, n, request.user) for n in page.object_list]
+        page, meta = serialize.page_of(request, Notice.visible(request.user), PER_PAGE)
+        friend_ids = Friendship.ids_for(request.user)
+        meta["results"] = [
+            serialize.notice(request, n, request.user, friend_ids=friend_ids)
+            for n in page.object_list
+        ]
         return Response(meta)
 
     def post(self, request):
@@ -42,12 +48,13 @@ class Notices(APIView):
 
 def _fresh(request, pk, folded=False):
     """A notice re-read with everything prefetched, after a change to it."""
-    return serialize.notice(request, Notice.visible().get(pk=pk), request.user, folded=folded)
+    notice = get_object_or_404(Notice.visible(request.user), pk=pk)
+    return serialize.notice(request, notice, request.user, folded=folded)
 
 
 class NoticeDetail(APIView):
     def get(self, request, pk):
-        notice = get_object_or_404(Notice.visible(), pk=pk)
+        notice = get_object_or_404(Notice.visible(request.user), pk=pk)
         return Response(serialize.notice(request, notice, request.user, folded=False))
 
     def patch(self, request, pk):
@@ -67,7 +74,11 @@ class NoticeDetail(APIView):
 
 class NoticeReact(APIView):
     def post(self, request, pk):
-        notice = get_object_or_404(Notice.visible_for_react(), pk=pk)
+        # Reacting is the whole board you're allowed to read, same as the
+        # site — see noticeboard.views.notice_react.
+        notice = get_object_or_404(
+            Notice.visible_for_react().filter(Notice.visibility_q(request.user)), pk=pk
+        )
         left = Reaction.toggle(notice, request.user, request.data.get("emoji", ""))
         notify.notice_reacted(notice, request.user, left)
         notice = Notice.visible_for_react().get(pk=pk)
@@ -76,14 +87,15 @@ class NoticeReact(APIView):
 
 class NoticeReactors(APIView):
     def get(self, request, pk):
-        notice = get_object_or_404(Notice.visible(), pk=pk)
+        notice = get_object_or_404(Notice.visible(request.user), pk=pk)
         return Response(serialize.reactors(request, notice, request.user))
 
 
 class Comments(APIView):
     def post(self, request, pk):
-        notice = get_object_or_404(Notice, pk=pk)
-        parent = Comment.under(notice, request.data.get("parent"))
+        notice = get_object_or_404(Notice.visible(request.user), pk=pk)
+        friend_ids = Friendship.ids_for(request.user)
+        parent = Comment.under(notice, request.data.get("parent"), request.user, friend_ids)
         form = CommentForm(request.data)
         if not form.is_valid():
             return Response(form_errors(form), status=status.HTTP_400_BAD_REQUEST)
@@ -112,6 +124,8 @@ class CommentDetail(APIView):
 class CommentReact(APIView):
     def post(self, request, pk):
         comment = get_object_or_404(_comment(pk), pk=pk)
+        if not comment.visible_to(request.user):
+            raise Http404
         left = CommentReaction.toggle(comment, request.user, request.data.get("emoji", ""))
         notify.comment_reacted(comment, request.user, left)
         comment = _comment(pk).get(pk=pk)
@@ -121,6 +135,8 @@ class CommentReact(APIView):
 class CommentReactors(APIView):
     def get(self, request, pk):
         comment = get_object_or_404(_comment(pk), pk=pk)
+        if not comment.visible_to(request.user):
+            raise Http404
         return Response(serialize.reactors(request, comment, request.user))
 
 
@@ -133,7 +149,7 @@ class Person(APIView):
             comment_count=Count("comments", distinct=True),
         )
         user = get_object_or_404(people, username=username)
-        notices = list(Notice.visible().filter(author=user)[:PROFILE_LIMIT])
+        notices = list(Notice.visible(request.user).filter(author=user)[:PROFILE_LIMIT])
         return Response({
             "person": serialize.person(request, user, request.user),
             "since": user.date_joined.strftime("%-d %b %Y"),

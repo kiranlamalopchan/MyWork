@@ -28,8 +28,9 @@ class PresenceMiddleware:
         # isn't known until the view has run.
         response = self.get_response(request)
 
+        # A user the view just deleted is still on the request, with no pk.
         user = getattr(request, "user", None)
-        if user is not None and user.is_authenticated:
+        if user is not None and user.is_authenticated and user.pk is not None:
             profile = Profile.of(user)
             if profile is not None:
                 profile.touch()

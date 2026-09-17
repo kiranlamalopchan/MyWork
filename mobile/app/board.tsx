@@ -10,7 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useBoard, type Notice } from "@/api";
 import { useSession } from "@/auth/session";
-import { Avatar, Card, Empty, ErrorBanner, Loading, Screen } from "@/ui";
+import { Avatar, Card, Empty, ErrorBanner, Screen } from "@/ui";
+import { SkeletonNotice, SkeletonNotices } from "@/ui/Skeleton";
 import { RevealProvider, useKeyboardScroll } from "@/ui/keyboard";
 import { useLayout } from "@/ui/layout";
 import { NoticeCard } from "@/ui/NoticeCard";
@@ -63,8 +64,8 @@ export default function Board() {
               {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
             </View>
           }
-          ListEmptyComponent={q.isLoading ? <Loading /> : <Empty icon="chatbubble-outline" title="Nothing on the board" sub="Post the first notice — everyone signed in will see it." />}
-          ListFooterComponent={q.isFetchingNextPage ? <Loading /> : null}
+          ListEmptyComponent={q.isLoading ? <View style={{ gap: sp[4] }}><SkeletonNotices count={3} /></View> : <Empty icon="chatbubble-outline" title="Nothing on the board" sub="Post the first notice — everyone signed in will see it." />}
+          ListFooterComponent={q.isFetchingNextPage ? <SkeletonNotice lines={2} /> : null}
         />
       </RevealProvider>
     </Screen>

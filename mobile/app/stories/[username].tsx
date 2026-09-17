@@ -5,7 +5,7 @@
  * react with; for your own, who has looked, and a way to take it down.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEvent } from "expo";
@@ -14,7 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { stories as api, useStoriesChanged, useStoryPerson, type Story } from "@/api";
-import { Avatar, EmojiRow, Loading } from "@/ui";
+import { Avatar, EmojiRow } from "@/ui";
+import { SkeletonStory } from "@/ui/Skeleton";
 import { confirm } from "@/ui/confirm";
 import { goBack } from "@/nav/paths";
 import { sp } from "@/ui/theme";
@@ -109,6 +110,17 @@ export default function Viewer() {
     if (d > 0 && currentTime >= d - 0.15 && !paused) next();
   }, [currentTime, status]);
 
+  // Away in the background, the timer would count the whole absence
+  // against the story; it is paused going out and started fresh coming back.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background") hold();
+      else if (state === "active") release();
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [story?.id, story?.kind]);
+
   const hold = () => {
     setPaused(true);
     if (story?.kind === "video") player.pause();
@@ -141,7 +153,7 @@ export default function Viewer() {
       </View>
     );
   }
-  if (!q.data || !story) return <View style={styles.stage}><Loading /></View>;
+  if (!q.data || !story) return <SkeletonStory top={insets.top} />;
 
   const shown = tally[story.id] || { my_emoji: story.my_emoji, reactions: story.reactions };
 

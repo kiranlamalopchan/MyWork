@@ -4,7 +4,8 @@ import { useLocalSearchParams } from "expo-router";
 
 import { timesheet, useShift, useTimesheetChanged, useWorkplaces } from "@/api";
 import { goBack } from "@/nav/paths";
-import { ErrorBanner, Loading, Page, PageTitle, Screen } from "@/ui";
+import { ErrorBanner, Page, PageTitle, Screen } from "@/ui";
+import { SkeletonForm } from "@/ui/Skeleton";
 import { breakDrafts, isoToLocal, ShiftForm } from "@/ui/ShiftForm";
 
 export default function EditShift() {
@@ -18,7 +19,7 @@ export default function EditShift() {
       <Page>
         <PageTitle sub="Totals are worked out from these times, so fixing one here fixes every figure built on it.">Edit shift</PageTitle>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading || places.isLoading ? <Loading /> : null}
+        {q.isLoading || places.isLoading ? <SkeletonForm fields={4} /> : null}
         {s && places.data ? (
           <ShiftForm
             workplaces={places.data.workplaces}

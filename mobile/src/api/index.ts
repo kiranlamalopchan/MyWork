@@ -6,9 +6,11 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { api, apiUrl, FilePart, formWith } from "./client";
 import type {
-  PhotoRead, PluImportable, PluImported,
+  Activity, CalendarPage, ClockState, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
+  TimesheetPage, Workplace, WorkplaceBrief, WorkplaceInput, WorkplacesPage,
+  Friends as FriendsPage, PhotoRead, PluImportable, PluImported,
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
-  Reactors, Story, StoryPerson, TrayRow,
+  Reactors, Story, StoryPerson, TrayRow, Visibility,
 } from "./types";
 
 export * from "./types";
@@ -36,6 +38,8 @@ export const me = {
   setHolidayState: (state: string) => api<Me>("me/holiday-state/", { method: "PUT", body: { state } }),
   registerDevice: (token: string, platform: string, name: string) =>
     api("devices/", { method: "POST", body: { token, platform, name } }),
+  /** The account and everything in it, behind the password. */
+  deleteAccount: (password: string) => api("me/", { method: "DELETE", body: { password } }),
 };
 
 export function useMe() {
@@ -53,13 +57,15 @@ export function useHome() {
 export const board = {
   page: (page: number) => api<Page<Notice>>("notices/", { query: { page } }),
   one: (id: number) => api<Notice>(`notices/${id}/`),
-  post: (body: string) => api<Notice>("notices/", { method: "POST", body: { body } }),
-  edit: (id: number, body: string) => api<Notice>(`notices/${id}/`, { method: "PATCH", body: { body } }),
+  post: (body: string, visibility: Visibility = "public") =>
+    api<Notice>("notices/", { method: "POST", body: { body, visibility } }),
+  edit: (id: number, body: string, visibility: Visibility = "public") =>
+    api<Notice>(`notices/${id}/`, { method: "PATCH", body: { body, visibility } }),
   remove: (id: number) => api(`notices/${id}/`, { method: "DELETE" }),
   react: (id: number, emoji: string) => api<ReactionTally>(`notices/${id}/react/`, { method: "POST", body: { emoji } }),
   reactors: (id: number) => api<Reactors>(`notices/${id}/reactions/`),
-  comment: (id: number, body: string, parent?: number | null) =>
-    api<Notice>(`notices/${id}/comments/`, { method: "POST", body: { body, parent: parent || "" } }),
+  comment: (id: number, body: string, parent?: number | null, visibility: Visibility = "public") =>
+    api<Notice>(`notices/${id}/comments/`, { method: "POST", body: { body, parent: parent || "", visibility } }),
   removeComment: (id: number) => api<Notice>(`comments/${id}/`, { method: "DELETE" }),
   reactComment: (id: number, emoji: string) => api<ReactionTally>(`comments/${id}/react/`, { method: "POST", body: { emoji } }),
   commentReactors: (id: number) => api<Reactors>(`comments/${id}/reactions/`),
@@ -96,7 +102,35 @@ export function useBoardChanged() {
 
 export function usePostNotice() {
   const changed = useBoardChanged();
-  return useMutation({ mutationFn: (body: string) => board.post(body), onSuccess: () => changed() });
+  return useMutation({
+    mutationFn: ({ body, visibility }: { body: string; visibility?: Visibility }) => board.post(body, visibility),
+    onSuccess: () => changed(),
+  });
+}
+
+// ---- friends ---------------------------------------------------------------------
+
+export const friends = {
+  list: (q?: string) => api<FriendsPage>("friends/", { query: { q } }),
+  request: (username: string) => api<{ status: "sent" | "friends" }>(`friends/request/${encodeURIComponent(username)}/`, { method: "POST" }),
+  accept: (id: number) => api<{ status: "friends" }>(`friends/accept/${id}/`, { method: "POST" }),
+  decline: (id: number) => api(`friends/decline/${id}/`, { method: "POST" }),
+  remove: (username: string) => api(`friends/remove/${encodeURIComponent(username)}/`, { method: "POST" }),
+};
+
+export function useFriends(q?: string) {
+  return useQuery({ queryKey: ["friends", q || ""], queryFn: () => friends.list(q) });
+}
+
+export function useFriendsChanged() {
+  const client = useQueryClient();
+  return () => {
+    client.invalidateQueries({ queryKey: ["friends"] });
+    // The Friends tally on the profile, and any friends-only post's audience.
+    client.invalidateQueries({ queryKey: ["activity"] });
+    client.invalidateQueries({ queryKey: ["board"] });
+    client.invalidateQueries({ queryKey: ["home"] });
+  };
 }
 
 // ---- stories -------------------------------------------------------------------
@@ -216,11 +250,6 @@ export function useUpcomingHolidays(state?: string) {
 }
 
 // ---- TimeSheet -----------------------------------------------------------------
-
-import type {
-  Activity, CalendarPage, ClockState, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
-  TimesheetPage, Workplace, WorkplaceBrief, WorkplaceInput, WorkplacesPage,
-} from "./types";
 
 /** The phone's own clock, stamped on every clock action as the site's forms do. */
 function stamp() {

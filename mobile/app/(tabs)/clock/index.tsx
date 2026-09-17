@@ -11,7 +11,8 @@ import Svg, { Circle } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, useClock, useTimesheetChanged, type ClockState } from "@/api";
-import { Button, Chip, Empty, ErrorBanner, Loading, Page, Screen, useLayout } from "@/ui";
+import { Button, Chip, Empty, ErrorBanner, Page, Screen, useLayout } from "@/ui";
+import { SkeletonClock } from "@/ui/Skeleton";
 import { confirm, notify } from "@/ui/confirm";
 import { success, tap } from "@/ui/haptics";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
@@ -63,7 +64,7 @@ export default function Clock() {
     }
   };
 
-  if (q.isLoading && !shown) return <Screen><Loading /></Screen>;
+  if (q.isLoading && !shown) return <Screen><Page><SkeletonClock /></Page></Screen>;
   if (!shown) return <Screen><Page>{q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}</Page></Screen>;
 
   const shift = shown.shift;
@@ -86,7 +87,7 @@ export default function Clock() {
   }
   const progress = shift ? Math.min(elapsed / (shown.target_hours * 3600), 1) : 0;
   const ring = status === "ON_BREAK" ? t.warn : status === "WORKING" ? t.brand : t.lineStrong;
-  const where = shift ? shift.workplace?.name || "No workplace" : shown.workplaces.find((w) => w.id === selected)?.name;
+  const where = shift ? shift.workplace?.name : shown.workplaces.find((w) => w.id === selected)?.name;
 
   return (
     <Screen>
@@ -173,10 +174,11 @@ const hms = (s: number) => {
 
 function Where({ name }: { name?: string }) {
   const t = useTheme();
+  if (!name) return null;
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: sp[2] }}>
       <Ionicons name="home-outline" size={18} color={t.muted} />
-      <Text style={{ color: t.text, fontWeight: "700", fontSize: 17 }}>{name || "No workplace"}</Text>
+      <Text style={{ color: t.text, fontWeight: "700", fontSize: 17 }}>{name}</Text>
     </View>
   );
 }

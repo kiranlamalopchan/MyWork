@@ -1,24 +1,27 @@
 /**
  * The profile page's other two panels (templates/accounts/profile.html): a
  * statement to keep — the dates you pick, one job or all, as a PDF — and
- * what you have done in MyWork.
+ * what you have done in MyWork. Each is an expandable item on the
+ * profile's list; the page puts them on one surface.
  */
 import React, { useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
 
 import { timesheet, useActivity } from "@/api";
 
-import { Button, Card, Field, Input } from "./index";
+import { Button, Field, Input } from "./index";
+import { Disclosure } from "./Disclosure";
 import { openPdf } from "./pdf";
 import { notify } from "./confirm";
-import { sp, useTheme } from "./theme";
+import { radius, sp, useTheme } from "./theme";
 import { Choices } from "./timesheet";
 
-export function StatementPanel() {
+/** Whether this item is the open one, and the tap that asks to be — the page decides. */
+export type PanelProps = { open: boolean; onToggle: () => void; last?: boolean };
+
+export function StatementPanel({ open, onToggle, last }: PanelProps) {
   const t = useTheme();
   const q = useActivity();
-  const [open, setOpen] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [workplace, setWorkplace] = useState<number | "">("");
@@ -38,14 +41,9 @@ export function StatementPanel() {
   };
 
   return (
-    <Card pad={false}>
-      <Pressable onPress={() => setOpen((v) => !v)} style={styles.head}>
-        <Text style={[styles.title, { color: t.text }]}>Statement</Text>
-        <Text style={{ color: t.muted, fontSize: 13 }}>PDF, any dates</Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={t.muted} />
-      </Pressable>
-      {open && st ? (
-        <View style={[styles.body, { borderTopColor: t.line }]}>
+    <Disclosure icon="document-text-outline" tint={t.blue} title="Statement" hint="Hours and pay as a PDF, any dates" open={open} onToggle={onToggle} last={last}>
+      {st ? (
+        <>
           <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>Hours, pay and payments over the dates you pick, as a PDF to keep beside a payslip or a bank line.</Text>
           <View style={{ flexDirection: "row", gap: sp[2] }}>
             <Button title="This month" kind="plain" size="sm" onPress={() => { setFrom(st.this_month[0]); setTo(st.this_month[1]); }} />
@@ -61,51 +59,49 @@ export function StatementPanel() {
             </Field>
           ) : null}
           <Button title="Download PDF" icon="download-outline" onPress={download} busy={busy} testID="statement-download" />
-        </View>
+        </>
       ) : null}
-    </Card>
+    </Disclosure>
   );
 }
 
-export function ActivityPanel() {
+export function ActivityPanel({ open, onToggle, last }: PanelProps) {
   const t = useTheme();
   const q = useActivity();
-  const [open, setOpen] = useState(false);
   const a = q.data;
-  const tally = (n: number, word: string) => (
-    <View key={word} style={styles.tally}>
-      <Text style={{ color: t.text, fontSize: 22, fontWeight: "700" }}>{n}</Text>
-      <Text style={{ color: t.muted, fontSize: 12 }}>{word}{n === 1 ? "" : "s"}</Text>
+  const stat = (n: number, word: string) => (
+    <View key={word} style={[styles.stat, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
+      <Text style={[styles.statValue, { color: t.text }]}>{n}</Text>
+      <Text style={[styles.statLabel, { color: t.muted }]}>{word}{n === 1 ? "" : "s"}</Text>
     </View>
   );
   return (
-    <Card pad={false}>
-      <Pressable onPress={() => setOpen((v) => !v)} style={styles.head}>
-        <Text style={[styles.title, { color: t.text }]}>Activity</Text>
-        <Text style={{ color: t.muted, fontSize: 13 }}>{a ? `${a.week_hours.toFixed(1)}h this week` : ""}</Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={t.muted} />
-      </Pressable>
-      {open && a ? (
-        <View style={[styles.body, { borderTopColor: t.line, alignItems: "center" }]}>
-          <Text style={{ color: t.text, fontSize: 38, fontWeight: "700", letterSpacing: -1 }}>{a.week_hours.toFixed(1)}<Text style={{ fontSize: 20, color: t.muted }}>h</Text></Text>
-          <Text style={{ color: t.muted, fontSize: 13, marginTop: -sp[2] }}>worked this week</Text>
-          <View style={styles.tallies}>
-            {tally(a.shift_count, "shift")}
-            {tally(a.workplace_count, "workplace")}
-            {tally(a.notice_count, "notice")}
-            {tally(a.comment_count, "comment")}
-            {tally(a.reactions_received, "reaction")}
+    <Disclosure icon="pulse-outline" tint={t.violet} title="Activity" hint={a ? `${a.week_hours.toFixed(1)}h worked this week` : "What you've done in MyWork"} open={open} onToggle={onToggle} last={last}>
+      {a ? (
+        <>
+          <View style={[styles.lead, { backgroundColor: t.brandSoft }]}>
+            <Text style={[styles.leadValue, { color: t.brand }]}>{a.week_hours.toFixed(1)}<Text style={{ fontSize: 22 }}>h</Text></Text>
+            <Text style={{ color: t.text2, fontSize: 13.5, fontWeight: "600" }}>worked this week</Text>
           </View>
-        </View>
+          <View style={styles.grid}>
+            {stat(a.shift_count, "shift")}
+            {stat(a.workplace_count, "workplace")}
+            {stat(a.friend_count, "friend")}
+            {stat(a.notice_count, "notice")}
+            {stat(a.comment_count, "comment")}
+            {stat(a.reactions_received, "reaction")}
+          </View>
+        </>
       ) : null}
-    </Card>
+    </Disclosure>
   );
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", gap: sp[3], padding: sp[4], minHeight: 60 },
-  title: { fontSize: 16, fontWeight: "700", flex: 1 },
-  body: { padding: sp[4], gap: sp[4], borderTopWidth: StyleSheet.hairlineWidth },
-  tallies: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: sp[4], marginTop: sp[2] },
-  tally: { alignItems: "center", minWidth: 80 },
+  lead: { alignItems: "center", paddingVertical: sp[5], borderRadius: radius.md, gap: 2 },
+  leadValue: { fontSize: 44, fontWeight: "700", letterSpacing: -1.5, lineHeight: 50, fontVariant: ["tabular-nums"] },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: sp[2] },
+  stat: { flexBasis: "30%", flexGrow: 1, alignItems: "center", paddingVertical: sp[3], paddingHorizontal: sp[2], borderRadius: radius.md },
+  statValue: { fontSize: 22, fontWeight: "700", letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
+  statLabel: { fontSize: 12.5, marginTop: 2 },
 });

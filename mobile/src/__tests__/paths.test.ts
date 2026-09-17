@@ -14,6 +14,9 @@ describe("the site's paths map to screens", () => {
     expect(targetFor("/holidays/")).toEqual({ screen: "/holidays" });
     expect(targetFor("/")).toEqual({ screen: "/(tabs)" });
   });
+  it("sends a friend request notification to the profile, where friends live", () => {
+    expect(targetFor("/profile/friends/")).toEqual({ screen: "/profile" });
+  });
   it("knows the timesheet's pages", () => {
     expect(targetFor("/timesheet/")).toEqual({ screen: "/clock" });
     expect(targetFor("/timesheet/shifts/3/")).toEqual({ screen: "/shifts/3" });

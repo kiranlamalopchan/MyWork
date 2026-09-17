@@ -16,6 +16,7 @@
     <span class="notice__when" title="{{ notice.created_at }}">
       {{ notice.created_at|naturaltime }}{% if notice.was_edited %} · edited{% endif %}
     </span>
+    {% include "noticeboard/_visibility_badge.html" with item=notice %}
   </div>
 
   <p class="notice__text">{{ notice.body|linebreaksbr }}</p>
@@ -33,6 +34,7 @@
                 aria-label="Edit your notice">{{ notice.body }}</textarea>
       <div class="editor__error help help--error" data-editor-error hidden></div>
       <div class="editor__foot">
+        {% include "noticeboard/_visibility_select.html" with current=notice.visibility %}
         <button type="button" class="btn btn--sm" data-editor-cancel>Cancel</button>
         <button type="submit" class="btn btn--primary btn--sm">
           {% icon "check" %}

@@ -7,7 +7,8 @@ import React from "react";
 import { useLocalSearchParams } from "expo-router";
 
 import { useNotice } from "@/api";
-import { ErrorBanner, Loading, Page, Screen } from "@/ui";
+import { ErrorBanner, Page, Screen } from "@/ui";
+import { SkeletonNotice } from "@/ui/Skeleton";
 import { NoticeCard } from "@/ui/NoticeCard";
 
 export default function NoticeScreen() {
@@ -18,7 +19,7 @@ export default function NoticeScreen() {
     <Screen back title="Notice" backLabel="Board">
       <Page>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonNotice lines={4} comments={2} /> : null}
         {q.data ? <NoticeCard notice={q.data} full /> : null}
       </Page>
     </Screen>

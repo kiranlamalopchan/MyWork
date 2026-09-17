@@ -123,7 +123,7 @@
 
     {% elif shift.status == 'ON_BREAK' %}
 
-      {% include "timeclock/_where.html" with name=shift.workplace.name|default:"No workplace" %}
+      {% if shift.workplace %}{% include "timeclock/_where.html" with name=shift.workplace.name %}{% endif %}
 
       <form method="post" action="{% url 'timeclock:end_break' %}" data-stamp-time class="clock__actions">
         {% csrf_token %}
@@ -137,7 +137,7 @@
 
     {% else %}
 
-      {% include "timeclock/_where.html" with name=shift.workplace.name|default:"No workplace" %}
+      {% if shift.workplace %}{% include "timeclock/_where.html" with name=shift.workplace.name %}{% endif %}
 
       <div class="clock__actions clock__actions--split">
         <form method="post" action="{% url 'timeclock:start_break' %}" data-stamp-time>

@@ -12,7 +12,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTimesheet, type Summary, type TimesheetDay, type TimesheetWeek } from "@/api";
-import { Button, Card, Chip, Empty, ErrorBanner, Loading, Page, PageTitle, Screen, Segments } from "@/ui";
+import { Button, Card, Chip, Empty, ErrorBanner, Page, PageTitle, Screen, Segments } from "@/ui";
+import { SkeletonTimesheet } from "@/ui/Skeleton";
 import { radius, sp, useTheme } from "@/ui/theme";
 import { cssColour, Ledger, LedgerRow, ShiftRow } from "@/ui/timesheet";
 import { CalendarView } from "@/ui/CalendarView";
@@ -50,7 +51,7 @@ export default function Timesheet() {
             </View>
           ) : null}
           {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-          {q.isLoading ? <Loading /> : null}
+          {q.isLoading ? <SkeletonTimesheet /> : null}
           {first ? <SummaryBlock summary={first.summary} /> : null}
           {days.map((day) => <Day key={day.date} day={day} open />)}
           {weeks.map((week) => <Week key={week.start} week={week} />)}

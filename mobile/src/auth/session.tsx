@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, auth, me as meApi, type Me } from "@/api";
 import { loadServer } from "@/api/server";
+import { loadLastMe, saveLastMe } from "@/auth/lastMe";
 import { forgetPushToken, registerForPush } from "@/push/register";
 
 import { armBiometric, biometricUser, disarmBiometric } from "./biometric";
@@ -41,9 +42,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       setMe(await meApi.get());
-    } catch {
+    } catch (e) {
       // A dead token has already been dropped by the client; anything else
       // (no network) keeps the last known person until it can be checked.
+      if (!(e instanceof ApiError && e.status === 401)) setMe(await loadLastMe());
     } finally {
       setReady(true);
     }
@@ -66,10 +68,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     registerForPush().catch(() => {});
     // The phone's lock opens for one person: someone else signing in
     // with a password takes that away; the same person keeps it current.
-    const kept = await biometricUser();
-    if (kept && kept !== result.me.username) await disarmBiometric();
-    else if (kept) await armBiometric(kept, result.token);
+    // Signed in either way — a keychain that refuses can't undo that.
+    try {
+      const kept = await biometricUser();
+      if (kept && kept !== result.me.username) await disarmBiometric();
+      else if (kept) await armBiometric(kept, result.token);
+    } catch {
+      /* the lock just won't be armed for this sign-in */
+    }
   }, []);
+
+  // Whoever we are now is who the next cold start draws while it asks —
+  // once the keychain has been read, so a start doesn't wipe it first.
+  useEffect(() => { if (ready) saveLastMe(me); }, [ready, me]);
 
   const value = useMemo<Session>(
     () => ({

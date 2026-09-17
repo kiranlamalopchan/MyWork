@@ -15,7 +15,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, useTimesheetChanged, useWorkplaces, type Cycles, type Workplace } from "@/api";
-import { Button, Card, Empty, ErrorBanner, Field, Input, Loading, Page, PageTitle, Screen, useLayout } from "@/ui";
+import { Button, Card, Empty, ErrorBanner, Field, Input, Page, PageTitle, Screen, useLayout } from "@/ui";
+import { SkeletonWorkplaces } from "@/ui/Skeleton";
 import { notify } from "@/ui/confirm";
 import { tap } from "@/ui/haptics";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
@@ -23,7 +24,6 @@ import { cssColour, hslAlpha } from "@/ui/timesheet";
 import { Select } from "@/ui/Select";
 
 export default function Workplaces() {
-  const t = useTheme();
   const router = useRouter();
   const { wide } = useLayout();
   const q = useWorkplaces();
@@ -34,7 +34,7 @@ export default function Workplaces() {
       <Page>
         <PageTitle sub="The default one is picked automatically when you clock in. Each one keeps its own hours limit.">My workplaces</PageTitle>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonWorkplaces /> : null}
         {data && data.workplaces.length === 0 ? <Empty icon="home-outline" title="No workplaces yet" sub="Add the places you work so shifts can be recorded against them." /> : null}
         <View style={wide && styles.grid}>
           {(data?.workplaces ?? []).map((w) => (

@@ -2520,6 +2520,67 @@ a.cal__day.is-picked {
 .icon-btn--danger { color: var(--danger); }
 .icon-btn--danger:hover { background: var(--danger-soft); color: var(--danger); }
 
+/* ---- Friends -------------------------------------------------------------
+
+   A row per person, the same shape as a workplace row — a mark, a name, and
+   what you can do about them — with the mark being their actual face rather
+   than a letter standing in for a place.
+*/
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 68px;
+  padding: var(--sp-3) var(--sp-4);
+}
+.friend-row__body { flex: 1; min-width: 0; }
+.friend-row__name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friend-row__sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.friend-row__actions { display: flex; gap: var(--sp-2); flex: none; }
+
+.friend-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.friend-tabs::-webkit-scrollbar { display: none; }
+.friend-tabs__link {
+  flex: none;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.friend-tabs__link:hover { text-decoration: none; background: var(--surface-3); }
+.friend-tabs__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 5px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 /* ---- More: the TimeSheet's back rooms -----------------------------------
 
    Three ways in, each carrying the figure that answers it without being
@@ -3473,6 +3534,45 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 .compose__count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .compose__count.is-close { color: var(--warn); font-weight: 600; }
 
+/* ---- Who sees it — the compact audience pickers on a notice, an edit, a
+   comment and a reply, and the badge that shows on the card afterwards.
+   Small everywhere it appears, because the words are the point and the
+   audience is one word of context beside them, not a form field to weigh. */
+.vis-select {
+  /* Every <select> on the site is styled full-width with a 52px minimum
+     (see §7, "Django renders bare <input>s") — right for a form field,
+     wrong for this: without opting out here explicitly, this pill grew to
+     fill the whole row and pushed the send button off the edge of a phone
+     screen. `!important` because a bare `select` tag selector and this
+     class carry the same specificity, and this one must always win. */
+  flex: none;
+  width: auto !important;
+  min-height: 0 !important;
+  height: 30px;
+  padding: 0 22px 0 8px !important;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background-color: var(--surface-2);
+  background-size: 11px 11px;
+  background-position: right 7px center;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.vis-select:focus { outline: none; border-color: var(--brand); }
+.reply__vis { margin-right: -2px; flex-shrink: 0; }
+.reply--sm .vis-select { height: 26px; font-size: 11px; padding-right: 20px !important; }
+
+.vis-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--muted);
+  vertical-align: -2px;
+}
+.vis-badge svg { width: 13px; height: 13px; }
+
 /* ---- Reading them ------------------------------------------------------- */
 /* Notices sit apart from each other the way notifications do, rather than
    stacking into one wall of text. */
@@ -4223,16 +4323,23 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 
 .reply { display: flex; align-items: center; gap: var(--sp-2); }
 .reply__input {
+  /* The same fight as .vis-select above: the generic `input {}` rule in §7
+     has nine :not() clauses, which outweighs a single class by specificity
+     and was winning outright — min-height:52px, padding:13px 16px — so
+     this pill was rendering as a full 52px form field instead of the small
+     one-line box it's meant to be. `!important` makes sure this always
+     wins here. Font-size is deliberately left to that global rule rather
+     than reset to something smaller: it's 16px specifically to stop iOS
+     Safari zooming in on focus, and this box is tapped on a phone. */
   flex: 1;
   min-width: 0;
-  height: 36px;
-  padding: 0 var(--sp-3);
+  height: 36px !important;
+  min-height: 0 !important;
+  padding: 0 var(--sp-3) !important;
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--surface-2);
   color: var(--text);
-  font: inherit;
-  font-size: 13.5px;
 }
 .reply__input:focus { outline: none; border-color: var(--brand); background: var(--surface); }
 .reply__send {
@@ -4258,7 +4365,7 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
    -------------------------------------------------------------------------- */
 .reply--sm { display: none; margin-top: var(--sp-2); }
 .reply--sm:target { display: flex; animation: mw-rise var(--dur-2) var(--ease-out) both; }
-.reply--sm .reply__input { height: 34px; font-size: 13px; }
+.reply--sm .reply__input { height: 34px !important; }
 .reply--sm .reply__send { width: 34px; height: 34px; }
 .reply__cancel { flex: none; font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .reply__cancel:hover { color: var(--danger); text-decoration: none; }
@@ -4757,6 +4864,10 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   text-align: center;
   min-width: 0;
 }
+/* A tally that links somewhere (Friends, off to its own page) reads the
+   same as the others — the number is the point, not that it's a link. */
+a.tally { color: inherit; border-radius: var(--r-sm); transition: background var(--dur-2) var(--ease); }
+a.tally:hover { background: var(--surface-2); text-decoration: none; }
 .tally__value {
   font-size: 19px;
   font-weight: 650;

@@ -43,6 +43,8 @@ export function targetFor(path: string): Target {
   if (p.startsWith("/timesheet/")) return { screen: "/clock" };
   if (p === "/holidays") return { screen: "/holidays" };
   if (p === "/profile") return { screen: "/profile" };
+  // Friends lives on the profile screen itself now, not a screen of its own.
+  if (p === "/profile/friends") return { screen: "/profile" };
   return { web: path };
 }
 

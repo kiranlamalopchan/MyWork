@@ -46,6 +46,8 @@ class Kind(models.TextChoices):
     REPLY = "reply", "Reply"
     REACTION = "reaction", "Reaction"
     TIMESHEET = "timesheet", "Timesheet"
+    FRIEND_REQUEST = "friend_request", "Friend request"
+    FRIEND_ACCEPTED = "friend_accepted", "Friend accepted"
 
 
 # The shape each kind wears in the inbox. A reaction has none: the face
@@ -56,6 +58,8 @@ KIND_ICONS = {
     Kind.REPLY: "reply",
     Kind.REACTION: "",
     Kind.TIMESHEET: "clock",
+    Kind.FRIEND_REQUEST: "person",
+    Kind.FRIEND_ACCEPTED: "person",
 }
 
 

@@ -13,7 +13,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimen
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { board, useBoardChanged, type Comment, type Notice, type ReactionTally } from "@/api";
+import { board, useBoardChanged, type Comment, type Notice, type ReactionTally, type Visibility } from "@/api";
 import { useSession } from "@/auth/session";
 
 import { Avatar } from "./Avatar";
@@ -23,13 +23,14 @@ import { useReveal } from "./keyboard";
 import { ReactionSheet, type Anchor } from "./ReactionPicker";
 import { hsl, radius, sp, useTheme } from "./theme";
 import { success, tap, tick } from "./haptics";
+import { VisibilityBadge, VisibilityToggle } from "./VisibilityPicker";
 
 const menuShadow = (dark: boolean) => (Platform.OS === "android" ? { elevation: 8 } : { shadowColor: "#0f1420", shadowOpacity: dark ? 0.5 : 0.14, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } });
 
 const LABELS: Record<string, string> = { "👍": "Like", "❤️": "Love", "🥰": "Care", "😂": "Haha", "😮": "Wow", "😢": "Sad", "😡": "Angry" };
 const labelFor = (emoji: string) => LABELS[emoji] || "Reacted";
 
-export function NoticeCard({ notice: given, full = false }: { notice: Notice; full?: boolean }) {
+function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full?: boolean }) {
   const t = useTheme();
   const router = useRouter();
   const { me } = useSession();
@@ -40,11 +41,16 @@ export function NoticeCard({ notice: given, full = false }: { notice: Notice; fu
   const [tally, setTally] = useState<ReactionTally | null>(null);
   const [editing, setEditing] = useState(false);
   // Where the ⋯ menu drops from, measured on the screen when it opens.
+  // Where the menu sits stays put after it closes: the modal fades out over
+  // it, and with nowhere to be it would fade out in the top-left corner.
   const [menuAt, setMenuAt] = useState<{ top: number; right: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const moreRef = useRef<View>(null);
   const { width } = useWindowDimensions();
   const [draft, setDraft] = useState(given.body);
+  const [draftVis, setDraftVis] = useState<Visibility>(given.visibility);
   const [say, setSay] = useState("");
+  const [sayVis, setSayVis] = useState<Visibility>("public");
   const [busy, setBusy] = useState(false);
   const [unfolded, setUnfolded] = useState<Notice | null>(null);
   const editorRef = useRef<View>(null);
@@ -66,21 +72,21 @@ export function NoticeCard({ notice: given, full = false }: { notice: Notice; fu
   const openFaces = () => { tap("heavy"); reactRef.current?.measureInWindow((x, y, width, height) => setFaces({ x, y, width, height })); };
   const save = async () => {
     setBusy(true);
-    try { await board.edit(notice.id, draft.trim()); success(); setEditing(false); changed(notice.id); } finally { setBusy(false); }
+    try { await board.edit(notice.id, draft.trim(), draftVis); success(); setEditing(false); changed(notice.id); } finally { setBusy(false); }
   };
   const remove = () => confirm("Remove this notice?", "Everyone loses sight of it.", "Remove", async () => { await board.remove(notice.id); changed(notice.id); });
   const send = async () => {
     const body = say.trim();
     if (!body) return;
     setBusy(true);
-    try { setUnfolded(await board.comment(notice.id, body)); success(); setSay(""); changed(notice.id); } finally { setBusy(false); }
+    try { setUnfolded(await board.comment(notice.id, body, undefined, sayVis)); success(); setSay(""); setSayVis("public"); changed(notice.id); } finally { setBusy(false); }
   };
   const unfold = async () => setUnfolded(await board.one(notice.id));
   const openMenu = () => {
     tick();
-    moreRef.current?.measureInWindow((x, y, w, h) => setMenuAt({ top: y + h + 4, right: Math.max(sp[3], width - (x + w)) }));
+    moreRef.current?.measureInWindow((x, y, w, h) => { setMenuAt({ top: y + h + 4, right: Math.max(sp[3], width - (x + w)) }); setMenuOpen(true); });
   };
-  const closeMenu = () => setMenuAt(null);
+  const closeMenu = () => setMenuOpen(false);
   const open = full ? undefined : () => router.push(`/notices/${notice.id}`);
   // The speech bubble: to the thread from the board; on the thread, straight into the box.
   const comment = full ? () => sayRef.current?.focus() : open;
@@ -96,16 +102,19 @@ export function NoticeCard({ notice: given, full = false }: { notice: Notice; fu
               <Text style={[styles.who, { color: mine ? t.text : inkFor }]} numberOfLines={1}>{notice.author.username}</Text>
               {mine ? <Text style={[styles.you, { backgroundColor: t.brandSoft, color: t.brand }]}>You</Text> : null}
             </View>
-            <Text style={[styles.when, { color: t.muted }]} numberOfLines={1}>{notice.ago}{notice.edited ? " · edited" : ""}</Text>
+            <View style={styles.whenRow}>
+              <Text style={[styles.when, { color: t.muted }]} numberOfLines={1}>{notice.ago}{notice.edited ? " · edited" : ""}</Text>
+              <VisibilityBadge visibility={notice.visibility} />
+            </View>
           </View>
         </Pressable>
         {mine && !editing ? (
           <View style={styles.menuWrap}>
-            <Pressable ref={moreRef} onPress={openMenu} hitSlop={6} accessibilityLabel="More" testID={`notice-menu-${notice.id}`} style={({ pressed }) => [styles.more, { backgroundColor: pressed || menuAt ? t.surface2 : "transparent" }]}>
+            <Pressable ref={moreRef} onPress={openMenu} hitSlop={6} accessibilityLabel="More" testID={`notice-menu-${notice.id}`} style={({ pressed }) => [styles.more, { backgroundColor: pressed || menuOpen ? t.surface2 : "transparent" }]}>
               <Ionicons name="ellipsis-horizontal" size={20} color={t.text2} />
             </Pressable>
             {/* The menu floats over the whole screen so a tap anywhere else closes it. */}
-            <Modal transparent visible={!!menuAt} animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={closeMenu}>
+            <Modal transparent visible={menuOpen} animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={closeMenu}>
               <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} accessibilityLabel="Close menu" />
               <View style={[styles.menu, menuAt, { backgroundColor: t.surface, borderColor: t.dark ? t.lineStrong : "transparent" }, menuShadow(t.dark)]}>
                 <Pressable onPress={() => { closeMenu(); setEditing(true); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-edit-${notice.id}`}>
@@ -140,9 +149,12 @@ export function NoticeCard({ notice: given, full = false }: { notice: Notice; fu
             testID="notice-editor"
             style={[styles.editor, { backgroundColor: t.dark ? t.surface3 : t.surface2, color: t.text }]}
           />
-          <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: sp[2] }}>
-            <SmallButton title="Cancel" onPress={() => { setEditing(false); setDraft(notice.body); }} />
-            <SmallButton title="Save" primary icon="checkmark" onPress={save} disabled={busy || !draft.trim()} />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: sp[2] }}>
+            <VisibilityToggle value={draftVis} onChange={setDraftVis} />
+            <View style={{ flexDirection: "row", gap: sp[2] }}>
+              <SmallButton title="Cancel" onPress={() => { setEditing(false); setDraft(notice.body); setDraftVis(notice.visibility); }} />
+              <SmallButton title="Save" primary icon="checkmark" onPress={save} disabled={busy || !draft.trim()} />
+            </View>
           </View>
         </View>
       ) : (
@@ -213,6 +225,7 @@ export function NoticeCard({ notice: given, full = false }: { notice: Notice; fu
                 testID={`say-${notice.id}`}
                 style={[styles.replyInput, { backgroundColor: t.dark ? t.surface3 : t.surface2, color: t.text }]}
               />
+              <VisibilityToggle value={sayVis} onChange={setSayVis} />
               <Pressable onPress={send} disabled={busy || !say.trim()} accessibilityLabel="Send comment" style={[styles.send, { backgroundColor: say.trim() ? t.brand : t.brandSoft }]}>
                 <Ionicons name="arrow-up" size={18} color={say.trim() ? t.brandInk : t.brand} />
               </Pressable>
@@ -264,6 +277,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
   const reactRef = useRef<View>(null);
   const [replying, setReplying] = useState(false);
   const [say, setSay] = useState("");
+  const [sayVis, setSayVis] = useState<Visibility>("public");
   const [tally, setTally] = useState<ReactionTally | null>(null);
   const [unfolded, setUnfolded] = useState(false);
   const replyRef = useRef<View>(null);
@@ -282,9 +296,10 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
   const send = async () => {
     const body = say.trim();
     if (!body) return;
-    onChanged(await board.comment(noticeId, body, comment.parent || comment.id));
+    onChanged(await board.comment(noticeId, body, comment.parent || comment.id, sayVis));
     success();
     setSay("");
+    setSayVis("public");
     setReplying(false);
     changed(noticeId);
   };
@@ -298,7 +313,10 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row" }}>
           <View style={[styles.bubble, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
-            <Text style={[styles.commentWho, { color: t.text }]} numberOfLines={1}>{comment.mine ? "You" : comment.author.username}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Text style={[styles.commentWho, { color: t.text }]} numberOfLines={1}>{comment.mine ? "You" : comment.author.username}</Text>
+              <VisibilityBadge visibility={comment.visibility} size={11} />
+            </View>
             <Text style={[styles.commentText, { color: t.text }]}>{comment.body}</Text>
             {shown.total_reactions ? (
               <Pressable
@@ -342,6 +360,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
               onSubmitEditing={send}
               style={[styles.replyInput, { backgroundColor: t.dark ? t.surface3 : t.surface2, color: t.text, height: 36 }]}
             />
+            <VisibilityToggle value={sayVis} onChange={setSayVis} size={30} />
             <Pressable onPress={send} disabled={!say.trim()} accessibilityLabel="Send reply" style={[styles.send, { backgroundColor: say.trim() ? t.brand : t.brandSoft, width: 36, height: 36 }]}>
               <Ionicons name="arrow-up" size={16} color={say.trim() ? t.brandInk : t.brand} />
             </Pressable>
@@ -372,7 +391,8 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   who: { fontSize: 15.5, fontWeight: "700", letterSpacing: -0.2, flexShrink: 1 },
   you: { fontSize: 11.5, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, overflow: "hidden" },
-  when: { fontSize: 12.5, marginTop: 1 },
+  whenRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 1 },
+  when: { fontSize: 12.5 },
   dotRing: { width: 17, height: 17, borderRadius: 9, alignItems: "center", justifyContent: "center", marginRight: 4 },
   dot: { width: 9, height: 9, borderRadius: 5 },
   text: { fontSize: 16, lineHeight: 24, letterSpacing: -0.1 },
@@ -402,3 +422,6 @@ const styles = StyleSheet.create({
   send: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   small: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: radius.pill },
 });
+
+/** A card on a list re-renders only when its own notice does, not when the list does. */
+export const NoticeCard = React.memo(NoticeCardInner);

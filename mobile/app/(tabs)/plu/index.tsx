@@ -13,7 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { plu as pluApi, usePluChanged, usePluIdle, usePluImportable, usePluSearch, type PluItem } from "@/api";
 import type { FilePart } from "@/api/client";
-import { Card, Empty, ErrorBanner, Loading, Screen } from "@/ui";
+import { Card, Empty, ErrorBanner, Screen } from "@/ui";
+
 import { notify } from "@/ui/confirm";
 import { fail, success, tick } from "@/ui/haptics";
 import { useLayout } from "@/ui/layout";
@@ -172,7 +173,7 @@ export default function Plu() {
             looking || !q ? <SkeletonRows count={7} />
             : <Empty icon="search-outline" title="No matches" sub={`Nothing found for “${q}”. Try fewer words, or just the number.`} />
           }
-          ListFooterComponent={search.isFetchingNextPage ? <Loading /> : null}
+          ListFooterComponent={search.isFetchingNextPage ? <SkeletonRows count={2} style={{ marginTop: sp[3] }} /> : null}
           renderItem={({ item, index }) => <Result item={item} first={index === 0} last={index === rows.length - 1} onPress={() => router.push(`/plu/${item.plu_no}`)} />}
         />
       )}

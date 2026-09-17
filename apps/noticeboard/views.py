@@ -12,12 +12,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+
+from apps.accounts.models import Friendship
 
 from . import notify
 from .forms import CommentForm, NoticeForm
@@ -53,19 +55,36 @@ def decorate(notices, user):
     Ownership, your own emoji and the reaction tally are all decided here, in
     one place, off data that was already prefetched — the template only ever
     reads what it is handed, and never has to ask the database mid-render.
+
+    `friend_ids` is fetched once for the whole page rather than once per
+    notice or per comment: who you are friends with does not change between
+    one row and the next, so it is the one thing here worth not asking the
+    database about twice.
     """
+    friend_ids = Friendship.ids_for(user)
     for notice in notices:
-        _mark(notice, user)
-        notice.comment_list = notice.thread()
+        _mark(notice, user, friend_ids)
+        notice.comment_list = notice.thread(user, friend_ids)
         notice.older_comments, notice.recent_comments = _fold(
             notice.comment_list, COMMENTS_SHOWN
         )
-        for comment in notice.comments.all():
-            _mark(comment, user)
+        for comment in _visible_comments(notice, user, friend_ids):
+            _mark(comment, user, friend_ids)
             comment.older_replies, comment.recent_replies = _fold(
                 comment.reply_list, REPLIES_SHOWN
             )
     return notices
+
+
+def _visible_comments(notice, user, friend_ids):
+    """
+    Every comment `thread()` decided `user` may see — the same set, whether
+    it landed as a root or nested under one as a reply — so marking a
+    comment never touches one the reader was never shown.
+    """
+    for comment in notice.comment_list:
+        yield comment
+        yield from comment.reply_list
 
 
 def _fold(items, keep):
@@ -80,7 +99,7 @@ def _fold(items, keep):
     return items[:cut], items[cut:]
 
 
-def _mark(item, user):
+def _mark(item, user, friend_ids=None):
     """The part a notice and a comment are shown the same way: yours, and how
     the room answered it."""
     item.is_mine = item.author_id == user.pk
@@ -90,13 +109,23 @@ def _mark(item, user):
     item.my_label = Emoji(item.my_emoji).label if item.my_emoji else ""
     item.groups = item.reaction_groups()
     item.who_reacted = item.reactor_summary(user)
+    if isinstance(item, Notice):
+        # A method on the model, called here and stashed as a plain
+        # attribute of the same name: the template reads `item.comment_total`
+        # either way, but this way it is the count `user` can actually see
+        # rather than one worked out fresh (and wrong, without a `user` to
+        # ask) if the template's auto-call ever ran it bare.
+        item.comment_total = item.comment_total(user, friend_ids)
     return item
 
 
 def recent_for_hub(user):
-    """The slice of the board the landing page carries, plus the full count."""
-    total = Notice.objects.count()
-    return decorate(list(Notice.visible()[:HUB_LIMIT]), user), total
+    """The slice of the board the landing page carries, plus the count of
+    what's actually on it for this reader — not every notice that exists,
+    since "23 notices" over two you're allowed to read would be a promise
+    the board doesn't keep."""
+    visible = Notice.visible(user)
+    return decorate(list(visible[:HUB_LIMIT]), user), visible.count()
 
 
 def board_context(request, **extra):
@@ -134,10 +163,10 @@ def _safe_next(request, fallback):
     return fallback
 
 
-def _page_holding(pk):
+def _page_holding(pk, user):
     """
     Which page of the board a given notice is on, or None if there is no such
-    notice.
+    notice `user` may see.
 
     A notification points at one thing and has to land on it. The board is
     paginated, so a link to a notice from last week is a link to an anchor
@@ -145,12 +174,19 @@ def _page_holding(pk):
     what you were told about. Counting how many notices are newer than this
     one says which page it fell onto, and the count moves as the board does,
     so the link keeps working as the notice sinks.
+
+    Counted among the board `user` actually sees — otherwise a notice a
+    handful of friends-only posts below the top would land a page later than
+    it really is for somebody who can't see those posts at all.
     """
+    # The plain queryset, not `Notice.visible()` — this only ever counts
+    # rows, and doesn't need the reactions and comments that fetches.
+    visible = Notice.objects.filter(Notice.visibility_q(user))
     try:
-        notice = Notice.objects.only("created_at").get(pk=pk)
+        notice = visible.only("created_at").get(pk=pk)
     except (Notice.DoesNotExist, ValueError, TypeError):
         return None
-    newer = Notice.objects.filter(created_at__gt=notice.created_at).count()
+    newer = visible.filter(created_at__gt=notice.created_at).count()
     return newer // PER_PAGE + 1
 
 
@@ -167,8 +203,8 @@ def board(request, form=None):
     that notice is on rather than the first. An explicit `?page=` still wins,
     because that is somebody paging by hand and their choice outranks a link's.
     """
-    page = request.GET.get("page") or _page_holding(request.GET.get("notice"))
-    page_obj = Paginator(Notice.visible(), PER_PAGE).get_page(page)
+    page = request.GET.get("page") or _page_holding(request.GET.get("notice"), request.user)
+    page_obj = Paginator(Notice.visible(request.user), PER_PAGE).get_page(page)
     decorate(page_obj.object_list, request.user)
 
     return render(request, "noticeboard/board.html", board_context(
@@ -333,8 +369,10 @@ def _reacted(request, item, left, back):
 @login_required
 def notice_react(request, pk):
     # Reacting to other people's notices is the point, so this is the whole
-    # board — not the editable-by-you slice the writing views use.
-    notice = get_object_or_404(Notice, pk=pk)
+    # board you're allowed to read — not the editable-by-you slice the
+    # writing views use, but not the *entire* board either: a private
+    # notice's id, guessed or shared, still isn't yours to react to.
+    notice = get_object_or_404(Notice.objects.filter(Notice.visibility_q(request.user)), pk=pk)
     # What they are left with: an emoji, or None if that tap took it back.
     left = Reaction.toggle(notice, request.user, request.POST.get("emoji", ""))
     notify.notice_reacted(notice, request.user, left)
@@ -347,6 +385,8 @@ def comment_react(request, pk):
     comment = get_object_or_404(
         Comment.objects.select_related("notice", "author"), pk=pk
     )
+    if not comment.visible_to(request.user):
+        raise Http404
     left = CommentReaction.toggle(comment, request.user, request.POST.get("emoji", ""))
     notify.comment_reacted(comment, request.user, left)
     return _reacted(
@@ -365,8 +405,9 @@ def comment_create(request, pk):
     against this notice's own comments — so a reply cannot be posted onto a
     thread somewhere else on the board by editing the form.
     """
-    notice = get_object_or_404(Notice, pk=pk)
-    parent = Comment.under(notice, request.POST.get("parent"))
+    notice = get_object_or_404(Notice.objects.filter(Notice.visibility_q(request.user)), pk=pk)
+    friend_ids = Friendship.ids_for(request.user)
+    parent = Comment.under(notice, request.POST.get("parent"), request.user, friend_ids)
     form = CommentForm(request.POST)
 
     if not form.is_valid():
@@ -404,7 +445,8 @@ def comment_delete(request, pk):
 def notice_reactors(request, pk):
     """Who reacted to a notice, and with what."""
     notice = get_object_or_404(
-        Notice.objects.select_related("author", "author__profile")
+        Notice.objects.filter(Notice.visibility_q(request.user))
+        .select_related("author", "author__profile")
         .prefetch_related("reactions__user__profile"),
         pk=pk,
     )
@@ -419,6 +461,8 @@ def comment_reactors(request, pk):
         .prefetch_related("reactions__user__profile"),
         pk=pk,
     )
+    if not comment.visible_to(request.user):
+        raise Http404
     return _reactors_page(request, comment, comment.body)
 
 
@@ -481,7 +525,7 @@ def person(request, username):
     profile = get_object_or_404(people, username=username)
 
     notices = decorate(
-        list(Notice.visible().filter(author=profile)[:PROFILE_LIMIT]), request.user
+        list(Notice.visible(request.user).filter(author=profile)[:PROFILE_LIMIT]), request.user
     )
 
     return render(request, "noticeboard/person.html", board_context(

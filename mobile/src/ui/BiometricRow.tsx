@@ -14,7 +14,7 @@ import { BiometricIcon } from "./BiometricIcon";
 import { Card } from "./index";
 import { success, tick } from "./haptics";
 import { notify } from "./confirm";
-import { sp, useTheme } from "./theme";
+import { alpha, sp, useTheme } from "./theme";
 
 export function BiometricRow({ username }: { username: string }) {
   const t = useTheme();
@@ -62,12 +62,12 @@ export function BiometricRow({ username }: { username: string }) {
   return (
     <Card pad={false}>
       <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: t.brandSoft }]}>
-          <BiometricIcon kind={kind} size={22} color={t.brand} />
+        <View style={[styles.icon, { backgroundColor: alpha(t.teal, 0.14) }]}>
+          <BiometricIcon kind={kind} size={22} color={t.teal} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ color: t.text, fontWeight: "700", fontSize: 15.5 }}>Sign in with {name}</Text>
-          <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }}>{on ? "On for this phone — no password next time." : "Open the app with the phone's lock instead of a password."}</Text>
+          <Text style={{ color: t.text, fontWeight: "600", fontSize: 16, letterSpacing: -0.1 }}>Sign in with {name}</Text>
+          <Text style={{ color: t.muted, fontSize: 13.5, marginTop: 2, lineHeight: 18 }}>{on ? "On for this phone — no password next time." : "Open the app with the phone's lock instead of a password."}</Text>
         </View>
         <Switch value={on} onValueChange={flip} disabled={busy} trackColor={{ true: t.brand }} accessibilityLabel={`Sign in with ${name}`} testID="biometric-switch" />
       </View>
@@ -76,6 +76,6 @@ export function BiometricRow({ username }: { username: string }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: sp[3], padding: sp[4] },
-  icon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  row: { flexDirection: "row", alignItems: "center", gap: sp[4], paddingHorizontal: sp[4], paddingVertical: sp[3], minHeight: 72 },
+  icon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
 });

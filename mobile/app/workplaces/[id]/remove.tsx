@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { timesheet, useTimesheetChanged } from "@/api";
 import { goBack } from "@/nav/paths";
-import { Button, Card, ErrorBanner, Loading, Page, PageTitle, Screen } from "@/ui";
+import { Button, Card, ErrorBanner, Page, PageTitle, Screen } from "@/ui";
+import { SkeletonRemove } from "@/ui/Skeleton";
 import { notify } from "@/ui/confirm";
 import { sp, useTheme } from "@/ui/theme";
 import { cssColour, Ledger, LedgerRow, Swatch } from "@/ui/timesheet";
@@ -37,7 +38,7 @@ export default function RemoveWorkplace() {
     <Screen back backLabel="Workplaces">
       <Page>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonRemove /> : null}
         {d ? (
           <>
             <PageTitle>Remove {d.workplace.name}?</PageTitle>

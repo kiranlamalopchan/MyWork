@@ -10,7 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useUpcomingHolidays } from "@/api";
 import { useSession } from "@/auth/session";
-import { Card, Empty, ErrorBanner, Loading, Page, PageTitle, Screen } from "@/ui";
+import { Card, Empty, ErrorBanner, Page, PageTitle, Screen } from "@/ui";
+import { SkeletonHolidays } from "@/ui/Skeleton";
 import { Select } from "@/ui/Select";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
 
@@ -50,7 +51,7 @@ export default function Holidays() {
           testID="holiday-state"
         />
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonHolidays /> : null}
         {q.data && total === 0 ? <Empty icon="calendar-outline" title={`Nothing loaded for ${LABELS[shown] || shown} yet`} sub="A staff member loads the year's calendar on the site." /> : null}
         {months.map((m) => {
           const isOpen = m.key === current;

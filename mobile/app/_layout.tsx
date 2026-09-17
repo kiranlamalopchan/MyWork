@@ -6,7 +6,8 @@
 import "react-native-gesture-handler";
 import React, { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppState, Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
@@ -24,7 +25,17 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
   return <Crashed error={error} retry={retry} />;
 }
 
-const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
+const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: Platform.OS !== "web" } } });
+
+// TanStack's "window focus" is a browser idea; on a phone it is the app
+// coming back to the front, which is when the board and the inbox should
+// be asked again.
+if (Platform.OS !== "web") {
+  focusManager.setEventListener((setFocused) => {
+    const sub = AppState.addEventListener("change", (state) => setFocused(state === "active"));
+    return () => sub.remove();
+  });
+}
 
 // The still stays up until ui/Splash has painted over it; a build without the
 // module simply never had one to hold.
@@ -84,6 +95,7 @@ function Guard() {
         <Stack.Screen name="stories/compose" options={{ presentation: "modal" }} />
         <Stack.Screen name="profile/index" />
         <Stack.Screen name="profile/edit" />
+        <Stack.Screen name="profile/delete" />
         <Stack.Screen name="plu/[plu_no]" />
         <Stack.Screen name="holidays" />
         <Stack.Screen name="shifts/new" />
@@ -126,6 +138,18 @@ function Shell() {
 }
 
 export default function Root() {
+  // A development build's tooling (expo's withDevTools) holds the screen
+  // awake, so the phone never dims or locks while the app is open — which
+  // is not how the app behaves once built for real. Let the phone have its
+  // way, once the tooling has taken hold. A release build has none of this.
+  useEffect(() => {
+    if (!__DEV__) return;
+    const id = setTimeout(() => {
+      const KeepAwake = nativeOrNull(() => require("expo-keep-awake") as typeof import("expo-keep-awake"));
+      KeepAwake?.deactivateKeepAwake(KeepAwake.ExpoKeepAwakeTag).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(id);
+  }, []);
   return (
     <ThemeProvider>
       <QueryClientProvider client={client}>

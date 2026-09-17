@@ -3,7 +3,8 @@ import { useLocalSearchParams } from "expo-router";
 
 import { timesheet, useTimesheetChanged, useWorkplaces } from "@/api";
 import { goBack } from "@/nav/paths";
-import { ErrorBanner, Loading, Page, PageTitle, Screen } from "@/ui";
+import { ErrorBanner, Page, PageTitle, Screen } from "@/ui";
+import { SkeletonForm } from "@/ui/Skeleton";
 import { WorkplaceForm } from "@/ui/WorkplaceForm";
 
 export default function EditWorkplace() {
@@ -16,7 +17,7 @@ export default function EditWorkplace() {
       <Page>
         <PageTitle>Edit workplace</PageTitle>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonForm fields={5} /> : null}
         {q.data && workplace ? (
           <WorkplaceForm
             key={workplace.id}

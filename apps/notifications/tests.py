@@ -592,7 +592,7 @@ class TestNotificationCommandTests(TestCase):
         self._run("wayne", "--demo")
 
         made = Notification.objects.filter(recipient=self.wayne)
-        self.assertEqual(made.count(), 5)
+        self.assertEqual(made.count(), 7)
         self.assertEqual(set(made.values_list("kind", flat=True)), set(Kind.values))
         # Spread over more than one day, so the grouping has something to group.
         days = {timezone.localtime(n.created_at).date() for n in made}
@@ -612,7 +612,7 @@ class TestNotificationCommandTests(TestCase):
         real = notify(self.wayne, Kind.NOTICE, "a real one", url="/notices/",
                       actor=self.sam)
         self._run("wayne", "--demo")
-        self.assertEqual(Notification.objects.filter(recipient=self.wayne).count(), 6)
+        self.assertEqual(Notification.objects.filter(recipient=self.wayne).count(), 8)
 
         self._run("wayne", "--clear")
 

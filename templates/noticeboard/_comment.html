@@ -25,6 +25,7 @@
         {% if comment.is_mine %}You{% else %}{{ comment.author.username }}{% endif %}
       </a>
       <span class="comment__text">{{ comment.body }}</span>
+      {% include "noticeboard/_visibility_badge.html" with item=comment %}
 
       {# The count sits on the bubble, the way a chat app hangs it there. #}
       {% include "noticeboard/_comment_tally.html" with item=comment %}
@@ -56,6 +57,7 @@
       <input class="reply__input" type="text" name="body" maxlength="300"
              placeholder="Reply to {% if comment.is_mine %}yourself{% else %}{{ comment.author.username }}{% endif %}…"
              aria-label="Write a reply" autocomplete="off">
+      {% include "noticeboard/_visibility_select.html" with css_class="reply__vis" %}
       <button type="submit" class="reply__send" aria-label="Send reply">
         {% icon "arrow-right" %}
       </button>

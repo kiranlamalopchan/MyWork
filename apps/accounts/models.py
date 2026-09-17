@@ -263,3 +263,112 @@ def create_profile(sender, instance, created, **kwargs):
     """A new account gets its profile with it, so nothing else has to check."""
     if created:
         Profile.objects.get_or_create(user=instance)
+
+
+class FriendRequest(models.Model):
+    """
+    One person asking to be friends with another, waiting on an answer.
+
+    Deliberately not a status field on a single row: a request that has been
+    accepted or declined is not a request any more, it is either a
+    `Friendship` or nothing, and a table that only ever holds the pending
+    ones is a table whose count on somebody's bell means what it says.
+    """
+
+    from_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_friend_requests",
+    )
+    to_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="received_friend_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["from_user", "to_user"], name="one_friend_request_per_pair"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.from_user} → {self.to_user}"
+
+    def accept(self):
+        """
+        Turn this into a friendship and clear the pair's slate.
+
+        A request the other way round can exist at the same time — two
+        people asking each other within the same minute — and answering one
+        of them settles both, so the sender of the other is never left
+        waiting on a request that has already been granted in substance.
+        """
+        Friendship.befriend(self.from_user, self.to_user)
+        FriendRequest.objects.filter(
+            from_user=self.to_user, to_user=self.from_user
+        ).delete()
+        self.delete()
+
+    def decline(self):
+        self.delete()
+
+
+class Friendship(models.Model):
+    """
+    One side of a friendship. Being friends is symmetric, so accepting a
+    request writes two of these — one from each person's side — which is
+    what lets "my friends" always be answered by a single filter on `user`
+    rather than an OR across two columns.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="friendships"
+    )
+    friend = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["friend__username"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "friend"], name="one_friendship_per_pair"),
+        ]
+
+    def __str__(self):
+        return f"{self.user} ↔ {self.friend}"
+
+    @classmethod
+    def befriend(cls, a, b):
+        """Make `a` and `b` friends, or do nothing if they already are."""
+        cls.objects.get_or_create(user=a, friend=b)
+        cls.objects.get_or_create(user=b, friend=a)
+
+    @classmethod
+    def unfriend(cls, a, b):
+        cls.objects.filter(user=a, friend=b).delete()
+        cls.objects.filter(user=b, friend=a).delete()
+
+    @classmethod
+    def are_friends(cls, a, b):
+        if a is None or b is None or a.pk == b.pk:
+            return False
+        return cls.objects.filter(user=a, friend=b).exists()
+
+    @classmethod
+    def ids_for(cls, user):
+        """
+        The ids of everyone `user` is friends with, as a set — the shape a
+        visibility check on a page full of notices wants: one query up
+        front, then an `in` per row rather than a query per row.
+
+        Anonymous users get an empty set rather than a query: there is
+        nobody signed in to be friends with anyone.
+        """
+        if not user or not getattr(user, "is_authenticated", False):
+            return set()
+        return set(cls.objects.filter(user=user).values_list("friend_id", flat=True))

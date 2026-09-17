@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.holidays.services import card_for_user
-from apps.noticeboard.views import recent_for_hub
+from apps.noticeboard.models import Notice
+from apps.noticeboard.views import HUB_LIMIT
 from apps.notifications.models import Notification
 from apps.stories.views import tray_for
 
@@ -14,7 +15,16 @@ from .. import serialize
 class Home(APIView):
     def get(self, request):
         user = request.user
-        notices, total = recent_for_hub(user)
+
+        # Not `recent_for_hub()` — that decorates for the *site's* board
+        # partial (see noticeboard.views.decorate), which stashes
+        # `comment_total` as a plain number for the template. `serialize.
+        # notice()` below calls it as the method it still is on a plain,
+        # undecorated notice, so the two must not share objects.
+        visible = Notice.visible(user)
+        notices = list(visible[:HUB_LIMIT])
+        total = visible.count()
+
         state, card = card_for_user(user)
         return Response({
             "holiday": {"state": state, "holiday": card.as_payload() if card else None},

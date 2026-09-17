@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { plu } from "@/api";
 import { goBack } from "@/nav/paths";
-import { Button, Card, ErrorBanner, Loading, Page, Screen } from "@/ui";
+import { Button, Card, ErrorBanner, Page, Screen } from "@/ui";
+import { SkeletonPlu } from "@/ui/Skeleton";
 import { native } from "@/ui/native";
 import { sp, useTheme } from "@/ui/theme";
 
@@ -26,7 +27,7 @@ export default function PluItem() {
     <Screen back backLabel="PLU">
       <Page>
         {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-        {q.isLoading ? <Loading /> : null}
+        {q.isLoading ? <SkeletonPlu /> : null}
         {q.data ? (
           <>
             <Card style={styles.hero}>

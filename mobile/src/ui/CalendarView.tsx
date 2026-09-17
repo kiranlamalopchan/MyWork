@@ -12,7 +12,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useCalendar, type CalendarCell } from "@/api";
-import { Card, ErrorBanner, IconButton, Loading, useLayout } from "@/ui";
+import { Card, ErrorBanner, IconButton, useLayout } from "@/ui";
+import { SkeletonCalendar } from "@/ui/Skeleton";
 import { radius, sp, useTheme } from "@/ui/theme";
 import { cssColour, hslAlpha, ShiftRow, Swatch } from "@/ui/timesheet";
 
@@ -27,7 +28,7 @@ export function CalendarView() {
   return (
     <>
     {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
-    {q.isLoading && !data ? <Loading /> : null}
+    {q.isLoading && !data ? <SkeletonCalendar /> : null}
     {data ? (
       <Card pad={false} style={{ padding: sp[3] }}>
         <View style={styles.bar}>

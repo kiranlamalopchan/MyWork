@@ -29,10 +29,14 @@ export type ReactionTally = {
   who_reacted: string;
 };
 
+/** Who a notice or a comment reaches — see apps/noticeboard/models.py:Visibility. */
+export type Visibility = "public" | "friends" | "private";
+
 export type Comment = ReactionTally & {
   id: number;
   author: Person;
   body: string;
+  visibility: Visibility;
   created: string;
   ago: string;
   mine: boolean;
@@ -45,6 +49,7 @@ export type Notice = ReactionTally & {
   id: number;
   author: Person;
   body: string;
+  visibility: Visibility;
   created: string;
   ago: string;
   edited: boolean;
@@ -71,6 +76,15 @@ export type PersonPage = {
   received: number;
   given: number;
   notices: Notice[];
+};
+
+export type FriendRequest = { id: number; person: Person };
+
+export type Friends = {
+  friends: Person[];
+  received: FriendRequest[];
+  sent: FriendRequest[];
+  others: Person[];
 };
 
 export type TrayRow = Person & {
@@ -228,7 +242,7 @@ export type PayRow = {
 export type PayPage = { owing: PayRow[]; owed_total: Duration; today: string; message?: string };
 export type MorePage = { workplace_count: number; unpaid_total: Duration };
 export type Activity = {
-  week_hours: number; shift_count: number; workplace_count: number; notice_count: number; comment_count: number; reactions_received: number;
+  week_hours: number; shift_count: number; workplace_count: number; friend_count: number; notice_count: number; comment_count: number; reactions_received: number;
   statement: { this_month: [string, string]; last_month: [string, string]; today: string; workplaces: { id: number; name: string }[] };
 };
 export type PayslipRead = { fields: Record<string, string | number>; read: { label: string; value: string; how: string }[]; notes: string[] };

@@ -20,12 +20,9 @@
         "NSCameraUsageDescription": "To take a photo or video for your story.",
         "NSPhotoLibraryUsageDescription": "To choose a photo or video for your story, or a profile photo.",
         "NSMicrophoneUsageDescription": "To record sound with a story video.",
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSAppTransportSecurity": {
-          "NSAllowsLocalNetworking": true,
-          "NSAllowsArbitraryLoadsInMedia": true
-        }
-      }
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.mywork.app",
@@ -39,11 +36,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -51,6 +46,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withoutIosPushEntitlement",
       "expo-router",
       "expo-status-bar",
       "expo-secure-store",
@@ -83,8 +79,8 @@
       [
         "expo-build-properties",
         {
-          "android": {
-            "usesCleartextTraffic": true
+          "ios": {
+            "enableSceneSupport": true
           }
         }
       ],

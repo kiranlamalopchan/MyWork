@@ -8,10 +8,7 @@
 
 <div class="page-head">
   <h1 class="page-title">{% if notice %}Edit notice{% else %}New notice{% endif %}</h1>
-  <p class="page-sub">
-    {% if notice %}Everyone who reads the board sees the change.
-    {% else %}Everyone signed in will see this on the board.{% endif %}
-  </p>
+  <p class="page-sub">Choose who sees it below — Public reaches everyone, Friends only your friends, Only me nobody but you.</p>
 </div>
 
 <form method="post" action="{% if notice %}{% url 'notices:edit' notice.pk %}{% else %}{% url 'notices:create' %}{% endif %}" novalidate>
@@ -24,6 +21,11 @@
         <label class="label" for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
         {{ form.body }}
         {% if form.body.errors %}<div class="help help--error">{{ form.body.errors|striptags }}</div>{% endif %}
+      </div>
+      <div class="field">
+        <label class="label" for="{{ form.visibility.id_for_label }}">{{ form.visibility.label }}</label>
+        {{ form.visibility }}
+        {% if form.visibility.errors %}<div class="help help--error">{{ form.visibility.errors|striptags }}</div>{% endif %}
       </div>
     </div>
   </div>

@@ -60,13 +60,25 @@ def _notice_url(notice, anchor=None):
 
 def notice_posted(notice):
     """
-    Tell the rest of the board there is something new on it.
+    Tell whoever can actually read it that there is something new on the
+    board.
 
-    Everyone with an active account, because that is what a shared wall is —
-    a notice nobody was told about is a notice pinned facing the wall. The
-    author is dropped by `notify()` itself rather than excluded here.
+    For a public notice that is everyone with an active account, because
+    that is what a shared wall is — a notice nobody was told about is a
+    notice pinned facing the wall. For one marked Friends only it is the
+    author's friends, and for one marked Only me it is nobody: a
+    notification pointing at something the person it interrupted can't open
+    is worse than no notification at all. The author is dropped by
+    `notify()` itself rather than excluded here.
     """
+    from .models import Visibility
+
     people = get_user_model().objects.filter(is_active=True).exclude(pk=notice.author_id)
+    if notice.visibility == Visibility.FRIENDS:
+        from apps.accounts.models import Friendship
+        people = people.filter(pk__in=Friendship.ids_for(notice.author))
+    elif notice.visibility == Visibility.PRIVATE:
+        people = people.none()
 
     notify_many(
         people,
@@ -95,6 +107,10 @@ def comment_posted(comment):
     People further down the thread are deliberately left out. A board this
     size does not need a notification for every message in a conversation you
     once said something in; the dot on the board is enough for that.
+
+    And nobody who couldn't see the comment is told about it — a reply
+    marked Only me still reaches nobody but its own author, whoever it was
+    answering.
     """
     notice = comment.notice
     author = comment.author
@@ -103,8 +119,12 @@ def comment_posted(comment):
     kind = Kind.REPLY if reply_to else Kind.COMMENT
     verb = "replied to you" if reply_to else "commented on your notice"
 
+    recipients = [
+        person for person in (reply_to, notice.author) if comment.visible_to(person)
+    ]
+
     notify_many(
-        [reply_to, notice.author],
+        recipients,
         kind,
         f"{_name(author)} {verb}",
         body=_excerpt(comment.body),

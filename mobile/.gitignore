@@ -20,3 +20,4 @@ service-account*.json
 .env.local
 ios/
 android/
+google-services.json

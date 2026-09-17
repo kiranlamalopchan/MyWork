@@ -1,0 +1,15 @@
+{% comment %}
+  Who sees it, as a compact dropdown — the same three choices everywhere a
+  notice or a comment is written or edited, so choosing "Friends only" means
+  the same thing wherever it's chosen.
+
+  Takes: current (the visibility value to start selected on — "public" when
+  not given, which is what posting has always meant), and optionally
+  css_class to size it for the box it sits in.
+{% endcomment %}
+<select class="vis-select{% if css_class %} {{ css_class }}{% endif %}" name="visibility"
+        aria-label="Who can see this">
+  <option value="public" {% if current == "friends" or current == "private" %}{% else %}selected{% endif %}>🌐 Public</option>
+  <option value="friends" {% if current == "friends" %}selected{% endif %}>👥 Friends</option>
+  <option value="private" {% if current == "private" %}selected{% endif %}>🔒 Only me</option>
+</select>

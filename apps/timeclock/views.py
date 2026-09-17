@@ -994,7 +994,7 @@ def _day_shape(day_shifts):
     names = {}
     for shift in day_shifts:
         hue = shift.workplace.color if shift.workplace else None
-        names[hue] = shift.workplace.name if shift.workplace else "No workplace"
+        names[hue] = shift.workplace.name if shift.workplace else ""
         worked[hue] = worked.get(hue, 0) + shift.worked_duration.total_seconds()
 
     if not worked:
@@ -1853,7 +1853,7 @@ def statement(request):
         paid_by = _covering_payment(shift, by_workplace.get(shift.workplace_id, []))
         rows.append({
             "date": _day_words(shift.clock_in),
-            "workplace": shift.workplace.name if shift.workplace else "No workplace",
+            "workplace": shift.workplace.name if shift.workplace else "",
             "hue": shift.workplace.color if shift.workplace else None,
             "start": timezone.localtime(shift.clock_in).strftime("%I:%M %p").lstrip("0"),
             "finish": timezone.localtime(shift.clock_out).strftime("%I:%M %p").lstrip("0"),
@@ -1870,7 +1870,7 @@ def statement(request):
         place = shift.workplace
         key = place.pk if place else None
         bucket = totals.setdefault(key, {
-            "workplace": place.name if place else "No workplace",
+            "workplace": place.name if place else "",
             "hue": place.color if place else None,
             "rate": (
                 f"${place.hourly_rate:,.2f}/h" if place and place.hourly_rate else "\u2014"

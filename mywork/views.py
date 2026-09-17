@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.conf import settings
 from django.shortcuts import redirect, render
 from apps.holidays.services import card_for_user
 from apps.noticeboard.views import board_context, recent_for_hub
@@ -62,3 +63,12 @@ def register(request):
         form = UserCreationForm()
 
     return render(request, "registration/register.html", {"form": form})
+
+
+def privacy(request):
+    """
+    What MyWork keeps about you and why — public, and linked from the way in
+    and from your profile. The app stores ask for it by address, so it lives
+    at one that never moves: /privacy/.
+    """
+    return render(request, "privacy.html", {"contact_email": settings.CONTACT_EMAIL})
