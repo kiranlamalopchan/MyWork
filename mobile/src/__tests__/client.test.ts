@@ -32,13 +32,13 @@ describe("the API client", () => {
   it("tells a site without the API apart from a missing thing", async () => {
     // Django's own HTML 404 page: the site is there, the API is not.
     globalThis.fetch = jest.fn(async () => ({ status: 404, ok: false, text: async () => "<!DOCTYPE html><title>Page not found</title>" })) as any;
-    await expect(api("home/")).rejects.toMatchObject({ status: 404, message: expect.stringMatching(/doesn't have the MyWork app API/) });
+    await expect(api("home/")).rejects.toMatchObject({ status: 404, message: expect.stringMatching(/doesn't have the MeroKaam app API/) });
     // The API's own JSON 404 stays what the server said.
     globalThis.fetch = reply(404, { detail: "Not found." }) as any;
     await expect(api("notices/999/")).rejects.toMatchObject({ status: 404, message: "Not found." });
     // A page that answers 200 with HTML (the site's own pointer page, a captive portal) is no API either.
     globalThis.fetch = jest.fn(async () => ({ status: 200, ok: true, headers: { get: () => "text/html; charset=utf-8" }, text: async () => "<!doctype html><title>PLU is in the app</title>" })) as any;
-    await expect(api("auth/login/", { method: "POST", body: {}, anonymous: true })).rejects.toMatchObject({ message: expect.stringMatching(/doesn't have the MyWork app API/) });
+    await expect(api("auth/login/", { method: "POST", body: {}, anonymous: true })).rejects.toMatchObject({ message: expect.stringMatching(/doesn't have the MeroKaam app API/) });
   });
 });
 

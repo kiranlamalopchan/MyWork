@@ -165,12 +165,12 @@
     if (!supported) {
       if (iOS && !installed) {
         say(
-          "To get notifications on an iPhone, add MyWork to your Home Screen " +
+          "To get notifications on an iPhone, add MeroKaam to your Home Screen " +
             "first: tap Share, then Add to Home Screen, and open it from there.",
           null
         );
       } else {
-        say("This browser can't show notifications when MyWork is closed.", null);
+        say("This browser can't show notifications when MeroKaam is closed.", null);
       }
       return;
     }
@@ -182,7 +182,7 @@
 
     if (Notification.permission === "denied") {
       say(
-        "Notifications are blocked for MyWork. Turn them back on in your " +
+        "Notifications are blocked for MeroKaam. Turn them back on in your " +
           "browser's settings for this site, then reload.",
         null
       );
@@ -231,7 +231,7 @@
         .then(function () {
           input.disabled = false;
           if (Notification.permission === "denied") {
-            say("Notifications are blocked for MyWork in this browser.", null);
+            say("Notifications are blocked for MeroKaam in this browser.", null);
           } else {
             settle();
           }

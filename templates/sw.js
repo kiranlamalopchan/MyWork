@@ -40,10 +40,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: "MyWork", body: event.data ? event.data.text() : "" };
+    data = { title: "MeroKaam", body: event.data ? event.data.text() : "" };
   }
 
-  const title = data.title || "MyWork";
+  const title = data.title || "MeroKaam";
   const options = {
     body: data.body || "",
     icon: ICON,

@@ -123,7 +123,7 @@ export function Splash({ ready, onDone }: { ready: boolean; onDone: () => void }
       </Animated.View>
 
       <Animated.View style={name}>
-        <Text style={styles.name}>MyWork</Text>
+        <Text style={styles.name}>MeroKaam</Text>
       </Animated.View>
     </Animated.View>
   );

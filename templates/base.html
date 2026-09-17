@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f4f5f7">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="MyWork — PLU lookup and timesheets in one place.">
+  <meta name="description" content="MeroKaam — PLU lookup and timesheets in one place.">
 
   <!-- Add to Home Screen: opens full-screen, like an installed app -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="MyWork">
+  <meta name="apple-mobile-web-app-title" content="MeroKaam">
   <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
   <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'img/icon-180.png' %}">
@@ -29,7 +29,7 @@
     <meta name="unread-count" content="{{ unread_notifications }}">
   {% endif %}
 
-  <title>{% block title %}MyWork{% endblock %}</title>
+  <title>{% block title %}MeroKaam{% endblock %}</title>
 
   {# Applied before first paint so the correct palette is up immediately. #}
   <script>
@@ -106,7 +106,7 @@
     {# The logo is the way home: tap it from anywhere and you're back at the hub. #}
     <a class="brand" href="{% if request.user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">
       <span class="brand__mark" aria-hidden="true">{% include "_mark.html" with uid="bar" %}</span>
-      <span class="brand__text">MyWork</span>
+      <span class="brand__text">MeroKaam</span>
       {% if section_name %}<span class="brand__section">{{ section_name }}</span>{% endif %}
     </a>
 
@@ -116,7 +116,7 @@
         screen wide enough to hold them beside the brand. One file renders
         both, so they cannot disagree.
       {% endcomment %}
-      <nav class="appbar__nav" aria-label="MyWork">
+      <nav class="appbar__nav" aria-label="MeroKaam">
         {% include "_tabs.html" %}
       </nav>
 
@@ -229,7 +229,7 @@
     have to look for. It shrinks to its icons while you scroll down and
     comes back as you scroll up (app.js), so a long page keeps its room.
   {% endcomment %}
-  <nav class="tabbar" aria-label="MyWork">
+  <nav class="tabbar" aria-label="MeroKaam">
     <div class="tabbar__inner">
       {% include "_tabs.html" %}
     </div>

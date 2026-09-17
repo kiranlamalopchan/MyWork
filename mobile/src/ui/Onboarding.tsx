@@ -1,6 +1,6 @@
 /**
  * The way in, after the splash: four cards you swipe through, saying what
- * MyWork is for — the clock, the timesheet behind it, the PLU list, and the
+ * MeroKaam is for — the clock, the timesheet behind it, the PLU list, and the
  * one permission worth explaining before the phone asks for it.
  *
  * Everything here is driven by the scroll rather than by mounting: the art,
@@ -68,7 +68,7 @@ const SLIDES: Slide[] = [
     icon: "notifications",
     tint: (t) => t.orange,
     title: "A nudge, not a nag",
-    body: "So MyWork can remind you a shift is starting, tell you when you are near your hours cap, and pass on what goes up on the notice board.",
+    body: "So MeroKaam can remind you a shift is starting, tell you when you are near your hours cap, and pass on what goes up on the notice board.",
     ask: true,
   },
 ];

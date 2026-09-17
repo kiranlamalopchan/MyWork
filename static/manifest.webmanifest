@@ -1,6 +1,6 @@
 {
-  "name": "MyWork",
-  "short_name": "MyWork",
+  "name": "MeroKaam",
+  "short_name": "MeroKaam",
   "description": "PLU lookup and timesheets in one place.",
   "start_url": "/",
   "scope": "/",

@@ -86,7 +86,7 @@ export default function Login() {
   const fill = t.dark ? t.surface3 : t.surface2;
 
   return (
-    <AuthFrame title="Welcome back" sub="Sign in to MyWork — PLU lookup and timesheets." foot="New here?" link="Create an account" linkHref="/(auth)/register">
+    <AuthFrame title="Welcome back" sub="Sign in to MeroKaam — PLU lookup and timesheets." foot="New here?" link="Create an account" linkHref="/(auth)/register">
       <Field label="Username">
         <Input autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} textContentType="username" autoComplete="username" testID="username" />
       </Field>

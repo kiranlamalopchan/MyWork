@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MyWork",
+    "name": "MeroKaam",
     "slug": "mywork",
     "version": "1.0.0",
     "scheme": "mywork",
@@ -46,7 +46,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "./plugins/withoutIosPushEntitlement",
       "expo-router",
       "expo-status-bar",
       "expo-secure-store",

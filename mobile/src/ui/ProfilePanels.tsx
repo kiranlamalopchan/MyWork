@@ -76,7 +76,7 @@ export function ActivityPanel({ open, onToggle, last }: PanelProps) {
     </View>
   );
   return (
-    <Disclosure icon="pulse-outline" tint={t.violet} title="Activity" hint={a ? `${a.week_hours.toFixed(1)}h worked this week` : "What you've done in MyWork"} open={open} onToggle={onToggle} last={last}>
+    <Disclosure icon="pulse-outline" tint={t.violet} title="Activity" hint={a ? `${a.week_hours.toFixed(1)}h worked this week` : "What you've done in MeroKaam"} open={open} onToggle={onToggle} last={last}>
       {a ? (
         <>
           <View style={[styles.lead, { backgroundColor: t.brandSoft }]}>
