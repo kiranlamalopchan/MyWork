@@ -7495,3 +7495,98 @@ body::before {
 .story-compose__actions .btn { flex: 1 1 0; }
 .story-compose__actions .btn[hidden] { display: none; }
 .story-compose__drop[hidden], .story-edit[hidden], .story-clip[hidden] { display: none; }
+
+/* --------------------------------------------------------------------------
+   Legal — the privacy policy. A document, not a screen: a summary first, a
+   contents list, then numbered sections in a measured column of prose.
+   -------------------------------------------------------------------------- */
+.legal {
+  max-width: 68ch;
+  line-height: 1.65;
+  font-size: 15.5px;
+}
+.legal section + section { margin-top: var(--sp-8); }
+.legal h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  margin: 0 0 var(--sp-3);
+}
+.legal p { margin: 0 0 var(--sp-3); }
+.legal p:last-child { margin-bottom: 0; }
+.legal ul, .legal ol { margin: 0 0 var(--sp-3); padding-left: 1.25em; }
+.legal li + li { margin-top: var(--sp-2); }
+.legal a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* The short version, set apart in the brand tint so it is read first. */
+.legal__summary {
+  background: var(--brand-soft);
+  border-radius: var(--r-md);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-6);
+}
+.legal__summary .section-label { margin-bottom: var(--sp-2); color: var(--brand-strong); }
+.legal__summary ul { margin: 0; }
+
+.legal__toc {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: var(--sp-4) 0;
+  margin-bottom: var(--sp-8);
+  font-size: 14.5px;
+}
+.legal__toc ol {
+  margin: 0;
+  padding-left: 1.5em;
+  columns: 2;
+  column-gap: var(--sp-6);
+}
+.legal__toc li { break-inside: avoid; margin: 0; padding: 2px 0; }
+.legal__toc a { text-decoration: none; color: var(--text-2); }
+.legal__toc a:hover { color: var(--brand); text-decoration: underline; }
+
+.legal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  margin: var(--sp-4) 0;
+}
+.legal__table th, .legal__table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.legal__table thead th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 0;
+}
+.legal__table tbody th { font-weight: 600; white-space: nowrap; width: 1%; }
+.legal__table tr:last-child td, .legal__table tr:last-child th { border-bottom: 0; }
+.legal__opt {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* A phone has no room for three columns: each row becomes a small block,
+   the name above and the two cells stacked under it. */
+@media (max-width: 560px) {
+  .legal__toc ol { columns: 1; }
+  .legal__table, .legal__table tbody, .legal__table tr, .legal__table th, .legal__table td { display: block; }
+  .legal__table thead { display: none; }
+  .legal__table tr { padding: var(--sp-3) 0; border-bottom: 1px solid var(--line); }
+  .legal__table tr:last-child { border-bottom: 0; }
+  .legal__table th, .legal__table td { padding: 0; border: 0; white-space: normal; width: auto; }
+  .legal__table tbody th { margin-bottom: var(--sp-1); }
+  .legal__table td + td { margin-top: var(--sp-1); color: var(--text-2); font-size: 14px; }
+  .legal__table td + td::before { content: "Why: "; font-weight: 600; color: var(--muted); }
+  .legal__opt { display: inline; margin-left: 6px; }
+}

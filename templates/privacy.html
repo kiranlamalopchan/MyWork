@@ -1,42 +1,150 @@
 {% extends "base.html" %}
 {% comment %}
-  What MyWork keeps about you, in plain words. Public — reachable signed out,
-  from the way in — because the app stores ask for exactly this page.
+  The privacy policy. Public — reachable signed out, from the way in — because
+  the app stores ask for exactly this page by address. Written as a policy
+  reads: dated, numbered, a summary first and the detail after, in the same
+  plain words as the rest of the site.
 {% endcomment %}
-{% block title %}Privacy · MyWork{% endblock %}
+{% block title %}Privacy Policy · MyWork{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1 class="page-title">Privacy</h1>
-  <p class="page-sub">What MyWork keeps about you, and what it does with it.</p>
+  <h1 class="page-title">Privacy Policy</h1>
+  <p class="page-sub">Effective {{ effective|date:"j F Y" }} · applies to the MyWork website and the MyWork app for iPhone and Android.</p>
 </div>
 
-<div class="card card__pad" style="line-height: 1.6">
-  <h2 style="font-size: 17px; margin: 0 0 var(--sp-2)">What is kept</h2>
-  <ul style="margin: 0; padding-left: 1.2em">
-    <li><strong>Your account:</strong> a username and password (the password is stored hashed, never as typed), and the date you joined.</li>
-    <li><strong>Your profile, if you fill it in:</strong> a display name, email address, phone number, one line of address, and a photo.</li>
-    <li><strong>Your work:</strong> the workplaces you add, with their pay settings, and every shift, break and payment you record.</li>
-    <li><strong>What you post:</strong> notices, comments, reactions and stories, with who they are shown to as you chose.</li>
-    <li><strong>Your friends:</strong> who you are friends with, and requests either way.</li>
-    <li><strong>Your phone, for notifications:</strong> a push token and the phone's name, only if you turn notifications on.</li>
-    <li><strong>Your time zone</strong>, so times show in your own.</li>
-  </ul>
+<article class="card card__pad legal">
+  <section class="legal__summary" aria-labelledby="summary">
+    <h2 id="summary" class="section-label">In short</h2>
+    <ul>
+      <li>MyWork keeps only what it needs to run your timesheet, the notice board and notifications.</li>
+      <li>Nothing is sold, shared with advertisers, or used to track you. There is no analytics in the app.</li>
+      <li>Your shifts, pay and contact details are private to you. Posts are shown only to the audience you choose.</li>
+      <li>You can delete your account, and everything in it, at any time from the app or the site.</li>
+    </ul>
+  </section>
 
-  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">What it is used for</h2>
-  <p style="margin: 0">Running MyWork for you: keeping your timesheet, showing the notice board, and telling you when somebody answers. Nothing is used for advertising, sold, or handed to anyone else. There is no analytics or tracking in the app.</p>
+  <nav class="legal__toc" aria-label="Contents">
+    <ol>
+      <li><a href="#who">Who is responsible</a></li>
+      <li><a href="#collect">What we collect</a></li>
+      <li><a href="#use">How we use it</a></li>
+      <li><a href="#share">Who can see it</a></li>
+      <li><a href="#store">Where it is stored, and for how long</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#rights">Your choices and rights</a></li>
+      <li><a href="#children">Children</a></li>
+      <li><a href="#changes">Changes to this policy</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </nav>
 
-  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Who can see it</h2>
-  <p style="margin: 0">Your shifts, pay and profile details are yours alone. A notice, comment or story is shown to the people you chose when you posted it — everyone signed in, your friends, or only you — along with your name and photo. Public holidays and PLU codes are shared reference data, not yours.</p>
+  <section id="who">
+    <h2>1. Who is responsible</h2>
+    <p>MyWork is a personal work-tracking service operated by its developer{% if contact_email %}, who can be reached at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}. This policy explains what information MyWork collects when you use the website or the app, why it is collected, who can see it, and what control you have over it.</p>
+  </section>
 
-  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Where it lives, and for how long</h2>
-  <p style="margin: 0">On the server this site runs on, for as long as you have an account. Deleting your account removes all of it at once; where you commented on someone else's notice, they keep the notification they were sent at the time, with no name on it.</p>
+  <section id="collect">
+    <h2>2. What we collect</h2>
+    <p>Everything MyWork holds is information you enter yourself. It does not buy, infer or collect data from anywhere else.</p>
+    <table class="legal__table">
+      <thead>
+        <tr><th scope="col">Information</th><th scope="col">What it is</th><th scope="col">Why</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Account</th>
+          <td>Username, password and the date you joined. The password is stored as a salted hash and can't be read back.</td>
+          <td>To sign you in and keep your account yours.</td>
+        </tr>
+        <tr>
+          <th scope="row">Profile <span class="legal__opt">optional</span></th>
+          <td>Display name, email address, phone number, one line of address and a photo.</td>
+          <td>Shown on your profile and, if you post, beside your posts.</td>
+        </tr>
+        <tr>
+          <th scope="row">Work</th>
+          <td>The workplaces you add with their pay settings, and every shift, break and payment you record.</td>
+          <td>To keep your timesheet and work out your pay.</td>
+        </tr>
+        <tr>
+          <th scope="row">Posts</th>
+          <td>Notices, comments, reactions and stories, together with the audience you chose for each.</td>
+          <td>To show them to the people you chose.</td>
+        </tr>
+        <tr>
+          <th scope="row">Friends</th>
+          <td>Who you are friends with, and friend requests sent or received.</td>
+          <td>To work out who your "friends only" posts reach.</td>
+        </tr>
+        <tr>
+          <th scope="row">Device <span class="legal__opt">optional</span></th>
+          <td>A push-notification token and the device's name, only if you turn notifications on.</td>
+          <td>To deliver notifications to that device.</td>
+        </tr>
+        <tr>
+          <th scope="row">Time zone</th>
+          <td>The time zone your device reports.</td>
+          <td>So shifts and posts show in your local time.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>The app asks for the camera, microphone or photo library only when you choose to take or attach a photo or video. It does not read your contacts, location or files.</p>
+  </section>
 
-  <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Deleting your account</h2>
-  <p style="margin: 0">In the app: Profile → Delete account. On the site: <a href="{% url 'accounts:delete' %}">your profile's delete page</a>. Either asks for your password and then removes everything above.</p>
+  <section id="use">
+    <h2>3. How we use it</h2>
+    <p>Your information is used solely to provide MyWork to you: keeping your timesheet, showing the notice board, delivering notifications you have turned on, and answering support requests you send. It is not used for advertising or profiling, and it is not sold, rented or given to third parties for their own purposes.</p>
+    <p>MyWork contains no third-party analytics, advertising or tracking software. The only third-party service involved is the push-notification delivery service of your device's platform (Apple or Google), which receives the notification's text so it can be delivered.</p>
+  </section>
 
-  {% if contact_email %}
-    <h2 style="font-size: 17px; margin: var(--sp-5) 0 var(--sp-2)">Questions</h2>
-    <p style="margin: 0">Write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
-  {% endif %}
-</div>
+  <section id="share">
+    <h2>4. Who can see it</h2>
+    <ul>
+      <li><strong>Only you:</strong> your workplaces, shifts, breaks, payments, timesheet and the contact details on your profile.</li>
+      <li><strong>The audience you choose:</strong> each notice, comment or story is shown to everyone signed in, to your friends, or to you alone — whichever you picked when posting — along with your display name and photo.</li>
+      <li><strong>Other signed-in members:</strong> your username, display name and photo, so they can find you and send friend requests.</li>
+      <li><strong>Nobody else.</strong> Public holidays and PLU codes are shared reference data and are not about you.</li>
+    </ul>
+  </section>
+
+  <section id="store">
+    <h2>5. Where it is stored, and for how long</h2>
+    <p>Your information is stored on the server that hosts the MyWork website and is kept for as long as your account exists. Deleting your account removes your account, profile, work records, posts, reactions, stories, friendships and device tokens at once.</p>
+    <p>One thing remains after deletion: where you had commented on or reacted to another member's post, that member keeps the notification they were sent at the time, with your name removed from it.</p>
+  </section>
+
+  <section id="security">
+    <h2>6. Security</h2>
+    <p>All traffic between the app or your browser and the server is encrypted with HTTPS. Passwords are stored only as salted hashes. Access to your account from the app is by a private token held in your device's secure storage, which you can revoke at any time by signing out. No method of storage or transmission is completely secure, but MyWork uses recognised, current practice to protect what it holds.</p>
+  </section>
+
+  <section id="rights">
+    <h2>7. Your choices and rights</h2>
+    <ul>
+      <li><strong>See and correct:</strong> everything MyWork holds about you is visible and editable in the app and on the site.</li>
+      <li><strong>Notifications:</strong> turn them off in the app or in your device's settings at any time; the device token is then no longer used.</li>
+      <li><strong>Delete your account:</strong> in the app, open <em>Profile → Delete account</em>; on the site, use <a href="{% url 'accounts:delete' %}">your profile's delete page</a>. Both ask for your password and then remove everything described in section 5. Deletion is immediate and cannot be undone.</li>
+      <li><strong>Ask a question or make a request:</strong> use the contact details in section 10.</li>
+    </ul>
+  </section>
+
+  <section id="children">
+    <h2>8. Children</h2>
+    <p>MyWork is intended for people who work and is not directed at children under 13. If you believe a child has created an account, contact us and it will be removed.</p>
+  </section>
+
+  <section id="changes">
+    <h2>9. Changes to this policy</h2>
+    <p>If this policy changes, the new version will be published at this address with an updated effective date. Changes that materially affect how your information is used will be announced on the notice board.</p>
+  </section>
+
+  <section id="contact">
+    <h2>10. Contact</h2>
+    {% if contact_email %}
+      <p>Questions about this policy or your information: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+    {% else %}
+      <p>Questions about this policy or your information can be sent through the contact details on the app-store listing.</p>
+    {% endif %}
+  </section>
+</article>
 {% endblock %}

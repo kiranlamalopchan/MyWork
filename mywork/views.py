@@ -6,6 +6,7 @@ MyWork hosts two independent apps — PLU Management and TimeSheet Management.
 Nothing here knows what either one does; it only points at their front doors.
 """
 
+from datetime import date
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -65,10 +66,14 @@ def register(request):
     return render(request, "registration/register.html", {"form": form})
 
 
+# The date the policy last changed. Bump it when privacy.html changes in substance.
+PRIVACY_EFFECTIVE = date(2026, 9, 17)
+
+
 def privacy(request):
     """
     What MyWork keeps about you and why — public, and linked from the way in
     and from your profile. The app stores ask for it by address, so it lives
     at one that never moves: /privacy/.
     """
-    return render(request, "privacy.html", {"contact_email": settings.CONTACT_EMAIL})
+    return render(request, "privacy.html", {"contact_email": settings.CONTACT_EMAIL, "effective": PRIVACY_EFFECTIVE})
