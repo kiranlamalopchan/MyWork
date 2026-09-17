@@ -8,11 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#121c2d"
-    },
     "ios": {
       "bundleIdentifier": "com.kiranlama.mywork",
       "supportsTablet": false,
