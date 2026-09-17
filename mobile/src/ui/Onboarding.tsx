@@ -161,17 +161,32 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   );
 }
 
+/**
+ * How far a card is from the middle of the screen, as a fraction of a page:
+ * -1 is one page to the left, 0 is here, 1 is one page to the right.
+ *
+ * A worklet, and it has to be: the styles below are computed on the UI thread,
+ * and a plain function called from there is a "remote function" the UI runtime
+ * refuses to run. The web build never showed this — react-native-web runs
+ * every worklet on the JS thread, where any function is callable.
+ */
+function near(v: number, index: number, width: number) {
+  "worklet";
+  return interpolate(
+    v,
+    [(index - 1) * width, index * width, (index + 1) * width],
+    [-1, 0, 1],
+    Extrapolation.CLAMP,
+  );
+}
+
 /** One card: the art, the title, the words — all reading the scroll. */
 function Card({ slide, index, x, width, tall }: { slide: Slide; index: number; x: SharedValue<number>; width: number; tall: number }) {
   const t = useTheme();
   const tint = slide.tint(t);
 
-  // Distance from the middle of the screen, as a fraction of a page: -1 is
-  // one page to the left, 0 is here, 1 is one page to the right.
-  const near = (v: number) => interpolate(v, [(index - 1) * width, index * width, (index + 1) * width], [-1, 0, 1], Extrapolation.CLAMP);
-
   const art = useAnimatedStyle(() => {
-    const d = near(x.value);
+    const d = near(x.value, index, width);
     return {
       opacity: interpolate(Math.abs(d), [0, 1], [1, 0], Extrapolation.CLAMP),
       transform: [{ scale: interpolate(Math.abs(d), [0, 1], [1, 0.78], Extrapolation.CLAMP) }, { translateX: d * -width * 0.18 }],
@@ -180,7 +195,7 @@ function Card({ slide, index, x, width, tall }: { slide: Slide; index: number; x
   // The words lag the art a little, which is what makes a card feel layered
   // rather than printed on one sheet of glass.
   const words = useAnimatedStyle(() => {
-    const d = near(x.value);
+    const d = near(x.value, index, width);
     return {
       opacity: interpolate(Math.abs(d), [0, 0.75], [1, 0], Extrapolation.CLAMP),
       transform: [{ translateY: Math.abs(d) * 26 }, { translateX: d * -width * 0.06 }],
