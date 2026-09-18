@@ -69,7 +69,11 @@ export type Reactors = {
 };
 
 export type PersonPage = {
+  /** Their id on the server — what a report of the person names. */
+  id: number;
   person: Person;
+  /** Whether you have blocked them — their notices are then hidden. */
+  blocked: boolean;
   since: string;
   notice_count: number;
   comment_count: number;
@@ -247,3 +251,9 @@ export type Activity = {
 };
 export type PayslipRead = { fields: Record<string, string | number>; read: { label: string; value: string; how: string }[]; notes: string[] };
 export type Going = { shifts: number; breaks: number; payments: number; worked: Duration; span: string | null };
+
+// ---- Safety: blocking people and reporting posts -----------------------------
+
+export type ReportKind = "notice" | "comment" | "story" | "user";
+export type ReportReason = { value: string; label: string };
+export type BlockedPerson = { person: Person; since: string };

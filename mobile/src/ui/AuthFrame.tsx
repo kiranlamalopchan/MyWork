@@ -11,8 +11,10 @@ import { BrandMark } from "@/ui/AppBar";
 import { ServerPicker } from "@/ui/ServerPicker";
 import { sp, useTheme } from "@/ui/theme";
 
-export function AuthFrame({ title, sub, children, foot, link, linkHref }: { title: string; sub: string; children: React.ReactNode; foot: string; link: string; linkHref: Href }) {
+export function AuthFrame({ title, sub, children, foot, link, linkHref, agree = false }: { title: string; sub: string; children: React.ReactNode; foot: string; link: string; linkHref: Href; agree?: boolean }) {
   const t = useTheme();
+  const open = (path: string) => () => openBrowserAsync(siteUrl(path)).catch(() => {});
+  const legal = { color: t.muted, fontSize: 13.5, textDecorationLine: "underline" as const };
   return (
     <Screen tools={false}>
       <Page contentContainerStyle={styles.wrap}>
@@ -27,9 +29,18 @@ export function AuthFrame({ title, sub, children, foot, link, linkHref }: { titl
         </Text>
         {/* Pointing a build at a laptop: not something a store build offers. */}
         {__DEV__ || Constants.expoConfig?.extra?.devServerPicker ? <ServerPicker /> : null}
-        <Pressable onPress={() => openBrowserAsync(siteUrl("/privacy/")).catch(() => {})} hitSlop={8} accessibilityRole="link">
-          <Text style={{ color: t.muted, fontSize: 13.5, textDecorationLine: "underline" }}>Privacy</Text>
-        </Pressable>
+        {agree ? (
+          // Signing up is agreeing to the rules — the store review asks that the
+          // terms say there is no tolerance for abuse, and they do.
+          <Text style={{ color: t.muted, fontSize: 13.5, textAlign: "center", lineHeight: 19, paddingHorizontal: sp[4] }}>
+            By creating an account you agree to the <Text style={legal} onPress={open("/safety/rules/")}>community rules</Text> and <Text style={legal} onPress={open("/privacy/")}>privacy policy</Text>.
+          </Text>
+        ) : (
+          <View style={{ flexDirection: "row", gap: sp[3] }}>
+            <Pressable onPress={open("/safety/rules/")} hitSlop={8} accessibilityRole="link"><Text style={legal}>Rules</Text></Pressable>
+            <Pressable onPress={open("/privacy/")} hitSlop={8} accessibilityRole="link"><Text style={legal}>Privacy</Text></Pressable>
+          </View>
+        )}
       </Page>
     </Screen>
   );

@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { me as api } from "@/api";
 import type { FilePart } from "@/api/client";
 import { useSession } from "@/auth/session";
-import { Avatar, Button, Card, Page, Screen } from "@/ui";
+import { Avatar, Button, Card, MenuRow, Page, Screen } from "@/ui";
 import { confirm, notify } from "@/ui/confirm";
 import { ActivityPanel, StatementPanel } from "@/ui/ProfilePanels";
 import { BiometricRow } from "@/ui/BiometricRow";
@@ -118,8 +118,13 @@ export default function Profile() {
         </Card>
 
         <BiometricRow username={me.username} />
+        <Card pad={false}>
+          <MenuRow icon="ban-outline" title="Blocked people" sub="Who you've chosen not to hear from" onPress={() => router.push("/profile/blocked")} tint={t.danger} last testID="blocked-people" />
+        </Card>
         <Button title="Sign out" icon="log-out-outline" kind="danger" onPress={() => confirm("Sign out?", undefined, "Sign out", signOut)} testID="sign-out" />
         <View style={styles.legal}>
+          <Pressable onPress={() => openBrowserAsync(siteUrl("/safety/rules/")).catch(() => {})} hitSlop={8}><Text style={[styles.legalLink, { color: t.muted }]}>Rules</Text></Pressable>
+          <Text style={{ color: t.muted }}>·</Text>
           <Pressable onPress={() => openBrowserAsync(siteUrl("/privacy/")).catch(() => {})} hitSlop={8}><Text style={[styles.legalLink, { color: t.muted }]}>Privacy</Text></Pressable>
           <Text style={{ color: t.muted }}>·</Text>
           <Pressable onPress={() => router.push("/profile/delete")} hitSlop={8} testID="delete-account"><Text style={[styles.legalLink, { color: t.danger }]}>Delete account</Text></Pressable>

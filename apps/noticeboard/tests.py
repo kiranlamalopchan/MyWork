@@ -171,8 +171,9 @@ class NoticeBoardTests(TestCase):
         Notice.objects.create(author=self.kiran, body="Mine to change")
         html = self.client.get(reverse("notices:board")).content.decode()
 
-        # One set of buttons: the one on your own notice.
-        self.assertEqual(html.count('class="act act--quiet"'), 1)
+        # One Edit: the one on your own notice. Theirs offers Report instead.
+        self.assertEqual(html.count('title="Edit"'), 1)
+        self.assertEqual(html.count('title="Report"'), 1)
         self.assertNotIn(reverse("notices:edit", args=[self.theirs.pk]), html)
         self.assertIn("You", html)
 

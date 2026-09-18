@@ -8,7 +8,7 @@ an `Authorization: Token …` header on everything else.
 
 from django.urls import path
 
-from .views import auth, board, friends, holidays, home, me, notifications, plu, stories, timeclock
+from .views import auth, board, friends, holidays, home, me, moderation, notifications, plu, stories, timeclock
 
 app_name = "api"
 
@@ -34,6 +34,9 @@ urlpatterns = [
     path("comments/<int:pk>/react/", board.CommentReact.as_view(), name="comment_react"),
     path("comments/<int:pk>/reactions/", board.CommentReactors.as_view(), name="comment_reactors"),
     path("people/<str:username>/", board.Person.as_view(), name="person"),
+    path("people/<str:username>/block/", moderation.BlockPerson.as_view(), name="person_block"),
+    path("me/blocked/", moderation.Blocked.as_view(), name="me_blocked"),
+    path("report/", moderation.ReportThing.as_view(), name="report"),
 
     path("friends/", friends.Friends.as_view(), name="friends"),
     path("friends/request/<str:username>/", friends.FriendRequestSend.as_view(), name="friend_request_send"),

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load avatars %}
+{% block title %}Blocked people · MeroKaam{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'accounts:profile' %}">‹ Profile</a>
+<div class="page-head">
+  <h1 class="page-title">Blocked people</h1>
+  <p class="page-sub">Neither of you sees the other's posts, comments or stories.</p>
+</div>
+
+{% if blocks %}
+  <div class="card">
+    {% for b in blocks %}
+      <div class="blocked-row">
+        {% avatar b.blocked %}
+        <div style="flex: 1; min-width: 0">
+          <div style="font-weight: 600">{{ b.blocked.username }}</div>
+          <div class="muted text-sm">Blocked {{ b.created_at|date:"j M Y" }}</div>
+        </div>
+        <form method="post" action="{% url 'moderation:unblock' b.blocked.username %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--sm">Unblock</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="card card__pad muted">You haven't blocked anyone.</p>
+{% endif %}
+{% endblock %}

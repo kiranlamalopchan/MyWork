@@ -41,6 +41,9 @@ LOCAL_APPS = [
     # Stories: a photo from somebody's day in the row above the board, gone
     # twenty-four hours later.
     'apps.stories',
+    # Blocking people and reporting posts — what a shared wall owes the
+    # people on it, and what the app stores require of one.
+    'apps.moderation',
     # Australian public holidays — the card on the hub, and the API the
     # mobile app reads it from.
     'apps.holidays',
@@ -185,6 +188,12 @@ VAPID_CONTACT_EMAIL = ''
 # require. Set CONTACT_EMAIL in .env; the push contact address stands in.
 import os  # noqa: E402
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', '') or os.environ.get('VAPID_CONTACT_EMAIL', '')
+
+# Words the board refuses outright, on top of the built-in few
+# (apps/moderation/filter.py). Comma-separated in the environment.
+OBJECTIONABLE_WORDS = tuple(
+    w.strip() for w in os.environ.get('OBJECTIONABLE_WORDS', '').split(',') if w.strip()
+)
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

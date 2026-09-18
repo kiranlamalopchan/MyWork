@@ -33,6 +33,9 @@ class Tray(APIView):
         """
         form = StoryForm(request.data, request.FILES)
         if not form.is_valid():
+            caption_error = form.errors.get("caption")
+            if caption_error:
+                return Response({"detail": caption_error[0]}, status=400)
             return Response({"detail": "That file couldn't be used. Choose a photo or a video."}, status=400)
         data = form.cleaned_data
         if not data["image"] and not data["video"]:
@@ -62,7 +65,7 @@ class Person(APIView):
 
     def get(self, request, username):
         author = get_object_or_404(User, username=username)
-        stories = list(Story.objects.live().filter(author=author).order_by("created_at"))
+        stories = list(Story.objects.for_viewer(request.user).filter(author=author).order_by("created_at"))
         if not stories:
             return Response({"detail": "Nothing here any more."}, status=404)
         profile = Profile.of(author)
@@ -88,14 +91,14 @@ class StoryDetail(APIView):
 
 class Seen(APIView):
     def post(self, request, pk):
-        story = get_object_or_404(Story.objects.live(), pk=pk)
+        story = get_object_or_404(Story.objects.for_viewer(request.user), pk=pk)
         story.seen_by(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class React(APIView):
     def post(self, request, pk):
-        story = get_object_or_404(Story.objects.live(), pk=pk)
+        story = get_object_or_404(Story.objects.for_viewer(request.user), pk=pk)
         left = StoryReaction.toggle(story, request.user, request.data.get("emoji", ""))
         tally = story.reactions.values("emoji").annotate(n=Count("id")).order_by("-n")
         return Response({

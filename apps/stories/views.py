@@ -40,7 +40,7 @@ def tray_for(user):
     how many they have, and whether any is still unseen by `user`.
     """
     Story.sweep()
-    live = Story.objects.live().select_related("author", "author__profile")
+    live = Story.objects.for_viewer(user).select_related("author", "author__profile")
     seen = set(
         live.filter(views__viewer=user).values_list("pk", flat=True)
     )
@@ -168,6 +168,8 @@ def _story_json(story, viewer):
             for v in story.views.select_related("viewer", "viewer__profile")[:50]
         ]
         data["delete_url"] = reverse("stories:delete", args=[story.pk])
+    else:
+        data["report_url"] = f"{reverse('moderation:report')}?kind=story&id={story.pk}"
     return data
 
 
@@ -178,7 +180,7 @@ def person(request, username):
     page of the same pictures for a browser without script.
     """
     author = get_object_or_404(User, username=username)
-    stories = list(Story.objects.live().filter(author=author).order_by("created_at"))
+    stories = list(Story.objects.for_viewer(request.user).filter(author=author).order_by("created_at"))
     if not stories:
         if _is_fetch(request):
             return JsonResponse({"error": "Nothing here any more."}, status=404)
@@ -207,7 +209,7 @@ def person(request, username):
 @login_required
 @require_POST
 def seen(request, pk):
-    story = get_object_or_404(Story.objects.live(), pk=pk)
+    story = get_object_or_404(Story.objects.for_viewer(request.user), pk=pk)
     story.seen_by(request.user)
     return HttpResponse(status=204)
 
@@ -215,7 +217,7 @@ def seen(request, pk):
 @login_required
 @require_POST
 def react(request, pk):
-    story = get_object_or_404(Story.objects.live(), pk=pk)
+    story = get_object_or_404(Story.objects.for_viewer(request.user), pk=pk)
     left = StoryReaction.toggle(story, request.user, request.POST.get("emoji", ""))
     if _is_fetch(request):
         tally = story.reactions.values("emoji").annotate(n=Count("id")).order_by("-n")

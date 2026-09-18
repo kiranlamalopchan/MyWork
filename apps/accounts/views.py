@@ -175,7 +175,8 @@ def _friends_context(user, query=""):
     pending_to = {r.to_user_id for r in sent}
     pending_from = {r.from_user_id for r in received}
 
-    people = get_user_model().objects.filter(is_active=True).exclude(pk=user.pk)
+    from apps.moderation.models import Block
+    people = get_user_model().objects.filter(is_active=True).exclude(pk=user.pk).exclude(pk__in=Block.ids_for(user))
     query = (query or "").strip()
     if query:
         people = people.filter(username__icontains=query)
@@ -231,6 +232,11 @@ def friend_request_send(request, username):
     them = get_object_or_404(get_user_model(), username=username, is_active=True)
 
     if them.pk == me.pk:
+        return _to_friends(request)
+
+    from apps.moderation.models import Block
+    if Block.between(me, them):
+        messages.error(request, "That request can't be sent.")
         return _to_friends(request)
 
     if Friendship.are_friends(me, them):

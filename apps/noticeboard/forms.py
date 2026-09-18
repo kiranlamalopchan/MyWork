@@ -1,5 +1,7 @@
 from django import forms
 
+from apps.moderation.filter import REFUSED, objectionable
+
 from .models import MAX_BODY, MAX_COMMENT, Comment, Notice, Visibility
 
 
@@ -43,6 +45,8 @@ class NoticeForm(forms.ModelForm):
         body = (self.cleaned_data.get("body") or "").strip()
         if not body:
             raise forms.ValidationError("Write something before posting.")
+        if objectionable(body):
+            raise forms.ValidationError(REFUSED)
         return body
 
     def clean_visibility(self):
@@ -72,6 +76,12 @@ class CommentForm(forms.ModelForm):
                 "autocomplete": "off",
             }),
         }
+
+    def clean_body(self):
+        body = (self.cleaned_data.get("body") or "").strip()
+        if objectionable(body):
+            raise forms.ValidationError(REFUSED)
+        return body
 
     def clean_visibility(self):
         return self.cleaned_data.get("visibility") or Visibility.PUBLIC

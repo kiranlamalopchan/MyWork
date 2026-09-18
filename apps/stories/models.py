@@ -93,6 +93,17 @@ class StoryQuerySet(models.QuerySet):
     def live(self):
         return self.filter(expires_at__gt=timezone.now())
 
+    def for_viewer(self, user):
+        """
+        The live ones `user` may look at: not taken down, and not by
+        anybody one of them has blocked. Their own are always theirs.
+        """
+        from apps.moderation.models import Block
+        return self.live().filter(
+            models.Q(author=user)
+            | (models.Q(hidden=False) & ~models.Q(author_id__in=Block.ids_for(user)))
+        )
+
     def expired(self):
         return self.filter(expires_at__lte=timezone.now())
 
@@ -107,6 +118,8 @@ class Story(models.Model):
     video = models.FileField(upload_to=story_path, blank=True)
     duration = models.FloatField(null=True, blank=True)
     caption = models.CharField(max_length=MAX_CAPTION, blank=True)
+    # Off the tray pending review — enough reports, or the admin.
+    hidden = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     expires_at = models.DateTimeField(db_index=True)
 

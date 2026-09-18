@@ -11,6 +11,7 @@ import type {
   Friends as FriendsPage, PhotoRead, PluImportable, PluImported,
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
   Reactors, Story, StoryPerson, TrayRow, Visibility,
+  BlockedPerson, ReportKind, ReportReason,
 } from "./types";
 
 export * from "./types";
@@ -87,6 +88,34 @@ export function useNotice(id: number) {
 
 export function usePerson(username: string) {
   return useQuery({ queryKey: ["person", username], queryFn: () => board.person(username) });
+}
+
+/** Blocking a person and reporting a post — apps.moderation on the server. */
+export const safety = {
+  block: (username: string) => api<{ blocked: boolean; detail: string }>(`people/${encodeURIComponent(username)}/block/`, { method: "POST" }),
+  unblock: (username: string) => api<{ blocked: boolean; detail: string }>(`people/${encodeURIComponent(username)}/block/`, { method: "DELETE" }),
+  blocked: () => api<{ people: BlockedPerson[] }>("me/blocked/"),
+  reasons: () => api<{ reasons: ReportReason[] }>("report/"),
+  report: (kind: ReportKind, id: number, reason: string, note = "") =>
+    api<{ detail: string }>("report/", { method: "POST", body: { kind, id, reason, note } }),
+};
+
+export function useBlocked() {
+  return useQuery({ queryKey: ["blocked"], queryFn: safety.blocked });
+}
+
+export function useReportReasons() {
+  return useQuery({ queryKey: ["report-reasons"], queryFn: safety.reasons, staleTime: Infinity });
+}
+
+/** After a block or unblock, everything that shows people is stale. */
+export function useSafetyChanged() {
+  const client = useQueryClient();
+  return () => {
+    for (const key of ["board", "home", "person", "notice", "blocked", "friends", "stories", "inbox"]) {
+      client.invalidateQueries({ queryKey: [key] });
+    }
+  };
 }
 
 /** After anything changes on the board, everything that shows it is stale. */

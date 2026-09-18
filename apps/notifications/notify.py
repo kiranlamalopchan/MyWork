@@ -35,6 +35,12 @@ def notify(recipient, kind, title, *, url, body="", actor=None, emoji="",
     a timedelta says how long the quiet lasts before the same line is allowed
     to interrupt a second time.
     """
+    # Somebody blocked, either way round, is somebody you don't hear from.
+    if actor is not None:
+        from apps.moderation.models import Block
+        if Block.between(recipient, actor):
+            return None
+
     notification, is_new = Notification.raise_for(
         recipient, kind, title,
         url=url, body=body, actor=actor, emoji=emoji, dedupe_key=dedupe_key,

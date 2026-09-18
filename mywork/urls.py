@@ -22,6 +22,8 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("register/", views.register, name="register"),
     path("privacy/", views.privacy, name="privacy"),
+    # Blocking people and reporting posts, and the rules they enforce.
+    path("safety/", include("apps.moderation.urls")),
     # Your photo and your name — one level up from either app, because they
     # are true of you across the whole of MyWork.
     path("profile/", include("apps.accounts.urls")),

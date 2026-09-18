@@ -867,3 +867,59 @@ class TimesheetTests(ApiTestCase):
         resp = self.api("get", "statement", {"from": activity["statement"]["this_month"][0], "to": activity["statement"]["this_month"][1]})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "application/pdf")
+
+
+class ModerationApiTests(ApiTestCase):
+    """Blocking a person and reporting a post, from the app."""
+
+    def test_block_hides_them_and_unblock_brings_them_back(self):
+        Notice.objects.create(author=self.sam, body="From Sam")
+        resp = self.api("post", "person_block", args=["sam"])
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["blocked"])
+        board = self.api("get", "notices").json()
+        self.assertEqual([n["author"]["username"] for n in board["results"]], [])
+        self.assertEqual(self.api("get", "person", args=["sam"]).json()["blocked"], True)
+        blocked = self.api("get", "me_blocked").json()["people"]
+        self.assertEqual([p["person"]["username"] for p in blocked], ["sam"])
+
+        resp = self.api("delete", "person_block", args=["sam"])
+        self.assertFalse(resp.json()["blocked"])
+        board = self.api("get", "notices").json()
+        self.assertEqual([n["author"]["username"] for n in board["results"]], ["sam"])
+
+    def test_the_blocked_person_cannot_find_you(self):
+        self.api("post", "person_block", args=["sam"])
+        resp = self.client.post(reverse("api:login"), {"username": "sam", "password": "pw12345678"})
+        sam = resp.json()["token"]
+        self.assertEqual(self.api("get", "person", args=["kiran"], token=sam).status_code, 404)
+        self.assertEqual(self.api("post", "friend_request_send", args=["kiran"], token=sam).status_code, 400)
+        others = self.api("get", "friends", token=sam).json()["others"]
+        self.assertNotIn("kiran", [p["username"] for p in others])
+
+    def test_you_cannot_block_yourself(self):
+        self.assertEqual(self.api("post", "person_block", args=["kiran"]).status_code, 400)
+
+    def test_report_a_notice(self):
+        from apps.moderation.models import Report
+        notice = Notice.objects.create(author=self.sam, body="Rude")
+        self.assertEqual(self.api("get", "report").json()["reasons"][0]["value"], "spam")
+        resp = self.api("post", "report", {"kind": "notice", "id": notice.pk, "reason": "harassment", "note": "look"})
+        self.assertEqual(resp.status_code, 201, resp.content)
+        report = Report.objects.get()
+        self.assertEqual((report.reporter, report.accused, report.reason), (self.kiran, self.sam, "harassment"))
+
+    def test_report_refuses_your_own_and_nonsense(self):
+        notice = Notice.objects.create(author=self.kiran, body="Mine")
+        self.assertEqual(self.api("post", "report", {"kind": "notice", "id": notice.pk}).status_code, 400)
+        self.assertEqual(self.api("post", "report", {"kind": "thing", "id": 1}).status_code, 400)
+        self.assertEqual(self.api("post", "report", {"kind": "notice", "id": 999}).status_code, 404)
+
+    def test_the_filter_refuses_a_notice_and_a_comment(self):
+        resp = self.api("post", "notices", {"body": "kys", "visibility": "public"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("civil", resp.json()["detail"])
+        notice = Notice.objects.create(author=self.sam, body="ok")
+        resp = self.api("post", "comments", {"body": "you cunt", "visibility": "public"}, args=[notice.pk])
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(Comment.objects.exists())

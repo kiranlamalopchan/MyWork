@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load avatars %}
+{% block title %}Report · MeroKaam{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Report</h1>
+  <p class="page-sub">
+    {% if kind == "user" %}Report {{ target.username }}.{% else %}Report this {{ kind }}{% if who %} by {{ who.username }}{% endif %}.{% endif %}
+    Reports are reviewed within 24 hours.
+  </p>
+</div>
+
+{% if quoted %}
+  <blockquote class="card card__pad muted" style="margin: 0 0 var(--sp-4)">{{ quoted|truncatechars:200 }}</blockquote>
+{% endif %}
+
+<form class="card card__pad" method="post" action="{% url 'moderation:report' %}">
+  {% csrf_token %}
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <input type="hidden" name="id" value="{{ target.pk }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <fieldset class="field" style="border: 0; padding: 0; margin: 0 0 var(--sp-4)">
+    <legend class="label">What's wrong with it?</legend>
+    <div class="report-reasons">
+      {% for value, label in reasons %}
+        <label class="report-reason"><input type="radio" name="reason" value="{{ value }}" {% if forloop.first %}checked{% endif %} required> <span>{{ label }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="field">
+    <label class="label" for="report-note">Anything else (optional)</label>
+    <textarea id="report-note" name="note" maxlength="300" rows="3"></textarea>
+  </div>
+  <button type="submit" class="btn btn--primary btn--block" style="margin-top: var(--sp-4)">Send report</button>
+  <a class="btn btn--block" href="{{ next }}" style="margin-top: var(--sp-2)">Cancel</a>
+</form>
+
+{% if who and not already_blocked and who.pk != request.user.pk %}
+  <form method="post" action="{% url 'moderation:block' who.username %}" class="card card__pad" style="margin-top: var(--sp-4)" onsubmit="return confirm('Block {{ who.username }}? You won\'t see each other\'s posts.');">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <p class="muted text-sm" style="margin: 0 0 var(--sp-3)">Don't want to hear from {{ who.username }} at all?</p>
+    <button type="submit" class="btn btn--danger">Block {{ who.username }}</button>
+  </form>
+{% endif %}
+{% endblock %}

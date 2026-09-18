@@ -45,6 +45,8 @@
           <input type="hidden" name="next" value="{{ next_url }}">
           <button type="submit" class="comment__del">Delete</button>
         </form>
+      {% else %}
+        <a class="comment__act" href="{% url 'moderation:report' %}?kind=comment&id={{ comment.pk }}&next={{ next_url|urlencode }}">Report</a>
       {% endif %}
     </div>
 

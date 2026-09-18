@@ -96,6 +96,7 @@ function Guard() {
         <Stack.Screen name="profile/index" />
         <Stack.Screen name="profile/edit" />
         <Stack.Screen name="profile/delete" />
+        <Stack.Screen name="profile/blocked" />
         <Stack.Screen name="plu/[plu_no]" />
         <Stack.Screen name="holidays" />
         <Stack.Screen name="shifts/new" />

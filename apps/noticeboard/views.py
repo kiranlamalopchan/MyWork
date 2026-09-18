@@ -524,6 +524,14 @@ def person(request, username):
     )
     profile = get_object_or_404(people, username=username)
 
+    # Somebody who has blocked you is somebody whose page you can't find.
+    # Somebody you have blocked you can still find — that is where the
+    # Unblock button lives — but their notices are not shown.
+    from apps.moderation.models import Block
+    if Block.is_blocking(profile, request.user):
+        raise Http404
+    blocked = Block.is_blocking(request.user, profile)
+
     notices = decorate(
         list(Notice.visible(request.user).filter(author=profile)[:PROFILE_LIMIT]), request.user
     )
@@ -532,6 +540,7 @@ def person(request, username):
         request,
         profile=profile,
         notices=notices,
+        blocked=blocked,
         is_me=profile.pk == request.user.pk,
         # What the board did back: reactions on their notices and on their
         # comments are the same compliment, so they are counted as one.

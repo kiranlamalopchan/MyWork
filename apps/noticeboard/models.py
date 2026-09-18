@@ -144,6 +144,13 @@ class Social:
         """
         if user is not None and getattr(user, "is_authenticated", False) and self.author_id == user.pk:
             return True
+        # Taken down by reports (see apps.moderation), or written by somebody
+        # one of you has blocked: not for you, whatever its audience says.
+        if getattr(self, "hidden", False):
+            return False
+        from apps.moderation.models import Block
+        if self.author_id in Block.ids_for(user):
+            return False
         if self.visibility == Visibility.PUBLIC:
             return True
         if self.visibility == Visibility.PRIVATE:
@@ -162,15 +169,16 @@ class Social:
         cuts the page, rather than after.
         """
         if user is None or not getattr(user, "is_authenticated", False):
-            return models.Q(visibility=Visibility.PUBLIC)
+            return models.Q(visibility=Visibility.PUBLIC, hidden=False)
         if friend_ids is None:
             from apps.accounts.models import Friendship
             friend_ids = Friendship.ids_for(user)
-        return (
+        from apps.moderation.models import Block
+        others = (
             models.Q(visibility=Visibility.PUBLIC)
-            | models.Q(author=user)
             | models.Q(visibility=Visibility.FRIENDS, author_id__in=friend_ids)
-        )
+        ) & models.Q(hidden=False) & ~models.Q(author_id__in=Block.ids_for(user))
+        return others | models.Q(author=user)
 
     # ---- what other people made of it -----------------------------------
 
@@ -252,6 +260,9 @@ class Notice(Social, models.Model):
     visibility = models.CharField(
         max_length=8, choices=Visibility.choices, default=Visibility.PUBLIC
     )
+    # Off the board pending review — set by enough reports (apps.moderation)
+    # or by hand in the admin. The author still sees their own.
+    hidden = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -447,6 +458,7 @@ class Comment(Social, models.Model):
     visibility = models.CharField(
         max_length=8, choices=Visibility.choices, default=Visibility.PUBLIC
     )
+    hidden = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

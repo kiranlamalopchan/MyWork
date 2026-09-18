@@ -149,9 +149,15 @@ class Person(APIView):
             comment_count=Count("comments", distinct=True),
         )
         user = get_object_or_404(people, username=username)
+        from apps.moderation.models import Block
+        if Block.is_blocking(user, request.user):
+            raise Http404
+        blocked = Block.is_blocking(request.user, user)
         notices = list(Notice.visible(request.user).filter(author=user)[:PROFILE_LIMIT])
         return Response({
+            "id": user.pk,
             "person": serialize.person(request, user, request.user),
+            "blocked": blocked,
             "since": user.date_joined.strftime("%-d %b %Y"),
             "notice_count": user.notice_count,
             "comment_count": user.comment_count,

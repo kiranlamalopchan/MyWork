@@ -13,7 +13,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimen
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { board, useBoardChanged, type Comment, type Notice, type ReactionTally, type Visibility } from "@/api";
+import { board, safety, useBoardChanged, useSafetyChanged, type Comment, type Notice, type ReactionTally, type Visibility } from "@/api";
 import { useSession } from "@/auth/session";
 
 import { Avatar } from "./Avatar";
@@ -21,6 +21,7 @@ import { confirm } from "./confirm";
 import { Card, reactionInk, Tally } from "./index";
 import { useReveal } from "./keyboard";
 import { ReactionSheet, type Anchor } from "./ReactionPicker";
+import { ReportSheet, type ReportTarget } from "./ReportSheet";
 import { hsl, radius, sp, useTheme } from "./theme";
 import { success, tap, tick } from "./haptics";
 import { VisibilityBadge, VisibilityToggle } from "./VisibilityPicker";
@@ -53,6 +54,8 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
   const [sayVis, setSayVis] = useState<Visibility>("public");
   const [busy, setBusy] = useState(false);
   const [unfolded, setUnfolded] = useState<Notice | null>(null);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
+  const safetyChanged = useSafetyChanged();
   const editorRef = useRef<View>(null);
   const replyRef = useRef<View>(null);
   const sayRef = useRef<TextInput>(null);
@@ -75,6 +78,12 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
     try { await board.edit(notice.id, draft.trim(), draftVis); success(); setEditing(false); changed(notice.id); } finally { setBusy(false); }
   };
   const remove = () => confirm("Remove this notice?", "Everyone loses sight of it.", "Remove", async () => { await board.remove(notice.id); changed(notice.id); });
+  // Somebody else's: flag it, or stop hearing from them altogether.
+  const report = () => setReporting({ kind: "notice", id: notice.id, username: notice.author.username, excerpt: notice.body });
+  const block = () => confirm(`Block ${notice.author.username}?`, "Neither of you will see the other's posts, comments or stories, and any friendship ends.", "Block", async () => {
+    await safety.block(notice.author.username);
+    safetyChanged();
+  });
   const send = async () => {
     const body = say.trim();
     if (!body) return;
@@ -108,33 +117,51 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
             </View>
           </View>
         </Pressable>
-        {mine && !editing ? (
+        {!editing ? (
           <View style={styles.menuWrap}>
+            {notice.is_new && !mine ? (
+              <View style={[styles.dotRing, { backgroundColor: `hsla(${hue}, 72%, 52%, 0.16)` }]}>
+                <View style={[styles.dot, { backgroundColor: hsl(hue, 72, 52) }]} />
+              </View>
+            ) : null}
             <Pressable ref={moreRef} onPress={openMenu} hitSlop={6} accessibilityLabel="More" testID={`notice-menu-${notice.id}`} style={({ pressed }) => [styles.more, { backgroundColor: pressed || menuOpen ? t.surface2 : "transparent" }]}>
               <Ionicons name="ellipsis-horizontal" size={20} color={t.text2} />
             </Pressable>
-            {/* The menu floats over the whole screen so a tap anywhere else closes it. */}
+            {/* The menu floats over the whole screen so a tap anywhere else closes it. Yours: edit or remove; theirs: report or block. */}
             <Modal transparent visible={menuOpen} animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={closeMenu}>
               <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} accessibilityLabel="Close menu" />
               <View style={[styles.menu, menuAt, { backgroundColor: t.surface, borderColor: t.dark ? t.lineStrong : "transparent" }, menuShadow(t.dark)]}>
-                <Pressable onPress={() => { closeMenu(); setEditing(true); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-edit-${notice.id}`}>
-                  <Ionicons name="pencil-outline" size={18} color={t.text} />
-                  <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>Edit</Text>
-                </Pressable>
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
-                <Pressable onPress={() => { closeMenu(); remove(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-remove-${notice.id}`}>
-                  <Ionicons name="trash-outline" size={18} color={t.danger} />
-                  <Text style={{ color: t.danger, fontWeight: "600", fontSize: 15 }}>Remove</Text>
-                </Pressable>
+                {mine ? (
+                  <>
+                    <Pressable onPress={() => { closeMenu(); setEditing(true); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-edit-${notice.id}`}>
+                      <Ionicons name="pencil-outline" size={18} color={t.text} />
+                      <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>Edit</Text>
+                    </Pressable>
+                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
+                    <Pressable onPress={() => { closeMenu(); remove(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-remove-${notice.id}`}>
+                      <Ionicons name="trash-outline" size={18} color={t.danger} />
+                      <Text style={{ color: t.danger, fontWeight: "600", fontSize: 15 }}>Remove</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Pressable onPress={() => { closeMenu(); report(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-report-${notice.id}`}>
+                      <Ionicons name="flag-outline" size={18} color={t.text} />
+                      <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>Report</Text>
+                    </Pressable>
+                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
+                    <Pressable onPress={() => { closeMenu(); block(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-block-${notice.id}`}>
+                      <Ionicons name="ban-outline" size={18} color={t.danger} />
+                      <Text style={{ color: t.danger, fontWeight: "600", fontSize: 15 }}>Block {notice.author.username}</Text>
+                    </Pressable>
+                  </>
+                )}
               </View>
             </Modal>
           </View>
-        ) : notice.is_new && !mine ? (
-          <View style={[styles.dotRing, { backgroundColor: `hsla(${hue}, 72%, 52%, 0.16)` }]}>
-            <View style={[styles.dot, { backgroundColor: hsl(hue, 72, 52) }]} />
-          </View>
         ) : null}
       </View>
+      <ReportSheet target={reporting} onClose={() => setReporting(null)} />
 
       {/* The words, the full width of the card. */}
       {editing ? (
@@ -280,6 +307,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
   const [sayVis, setSayVis] = useState<Visibility>("public");
   const [tally, setTally] = useState<ReactionTally | null>(null);
   const [unfolded, setUnfolded] = useState(false);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const replyRef = useRef<View>(null);
   const shown = tally || comment;
 
@@ -344,8 +372,13 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
             <Pressable onPress={remove} hitSlop={6}>
               <Text style={[styles.footAct, { color: t.text2 }]}>Delete</Text>
             </Pressable>
-          ) : null}
+          ) : (
+            <Pressable onPress={() => setReporting({ kind: "comment", id: comment.id, username: comment.author.username, excerpt: comment.body })} hitSlop={6} testID={`comment-report-${comment.id}`}>
+              <Text style={[styles.footAct, { color: t.text2 }]}>Report</Text>
+            </Pressable>
+          )}
         </View>
+        <ReportSheet target={reporting} onClose={() => setReporting(null)} />
         {replying ? (
           <View ref={replyRef} style={[styles.reply, { marginTop: sp[2] }]}>
             <TextInput
@@ -402,7 +435,7 @@ const styles = StyleSheet.create({
   acts: { flexDirection: "row", alignItems: "center", gap: sp[8], paddingLeft: 2 },
   act: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 32 },
   count: { fontSize: 15, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  menuWrap: { alignItems: "flex-end", marginRight: -6 },
+  menuWrap: { flexDirection: "row", alignItems: "center", marginRight: -6 },
   more: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   menu: { position: "absolute", minWidth: 160, borderRadius: radius.md, borderWidth: 1, overflow: "hidden" },
   menuItem: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingHorizontal: sp[4], paddingVertical: sp[3] },

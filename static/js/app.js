@@ -1794,6 +1794,8 @@
         react.querySelectorAll("[data-emoji]").forEach(function (b) {
           b.classList.toggle("is-on", b.getAttribute("data-emoji") === story.my_emoji);
         });
+        var reportLink = react.querySelector("[data-report]");
+        if (reportLink) reportLink.href = story.report_url || "#";
       }
 
       var ppl = people(), at = ppl.indexOf(current.username);

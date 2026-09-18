@@ -7590,3 +7590,39 @@ body::before {
   .legal__table td + td::before { content: "Why: "; font-weight: 600; color: var(--muted); }
   .legal__opt { display: inline; margin-left: 6px; }
 }
+
+/* --------------------------------------------------------------------------
+   Safety — reporting a post, and the people you have blocked.
+   -------------------------------------------------------------------------- */
+.report-reasons { display: flex; flex-direction: column; gap: var(--sp-2); }
+.report-reason {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.report-reason input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand); }
+.report-reason:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.blocked-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
+.blocked-row + .blocked-row { border-top: 1px solid var(--line); }
+.person-safety { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-3) 0; }
+.person-safety form { margin: 0; }
+.story-viewer__react { flex-wrap: wrap; align-items: center; }
+.story-viewer__report {
+  margin-left: 6px;
+  padding: 0 12px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  color: rgba(255, 255, 255, .85);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}

@@ -39,7 +39,8 @@ class Friends(APIView):
         pending_to = {r.to_user_id for r in sent}
         pending_from = {r.from_user_id for r in received}
 
-        people = get_user_model().objects.filter(is_active=True).exclude(pk=me.pk)
+        from apps.moderation.models import Block
+        people = get_user_model().objects.filter(is_active=True).exclude(pk=me.pk).exclude(pk__in=Block.ids_for(me))
         query = (request.GET.get("q") or "").strip()
         if query:
             people = people.filter(username__icontains=query)
@@ -71,6 +72,10 @@ class FriendRequestSend(APIView):
 
         if them.pk == me.pk:
             return Response({"detail": "You can't friend yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.moderation.models import Block
+        if Block.between(me, them):
+            return Response({"detail": "That request can't be sent."}, status=status.HTTP_400_BAD_REQUEST)
 
         if Friendship.are_friends(me, them):
             return Response({"detail": "Already friends.", "status": "friends"})

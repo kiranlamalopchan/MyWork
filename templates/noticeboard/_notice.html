@@ -80,6 +80,14 @@
             <span class="act__label">Remove</span>
           </button>
         </form>
+      {% else %}
+        {# Somebody else's: a way to flag it, and (on its page) to block them. #}
+        <a class="act act--quiet" href="{% url 'moderation:report' %}?kind=notice&id={{ notice.pk }}&next={{ next_url|urlencode }}" title="Report" aria-label="Report">
+          <svg class="act__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 22V4a1 1 0 0 1 1-1h11l1 2h4v11h-9l-1-2H6"/>
+          </svg>
+          <span class="act__label">Report</span>
+        </a>
       {% endif %}
     </div>
 

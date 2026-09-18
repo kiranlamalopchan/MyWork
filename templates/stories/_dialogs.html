@@ -46,6 +46,7 @@
         {% for value, label in emoji_choices %}
           <button type="button" class="story-viewer__face" data-emoji="{{ value }}" aria-label="{{ label }}" title="{{ label }}">{% reaction value %}</button>
         {% endfor %}
+        <a class="story-viewer__report" data-report href="#" aria-label="Report this story" title="Report">Report</a>
       </div>
       <div class="story-viewer__viewers" data-viewers hidden></div>
     </div>

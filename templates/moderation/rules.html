@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% comment %}
+  The community rules: what the notice board is for and what gets taken
+  off it. Public, because you agree to them before you have an account.
+{% endcomment %}
+{% block title %}Community rules · MeroKaam{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Community rules</h1>
+  <p class="page-sub">The notice board is shared with everyone signed in. These are the terms for using it.</p>
+</div>
+
+<article class="card card__pad legal">
+  <section>
+    <h2>What the board is for</h2>
+    <p>Shift swaps, reminders, questions, and the odd photo from your day. Post what you'd be comfortable saying out loud in the staff room.</p>
+  </section>
+
+  <section>
+    <h2>What isn't allowed</h2>
+    <p>There is no tolerance for any of the following, from anyone. Content that breaks these rules is removed and the account responsible may be closed without notice.</p>
+    <ul>
+      <li><strong>Harassment or bullying</strong> — targeting, threatening or demeaning another person.</li>
+      <li><strong>Hate</strong> — attacks on people for their race, ethnicity, religion, gender, sexuality, disability or age.</li>
+      <li><strong>Violence</strong> — threats, or encouraging harm to anyone.</li>
+      <li><strong>Nudity or sexual content</strong> — of any kind.</li>
+      <li><strong>Spam and scams</strong> — repeated, misleading or commercial posts.</li>
+      <li><strong>Other people's private information</strong> — phone numbers, addresses or anything shared without their say-so.</li>
+      <li><strong>Impersonation</strong> — pretending to be somebody else.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Keeping it civil</h2>
+    <ul>
+      <li><strong>Filtering:</strong> the board refuses posts containing slurs and threats outright.</li>
+      <li><strong>Reporting:</strong> any notice, comment, story or person can be reported from its menu. Reports are reviewed within 24 hours, and anything reported by several people is hidden straight away until it has been looked at.</li>
+      <li><strong>Blocking:</strong> you can block anyone. Neither of you will see the other's posts, comments or stories, and they can't send you a friend request. Manage it under <a href="{% url 'moderation:blocked' %}">Blocked people</a>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Your account</h2>
+    <p>By creating an account you agree to these rules and to the <a href="{% url 'privacy' %}">privacy policy</a>. Accounts that break the rules may be suspended or closed. You can delete your own account at any time from your profile.</p>
+  </section>
+</article>
+{% endblock %}

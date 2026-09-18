@@ -17,6 +17,7 @@ import { stories as api, useStoriesChanged, useStoryPerson, type Story } from "@
 import { Avatar, EmojiRow } from "@/ui";
 import { SkeletonStory } from "@/ui/Skeleton";
 import { confirm } from "@/ui/confirm";
+import { ReportSheet, type ReportTarget } from "@/ui/ReportSheet";
 import { goBack } from "@/nav/paths";
 import { sp } from "@/ui/theme";
 
@@ -33,6 +34,8 @@ export default function Viewer() {
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showViewers, setShowViewers] = useState(false);
+  // Somebody else's story, being flagged: the timer waits while the sheet is up.
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const [tally, setTally] = useState<Record<number, { my_emoji: string; reactions: Story["reactions"] }>>({});
   const started = useRef(0);
   const elapsed = useRef(0);
@@ -204,7 +207,13 @@ export default function Viewer() {
         ) : (
           <View style={styles.reactRow}>
             <EmojiRow mine={shown.my_emoji} onPick={react} choices={q.data.emoji} />
-            {shown.reactions.length ? <Text style={styles.tally}>{shown.reactions.map((r) => `${r.emoji} ${r.count}`).join("   ")}</Text> : null}
+            <View style={styles.reactFoot}>
+              {shown.reactions.length ? <Text style={styles.tally}>{shown.reactions.map((r) => `${r.emoji} ${r.count}`).join("   ")}</Text> : <View />}
+              <Pressable onPress={() => { hold(); setReporting({ kind: "story", id: story.id, username: q.data!.person.username, excerpt: story.caption }); }} hitSlop={8} style={styles.reportPill} testID="story-report">
+                <Ionicons name="flag-outline" size={14} color="#fff" />
+                <Text style={styles.reportText}>Report</Text>
+              </Pressable>
+            </View>
           </View>
         )}
         {showViewers && story.mine ? (
@@ -214,6 +223,7 @@ export default function Viewer() {
           </View>
         ) : null}
       </View>
+      <ReportSheet target={reporting} onClose={() => { setReporting(null); release(); }} onBlocked={close} />
     </View>
   );
 }
@@ -236,7 +246,10 @@ const styles = StyleSheet.create({
   pill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
   pillText: { color: "#fff", fontWeight: "700" },
   reactRow: { backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 24, paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
+  reactFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: sp[2], paddingHorizontal: 4 },
   tally: { color: "#fff", textAlign: "center", fontSize: 13 },
+  reportPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.16)" },
+  reportText: { color: "#fff", fontSize: 12.5, fontWeight: "600" },
   viewers: { backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 14, padding: sp[3], gap: 4 },
   viewer: { color: "#fff", fontSize: 14 },
 });
