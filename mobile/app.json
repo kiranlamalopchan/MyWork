@@ -19,7 +19,7 @@
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.mywork.app",
+      "package": "com.kiranlama.merokaam",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#121c2d",
@@ -31,8 +31,7 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ],
-      "versionCode": 1
+      ]
     },
     "web": {
       "bundler": "metro",
