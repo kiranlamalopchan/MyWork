@@ -1,15 +1,19 @@
 /**
- * The way in, after the splash: four cards you swipe through, saying what
- * KaamKoRecord is for — the clock, the timesheet behind it, the PLU list, and the
- * one permission worth explaining before the phone asks for it.
+ * The way in, after the splash: four screens you swipe through, saying what
+ * KaamKoRecord is for — the clock, the timesheet behind it, the PLU list, and
+ * the one permission worth explaining before the phone asks for it.
  *
- * Everything here is driven by the scroll rather than by mounting: the art,
- * the words and the dots all read the same shared scroll position, so a card
- * half-dragged is half-arrived and a flick that changes its mind follows the
- * finger back. Nothing waits for a page to "land" before it starts.
+ * The shape is the one most onboarding tours share: the upper half is a
+ * coloured stage with the screen's picture on it, and a white sheet with
+ * big rounded corners rises from the bottom holding the words, the dots,
+ * Skip and Next. The stage's colour is each screen's own accent, and it
+ * blends from one to the next as you swipe — nothing waits for a page to
+ * "land" before it starts, because everything reads the same scroll
+ * position: the picture, the words, the dots, the colour.
  *
- * Colours, spacing, radii and the button are the app's own (ui/theme,
- * ui/index) — this screen introduces no look of its own.
+ * Colours, spacing, radii and the buttons are the app's own (ui/theme,
+ * ui/index) — this screen introduces no look of its own, and every
+ * surface stays a solid colour.
  */
 import React, { useCallback, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -18,6 +22,7 @@ import Animated, {
   Extrapolation,
   type SharedValue,
   interpolate,
+  interpolateColor,
   runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -28,16 +33,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { askForPush } from "@/push/register";
 import { Button } from "@/ui";
 import { tap, tick } from "@/ui/haptics";
-import { alpha, mix, sp, useTheme, type Theme } from "@/ui/theme";
+import { alpha, mix, radius, sp, useTheme, type Theme } from "@/ui/theme";
 
 type Slide = {
   key: string;
   icon: keyof typeof Ionicons.glyphMap;
-  /** Picked from the theme, so each card is one of the app's own accents. */
+  /** Picked from the theme, so each screen is one of the app's own accents. */
   tint: (t: Theme) => string;
   title: string;
   body: string;
-  /** The last card asks for something rather than only saying something. */
+  /** The last screen asks for something rather than only saying something. */
   ask?: boolean;
 };
 
@@ -73,6 +78,11 @@ const SLIDES: Slide[] = [
   },
 ];
 
+// The sheet's corner, and the height of the words in it — fixed, so the
+// sheet behind the list can be drawn to the same line.
+const SHEET_RADIUS = 34;
+const WORDS_H = 176;
+
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -80,18 +90,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const list = useRef<FlatList<Slide>>(null);
   const [at, setAt] = useState(0);
   // The list's own height, measured rather than inherited: a card sizes to
-  // its content otherwise, and a card that does not know the height it is in
-  // cannot centre itself in it — it sits at the top with a hole beneath.
+  // its content otherwise, and the stage cannot fill what it does not know.
   const [tall, setTall] = useState(0);
   const [asking, setAsking] = useState(false);
   const x = useSharedValue(0);
   const asks = !!SLIDES[at]?.ask;
+  const last = at === SLIDES.length - 1;
 
   // The page comes off the scroll position, not off onMomentumScrollEnd:
   // that event does not fire for a programmatic scroll on every platform, and
-  // a Continue button that reads a stale page just scrolls to where you
-  // already are. This follows a drag too, so the footer changes as the last
-  // card arrives rather than after it has settled.
+  // a Next button that reads a stale page just scrolls to where you already
+  // are. This follows a drag too, so the footer changes as the last card
+  // arrives rather than after it has settled.
   const page = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     x.value = e.contentOffset.x;
@@ -119,13 +129,17 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     }
   }, [onDone]);
 
+  // The stage: each screen's accent, softened into the surface, blending
+  // from one to the next with the swipe.
+  const stages = SLIDES.map((s) => mix(s.tint(t), t.surface, t.dark ? 0.22 : 0.18));
+  const stops = SLIDES.map((_, i) => i * width);
+  const stage = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(x.value, stops, stages) }));
+
   return (
-    <View style={[styles.root, { backgroundColor: t.bg, paddingTop: insets.top }]} testID="onboarding">
-      <View style={styles.top}>
-        <Pressable onPress={finish} hitSlop={12} testID="onboarding-skip" accessibilityRole="button" style={({ pressed }) => [styles.skip, { opacity: pressed ? 0.6 : 1 }]}>
-          <Text style={{ color: t.muted, fontSize: 15, fontWeight: "600" }}>Skip</Text>
-        </Pressable>
-      </View>
+    <Animated.View style={[styles.root, stage]} testID="onboarding">
+      {/* The sheet behind the lower part of the list: the words ride on it,
+          the footer sits in it. */}
+      <View pointerEvents="none" style={[styles.sheet, { backgroundColor: t.surface, height: WORDS_H + 150 + insets.bottom + sp[5] }]} />
 
       <Animated.FlatList
         ref={list as never}
@@ -134,20 +148,16 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         horizontal
         pagingEnabled
         bounces={false}
-        // The list fills the room between the Skip row and the footer, and
-        // `stretch` hands that height down to each card — a card sized to its
-        // own content cannot centre itself in a space it does not know about,
-        // and rides high with a hole beneath it.
         style={{ flex: 1 }}
         onLayout={(e) => setTall(e.nativeEvent.layout.height)}
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
         getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-        renderItem={({ item, index }) => <Card slide={item} index={index} x={x} width={width} tall={tall} />}
+        renderItem={({ item, index }) => <Card slide={item} index={index} x={x} width={width} tall={tall} top={insets.top} />}
       />
 
-      <View style={[styles.foot, { paddingBottom: insets.bottom + sp[5] }]}>
+      <View style={[styles.foot, { backgroundColor: t.surface, paddingBottom: insets.bottom + sp[5] }]}>
         <Dots x={x} width={width} />
         {asks ? (
           <View style={{ gap: sp[2] }}>
@@ -155,10 +165,24 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <Button title="Not now" kind="plain" onPress={finish} />
           </View>
         ) : (
-          <Button title="Continue" onPress={() => { tick(); go(at + 1); }} testID="onboarding-next" />
+          <View style={styles.row}>
+            <Pressable onPress={finish} hitSlop={12} testID="onboarding-skip" accessibilityRole="button" style={({ pressed }) => [styles.skip, { opacity: pressed ? 0.6 : 1 }]}>
+              <Text style={{ color: t.muted, fontSize: 16, fontWeight: "600" }}>Skip</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { tick(); go(at + 1); }}
+              testID="onboarding-next"
+              accessibilityRole="button"
+              accessibilityLabel={last ? "Get started" : "Next"}
+              style={({ pressed }) => [styles.next, { backgroundColor: t.brand, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={{ color: t.brandInk, fontSize: 16, fontWeight: "700" }}>Next</Text>
+              <Ionicons name="arrow-forward" size={18} color={t.brandInk} />
+            </Pressable>
+          </View>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -181,31 +205,32 @@ function near(v: number, index: number, width: number) {
   );
 }
 
-/** One card: the art, the title, the words — all reading the scroll. */
-function Card({ slide, index, x, width, tall }: { slide: Slide; index: number; x: SharedValue<number>; width: number; tall: number }) {
+/** One screen: the picture on the stage above, its words on the sheet below — both reading the scroll. */
+function Card({ slide, index, x, width, tall, top }: { slide: Slide; index: number; x: SharedValue<number>; width: number; tall: number; top: number }) {
   const t = useTheme();
   const tint = slide.tint(t);
 
+  // The picture slides a little slower than the page and shrinks as it goes,
+  // which is what makes the stage feel deeper than the sheet.
   const art = useAnimatedStyle(() => {
     const d = near(x.value, index, width);
     return {
-      opacity: interpolate(Math.abs(d), [0, 1], [1, 0], Extrapolation.CLAMP),
-      transform: [{ scale: interpolate(Math.abs(d), [0, 1], [1, 0.78], Extrapolation.CLAMP) }, { translateX: d * -width * 0.18 }],
+      opacity: interpolate(Math.abs(d), [0, 1], [1, 0.2], Extrapolation.CLAMP),
+      transform: [{ translateX: d * -width * 0.25 }, { scale: interpolate(Math.abs(d), [0, 1], [1, 0.82], Extrapolation.CLAMP) }],
     };
   });
-  // The words lag the art a little, which is what makes a card feel layered
-  // rather than printed on one sheet of glass.
+  // The words come in from the side they are arriving from and lag the page.
   const words = useAnimatedStyle(() => {
     const d = near(x.value, index, width);
     return {
-      opacity: interpolate(Math.abs(d), [0, 0.75], [1, 0], Extrapolation.CLAMP),
-      transform: [{ translateY: Math.abs(d) * 26 }, { translateX: d * -width * 0.06 }],
+      opacity: interpolate(Math.abs(d), [0, 0.7], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateX: d * -width * 0.1 }],
     };
   });
 
   return (
     <View style={[styles.card, { width }, tall > 0 && { height: tall }]}>
-      <Animated.View style={[styles.artWrap, art]}>
+      <Animated.View style={[styles.stageArea, { paddingTop: top + sp[4] }, art]}>
         <Art icon={slide.icon} tint={tint} />
       </Animated.View>
       <Animated.View style={[styles.words, words]}>
@@ -217,26 +242,30 @@ function Card({ slide, index, x, width, tall }: { slide: Slide; index: number; x
 }
 
 /**
- * The illustration slot.
- *
- * A tonal disc in the card's own accent with the feature's icon on it, and
- * the same stray dots and arcs the holiday card's drawing uses, so the way in
- * looks like the app it is introducing. Swap the middle of this for an <Image>
- * or a Lottie when there is proper art — lottie-react-native is not installed
- * (it is a native module, so adding it means a rebuild), and everything around
- * it here is sized to be replaced.
+ * The picture on the stage: a big white disc with the feature's icon, a
+ * tinted ring round it, and a few scattered shapes in the accent — the
+ * same stray dots and arcs the holiday card's drawing uses, so the way in
+ * looks like the app it is introducing. Swap the middle of this for an
+ * <Image> or a Lottie when there is proper art — lottie-react-native is not
+ * installed (it is a native module, so adding it means a rebuild), and
+ * everything around it here is sized to be replaced.
  */
 function Art({ icon, tint }: { icon: keyof typeof Ionicons.glyphMap; tint: string }) {
   const t = useTheme();
   return (
     <View style={styles.art}>
-      <View style={[styles.blob, { backgroundColor: alpha(tint, 0.1) }]} />
-      <View style={[styles.disc, { backgroundColor: mix(tint, t.surface, 0.16) }]}>
-        <Ionicons name={icon} size={76} color={tint} />
+      <View style={[styles.halo, { borderColor: alpha(tint, 0.22) }]} />
+      <View style={[styles.halo2, { backgroundColor: alpha(tint, 0.14) }]} />
+      <View style={[styles.disc, { backgroundColor: t.surface }]}>
+        <View style={[styles.discInner, { backgroundColor: alpha(tint, 0.12) }]}>
+          <Ionicons name={icon} size={78} color={tint} />
+        </View>
       </View>
-      <View style={[styles.dot, { top: 18, right: 34, backgroundColor: alpha(tint, 0.35) }]} />
-      <View style={[styles.dot, styles.dotSm, { bottom: 30, left: 30, backgroundColor: alpha(tint, 0.3) }]} />
-      <View style={[styles.arc, { borderTopColor: alpha(tint, 0.3) }]} />
+      <View style={[styles.dot, { top: 26, right: 30, backgroundColor: alpha(tint, 0.55) }]} />
+      <View style={[styles.dot, styles.dotSm, { bottom: 44, left: 26, backgroundColor: alpha(tint, 0.45) }]} />
+      <View style={[styles.dot, styles.dotXs, { top: 78, left: 44, backgroundColor: alpha(tint, 0.6) }]} />
+      <View style={[styles.arc, { borderTopColor: alpha(tint, 0.5) }]} />
+      <View style={[styles.arc2, { borderBottomColor: alpha(tint, 0.35) }]} />
     </View>
   );
 }
@@ -255,32 +284,38 @@ function Dot({ index, x, width }: { index: number; x: SharedValue<number>; width
   const style = useAnimatedStyle(() => {
     const span = [(index - 1) * width, index * width, (index + 1) * width];
     return {
-      width: interpolate(x.value, span, [8, 26, 8], Extrapolation.CLAMP),
-      opacity: interpolate(x.value, span, [0.35, 1, 0.35], Extrapolation.CLAMP),
+      width: interpolate(x.value, span, [8, 28, 8], Extrapolation.CLAMP),
+      opacity: interpolate(x.value, span, [0.3, 1, 0.3], Extrapolation.CLAMP),
     };
   });
   return <Animated.View style={[styles.pip, { backgroundColor: t.brand }, style]} />;
 }
 
-const DISC = 176;
+const DISC = 200;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  top: { flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: sp[5], height: 44 },
-  skip: { paddingHorizontal: sp[3], paddingVertical: sp[2] },
-  card: { alignItems: "center", justifyContent: "center", paddingHorizontal: sp[6], gap: sp[6] },
-  artWrap: { alignItems: "center", justifyContent: "center" },
-  art: { width: DISC + 80, height: DISC + 80, alignItems: "center", justifyContent: "center" },
-  blob: { position: "absolute", width: DISC + 72, height: DISC + 72, borderRadius: (DISC + 72) / 2 },
-  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: "center", justifyContent: "center" },
-  dot: { position: "absolute", width: 14, height: 14, borderRadius: 7 },
-  dotSm: { width: 9, height: 9, borderRadius: 4.5 },
-  // A stroke of a circle, not a circle: only the top edge is painted.
-  arc: { position: "absolute", top: 24, left: 16, width: 48, height: 48, borderRadius: 24, borderWidth: 3, borderColor: "transparent", transform: [{ rotate: "-35deg" }] },
-  words: { alignItems: "center", gap: sp[3] },
-  title: { fontSize: 30, fontWeight: "800", letterSpacing: -1, textAlign: "center", lineHeight: 35 },
-  body: { fontSize: 15.5, lineHeight: 23, textAlign: "center", maxWidth: 360 },
-  foot: { paddingHorizontal: sp[5], gap: sp[5] },
-  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, height: 10 },
+  sheet: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopLeftRadius: SHEET_RADIUS, borderTopRightRadius: SHEET_RADIUS },
+  card: { justifyContent: "flex-end" },
+  stageArea: { flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: sp[4] },
+  art: { width: DISC + 120, height: DISC + 120, alignItems: "center", justifyContent: "center" },
+  halo: { position: "absolute", width: DISC + 96, height: DISC + 96, borderRadius: (DISC + 96) / 2, borderWidth: 2 },
+  halo2: { position: "absolute", width: DISC + 44, height: DISC + 44, borderRadius: (DISC + 44) / 2 },
+  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  discInner: { width: DISC - 48, height: DISC - 48, borderRadius: (DISC - 48) / 2, alignItems: "center", justifyContent: "center" },
+  dot: { position: "absolute", width: 16, height: 16, borderRadius: 8 },
+  dotSm: { width: 11, height: 11, borderRadius: 5.5 },
+  dotXs: { width: 7, height: 7, borderRadius: 3.5 },
+  // Strokes of a circle, not circles: only one edge of each is painted.
+  arc: { position: "absolute", top: 30, left: 14, width: 56, height: 56, borderRadius: 28, borderWidth: 3, borderColor: "transparent", transform: [{ rotate: "-35deg" }] },
+  arc2: { position: "absolute", bottom: 22, right: 18, width: 44, height: 44, borderRadius: 22, borderWidth: 3, borderColor: "transparent", transform: [{ rotate: "20deg" }] },
+  words: { height: WORDS_H, paddingHorizontal: sp[6], paddingTop: sp[6], gap: sp[3] },
+  title: { fontSize: 30, fontWeight: "800", letterSpacing: -0.8, lineHeight: 36 },
+  body: { fontSize: 15.5, lineHeight: 23 },
+  foot: { paddingHorizontal: sp[6], gap: sp[5], paddingTop: sp[2] },
+  dots: { flexDirection: "row", alignItems: "center", gap: 6, height: 10 },
   pip: { height: 8, borderRadius: 4 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  skip: { paddingVertical: sp[3], paddingRight: sp[3] },
+  next: { flexDirection: "row", alignItems: "center", gap: sp[2], paddingLeft: sp[6], paddingRight: sp[5], height: 54, borderRadius: radius.pill },
 });

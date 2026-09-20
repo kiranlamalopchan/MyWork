@@ -6,7 +6,7 @@
  * scrolls beneath and otherwise sits on the page's own wash.
  */
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, { Circle, Defs, LinearGradient, Mask, Path, Rect, Stop } from "react-native-svg";
@@ -69,6 +69,7 @@ export function AppBar({ title, back, backLabel, section, right, tools = true }:
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const layout = useLayout();
+  const { width } = useWindowDimensions();
   const router = useRouter();
   const { me } = useSession();
   const unread = useUnread().data?.unread ?? 0;
@@ -90,7 +91,10 @@ export function AppBar({ title, back, backLabel, section, right, tools = true }:
         </Pressable>
       )}
       {back && title ? (
-        <Text style={[styles.title, { color: t.text }]} numberOfLines={1} pointerEvents="none">{title}</Text>
+        // Centred on the screen where there is room; on a narrow phone the
+        // tools reach past the middle, so the title sits in the row between
+        // them instead of under the bell.
+        <Text style={[width >= 400 ? styles.title : styles.titleFlow, { color: t.text }]} numberOfLines={1} pointerEvents="none">{title}</Text>
       ) : null}
       <View style={styles.tools}>
         {right}
@@ -136,6 +140,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.3, textTransform: "uppercase" },
   back: { flexDirection: "row", alignItems: "center", height: 40, minWidth: 40, marginRight: "auto", paddingLeft: 7, paddingRight: 9, borderRadius: 20 },
   title: { position: "absolute", left: "26%", right: "26%", textAlign: "center", fontSize: 17, fontWeight: "700", letterSpacing: -0.3 },
+  titleFlow: { flex: 1, minWidth: 0, textAlign: "center", fontSize: 17, fontWeight: "700", letterSpacing: -0.3 },
   tools: { flexDirection: "row", alignItems: "center", gap: 8 },
   bell: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", top: -3, right: -3, minWidth: 19, height: 19, paddingHorizontal: 4, borderRadius: 10, borderWidth: 2, alignItems: "center", justifyContent: "center" },
