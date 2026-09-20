@@ -22,7 +22,7 @@ import { alpha, sp, useTheme } from "./theme";
 const WORDS: Record<Exclude<PushState, "unsupported">, string> = {
   on: "On for this phone.",
   off: "Get a notification when something happens on the board, or a shift needs you.",
-  blocked: "Blocked for MeroKaam in the phone's Settings. Tap the switch to open them.",
+  blocked: "Blocked for KaamKoRecord in the phone's Settings. Tap the switch to open them.",
 };
 
 export function PushRow() {

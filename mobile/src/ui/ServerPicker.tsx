@@ -40,7 +40,7 @@ export function ServerPicker() {
         <View style={[styles.panel, { backgroundColor: t.surface, borderColor: t.dark ? t.line : "transparent" }]}>
           <Text style={{ color: t.text, fontWeight: "700", fontSize: 15 }}>Server address</Text>
           <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18 }}>
-            Where MeroKaam is running: the site's address, or your laptop's on the same Wi-Fi while developing (for example 192.168.0.11:8000). Leave it empty for this build's own: {defaultServer().replace(/^https?:\/\//, "")}.
+            Where KaamKoRecord is running: the site's address, or your laptop's on the same Wi-Fi while developing (for example 192.168.0.11:8000). Leave it empty for this build's own: {defaultServer().replace(/^https?:\/\//, "")}.
           </Text>
           <Input value={typed} onChangeText={setTyped} placeholder="https://example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" testID="server-url" />
           <View style={{ flexDirection: "row", gap: sp[2] }}>

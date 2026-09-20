@@ -2018,4 +2018,4 @@ def statement(request):
 def _statement_filename(first, last, workplace):
     """Sorts by date in a downloads folder, and says which job it is for."""
     who = f"-{slugify(workplace.name)}" if workplace else ""
-    return f"MeroKaam-statement{who}-{first:%Y-%m-%d}-to-{last:%Y-%m-%d}.pdf"
+    return f"KaamKoRecord-statement{who}-{first:%Y-%m-%d}-to-{last:%Y-%m-%d}.pdf"

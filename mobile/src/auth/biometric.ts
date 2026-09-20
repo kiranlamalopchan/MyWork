@@ -81,5 +81,5 @@ export async function checkBiometric(promptMessage: string, cancelLabel = "Cance
 export async function unlockWithBiometric(): Promise<string | null> {
   const token = await SecureStore.getItemAsync(TOKEN_KEY);
   if (!token) throw new Error("Sign in with your password first, then turn this on.");
-  return (await checkBiometric("Sign in to MeroKaam", "Use password")) ? token : null;
+  return (await checkBiometric("Sign in to KaamKoRecord", "Use password")) ? token : null;
 }

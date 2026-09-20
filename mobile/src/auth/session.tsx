@@ -68,7 +68,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signedIn = useCallback(async (result: { token: string; me: Me }) => {
     await setToken(result.token);
     setMe(result.me);
-    registerForPush().catch(() => {});
+    // A phone that already said yes is told to the server; one that has
+    // not is asked by the way in or by auth/welcome, never from here.
+    registerForPush({ quiet: true }).catch(() => {});
     // The phone's lock opens for one person: someone else signing in
     // with a password takes that away; the same person keeps it current.
     // Signed in either way — a keychain that refuses can't undo that.
@@ -95,7 +97,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         try {
           const who = await meApi.get();
           setMe(who);
-          registerForPush().catch(() => {});
+          registerForPush({ quiet: true }).catch(() => {});
         } catch (e) {
           await setToken(null);
           // A token the server no longer knows (signed out everywhere, or

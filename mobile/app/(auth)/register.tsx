@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import { ApiError } from "@/api";
 import { useSession } from "@/auth/session";
+import { welcome } from "@/auth/welcome";
 import { Button, Field, Input } from "@/ui";
 
 import { AuthFrame } from "@/ui/AuthFrame";
@@ -19,7 +20,11 @@ export default function Register() {
     if (password !== again) return setError("The two passwords don't match.");
     setBusy(true);
     try {
-      await register(username.trim(), password);
+      const who = username.trim();
+      await register(who, password);
+      // A new account on this phone: the lock for next time, then
+      // notifications, in the phone's own dialogs (auth/welcome).
+      welcome(who);
     } catch (e: any) {
       const fields = e instanceof ApiError ? Object.values(e.fields).flat() : [];
       setError(String(fields[0] || e?.message || "That didn't work."));

@@ -83,9 +83,9 @@ export function AppBar({ title, back, backLabel, section, right, tools = true }:
           {backLabel ? <Text style={{ color: t.text, fontSize: 15, fontWeight: "600", marginRight: 4 }} numberOfLines={1}>{backLabel}</Text> : null}
         </Pressable>
       ) : (
-        <Pressable onPress={() => router.navigate("/")} style={styles.brand} accessibilityLabel="MeroKaam, home">
+        <Pressable onPress={() => router.navigate("/")} style={styles.brand} accessibilityLabel="KaamKoRecord, home">
           <BrandMark size={34} />
-          <Text style={[styles.brandText, { color: t.text }]}>MeroKaam</Text>
+          <Text style={[styles.brandText, { color: t.text }]}>KaamKoRecord</Text>
           {section ? <Text style={[styles.section, { backgroundColor: t.brandSoft, color: t.brand }]}>{section}</Text> : null}
         </Pressable>
       )}

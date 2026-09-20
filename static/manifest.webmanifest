@@ -1,6 +1,6 @@
 {
-  "name": "MeroKaam",
-  "short_name": "MeroKaam",
+  "name": "KaamKoRecord",
+  "short_name": "KaamKoRecord",
   "description": "PLU lookup and timesheets in one place.",
   "start_url": "/",
   "scope": "/",

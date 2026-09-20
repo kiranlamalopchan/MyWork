@@ -105,7 +105,7 @@ export async function askForPush(): Promise<boolean> {
   if (!Notifications || !Device.isDevice) return false;
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
-      name: "MeroKaam",
+      name: "KaamKoRecord",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#059669",

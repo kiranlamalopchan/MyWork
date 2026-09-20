@@ -1504,7 +1504,7 @@ class StatementTests(TestCase):
         response = self._get()
         first = self.today.replace(day=1)
         self.assertIn(
-            f'filename="MeroKaam-statement-{first:%Y-%m-%d}-to-{self.today:%Y-%m-%d}.pdf"',
+            f'filename="KaamKoRecord-statement-{first:%Y-%m-%d}-to-{self.today:%Y-%m-%d}.pdf"',
             response["Content-Disposition"],
         )
 

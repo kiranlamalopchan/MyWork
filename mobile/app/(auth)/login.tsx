@@ -8,13 +8,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { armBiometric, biometricKind, biometricName, biometricUser, unlockWithBiometric, type BiometricKind } from "@/auth/biometric";
+import { biometricKind, biometricName, biometricUser, unlockWithBiometric, type BiometricKind } from "@/auth/biometric";
 import { useSession } from "@/auth/session";
-import { getToken } from "@/auth/token";
+import { welcome } from "@/auth/welcome";
 import { Button, Field, Input } from "@/ui";
 import { AuthFrame } from "@/ui/AuthFrame";
 import { BiometricIcon } from "@/ui/BiometricIcon";
-import { confirm } from "@/ui/confirm";
 import { fail, success, tap, tick } from "@/ui/haptics";
 import { useReveal } from "@/ui/keyboard";
 import { radius, sp, useTheme } from "@/ui/theme";
@@ -68,14 +67,10 @@ export default function Login() {
     const who = username.trim();
     try {
       await signIn(who, password);
-      // First time on a phone with a lock: offer it for next time.
-      if (kind && locked !== who) {
-        const token = await getToken();
-        if (token) {
-          const name = biometricName(kind);
-          confirm(`Use ${name} next time?`, `You'll be signed in as ${who} without typing your password.`, `Use ${name}`, () => armBiometric(who, token), false);
-        }
-      }
+      // Signed in: the lock for next time, then notifications — the phone's
+      // own dialogs, once each (auth/welcome). Not awaited: the screen is
+      // already going.
+      welcome(who);
     } catch (e: any) {
       setError(e?.message || "That didn't work.");
     } finally {
@@ -86,7 +81,7 @@ export default function Login() {
   const fill = t.dark ? t.surface3 : t.surface2;
 
   return (
-    <AuthFrame title="Welcome back" sub="Sign in to MeroKaam — PLU lookup and timesheets." foot="New here?" link="Create an account" linkHref="/(auth)/register">
+    <AuthFrame title="Welcome back" sub="Sign in to KaamKoRecord — PLU lookup and timesheets." foot="New here?" link="Create an account" linkHref="/(auth)/register">
       <Field label="Username">
         <Input autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} textContentType="username" autoComplete="username" testID="username" />
       </Field>

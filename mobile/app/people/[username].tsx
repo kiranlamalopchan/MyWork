@@ -52,7 +52,7 @@ export default function PersonScreen() {
               <Avatar person={q.data.person} size={72} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ color: t.text, fontWeight: "700", fontSize: 24, letterSpacing: -0.4 }}>{q.data.person.is_me ? "You" : q.data.person.username}</Text>
-                <Text style={{ color: t.muted, fontSize: 15 }}>On MeroKaam since {q.data.since}{q.data.person.is_live ? " · here now" : ""}</Text>
+                <Text style={{ color: t.muted, fontSize: 15 }}>On KaamKoRecord since {q.data.since}{q.data.person.is_live ? " · here now" : ""}</Text>
               </View>
             </View>
             {!q.data.person.is_me ? (

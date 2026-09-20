@@ -196,7 +196,7 @@ def _tell_the_site(report):
     try:
         from django.core.mail import send_mail
         send_mail(
-            subject=f"[MeroKaam] Report: {report.get_kind_display().lower()} {report.target_id} — {report.get_reason_display()}",
+            subject=f"[KaamKoRecord] Report: {report.get_kind_display().lower()} {report.target_id} — {report.get_reason_display()}",
             message=(
                 f"{report.reporter} reported {report.get_kind_display().lower()} #{report.target_id}"
                 f"{f' by {report.accused}' if report.accused else ''}.\n\n"

@@ -118,7 +118,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
   // screen can use, whatever its status says.
   const type = response.contentType;
   if (!parsed && !/json/i.test(type) && (response.ok || response.status === 404)) {
-    throw new ApiError(response.status, `${serverUrl()} doesn't have the MeroKaam app API. Update the site there, or change the server address on the sign-in screen.`);
+    throw new ApiError(response.status, `${serverUrl()} doesn't have the KaamKoRecord app API. Update the site there, or change the server address on the sign-in screen.`);
   }
   if (!response.ok) {
     if (response.status === 401 && !options.anonymous) await signOutEverywhere();

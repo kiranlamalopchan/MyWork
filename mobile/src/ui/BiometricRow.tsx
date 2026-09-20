@@ -42,7 +42,7 @@ export function BiometricRow({ username }: { username: string }) {
     try {
       if (next) {
         // The lock has to be met once before it is trusted with the sign-in.
-        if (!(await checkBiometric(`Use ${name} to sign in to MeroKaam`))) return;
+        if (!(await checkBiometric(`Use ${name} to sign in to KaamKoRecord`))) return;
         const token = await getToken();
         if (!token) return;
         await armBiometric(username, token);
