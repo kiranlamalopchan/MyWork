@@ -5,6 +5,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, apiUrl, FilePart, formWith } from "./client";
+import { CHUNK_AT, sizeOf, uploadInPieces } from "./chunked";
 import type {
   Activity, CalendarPage, ClockState, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
   TimesheetPage, Workplace, WorkplaceBrief, WorkplaceInput, WorkplacesPage,
@@ -168,10 +169,20 @@ export function useFriendsChanged() {
 export const stories = {
   tray: () => api<{ stories: TrayRow[]; max_seconds: number }>("stories/"),
   person: (username: string) => api<StoryPerson>(`stories/${encodeURIComponent(username)}/`),
-  post: (fields: {
+  post: async (fields: {
     image?: FilePart; video?: FilePart; poster?: FilePart; duration?: number;
     trim_start?: number; trim_end?: number; caption?: string; visibility?: Visibility;
-  }, onProgress?: (sent: number) => void) => api<{ story: Story; stories: TrayRow[] }>("stories/", { method: "POST", form: formWith(fields), onProgress }),
+  }, onProgress?: (sent: number) => void) => {
+    // A video too big for one request goes in pieces first (api/chunked),
+    // and the story names the assembled upload instead of carrying the file.
+    const { video, ...rest } = fields;
+    const size = video ? await sizeOf(video) : null;
+    if (video && size !== null && size > CHUNK_AT) {
+      const upload_id = await uploadInPieces(video, size, (p) => onProgress?.(p * 0.95));
+      return api<{ story: Story; stories: TrayRow[] }>("stories/", { method: "POST", form: formWith({ ...rest, upload_id, filename: video.name }), onProgress: (p) => onProgress?.(0.95 + p * 0.05) });
+    }
+    return api<{ story: Story; stories: TrayRow[] }>("stories/", { method: "POST", form: formWith(fields), onProgress });
+  },
   remove: (id: number) => api<{ stories: TrayRow[] }>(`stories/${id}/`, { method: "DELETE" }),
   seen: (id: number) => api(`stories/${id}/seen/`, { method: "POST" }),
   react: (id: number, emoji: string) =>

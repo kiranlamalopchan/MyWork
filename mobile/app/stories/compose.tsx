@@ -53,6 +53,12 @@ export default function ComposeStory() {
       allowsEditing: false,
       quality: 0.9,
       videoMaxDuration: 0,
+      // iOS re-encodes the clip to 1080p H.264 on the way out of the
+      // library: a minute of 4K/HDR is a few hundred megabytes, which the
+      // host would refuse (413), and the server keeps 1080p anyway.
+      // Android has no such switch — a large file there goes up in
+      // pieces instead (api/chunked).
+      videoExportPreset: ImagePicker.VideoExportPreset.H264_1920x1080,
     };
     try {
       let result: ImagePicker.ImagePickerResult | null = null;

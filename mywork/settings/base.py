@@ -161,6 +161,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # ship with the code and are collected, these arrive from users and are backed
 # up with the database, not with the repository.
 MEDIA_URL = '/media/'
+# A piece of a big video comes in as 6 MB of base64 in a JSON body
+# (apps/api/views/uploads.py); Django's default 2.5 MB cap on non-file
+# bodies would turn that into a 400 before the view saw it.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 MEDIA_ROOT = BASE_DIR / 'media'
 
 

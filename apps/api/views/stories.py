@@ -14,6 +14,7 @@ from apps.stories import notify as story_notify
 from apps.stories.views import tray_for
 
 from .. import serialize
+from . import uploads
 
 User = get_user_model()
 
@@ -32,7 +33,25 @@ class Tray(APIView):
         sends — poster, duration, trim_start/trim_end for a clip cut to a
         window. The same set_image/set_video, so the same conversions.
         """
-        form = StoryForm(request.data, request.FILES)
+        # A video too big for one request came in pieces (views/uploads.py):
+        # the assembled file stands in for the attachment.
+        files = {name: request.FILES[name] for name in request.FILES}
+        upload_id = request.data.get("upload_id")
+        assembled = None
+        if upload_id:
+            assembled = uploads.take(request.user, upload_id, request.data.get("filename") or "video.mp4")
+            if assembled is None:
+                return Response({"detail": "That upload wasn't found. Send the video again."}, status=400)
+            files["video"] = assembled
+        try:
+            return self._create(request, files)
+        finally:
+            if assembled is not None:
+                assembled.close()
+                uploads.discard(request.user, upload_id)
+
+    def _create(self, request, files):
+        form = StoryForm(request.data, files)
         if not form.is_valid():
             caption_error = form.errors.get("caption")
             if caption_error:

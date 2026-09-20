@@ -923,3 +923,56 @@ class ModerationApiTests(ApiTestCase):
         resp = self.api("post", "comments", {"body": "you cunt", "visibility": "public"}, args=[notice.pk])
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(Comment.objects.exists())
+
+
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class ChunkedUploadTests(ApiTestCase):
+    """A video too big for one request: sent in pieces, then named when the story is made."""
+
+    def _pieces(self, blob, n):
+        import base64
+        size = -(-len(blob) // n)
+        return [base64.b64encode(blob[i * size:(i + 1) * size]).decode() for i in range(n)]
+
+    def test_pieces_are_assembled_in_order_and_become_the_story(self):
+        import os
+        from pathlib import Path
+        from apps.stories.models import Story
+        blob = (Path("apps/stories/fixtures/short.mp4")).read_bytes()
+        pieces = self._pieces(blob, 3)
+        upload_id = "ab12cd34ef56ab12cd34"
+        for i, data in enumerate(pieces):
+            resp = self.api("post", "uploads", {"upload_id": upload_id, "index": i, "total": 3, "data": data})
+            self.assertEqual(resp.status_code, 200, resp.content[:200])
+            self.assertEqual(resp.json()["received"], i + 1)
+        self.assertEqual(resp.json()["bytes"], len(blob))
+        resp = self.api("post", "stories", {"upload_id": upload_id, "filename": "clip.mp4", "caption": "in pieces", "duration": "3.0"}, fmt="multipart")
+        self.assertEqual(resp.status_code, 201, resp.content[:300])
+        story = Story.objects.get()
+        self.assertTrue(story.is_video)
+        self.assertEqual(story.caption, "in pieces")
+        # The assembled file is gone once the story has it.
+        self.assertFalse(os.path.exists(f"/tmp/mywork-test-media/uploads/{self.kiran.pk}-{upload_id}.part"))
+        # And the id can't be used twice.
+        resp = self.api("post", "stories", {"upload_id": upload_id, "filename": "clip.mp4"}, fmt="multipart")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_bad_id_a_missing_start_and_somebody_elses_pieces_are_refused(self):
+        self.assertEqual(self.api("post", "uploads", {"upload_id": "../x", "index": 0, "total": 1, "data": "AAAA"}).status_code, 400)
+        self.assertEqual(self.api("post", "uploads", {"upload_id": "ab12cd34ef56ab12cd34", "index": 1, "total": 2, "data": "AAAA"}).status_code, 409)
+        self.assertEqual(self.api("post", "uploads", {"upload_id": "ab12cd34ef56ab12cd34", "index": 0, "total": 2, "data": "AAAA"}).status_code, 200)
+        # Another person naming the same id gets nothing: the file is scoped by user.
+        other = User.objects.create_user("other", password="pw")
+        from rest_framework.authtoken.models import Token
+        token = Token.objects.create(user=other).key
+        resp = self.api("post", "stories", {"upload_id": "ab12cd34ef56ab12cd34", "filename": "clip.mp4"}, fmt="multipart", token=token)
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_full_size_piece_is_not_too_big_for_django(self):
+        # The app sends 6 MB pieces (8 MB as base64) — past Django's 2.5 MB
+        # DATA_UPLOAD_MAX_MEMORY_SIZE, which must not apply to this stream.
+        import base64, os
+        blob = os.urandom(6 * 1024 * 1024)
+        resp = self.api("post", "uploads", {"upload_id": "ab12cd34ef56ab12cd34", "index": 0, "total": 1, "data": base64.b64encode(blob).decode()})
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        self.assertEqual(resp.json()["bytes"], len(blob))
