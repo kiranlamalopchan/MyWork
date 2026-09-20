@@ -10,7 +10,7 @@
 <div class="story-plain">
   {% for story in stories %}
     <figure class="story-plain__item card">
-      {% if story.is_video %}<video src="{{ story.video.url }}" controls playsinline></video>{% else %}<img src="{{ story.image.url }}" alt="">{% endif %}
+      {% if story.is_video %}<video src="{{ story.video_url }}" controls playsinline></video>{% else %}<img src="{{ story.image.url }}" alt="">{% endif %}
       <figcaption>
         {% if story.caption %}<div>{{ story.caption }}</div>{% endif %}
         <small class="muted">{{ story.created_at|timesince }} ago</small>

@@ -363,3 +363,67 @@ class VideoSizeTests(TestCase):
         info = probe(fixture("tall4k.mp4"))
         self.assertEqual((info["width"], info["height"], info["short"]), (2160, 3840, 2160))
         self.assertAlmostEqual(info["duration"], 2.0, delta=0.2)
+
+
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class VideoServingTests(TestCase):
+    """
+    The clip is fetched from the range-serving view, not /media/: an
+    iPhone's player asks for pieces and refuses a server that sends the
+    whole file back.
+    """
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.kiran)
+        self.story = Story(author=self.kiran)
+        self.story.kind = "video"
+        self.story.image.save("stories/poster.jpg", picture(9, 16), save=False)
+        self.story.video.save("stories/1-abcdef012345.mp4", SimpleUploadedFile("c.mp4", bytes(range(256)) * 4), save=False)
+        self.story.duration = 3
+        self.story.save()
+        # story_path names the file itself: "<author id>-<12 hex>.mp4".
+        self.name = self.story.video.name.rsplit("/", 1)[-1]
+        self.url = reverse("stories:video", args=[self.name])
+
+    def test_the_viewer_is_pointed_at_the_view_not_the_media_file(self):
+        self.assertEqual(self.url, f"/stories/video/{self.name}")
+        self.assertEqual(self.story.video_url, self.url)
+        resp = self.client.get(reverse("stories:person", args=["kiran"]))
+        self.assertContains(resp, self.url)
+        self.assertNotContains(resp, "/media/stories/")
+
+    def test_whole_file_says_it_takes_ranges(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Accept-Ranges"], "bytes")
+        self.assertEqual(resp["Content-Type"], "video/mp4")
+        self.assertEqual(resp["Content-Length"], "1024")
+        self.assertEqual(b"".join(resp.streaming_content), bytes(range(256)) * 4)
+
+    def test_a_range_comes_back_as_206_with_just_that_piece(self):
+        resp = self.client.get(self.url, HTTP_RANGE="bytes=0-1")
+        self.assertEqual(resp.status_code, 206)
+        self.assertEqual(resp["Content-Range"], "bytes 0-1/1024")
+        self.assertEqual(resp["Content-Length"], "2")
+        self.assertEqual(b"".join(resp.streaming_content), b"\x00\x01")
+        resp = self.client.get(self.url, HTTP_RANGE="bytes=1020-")
+        self.assertEqual(resp.status_code, 206)
+        self.assertEqual(resp["Content-Range"], "bytes 1020-1023/1024")
+        self.assertEqual(b"".join(resp.streaming_content), bytes([252, 253, 254, 255]))
+        resp = self.client.get(self.url, HTTP_RANGE="bytes=-4")
+        self.assertEqual(resp["Content-Range"], "bytes 1020-1023/1024")
+        resp = self.client.get(self.url, HTTP_RANGE="bytes=5000-")
+        self.assertEqual(resp.status_code, 416)
+        self.assertEqual(resp["Content-Range"], "bytes */1024")
+
+    def test_head_answers_without_a_body(self):
+        resp = self.client.head(self.url, HTTP_RANGE="bytes=0-1")
+        self.assertEqual(resp.status_code, 206)
+        self.assertEqual(resp["Content-Length"], "2")
+
+    def test_gone_or_made_up_names_are_404(self):
+        self.assertEqual(self.client.get(reverse("stories:video", args=["1-000000000000.mp4"])).status_code, 404)
+        self.assertEqual(self.client.get("/stories/video/..%2F..%2Fsettings.py").status_code, 404)
+        Story.objects.filter(pk=self.story.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
+        self.assertEqual(self.client.get(self.url).status_code, 404)

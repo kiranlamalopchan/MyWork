@@ -37,6 +37,7 @@ from io import BytesIO
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.noticeboard.models import Emoji
@@ -64,7 +65,8 @@ MAX_VIDEO_SECONDS = 60
 # arrived is kept where every phone can play it as it is, and refused
 # where it can't.
 MAX_VIDEO_SHORT_SIDE = 1080
-PLAYABLE_CODECS = {"h264", "vp8", "vp9"}
+# H.264 only: VP8/VP9 in a WebM plays in a browser and on Android, never on an iPhone.
+PLAYABLE_CODECS = {"h264"}
 TRANSCODE_TIMEOUT = 240
 VIDEO_TYPES = {
     "mp4": "video/mp4", "m4v": "video/mp4", "mov": "video/quicktime",
@@ -158,6 +160,18 @@ class Story(models.Model):
         """Take the upload: straightened, shrunk to fit MAX_SIDE, as a JPEG."""
         self.kind = Kind.PHOTO
         self.image.save(story_path(self, "story.jpg"), _fitted(upload), save=False)
+
+    @property
+    def video_url(self):
+        """
+        Where a clip is fetched from: the range-serving view (views.video),
+        not the file under /media/. An iPhone's player asks a video for
+        pieces and will not play from a server that answers with the whole
+        file — and the static one does exactly that.
+        """
+        if not self.video:
+            return ""
+        return reverse("stories:video", args=[os.path.basename(self.video.name)])
 
     def set_video(self, upload, poster=None, duration=None, start=None, end=None):
         """

@@ -12,5 +12,7 @@ urlpatterns = [
     path("<int:pk>/delete/", views.delete, name="delete"),
     path("<int:pk>/seen/", views.seen, name="seen"),
     path("<int:pk>/react/", views.react, name="react"),
+    # The clip, served a piece at a time (see ranged.py).
+    path("video/<str:name>", views.video, name="video"),
     path("<str:username>/", views.person, name="person"),
 ]

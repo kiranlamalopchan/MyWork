@@ -7,12 +7,14 @@ so opening a story is a fetch and not a page. Every action here answers a
 fetch with the fragment it needs and a plain form with a redirect, so the
 row works, if more slowly, with no script at all.
 """
+import os
+import re
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -24,6 +26,9 @@ from apps.noticeboard.models import Emoji
 
 from .forms import StoryForm
 from .models import MAX_VIDEO_SECONDS, Story, StoryReaction, Unusable
+
+# What story_path names a clip: "<author id>-<12 hex>.<ext>", nothing else.
+VIDEO_NAME = re.compile(r"^\d+-[0-9a-f]{12}\.(mp4|m4v|mov|webm)$")
 
 User = get_user_model()
 
@@ -142,6 +147,27 @@ def _ago(when):
     return timesince(when, timezone.now()).split(",")[0] + " ago"
 
 
+def video(request, name):
+    """
+    The clip itself, whole or a piece of it. Public by its random name the
+    way /media/ was; a story that has expired or is gone is a 404 even
+    while its file lingers, and a name that is not a story's is nothing.
+    """
+    from .models import VIDEO_TYPES
+    from .ranged import ranged_file_response
+
+    if not VIDEO_NAME.match(name):
+        raise Http404
+    story = Story.objects.live().filter(video=f"stories/{name}").first()
+    if story is None or not story.video:
+        raise Http404
+    ext = name.rsplit(".", 1)[-1]
+    try:
+        return ranged_file_response(request, story.video.path, VIDEO_TYPES.get(ext, "video/mp4"))
+    except FileNotFoundError:
+        raise Http404
+
+
 def _story_json(story, viewer):
     mine = story.author_id == viewer.pk
     my = story.reactions.filter(user=viewer).first()
@@ -152,7 +178,7 @@ def _story_json(story, viewer):
         "id": story.pk,
         "kind": story.kind,
         "image": story.image.url if story.image else "",
-        "video": story.video.url if story.video else "",
+        "video": story.video_url,
         "duration": story.duration,
         "caption": story.caption,
         "ago": _ago(story.created_at),
