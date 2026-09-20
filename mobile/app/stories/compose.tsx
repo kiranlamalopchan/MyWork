@@ -41,7 +41,15 @@ export default function ComposeStory() {
   const [trackWidth, setTrackWidth] = useState(1);
 
   const isVideo = picked?.type === "video";
-  const seconds = isVideo && picked?.duration ? picked.duration / 1000 : 0;
+  // How long the clip is. The preview player's own measurement, once it
+  // has loaded, is the truth; until then, the picker's figure stands in —
+  // documented as milliseconds, but handed over in seconds on some
+  // platforms (the web, for one), so anything under 1000 is read as
+  // seconds. Without a length there is no trimmer, and a long clip would
+  // only be refused by the server.
+  const [measured, setMeasured] = useState(0);
+  const hinted = picked?.duration ? (picked.duration >= 1000 ? picked.duration / 1000 : picked.duration) : 0;
+  const seconds = isVideo ? (measured || hinted) : 0;
   const needsCut = seconds > MAX_SECONDS + 0.5;
   const span = Math.min(MAX_SECONDS, seconds);
 
@@ -71,6 +79,7 @@ export default function ComposeStory() {
       if (!result || result.canceled) return;
       setPicked(result.assets[0]);
       setStart(0);
+      setMeasured(0);
     } catch (e: any) {
       setError(e?.message || "That couldn't be opened.");
     }
@@ -78,12 +87,21 @@ export default function ComposeStory() {
 
   // The preview player is made once, empty, and given the clip when one is
   // picked (the hook reads its source only the first time).
-  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = true; });
+  const player = useVideoPlayer(null, (p) => { p.loop = true; p.muted = true; p.timeUpdateEventInterval = 0.5; });
   const { status } = useEvent(player, "statusChange", { status: player.status });
   React.useEffect(() => {
     try { player.replace(isVideo && picked ? { uri: picked.uri } : null); } catch {}
   }, [picked?.uri]);
   React.useEffect(() => { if (isVideo && status === "readyToPlay") player.play(); }, [status, picked?.uri]);
+  // The length, from the player: told once the source has loaded, and
+  // checked again on every tick in case that came through as nothing.
+  const loaded = useEvent(player, "sourceLoad", null);
+  const tickAt = useEvent(player, "timeUpdate", null);
+  React.useEffect(() => {
+    if (!isVideo || measured > 0) return;
+    const d = (loaded && Number.isFinite(loaded.duration) && loaded.duration > 0) ? loaded.duration : player.duration;
+    if (Number.isFinite(d) && d > 0) setMeasured(d);
+  }, [loaded, tickAt, status, isVideo]);
   React.useEffect(() => { if (isVideo) { player.currentTime = start; } }, [start]);
 
   // The window: drag along the track to choose where the minute begins.
