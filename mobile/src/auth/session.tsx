@@ -42,6 +42,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       setMe(await meApi.get());
+      // A push token can change between runs; a phone that already said
+      // yes is told to the server again. Never a prompt from here.
+      registerForPush({ quiet: true }).catch(() => {});
     } catch (e) {
       // A dead token has already been dropped by the client; anything else
       // (no network) keeps the last known person until it can be checked.

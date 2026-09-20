@@ -22,6 +22,7 @@ import { Avatar, Button, Card, MenuRow, Page, Screen } from "@/ui";
 import { confirm, notify } from "@/ui/confirm";
 import { ActivityPanel, StatementPanel } from "@/ui/ProfilePanels";
 import { BiometricRow } from "@/ui/BiometricRow";
+import { PushRow } from "@/ui/PushRow";
 import { FriendsPanel } from "@/ui/FriendsPanel";
 import { siteUrl } from "@/api/client";
 import { openBrowserAsync } from "expo-web-browser";
@@ -117,6 +118,7 @@ export default function Profile() {
           <ActivityPanel {...fold("activity")} last />
         </Card>
 
+        <PushRow />
         <BiometricRow username={me.username} />
         <Card pad={false}>
           <MenuRow icon="ban-outline" title="Blocked people" sub="Who you've chosen not to hear from" onPress={() => router.push("/profile/blocked")} tint={t.danger} last testID="blocked-people" />

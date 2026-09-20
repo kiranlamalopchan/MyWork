@@ -39,6 +39,7 @@ export const me = {
   setHolidayState: (state: string) => api<Me>("me/holiday-state/", { method: "PUT", body: { state } }),
   registerDevice: (token: string, platform: string, name: string) =>
     api("devices/", { method: "POST", body: { token, platform, name } }),
+  unregisterDevice: (token: string) => api("devices/", { method: "DELETE", body: { token } }),
   /** The account and everything in it, behind the password. */
   deleteAccount: (password: string) => api("me/", { method: "DELETE", body: { password } }),
 };
