@@ -427,3 +427,113 @@ class VideoServingTests(TestCase):
         self.assertEqual(self.client.get("/stories/video/..%2F..%2Fsettings.py").status_code, 404)
         Story.objects.filter(pk=self.story.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class StoryNotificationTests(TestCase):
+    """A new story reaches the author's friends, once a day; a reaction reaches the author."""
+
+    def setUp(self):
+        from apps.accounts.models import Friendship
+        from apps.moderation.models import Block
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")
+        self.tom = User.objects.create_user("tom", password="pw")
+        self.stranger = User.objects.create_user("stranger", password="pw")
+        for a, b in ((self.kiran, self.sam), (self.sam, self.kiran), (self.kiran, self.tom), (self.tom, self.kiran)):
+            Friendship.objects.create(user=a, friend=b)
+        Block.objects.create(blocker=self.tom, blocked=self.kiran)
+        self.client.force_login(self.kiran)
+
+    def _post(self, caption=""):
+        return self.client.post(reverse("stories:create"), {"image": picture(9, 16), "caption": caption}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+
+    def test_friends_hear_about_a_story_but_strangers_and_blockers_do_not(self):
+        from apps.notifications.models import Notification
+        self.assertEqual(self._post("Morning rush").status_code, 200)
+        got = Notification.objects.filter(kind="story")
+        self.assertEqual({n.recipient.username for n in got}, {"sam"})
+        n = got.get()
+        self.assertEqual(n.title, "kiran added to their story")
+        self.assertEqual(n.body, "Morning rush")
+        self.assertEqual(n.url, "/stories/kiran/")
+        self.assertEqual(n.actor, self.kiran)
+
+    def test_three_stories_in_a_day_are_one_line(self):
+        from apps.notifications.models import Notification
+        for _ in range(3):
+            self._post()
+        self.assertEqual(Notification.objects.filter(kind="story", recipient=self.sam).count(), 1)
+
+    def test_a_reaction_reaches_the_author_and_taking_it_back_is_not_news(self):
+        from apps.notifications.models import Notification
+        self._post()
+        story = Story.objects.get()
+        self.client.force_login(self.sam)
+        self.client.post(reverse("stories:react", args=[story.pk]), {"emoji": "❤️"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        n = Notification.objects.get(kind="reaction", recipient=self.kiran)
+        self.assertEqual(n.title, "sam reacted to your story")
+        self.assertEqual(n.emoji, "❤️")
+        self.client.post(reverse("stories:react", args=[story.pk]), {"emoji": "❤️"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(Notification.objects.filter(kind="reaction", recipient=self.kiran).count(), 1)
+        # Reacting to your own story tells nobody.
+        self.client.force_login(self.kiran)
+        self.client.post(reverse("stories:react", args=[story.pk]), {"emoji": "👍"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(Notification.objects.filter(kind="reaction").count(), 1)
+
+
+@override_settings(MEDIA_ROOT="/tmp/mywork-test-media")
+class StoryVisibilityTests(TestCase):
+    """Who a story reaches: everyone, friends, or only its author."""
+
+    def setUp(self):
+        from apps.accounts.models import Friendship
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.sam = User.objects.create_user("sam", password="pw")        # a friend
+        self.stranger = User.objects.create_user("stranger", password="pw")
+        Friendship.objects.create(user=self.kiran, friend=self.sam)
+        Friendship.objects.create(user=self.sam, friend=self.kiran)
+
+    def _post(self, visibility):
+        self.client.force_login(self.kiran)
+        resp = self.client.post(reverse("stories:create"), {"image": picture(9, 16), "visibility": visibility}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.status_code, 200, resp.content[:200])
+        return Story.objects.latest("pk")
+
+    def _sees(self, who, story):
+        return Story.objects.for_viewer(who).filter(pk=story.pk).exists()
+
+    def test_friends_only_reaches_friends_and_the_author_and_nobody_else(self):
+        story = self._post("friends")
+        self.assertEqual(story.visibility, "friends")
+        self.assertTrue(self._sees(self.kiran, story))
+        self.assertTrue(self._sees(self.sam, story))
+        self.assertFalse(self._sees(self.stranger, story))
+        # And the page and the reaction endpoint are gated the same way.
+        self.client.force_login(self.stranger)
+        self.assertEqual(self.client.get(reverse("stories:person", args=["kiran"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest").status_code, 404)
+        self.assertEqual(self.client.post(reverse("stories:react", args=[story.pk]), {"emoji": "❤️"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest").status_code, 404)
+
+    def test_only_me_is_only_me(self):
+        story = self._post("private")
+        self.assertTrue(self._sees(self.kiran, story))
+        self.assertFalse(self._sees(self.sam, story))
+        self.assertFalse(self._sees(self.stranger, story))
+        from apps.notifications.models import Notification
+        self.assertFalse(Notification.objects.filter(kind="story").exists())
+
+    def test_public_is_everyone_and_the_default(self):
+        story = self._post("")
+        self.assertEqual(story.visibility, "public")
+        self.assertTrue(self._sees(self.stranger, story))
+
+    def test_the_tray_and_the_json_carry_it(self):
+        story = self._post("friends")
+        self.client.force_login(self.stranger)
+        resp = self.client.get("/", follow=True)
+        self.assertNotContains(resp, 'data-story-of="kiran"', msg_prefix="a friends-only story must not be on a stranger's tray")
+        self.client.force_login(self.sam)
+        resp = self.client.get("/", follow=True)
+        self.assertContains(resp, 'data-story-of="kiran"')
+        resp = self.client.get(reverse("stories:person", args=["kiran"]), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(resp.json()["stories"][0]["visibility"], "friends")

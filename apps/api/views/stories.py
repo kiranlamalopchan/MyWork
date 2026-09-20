@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import Profile
 from apps.stories.forms import StoryForm
 from apps.stories.models import MAX_VIDEO_SECONDS, Story, StoryReaction, Unusable
+from apps.stories import notify as story_notify
 from apps.stories.views import tray_for
 
 from .. import serialize
@@ -40,7 +41,7 @@ class Tray(APIView):
         data = form.cleaned_data
         if not data["image"] and not data["video"]:
             return Response({"detail": "Choose a photo or a video for your story."}, status=400)
-        story = Story(author=request.user, caption=(data["caption"] or "").strip())
+        story = Story(author=request.user, caption=(data["caption"] or "").strip(), visibility=data["visibility"])
         try:
             if data["video"]:
                 story.set_video(
@@ -54,6 +55,7 @@ class Tray(APIView):
         except Exception:
             return Response({"detail": "That photo couldn't be read. Try a JPEG, PNG or HEIC."}, status=400)
         story.save()
+        story_notify.story_posted(story)
         return Response(
             {"story": serialize.story(request, story, request.user), "stories": _tray(request)},
             status=status.HTTP_201_CREATED,
@@ -100,6 +102,7 @@ class React(APIView):
     def post(self, request, pk):
         story = get_object_or_404(Story.objects.for_viewer(request.user), pk=pk)
         left = StoryReaction.toggle(story, request.user, request.data.get("emoji", ""))
+        story_notify.story_reacted(story, request.user, left)
         tally = story.reactions.values("emoji").annotate(n=Count("id")).order_by("-n")
         return Response({
             "my_emoji": left or "",

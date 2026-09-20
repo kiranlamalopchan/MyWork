@@ -164,6 +164,8 @@ class Command(BaseCommand):
              timedelta(hours=5)),
             (actor(0), Kind.COMMENT, "{who} commented on your notice",
              "Thanks for sorting that out.", "", timedelta(days=1, hours=2)),
+            (actor(2), Kind.STORY, "{who} added to their story",
+             "Morning rush ☕", "", timedelta(hours=1)),
             (actor(1), Kind.FRIEND_REQUEST, "{who} wants to be friends",
              "", "", timedelta(days=1, hours=4)),
             (actor(2), Kind.FRIEND_ACCEPTED, "{who} accepted your friend request",

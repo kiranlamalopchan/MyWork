@@ -170,7 +170,7 @@ export const stories = {
   person: (username: string) => api<StoryPerson>(`stories/${encodeURIComponent(username)}/`),
   post: (fields: {
     image?: FilePart; video?: FilePart; poster?: FilePart; duration?: number;
-    trim_start?: number; trim_end?: number; caption?: string;
+    trim_start?: number; trim_end?: number; caption?: string; visibility?: Visibility;
   }, onProgress?: (sent: number) => void) => api<{ story: Story; stories: TrayRow[] }>("stories/", { method: "POST", form: formWith(fields), onProgress }),
   remove: (id: number) => api<{ stories: TrayRow[] }>(`stories/${id}/`, { method: "DELETE" }),
   seen: (id: number) => api(`stories/${id}/seen/`, { method: "POST" }),

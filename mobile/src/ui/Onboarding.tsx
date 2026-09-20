@@ -73,7 +73,7 @@ const SLIDES: Slide[] = [
     icon: "notifications",
     tint: (t) => t.orange,
     title: "A nudge, not a nag",
-    body: "So KaamKoRecord can remind you a shift is starting, tell you when you are near your hours cap, and pass on what goes up on the notice board.",
+    body: "So KaamKoRecord can tell you when you are still clocked in, warn you near your hours cap, and pass on what goes up on the notice board.",
     ask: true,
   },
 ];

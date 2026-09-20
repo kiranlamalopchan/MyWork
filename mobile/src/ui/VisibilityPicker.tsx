@@ -4,7 +4,7 @@
  * "Friends only" means the same thing on the composer and in the reply box.
  */
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import type { Visibility } from "@/api";
@@ -25,14 +25,16 @@ export function VisibilityPicker({ value, onChange }: { value: Visibility; onCha
 
 /** The small mark on a posted notice or comment — nothing shown for Public,
  * since that's the common case and needs no explaining. */
-export function VisibilityBadge({ visibility, size = 13 }: { visibility: Visibility; size?: number }) {
+/** `light` draws it in white for the story viewer, which sits on a photo. */
+export function VisibilityBadge({ visibility, size = 13, light = false }: { visibility: Visibility; size?: number; light?: boolean }) {
   const t = useTheme();
   if (visibility === "public") return null;
   const icon = visibility === "friends" ? "people-outline" : "lock-closed-outline";
   const label = visibility === "friends" ? "Friends only" : "Only me";
   return (
-    <View accessibilityLabel={label} style={{ flexDirection: "row", alignItems: "center" }}>
-      <Ionicons name={icon} size={size} color={t.muted} />
+    <View accessibilityLabel={label} style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+      <Ionicons name={icon} size={size} color={light ? "rgba(255,255,255,0.85)" : t.muted} />
+      {light ? <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: size - 1, fontWeight: "600" }}>{label}</Text> : null}
     </View>
   );
 }

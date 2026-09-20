@@ -24,6 +24,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.models import Profile
 from apps.noticeboard.models import Emoji
 
+from . import notify as notify_module
 from .forms import StoryForm
 from .models import MAX_VIDEO_SECONDS, Story, StoryReaction, Unusable
 
@@ -106,7 +107,7 @@ def create(request):
     data = form.cleaned_data
     if not data["image"] and not data["video"]:
         return _refused(request, "Choose a photo or a video for your story.")
-    story = Story(author=request.user, caption=data["caption"].strip())
+    story = Story(author=request.user, caption=data["caption"].strip(), visibility=data["visibility"])
     try:
         if data["video"]:
             story.set_video(
@@ -120,6 +121,7 @@ def create(request):
     except Exception:
         return _refused(request, "That photo couldn't be read. Try a JPEG, PNG or HEIC.")
     story.save()
+    notify_module.story_posted(story)
     if _is_fetch(request):
         return _tray_response(request)
     return redirect("home")
@@ -181,6 +183,7 @@ def _story_json(story, viewer):
         "video": story.video_url,
         "duration": story.duration,
         "caption": story.caption,
+        "visibility": story.visibility,
         "ago": _ago(story.created_at),
         "created": story.created_at.isoformat(),
         "mine": mine,
@@ -245,6 +248,7 @@ def seen(request, pk):
 def react(request, pk):
     story = get_object_or_404(Story.objects.for_viewer(request.user), pk=pk)
     left = StoryReaction.toggle(story, request.user, request.POST.get("emoji", ""))
+    notify_module.story_reacted(story, request.user, left)
     if _is_fetch(request):
         tally = story.reactions.values("emoji").annotate(n=Count("id")).order_by("-n")
         return JsonResponse({

@@ -81,7 +81,7 @@ export async function offerPush(): Promise<boolean> {
   }
   if (await offered(PUSH_OFFERED)) return false;
   await remember(PUSH_OFFERED);
-  const yes = await ask("Turn on notifications?", "A reminder when a shift is starting, a warning near your hours cap, and what goes up on the notice board. You can change this on your profile.", "Turn on");
+  const yes = await ask("Turn on notifications?", "A nudge if you are still clocked in, a warning near your hours cap, and what goes up on the notice board. You can change this on your profile.", "Turn on");
   if (!yes) return false;
   return (await enablePush()) === "on";
 }

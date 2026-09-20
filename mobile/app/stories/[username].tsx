@@ -18,6 +18,7 @@ import { Avatar, EmojiRow } from "@/ui";
 import { SkeletonStory } from "@/ui/Skeleton";
 import { confirm } from "@/ui/confirm";
 import { ReportSheet, type ReportTarget } from "@/ui/ReportSheet";
+import { VisibilityBadge } from "@/ui/VisibilityPicker";
 import { goBack } from "@/nav/paths";
 import { sp } from "@/ui/theme";
 
@@ -184,6 +185,7 @@ export default function Viewer() {
           <Avatar person={q.data.person} size={36} live={false} />
           <Text style={styles.name}>{q.data.name}</Text>
           <Text style={styles.ago}>{story.ago}</Text>
+          <VisibilityBadge visibility={story.visibility} size={12} light />
           <View style={{ flex: 1 }} />
           {paused ? <Ionicons name="pause" size={20} color="#fff" /> : null}
           <Pressable onPress={close} hitSlop={12} style={styles.close} accessibilityLabel="Close"><Ionicons name="close" size={26} color="#fff" /></Pressable>

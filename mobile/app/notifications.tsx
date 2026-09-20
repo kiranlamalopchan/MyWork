@@ -19,6 +19,7 @@ import { hsl, sp, useTheme } from "@/ui/theme";
 
 const ICONS: Record<Notification["kind"], keyof typeof Ionicons.glyphMap> = {
   notice: "chatbubble-outline", comment: "chatbubbles-outline", reply: "return-down-forward-outline", reaction: "happy-outline", timesheet: "time-outline",
+  story: "camera-outline", friend_request: "person-add-outline", friend_accepted: "people-outline",
 };
 
 export default function Inbox() {

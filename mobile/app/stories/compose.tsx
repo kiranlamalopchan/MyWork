@@ -15,10 +15,11 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 
-import { stories as api, useStoriesChanged } from "@/api";
+import { stories as api, useStoriesChanged, type Visibility } from "@/api";
 import { goBack } from "@/nav/paths";
 import type { FilePart } from "@/api/client";
-import { Button, Input, Page, PageTitle, Screen } from "@/ui";
+import { Button, Field, Input, Page, PageTitle, Screen } from "@/ui";
+import { VisibilityPicker } from "@/ui/VisibilityPicker";
 import { useLayout } from "@/ui/layout";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
 import { fail, success, tap, tick } from "@/ui/haptics";
@@ -32,6 +33,7 @@ export default function ComposeStory() {
   const changed = useStoriesChanged();
   const [picked, setPicked] = useState<Picked | null>(null);
   const [caption, setCaption] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>("public");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(0);
@@ -99,8 +101,8 @@ export default function ComposeStory() {
       const type = picked.mimeType || (isVideo ? "video/mp4" : "image/jpeg");
       const file: FilePart = Platform.OS === "web" ? (await webFile(picked.uri, name, type)) : { uri: picked.uri, name, type };
       const fields = isVideo
-        ? { video: file, caption, duration: seconds || undefined, trim_start: needsCut ? start : undefined, trim_end: needsCut ? start + span : undefined }
-        : { image: file, caption };
+        ? { video: file, caption, visibility, duration: seconds || undefined, trim_start: needsCut ? start : undefined, trim_end: needsCut ? start + span : undefined }
+        : { image: file, caption, visibility };
       await api.post(fields, setSent);
       success();
       changed();
@@ -173,6 +175,9 @@ export default function ComposeStory() {
             ) : null}
 
             <Input placeholder="Say something (optional)" value={caption} onChangeText={setCaption} maxLength={200} editable={!busy} />
+            <Field label="Who can see this">
+              <VisibilityPicker value={visibility} onChange={setVisibility} />
+            </Field>
 
             {busy ? (
               <View style={{ gap: sp[2] }}>

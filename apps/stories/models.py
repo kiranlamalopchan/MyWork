@@ -40,7 +40,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.noticeboard.models import Emoji
+from apps.noticeboard.models import Emoji, Visibility
 
 # How long a story stays up.
 LIFETIME = timedelta(hours=24)
@@ -97,13 +97,20 @@ class StoryQuerySet(models.QuerySet):
 
     def for_viewer(self, user):
         """
-        The live ones `user` may look at: not taken down, and not by
-        anybody one of them has blocked. Their own are always theirs.
+        The live ones `user` may look at: not taken down, not by anybody one
+        of them has blocked, and meant for them — public ones, and friends-only
+        ones from their friends. Their own are always theirs, whatever they
+        set; an "Only me" story is exactly that.
         """
+        from apps.accounts.models import Friendship
         from apps.moderation.models import Block
+
+        meant_for_them = models.Q(visibility=Visibility.PUBLIC) | models.Q(
+            visibility=Visibility.FRIENDS, author_id__in=Friendship.ids_for(user)
+        )
         return self.live().filter(
             models.Q(author=user)
-            | (models.Q(hidden=False) & ~models.Q(author_id__in=Block.ids_for(user)))
+            | (models.Q(hidden=False) & meant_for_them & ~models.Q(author_id__in=Block.ids_for(user)))
         )
 
     def expired(self):
@@ -120,6 +127,8 @@ class Story(models.Model):
     video = models.FileField(upload_to=story_path, blank=True)
     duration = models.FloatField(null=True, blank=True)
     caption = models.CharField(max_length=MAX_CAPTION, blank=True)
+    # Who it is for — the board's own three choices, chosen when it's shared.
+    visibility = models.CharField(max_length=8, choices=Visibility.choices, default=Visibility.PUBLIC)
     # Off the tray pending review — enough reports, or the admin.
     hidden = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)

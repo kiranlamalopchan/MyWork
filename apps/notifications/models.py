@@ -46,6 +46,7 @@ class Kind(models.TextChoices):
     REPLY = "reply", "Reply"
     REACTION = "reaction", "Reaction"
     TIMESHEET = "timesheet", "Timesheet"
+    STORY = "story", "Story"
     FRIEND_REQUEST = "friend_request", "Friend request"
     FRIEND_ACCEPTED = "friend_accepted", "Friend accepted"
 
@@ -58,6 +59,7 @@ KIND_ICONS = {
     Kind.REPLY: "reply",
     Kind.REACTION: "",
     Kind.TIMESHEET: "clock",
+    Kind.STORY: "camera",
     Kind.FRIEND_REQUEST: "person",
     Kind.FRIEND_ACCEPTED: "person",
 }

@@ -105,6 +105,7 @@ export type Story = {
   video: string | null;
   duration: number | null;
   caption: string;
+  visibility: Visibility;
   ago: string;
   created: string;
   mine: boolean;
@@ -125,7 +126,7 @@ export type StoryPerson = {
 
 export type Notification = {
   id: number;
-  kind: "notice" | "comment" | "reply" | "reaction" | "timesheet";
+  kind: "notice" | "comment" | "reply" | "reaction" | "timesheet" | "story" | "friend_request" | "friend_accepted";
   icon: string;
   title: string;
   body: string;

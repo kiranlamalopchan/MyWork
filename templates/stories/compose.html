@@ -20,6 +20,10 @@
       <label class="label" for="story-caption">Caption (optional)</label>
       <input class="input" type="text" id="story-caption" name="caption" maxlength="200">
     </div>
+    <div class="field">
+      <label class="label" for="story-visibility">Who can see this</label>
+      {% include "noticeboard/_visibility_select.html" %}
+    </div>
     <button type="submit" class="btn btn--primary btn--block">Share to your story</button>
   </form>
 </div>

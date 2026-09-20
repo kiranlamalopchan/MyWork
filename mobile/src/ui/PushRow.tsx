@@ -21,7 +21,7 @@ import { alpha, sp, useTheme } from "./theme";
 
 const WORDS: Record<Exclude<PushState, "unsupported">, string> = {
   on: "On for this phone.",
-  off: "Get a notification when something happens on the board, or a shift needs you.",
+  off: "A nudge if you are still clocked in, a warning near your hours cap, and what goes up on the board.",
   blocked: "Blocked for KaamKoRecord in the phone's Settings. Tap the switch to open them.",
 };
 

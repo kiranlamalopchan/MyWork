@@ -2,6 +2,8 @@ from django import forms
 
 from apps.moderation.filter import REFUSED, objectionable
 
+from apps.noticeboard.models import Visibility
+
 from .models import MAX_CAPTION
 
 
@@ -21,6 +23,11 @@ class StoryForm(forms.Form):
     trim_start = forms.FloatField(required=False, min_value=0)
     trim_end = forms.FloatField(required=False, min_value=0)
     caption = forms.CharField(max_length=MAX_CAPTION, required=False)
+    # Who sees it. Not required: a form that leaves it out has always meant public.
+    visibility = forms.ChoiceField(choices=Visibility.choices, required=False)
+
+    def clean_visibility(self):
+        return self.cleaned_data.get("visibility") or Visibility.PUBLIC
 
     def clean_caption(self):
         caption = (self.cleaned_data.get("caption") or "").strip()
