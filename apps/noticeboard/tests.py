@@ -36,6 +36,17 @@ class NoticeBoardTests(TestCase):
                 self.assertContains(resp, "Fridge is fixed.")
                 self.assertContains(resp, "Swapping Friday.")
 
+    def test_an_admin_wears_a_mark_beside_their_name_and_nobody_else_does(self):
+        resp = self.client.get(reverse("notices:board"))
+        self.assertNotContains(resp, "admin-badge")
+        self.sam.is_staff = True
+        self.sam.save(update_fields=["is_staff"])
+        resp = self.client.get(reverse("notices:board"))
+        self.assertContains(resp, 'class="admin-badge"', count=1)
+        # And on their page, next to the name.
+        resp = self.client.get(reverse("notices:person", args=["sam"]))
+        self.assertContains(resp, 'class="admin-badge"')
+
     def test_the_board_needs_a_login(self):
         self.client.logout()
         resp = self.client.get(reverse("notices:board"))

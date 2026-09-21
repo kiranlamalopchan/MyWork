@@ -8,6 +8,8 @@ export type Person = {
   photo: string | null;
   is_live: boolean;
   is_me: boolean;
+  /** One of the people who run the board — wears a mark beside the name. */
+  is_admin: boolean;
 };
 
 export type Me = Person & {

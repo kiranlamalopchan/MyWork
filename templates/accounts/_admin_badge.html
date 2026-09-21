@@ -1,0 +1,8 @@
+{% load ui %}
+{% comment %}
+  The mark beside an admin's name: a shield with a tick and the word, in
+  the brand colour, wherever they are named — so whoever runs the board is
+  known as such on a notice, a comment, a story or their page. Nothing at
+  all for everybody else. Takes: user.
+{% endcomment %}
+{% if user.is_staff %}<span class="admin-badge" title="Admin">{% icon "shield" width="2.4" %}Admin</span>{% endif %}

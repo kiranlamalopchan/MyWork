@@ -3573,6 +3573,27 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 }
 .vis-badge svg { width: 13px; height: 13px; }
 
+/* The mark beside an admin's name (accounts/_admin_badge.html): a small
+   brand-coloured pill, sized to sit inside a line of text of any weight. */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px 1px 5px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 16px;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+.admin-badge svg { width: 12px; height: 12px; }
+.page-title .admin-badge, .profile-id__name .admin-badge, .profile__name .admin-badge { font-size: 12px; vertical-align: 5px; }
+
 /* ---- Reading them ------------------------------------------------------- */
 /* Notices sit apart from each other the way notifications do, rather than
    stacking into one wall of text. */

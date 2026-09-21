@@ -17,6 +17,7 @@ import { board, safety, useBoardChanged, useSafetyChanged, type Comment, type No
 import { useSession } from "@/auth/session";
 
 import { Avatar } from "./Avatar";
+import { AdminBadge } from "./AdminBadge";
 import { confirm } from "./confirm";
 import { Card, reactionInk, Tally } from "./index";
 import { useReveal } from "./keyboard";
@@ -110,6 +111,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
             <View style={styles.nameRow}>
               <Text style={[styles.who, { color: mine ? t.text : inkFor }]} numberOfLines={1}>{notice.author.username}</Text>
               {mine ? <Text style={[styles.you, { backgroundColor: t.brandSoft, color: t.brand }]}>You</Text> : null}
+              <AdminBadge person={notice.author} />
             </View>
             <View style={styles.whenRow}>
               <Text style={[styles.when, { color: t.muted }]} numberOfLines={1}>{notice.ago}{notice.edited ? " · edited" : ""}</Text>
@@ -343,6 +345,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
           <View style={[styles.bubble, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
               <Text style={[styles.commentWho, { color: t.text }]} numberOfLines={1}>{comment.mine ? "You" : comment.author.username}</Text>
+              <AdminBadge person={comment.author} size={10} />
               <VisibilityBadge visibility={comment.visibility} size={11} />
             </View>
             <Text style={[styles.commentText, { color: t.text }]}>{comment.body}</Text>

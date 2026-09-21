@@ -10,7 +10,7 @@ import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { safety, usePerson, useSafetyChanged } from "@/api";
-import { Avatar, Button, Card, Empty, ErrorBanner, Page, Screen } from "@/ui";
+import { AdminBadge, Avatar, Button, Card, Empty, ErrorBanner, Page, Screen } from "@/ui";
 import { confirm, notify } from "@/ui/confirm";
 import { SkeletonPerson } from "@/ui/Skeleton";
 import { NoticeCard } from "@/ui/NoticeCard";
@@ -51,7 +51,10 @@ export default function PersonScreen() {
             <View style={styles.who}>
               <Avatar person={q.data.person} size={72} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: t.text, fontWeight: "700", fontSize: 24, letterSpacing: -0.4 }}>{q.data.person.is_me ? "You" : q.data.person.username}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={{ color: t.text, fontWeight: "700", fontSize: 24, letterSpacing: -0.4, flexShrink: 1 }} numberOfLines={1}>{q.data.person.is_me ? "You" : q.data.person.username}</Text>
+                  <AdminBadge person={q.data.person} size={12} />
+                </View>
                 <Text style={{ color: t.muted, fontSize: 15 }}>On KaamKoRecord since {q.data.since}{q.data.person.is_live ? " · here now" : ""}</Text>
               </View>
             </View>

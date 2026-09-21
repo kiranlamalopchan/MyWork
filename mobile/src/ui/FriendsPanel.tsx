@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { friends as api, useFriends, useFriendsChanged, type FriendRequest, type Person } from "@/api";
+import { AdminBadge } from "./AdminBadge";
 import { Avatar } from "./Avatar";
 import { Disclosure } from "./Disclosure";
 import { Button, Empty, ErrorBanner, Input, SectionLabel } from "./index";
@@ -146,7 +147,10 @@ function Row({ person, sub, right, last, onPress }: { person: Person; sub?: stri
     <Wrap onPress={onPress} style={[styles.row, { borderBottomColor: t.line, borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth }]}>
       <Avatar person={person} size={38} live={false} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }} numberOfLines={1}>{person.name}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text style={{ color: t.text, fontWeight: "600", fontSize: 15, flexShrink: 1 }} numberOfLines={1}>{person.name}</Text>
+          <AdminBadge person={person} size={10} />
+        </View>
         <Text style={{ color: t.muted, fontSize: 12.5 }} numberOfLines={1}>{sub || `@${person.username}`}</Text>
       </View>
       {right}

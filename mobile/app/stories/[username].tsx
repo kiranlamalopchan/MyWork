@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { stories as api, useStoriesChanged, useStoryPerson, type Story } from "@/api";
-import { Avatar, EmojiRow } from "@/ui";
+import { AdminBadge, Avatar, EmojiRow } from "@/ui";
 import { SkeletonStory } from "@/ui/Skeleton";
 import { confirm } from "@/ui/confirm";
 import { ReportSheet, type ReportTarget } from "@/ui/ReportSheet";
@@ -184,6 +184,7 @@ export default function Viewer() {
         <View style={styles.who}>
           <Avatar person={q.data.person} size={36} live={false} />
           <Text style={styles.name}>{q.data.name}</Text>
+          <AdminBadge person={q.data.person} size={10} light />
           <Text style={styles.ago}>{story.ago}</Text>
           <VisibilityBadge visibility={story.visibility} size={12} light />
           <View style={{ flex: 1 }} />

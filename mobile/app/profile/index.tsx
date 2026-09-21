@@ -88,7 +88,7 @@ export default function Profile() {
           <Text style={[styles.handle, { color: t.text2 }]}>@{me.username}</Text>
           <View style={styles.tags}>
             <Tag icon="calendar-outline" label={`Since ${me.since}`} />
-            {me.is_staff ? <Tag icon="shield-checkmark-outline" label="Staff" /> : null}
+            {me.is_staff ? <Tag icon="shield-checkmark-outline" label="Admin" /> : null}
           </View>
           <Button title="Edit profile" icon="pencil-outline" kind="plain" size="sm" onPress={() => router.push("/profile/edit")} style={{ ...styles.edit, backgroundColor: t.surface }} testID="profile-edit" />
         </Card>

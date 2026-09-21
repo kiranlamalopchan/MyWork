@@ -24,6 +24,7 @@
       <a class="comment__who" href="{% url 'notices:person' comment.author.username %}">
         {% if comment.is_mine %}You{% else %}{{ comment.author.username }}{% endif %}
       </a>
+      {% include "accounts/_admin_badge.html" with user=comment.author %}
       <span class="comment__text">{{ comment.body }}</span>
       {% include "noticeboard/_visibility_badge.html" with item=comment %}
 

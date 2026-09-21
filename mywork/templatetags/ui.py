@@ -53,6 +53,7 @@ ICONS = {
     "people":     '<circle cx="8.5" cy="8" r="3.5"/><path d="M2 21a6.5 6.5 0 0 1 13 0"/><path d="M15.5 4.5a3.5 3.5 0 0 1 0 7"/><path d="M15 12.5a6.5 6.5 0 0 1 7 8.5h-3"/>',
     "globe":      '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/>',
     "lock":       '<rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    "shield":     '<path d="M12 3 4 6v6c0 4.8 3.4 8 8 9 4.6-1 8-4.2 8-9V6Z"/><path d="m9 12 2 2 4-4"/>',
 }
 
 

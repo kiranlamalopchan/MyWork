@@ -83,7 +83,7 @@
     </details>
   </form>
 
-  <h1 class="profile-id__name">{{ me.name }}</h1>
+  <h1 class="profile-id__name">{{ me.name }}{% include "accounts/_admin_badge.html" with user=request.user %}</h1>
   <p class="profile-id__meta">
     {{ request.user.username }} · since {{ request.user.date_joined|date:"M Y" }}
   </p>
@@ -173,7 +173,7 @@
             <div class="friend-row">
               {% avatar req.from_user size="md" link=True %}
               <div class="friend-row__body">
-                <div class="friend-row__name">{{ req.from_user.profile.name }}</div>
+                <div class="friend-row__name">{{ req.from_user.profile.name }}{% include "accounts/_admin_badge.html" with user=req.from_user %}</div>
                 <div class="friend-row__sub">wants to be friends</div>
               </div>
               <div class="friend-row__actions">
@@ -202,7 +202,7 @@
             <div class="friend-row">
               {% avatar req.to_user size="md" link=True %}
               <div class="friend-row__body">
-                <div class="friend-row__name">{{ req.to_user.profile.name }}</div>
+                <div class="friend-row__name">{{ req.to_user.profile.name }}{% include "accounts/_admin_badge.html" with user=req.to_user %}</div>
                 <div class="friend-row__sub">Request sent</div>
               </div>
               <div class="friend-row__actions">
@@ -226,7 +226,7 @@
             <div class="friend-row">
               {% avatar person size="md" link=True %}
               <div class="friend-row__body">
-                <div class="friend-row__name">{{ person.profile.name }}</div>
+                <div class="friend-row__name">{{ person.profile.name }}{% include "accounts/_admin_badge.html" with user=person %}</div>
                 <div class="friend-row__sub">@{{ person.username }}</div>
               </div>
               <div class="friend-row__actions">
@@ -266,7 +266,7 @@
             <div class="friend-row">
               {% avatar person size="md" link=True %}
               <div class="friend-row__body">
-                <div class="friend-row__name">{{ person.profile.name }}</div>
+                <div class="friend-row__name">{{ person.profile.name }}{% include "accounts/_admin_badge.html" with user=person %}</div>
                 <div class="friend-row__sub">@{{ person.username }}</div>
               </div>
               <div class="friend-row__actions">

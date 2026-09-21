@@ -13,6 +13,7 @@
     <a class="notice__who" href="{% url 'notices:person' notice.author.username %}">
       {% if notice.is_mine %}You{% else %}{{ notice.author.username }}{% endif %}
     </a>
+    {% include "accounts/_admin_badge.html" with user=notice.author %}
     <span class="notice__when" title="{{ notice.created_at }}">
       {{ notice.created_at|naturaltime }}{% if notice.was_edited %} · edited{% endif %}
     </span>

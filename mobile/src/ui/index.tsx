@@ -20,6 +20,7 @@ import { KeyboardPad, RevealProvider, useKeyboardScroll, useReveal } from "./key
 import { useLayout } from "./layout";
 import { alpha, mix, radius, sp, useTheme } from "./theme";
 
+export { AdminBadge } from "./AdminBadge";
 export { Avatar } from "./Avatar";
 export { useLayout } from "./layout";
 

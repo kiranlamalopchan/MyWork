@@ -59,6 +59,8 @@ def person(request, user, viewer=None):
         "photo": absolute(request, profile.photo_url),
         "is_live": profile.is_live,
         "is_me": viewer is not None and user.pk == viewer.pk,
+        # The people who run the board wear a mark beside their name.
+        "is_admin": bool(user.is_staff),
     }
 
 

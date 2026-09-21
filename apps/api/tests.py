@@ -121,6 +121,14 @@ class MeTests(ApiTestCase):
         self.assertEqual(bad.status_code, 400)
         self.assertIn("email", bad.json()["fields"])
 
+    def test_admins_are_marked_wherever_a_person_is_sent(self):
+        self.assertFalse(self.api("get", "me").json()["is_admin"])
+        self.sam.is_staff = True
+        self.sam.save(update_fields=["is_staff"])
+        Notice.objects.create(author=self.sam, body="Board rules")
+        author = self.api("get", "notices").json()["results"][0]["author"]
+        self.assertTrue(author["is_admin"])
+
     def test_the_username_can_be_changed_but_not_to_someone_elses(self):
         resp = self.api("patch", "me", {"username": "kiran_l"})
         self.assertEqual(resp.status_code, 200, resp.content)

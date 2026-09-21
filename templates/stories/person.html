@@ -4,7 +4,7 @@
 {% block content %}
 <a class="backlink" href="{% url 'home' %}">{% icon "back" %} Home</a>
 <div class="page-head">
-  <h1 class="page-title">{% if author == request.user %}Your story{% else %}{{ profile.name }}'s story{% endif %}</h1>
+  <h1 class="page-title">{% if author == request.user %}Your story{% else %}{{ profile.name }}'s story{% endif %}{% include "accounts/_admin_badge.html" with user=author %}</h1>
 </div>
 {# The plain version of the viewer, for a browser without script: the pictures, one under the other. #}
 <div class="story-plain">
