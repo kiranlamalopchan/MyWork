@@ -77,7 +77,9 @@ export function AppBar({ title, back, backLabel, section, right, tools = true }:
 
   const frost = alpha(t.bg, 0.92);
   const body = (
-    <View style={[styles.inner, layout.column, { height: APPBAR_H }]}>
+    // On an iPad or a desktop window the bar spans the hub's width, the way
+    // the site's header does, whatever the page under it is doing.
+    <View style={[styles.inner, layout.desk ? layout.hub : layout.column, { height: APPBAR_H }]}>
       {back ? (
         <Pressable onPress={goBack} hitSlop={8} accessibilityLabel="Back" testID="appbar-back" style={({ pressed }) => [styles.back, { backgroundColor: pressed ? t.surface3 : t.dark ? t.surface2 : t.surface }, tool(t.dark)]}>
           <Ionicons name="chevron-back" size={22} color={t.text} />

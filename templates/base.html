@@ -197,7 +197,7 @@
   </div>
 </header>
 
-<main class="container">
+<main class="container{% block main_class %}{% endblock %}">
   {% if request.user.is_authenticated and section_nav %}
     {% comment %}
       Where you are within the app the tab bar put you in. The Clock tab is

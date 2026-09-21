@@ -1,8 +1,20 @@
 {% extends "base.html" %}
 {% load ui %}
 {% block title %}KaamKoRecord{% endblock %}
+{% block main_class %} container--hub{% endblock %}
 
 {% block content %}
+
+{% comment %}
+  One column on a phone: the holiday, the stories, the board, in that
+  order. On a wide screen (app.css, "The hub on a wide screen") the same
+  three become two columns — the holiday and the stories in a side column
+  that stays put, the board reading beside it — which is why the first two
+  sit in an <aside> of their own and the board in a block of its own; the
+  order in the markup is the phone's, which is also the reading order.
+{% endcomment %}
+<div class="hub">
+<aside class="hub__side">
 
 {% comment %}
   The next public holiday, above everything.
@@ -33,6 +45,9 @@
 {% endcomment %}
 {% include "stories/_tray.html" %}
 
+</aside>
+<div class="hub__main">
+
 {% comment %}
   The notice board. It sits under the app tiles rather than above them: the
   reason you opened KaamKoRecord is one of the two apps, and the board is what you
@@ -62,6 +77,9 @@
     </a>
   {% endif %}
 </section>
+
+</div>
+</div>
 
 {% include "stories/_dialogs.html" %}
 

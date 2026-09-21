@@ -6697,6 +6697,35 @@ body::before {
   margin: calc(var(--sp-3) * -1) calc(var(--sp-4) * -1) calc(var(--sp-3) * -1) 0;
 }
 
+/* ---- The hub on a wide screen ----------------------------------------------
+   From 1024px the hub stops being one phone column stretched wide. The
+   holiday and the stories — the things you glance at — stand in a side
+   column that stays put under the app bar, and the board — the thing you
+   read — takes the rest, at a width a line of text is still comfortable
+   at. The holiday card stacks, drawing above words, to suit the narrow
+   column; the stories row loses its gutter bleed, since the column is not
+   the page's edge. */
+@media (min-width: 1024px) {
+  .container--hub { max-width: 1180px; }
+  .hub {
+    display: grid;
+    grid-template-columns: 336px minmax(0, 1fr);
+    column-gap: var(--sp-7, 40px);
+    align-items: start;
+  }
+  .hub__side {
+    position: sticky;
+    top: calc(var(--appbar-h) + var(--safe-t, 0px) + var(--sp-4));
+    display: grid;
+    gap: var(--sp-4);
+  }
+  .hub__side .holiday { flex-direction: column-reverse; align-items: stretch; margin-bottom: 0; }
+  .hub__side .holiday__art { width: 168px; margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) 0 auto; }
+  .hub__side .stories { margin: 0; }
+  .hub__side .stories__row { padding-left: 0; padding-right: 0; scroll-padding-inline: 0; }
+  .hub__main .board { margin-top: 0; }
+}
+
 /* ---- The line above: what this is, and whose it is ---- */
 
 .holiday__head {

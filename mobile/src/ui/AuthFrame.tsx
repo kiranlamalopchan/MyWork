@@ -8,16 +8,21 @@ import { openBrowserAsync } from "expo-web-browser";
 import { siteUrl } from "@/api/client";
 import { Card, Page, Screen } from "@/ui";
 import { BrandMark } from "@/ui/AppBar";
+import { useLayout } from "@/ui/layout";
 import { ServerPicker } from "@/ui/ServerPicker";
 import { sp, useTheme } from "@/ui/theme";
 
 export function AuthFrame({ title, sub, children, foot, link, linkHref, agree = false }: { title: string; sub: string; children: React.ReactNode; foot: string; link: string; linkHref: Href; agree?: boolean }) {
   const t = useTheme();
+  const layout = useLayout();
   const open = (path: string) => () => openBrowserAsync(siteUrl(path)).catch(() => {});
   const legal = { color: t.muted, fontSize: 13.5, textDecorationLine: "underline" as const };
   return (
     <Screen tools={false}>
-      <Page contentContainerStyle={styles.wrap}>
+      {/* The frame centres itself, capped at 520 — so it takes the plain
+          gutters, not the page's own centring padding, which on a wide
+          screen would be subtracted from the cap and leave nothing. */}
+      <Page contentContainerStyle={[styles.wrap, { paddingLeft: layout.gutter + layout.insets.left, paddingRight: layout.gutter + layout.insets.right }]}>
         <View style={[styles.mark, { shadowColor: t.brand }]}>
           <BrandMark size={88} />
         </View>
