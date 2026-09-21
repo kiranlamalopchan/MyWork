@@ -14,6 +14,9 @@
   --brand:        #059669;
   --brand-strong: #047857;
   --brand-soft:   rgba(5, 150, 105, .12);
+  /* How much brand goes into the holiday card's wash: enough in the light
+     to stand off the page, less in the dark where a little green glows. */
+  --holiday-mix:  26%;
   --brand-ink:    #ffffff;
 
   --danger:       #dc2626;
@@ -170,6 +173,7 @@
     --brand:        #34d399;
     --brand-strong: #6ee7b7;
     --brand-soft:   rgba(52, 211, 153, .14);
+    --holiday-mix:  10%;
     --brand-ink:    #04231a;
 
     --danger:      #f87171;
@@ -242,6 +246,7 @@
   --brand:        #34d399;
   --brand-strong: #6ee7b7;
   --brand-soft:   rgba(52, 211, 153, .14);
+  --holiday-mix:  10%;
   --brand-ink:    #04231a;
 
   --danger:      #f87171;
@@ -6676,7 +6681,7 @@ body::before {
   margin-bottom: var(--sp-4);
   padding: var(--sp-4);
   border-radius: var(--r-xl);
-  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+  background: color-mix(in srgb, var(--brand) var(--holiday-mix), var(--surface));
   color: inherit;
   text-decoration: none;
   overflow: hidden;
@@ -6698,12 +6703,12 @@ body::before {
 }
 
 /* ---- The hub on a wide screen ----------------------------------------------
-   From 1024px the hub stops being one phone column stretched wide. The
-   greeting and the stories span the page; under them the small cards —
-   the holiday, a thought for the day, a little laugh — stand in a side
-   column that stays put under the app bar, and the board — the thing you
-   read — takes the rest, at a width a line of text is still comfortable
-   at. The holiday card stacks, drawing above words, to suit the narrow
+   From 1024px the hub stops being one phone column stretched wide. Two
+   columns start together at the top: on the left the greeting and the
+   small cards — the holiday, a thought for the day, a little laugh —
+   staying put under the app bar; on the right the stories with the board
+   — the thing you read — beneath them, at a width a line of text is
+   still comfortable at. The holiday card stacks, drawing above words, to suit the narrow
    column; the stories row loses its gutter bleed, since inside the hub it
    is not at the page's edge. */
 
@@ -6714,20 +6719,26 @@ body::before {
 
 @media (min-width: 1024px) {
   .container--hub { max-width: 1180px; }
+  /* Two rows: the side column (greeting first) spans both on the left;
+     the stories take the first and the board the second on the right —
+     so both columns start at the very top. */
   .hub {
     display: grid;
     grid-template-columns: 336px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
     column-gap: var(--sp-7, 40px);
     align-items: start;
   }
-  .hub__head, .hub__stories { grid-column: 1 / -1; }
+  .hub__side { grid-column: 1; grid-row: 1 / span 2; }
+  .hub__stories { grid-column: 2; grid-row: 1; }
+  .hub__main { grid-column: 2; grid-row: 2; }
 
-  .hub__head { display: block; margin-bottom: var(--sp-4); }
+  .hub__head { display: block; padding-top: 2px; }
   .hub__hello { font-size: 15px; font-weight: 600; color: var(--muted); }
   .hub__name { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; }
   .hub__today { margin-top: 6px; font-size: 15px; font-weight: 500; color: var(--muted); }
 
-  .hub__stories { margin-bottom: var(--sp-5); }
+  .hub__stories { margin-bottom: var(--sp-4); }
   .hub__stories .stories { margin: 0; }
   .hub__stories .stories__row { padding-left: 0; padding-right: 0; scroll-padding-inline: 0; }
 

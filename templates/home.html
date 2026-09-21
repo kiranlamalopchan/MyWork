@@ -6,19 +6,26 @@
 {% block content %}
 
 {% comment %}
-  The hub, in one order everywhere: the stories first — a row of faces,
+  The hub. On a phone, one column: the stories first — a row of faces,
   each a photo from somebody's day, gone in twenty-four hours, looked at
-  rather than read — then the holiday, then the board. On a phone that is
-  one column. On a wide screen (app.css, "The hub on a wide screen") the
-  greeting and the stories span the page, and under them the small cards
-  — the holiday, a thought for the day, a little laugh — stand in a side
-  column that stays put while the board reads beside it. The markup order
-  is the phone's, which is also the reading order.
+  rather than read — then the holiday, then the board. On a wide screen
+  (app.css, "The hub on a wide screen") two columns start together at
+  the top: on the left the greeting and the small cards — the holiday, a
+  thought for the day, a little laugh — and on the right the stories with
+  the board beneath them. The markup order is the phone's,
+  which is also the reading order; the grid places each block on a wide
+  screen, so the stories can sit right without moving in the markup.
 
   No tiles for PLU and TimeSheet here: they are tabs of the dock, a thumb
   away on every screen, so the hub keeps to the things that are its own.
 {% endcomment %}
 <div class="hub">
+
+<div class="hub__stories">
+  {% include "stories/_tray.html" %}
+</div>
+
+<aside class="hub__side">
 
 {# The greeting, wide screens only: the app bar already says whose phone a phone is. #}
 <div class="hub__head">
@@ -26,12 +33,6 @@
   <h1 class="hub__name">{{ request.user.profile.name }}</h1>
   <div class="hub__today">{{ today|date:"l, j F" }}</div>
 </div>
-
-<div class="hub__stories">
-  {% include "stories/_tray.html" %}
-</div>
-
-<aside class="hub__side">
 
 {% comment %}
   The next public holiday: the one thing on this page that is true of the

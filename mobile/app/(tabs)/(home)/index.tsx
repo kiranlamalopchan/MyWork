@@ -5,12 +5,12 @@
  * TimeSheet are tabs of the bar below, so no tiles for them here.
  *
  * On an iPad or a desktop window (useLayout().desk) it is laid out the
- * way the site's home is from 1024px: the greeting (with today's date)
- * and the stories span the page; under them the small cards — the
- * holiday (stacked, drawing above words), a thought for the day, a little
- * laugh — stand in a side column, and the board reads beside it at a
- * width a line of text is still comfortable at. The extras are the hub's
- * own: nothing is borrowed from another tab.
+ * way the site's home is from 1024px: two columns start together at the
+ * top — on the left the greeting (with today's date) and the small cards
+ * (the holiday, stacked with its drawing above the words; a thought for
+ * the day; a little laugh), on the right the stories with the board
+ * beneath them at a width a line of text is still comfortable at.
+ * The extras are the hub's own: nothing is borrowed from another tab.
  */
 import React from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
@@ -39,45 +39,58 @@ export default function Home() {
   return (
     <Screen>
       <Page refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.brand} />} contentContainerStyle={desk ? layout.hub : undefined}>
-        <View style={styles.greet}>
-          <Text style={[styles.hello, { color: t.muted }]}>{greeting()}</Text>
-          <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
-          {desk && data?.today ? <Text style={[styles.today, { color: t.muted }]}>{data.today}</Text> : null}
-        </View>
+        {/* The greeting: at the top of the page on a phone, at the top of
+            the left column on a wide screen (below, inside hubSide). */}
+        {!desk ? (
+          <View style={styles.greet}>
+            <Text style={[styles.hello, { color: t.muted }]}>{greeting()}</Text>
+            <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
+          </View>
+        ) : null}
         {error ? <ErrorBanner message={(error as Error).message} onRetry={refetch} /> : null}
         {isLoading ? <SkeletonHome /> : null}
         {data ? (
-          <View style={styles.stack}>
-            <StoriesTray rows={data.stories} boxed={desk} />
-
-            <View style={desk ? styles.hub : styles.stack}>
-              <View style={desk ? styles.hubSide : styles.stack}>
-                {data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} stacked={desk} /> : null}
-                {desk && data.daily ? <QuoteCard quote={data.daily.quote} /> : null}
-                {desk && data.daily ? <JokeCard joke={data.daily.joke} /> : null}
-              </View>
-
-            <View style={[styles.board, desk && styles.hubMain]}>
-              <View style={styles.boardHead}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.boardTitle, { color: t.text }]}>Notice board</Text>
-                  {data.notice_total ? <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }}>{data.notice_total} notice{data.notice_total === 1 ? "" : "s"}</Text> : null}
+          // Wide: two columns starting together at the top — the greeting
+          // and the cards on the left, the stories and the board on the
+          // right. Phone: one column, stories first, then the holiday, then
+          // the board.
+          <View style={desk ? styles.hub : styles.stack}>
+            {desk ? (
+              <View style={styles.hubSide}>
+                <View>
+                  <Text style={[styles.hello, { color: t.muted }]}>{greeting()}</Text>
+                  <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
+                  {data.today ? <Text style={[styles.today, { color: t.muted }]}>{data.today}</Text> : null}
                 </View>
-                <Pressable onPress={() => router.push("/notices/compose")} testID="post-button" style={({ pressed }) => [styles.post, { backgroundColor: t.brand, transform: [{ scale: pressed ? 0.95 : 1 }] }, glow(t.brand)]}>
-                  <Ionicons name="add" size={18} color={t.brandInk} />
-                  <Text style={{ color: t.brandInk, fontWeight: "700", fontSize: 14 }}>Post</Text>
-                </Pressable>
+                {data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} stacked /> : null}
+                {data.daily ? <QuoteCard quote={data.daily.quote} /> : null}
+                {data.daily ? <JokeCard joke={data.daily.joke} /> : null}
               </View>
-              {data.notices.length === 0 ? (
-                <Card><Text style={{ color: t.muted, textAlign: "center", fontSize: 14.5 }}>Nothing on the board — post the first notice; everyone signed in will see it.</Text></Card>
-              ) : data.notices.map((n) => <NoticeCard key={n.id} notice={n} />)}
-              {data.notice_total > data.notices.length ? (
-                <Pressable onPress={() => router.push("/board")} style={styles.more} testID="see-all">
-                  <Text style={{ color: t.brandStrong, fontWeight: "700", fontSize: 14.5 }}>See all {data.notice_total} notices</Text>
-                  <Ionicons name="chevron-forward" size={15} color={t.brandStrong} />
-                </Pressable>
-              ) : null}
-            </View>
+            ) : null}
+            <View style={desk ? styles.hubMain : styles.stack}>
+              <StoriesTray rows={data.stories} boxed={desk} />
+              {!desk && data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} /> : null}
+              <View style={styles.board}>
+                <View style={styles.boardHead}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.boardTitle, { color: t.text }]}>Notice board</Text>
+                    {data.notice_total ? <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }}>{data.notice_total} notice{data.notice_total === 1 ? "" : "s"}</Text> : null}
+                  </View>
+                  <Pressable onPress={() => router.push("/notices/compose")} testID="post-button" style={({ pressed }) => [styles.post, { backgroundColor: t.brand, transform: [{ scale: pressed ? 0.95 : 1 }] }, glow(t.brand)]}>
+                    <Ionicons name="add" size={18} color={t.brandInk} />
+                    <Text style={{ color: t.brandInk, fontWeight: "700", fontSize: 14 }}>Post</Text>
+                  </Pressable>
+                </View>
+                {data.notices.length === 0 ? (
+                  <Card><Text style={{ color: t.muted, textAlign: "center", fontSize: 14.5 }}>Nothing on the board — post the first notice; everyone signed in will see it.</Text></Card>
+                ) : data.notices.map((n) => <NoticeCard key={n.id} notice={n} />)}
+                {data.notice_total > data.notices.length ? (
+                  <Pressable onPress={() => router.push("/board")} style={styles.more} testID="see-all">
+                    <Text style={{ color: t.brandStrong, fontWeight: "700", fontSize: 14.5 }}>See all {data.notice_total} notices</Text>
+                    <Ionicons name="chevron-forward" size={15} color={t.brandStrong} />
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           </View>
         ) : null}
@@ -95,7 +108,8 @@ function greeting() {
 
 /**
  * The next public holiday (templates/holidays/_card.html): the day in words
- * on the left, a drawing of it on the right, on one mint-tinted panel.
+ * on the left, a drawing of it on the right, on one mint-tinted panel —
+ * tinted harder in the light, where a paler wash sank into the page.
  *
  * The drawing says nothing the words do not — it is here because this is the
  * first thing on the hub and the one thing on it that is good news, and four
@@ -105,7 +119,7 @@ export function Holiday({ card, state, stacked = false }: { card: HolidayCard; s
   const t = useTheme();
   const router = useRouter();
   return (
-    <Pressable onPress={() => router.push("/holidays")} testID="holiday-card" style={({ pressed }) => [styles.hero, stacked && styles.heroStacked, { backgroundColor: mix(t.brand, t.surface, 0.1) }, { transform: [{ scale: pressed ? 0.985 : 1 }] }]}>
+    <Pressable onPress={() => router.push("/holidays")} testID="holiday-card" style={({ pressed }) => [styles.hero, stacked && styles.heroStacked, { backgroundColor: mix(t.brand, t.surface, t.dark ? 0.1 : 0.26) }, { transform: [{ scale: pressed ? 0.985 : 1 }] }]}>
       <View style={styles.hText}>
         <View style={styles.hHead}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -160,7 +174,7 @@ const styles = StyleSheet.create({
   stack: { gap: sp[4] },
   hub: { flexDirection: "row", alignItems: "flex-start", gap: 40 },
   hubSide: { width: HUB_SIDE, gap: sp[4] },
-  hubMain: { flex: 1, minWidth: 0, marginTop: 0 },
+  hubMain: { flex: 1, minWidth: 0, gap: sp[4] },
   hHead: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: sp[2] },
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.55, textTransform: "uppercase" },
   pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, fontSize: 10.5, fontWeight: "700", letterSpacing: 0.4, overflow: "hidden" },
