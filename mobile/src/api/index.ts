@@ -339,12 +339,11 @@ export const timesheet = {
  * alone, so the workplace is part of the key: picking another has to ask
  * again, or the bar goes on describing the one you were looking at before.
  */
-export function useClock(workplace?: number | null, enabled = true) {
+export function useClock(workplace?: number | null) {
   return useQuery({
     queryKey: ["clock", workplace ?? null],
     queryFn: () => timesheet.clock(workplace ?? undefined),
     staleTime: 10_000,
-    enabled,
   });
 }
 export function useTimesheet(workplace: number | null) {

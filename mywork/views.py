@@ -16,8 +16,8 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from apps.holidays.services import card_for_user
 from apps.noticeboard.views import board_context, recent_for_hub
-from apps.timeclock.models import Shift, Workplace
-from apps.timeclock.views import _limit_for, _selected_workplace
+
+from .daily import daily
 
 
 @login_required
@@ -39,13 +39,10 @@ def home(request):
     notices, total = recent_for_hub(request.user)
     holiday_state, holiday = card_for_user(request.user)
 
-    # The clock at a glance, for the wide-screen hub (see home.html): the
-    # open shift if there is one, else the job the clock-in button would
-    # use, and that job's cap. A phone never draws these — the clock is a
-    # tab away there — but the two queries are cheap enough not to branch.
-    workplaces = list(Workplace.objects.filter(user=request.user))
-    shift = Shift.open_for(request.user)
-    selected = shift.workplace if shift else _selected_workplace(request, workplaces)
+    # The wide-screen hub's own extras (see home.html): today's date, a
+    # thought for the day and a little laugh — the hub's, not another
+    # tab's. Picked by the date, so the same for everyone until midnight.
+    today = timezone.localdate()
 
     return render(request, "home.html", board_context(
         request,
@@ -55,11 +52,8 @@ def home(request):
         holiday=holiday,
         holiday_state=holiday_state,
         stories=tray_for(request.user),
-        shift=shift,
-        running_break=shift.running_break if shift else None,
-        selected_workplace=selected,
-        limit=_limit_for(request.user, selected) if selected else None,
-        today=timezone.localdate(),
+        today=today,
+        daily=daily(today),
     ))
 
 

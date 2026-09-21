@@ -3,25 +3,24 @@
  * the notice board with its newest few and the way to the rest. PLU and
  * TimeSheet are tabs of the bar below, so no tiles for them here.
  *
- * On an iPad or a desktop window (useLayout().desk) it is a dashboard
- * instead, the way the site's home is from 1024px: a header band with the
- * greeting on the left and the clock at a glance (NowCard) on the right;
- * under it a side column — the hours cap for the job in front of you, the
- * holiday (stacked, drawing above words), the stories — and, beside it,
- * the board at a width a line of text is still comfortable at. The clock
- * is asked for only there: a phone has it one tab away.
+ * On an iPad or a desktop window (useLayout().desk) the same three are
+ * laid out the way the site's home is from 1024px: a header band with the
+ * greeting and today's date on the left and a thought for the day on the
+ * right; under it a side column — a little laugh, the holiday (stacked,
+ * drawing above words), the stories — and, beside it, the board at a
+ * width a line of text is still comfortable at. The extras are the hub's
+ * own: nothing is borrowed from another tab.
  */
 import React from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { useClock, useHome, type HolidayCard } from "@/api";
+import { useHome, type HolidayCard } from "@/api";
 import { useSession } from "@/auth/session";
 import { Card, ErrorBanner, Page, Screen } from "@/ui";
 import { HUB_SIDE, useLayout } from "@/ui/layout";
-import { NowCard } from "@/ui/NowCard";
-import { CashTallyCard, LimitBar } from "@/ui/timesheet";
+import { JokeCard, QuoteCard } from "@/ui/DailyCard";
 import { SkeletonHome } from "@/ui/Skeleton";
 import { HolidayArt } from "@/ui/HolidayArt";
 import { NoticeCard } from "@/ui/NoticeCard";
@@ -35,7 +34,6 @@ export default function Home() {
   const { data, isLoading, error, refetch, isRefetching } = useHome();
   const layout = useLayout();
   const desk = layout.desk;
-  const clock = useClock(undefined, desk).data;
 
   return (
     <Screen>
@@ -44,16 +42,16 @@ export default function Home() {
           <View style={[styles.greet, desk && { flex: 1, minWidth: 0 }]}>
             <Text style={[styles.hello, { color: t.muted }]}>{greeting()}</Text>
             <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
-            {desk && clock?.today ? <Text style={[styles.today, { color: t.muted }]}>{clock.today}</Text> : null}
+            {desk && data?.today ? <Text style={[styles.today, { color: t.muted }]}>{data.today}</Text> : null}
           </View>
-          {desk ? <NowCard clock={clock} /> : null}
+          {desk && data?.daily ? <QuoteCard quote={data.daily.quote} /> : null}
         </View>
         {error ? <ErrorBanner message={(error as Error).message} onRetry={refetch} /> : null}
         {isLoading ? <SkeletonHome /> : null}
         {data ? (
           <View style={desk ? styles.hub : styles.stack}>
             <View style={desk ? styles.hubSide : styles.stack}>
-              {desk && clock ? (clock.limit ? <LimitBar limit={clock.limit} /> : clock.tally ? <CashTallyCard tally={clock.tally} /> : null) : null}
+              {desk && data.daily ? <JokeCard joke={data.daily.joke} /> : null}
               {data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} stacked={desk} /> : null}
 
               <StoriesTray rows={data.stories} boxed={desk} />
@@ -149,7 +147,7 @@ const styles = StyleSheet.create({
   greet: { paddingTop: sp[2] },
   hello: { fontSize: 15, fontWeight: "600" },
   today: { fontSize: 15, fontWeight: "500", marginTop: 6 },
-  // The wide hub's header band: the greeting, and the clock at a glance.
+  // The wide hub's header band: the greeting, and the thought for the day.
   hubHead: { flexDirection: "row", alignItems: "center", gap: 40, paddingBottom: sp[2] },
   name: { fontSize: 32, fontWeight: "800", letterSpacing: -1, lineHeight: 38 },
   hero: { flexDirection: "row", alignItems: "center", gap: sp[3], borderRadius: radius.xl, padding: sp[4], overflow: "hidden" },

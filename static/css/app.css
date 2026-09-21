@@ -6723,18 +6723,23 @@ body::before {
   .hub__name { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; }
   .hub__today { margin-top: 6px; font-size: 15px; font-weight: 500; color: var(--muted); }
 
-  /* "Right now" (timeclock/_now.html): the clock at a glance. */
-  .now { width: 320px; flex: none; }
-  .now__head { display: flex; align-items: center; gap: 7px; }
-  .now__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
-  .now--on .now__dot { background: var(--brand); }
-  .now--break .now__dot { background: var(--warn); }
-  .now__label { font-size: 12.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: var(--muted); }
-  .now__icon { width: 16px; height: 16px; margin-left: auto; color: var(--muted); }
-  .now__where { margin-top: var(--sp-2); font-size: 21px; font-weight: 800; letter-spacing: -.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .now__sub { margin-top: 3px; font-size: 13.5px; color: var(--muted); }
-  .now__go { display: inline-flex; margin-top: var(--sp-3); }
-  .now__go svg { width: 14px; height: 14px; }
+  /* A thought for the day (hub/_quote.html), beside the greeting. */
+  .daily--quote { width: 380px; flex: none; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
+  .daily__kicker { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--brand); }
+  .daily__kicker svg { width: 14px; height: 14px; }
+  .daily__quote { margin: var(--sp-2) 0 0; font-size: 17px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
+  .daily__who { margin-top: var(--sp-2); font-size: 13.5px; color: var(--muted); }
+
+  /* A little laugh (hub/_joke.html), first in the side column: the
+     punchline is behind the tap, the way a joke is told. */
+  .daily--joke { padding: 0; }
+  .daily__summary { display: block; cursor: pointer; list-style: none; }
+  .daily__summary::-webkit-details-marker { display: none; }
+  .daily__setup { margin: var(--sp-2) 0 0; font-size: 15px; line-height: 1.45; font-weight: 600; }
+  .daily__reveal { display: inline-flex; align-items: center; gap: 3px; margin-top: var(--sp-2); font-size: 13px; font-weight: 700; color: var(--brand); }
+  .daily__reveal svg { width: 14px; height: 14px; transition: transform .15s ease; }
+  .daily--joke[open] .daily__reveal svg { transform: rotate(180deg); }
+  .daily__punchline { margin: calc(var(--sp-3) * -1) 0 0; padding: 0 var(--sp-5) var(--sp-5); font-size: 15px; line-height: 1.45; color: var(--text-2); }
   .hub {
     display: grid;
     grid-template-columns: 336px minmax(0, 1fr);

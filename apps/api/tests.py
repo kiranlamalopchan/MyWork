@@ -99,7 +99,12 @@ class AuthTests(ApiTestCase):
         resp = self.api("post", "logout", {"device": "ExponentPushToken[abc]", "keep_token": True})
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(Device.objects.exists())
-        self.assertEqual(self.api("get", "home").status_code, 200)
+        home = self.api("get", "home")
+        self.assertEqual(home.status_code, 200)
+        # The wide hub's extras ride along: today in words, a thought, a laugh.
+        self.assertIn("quote", home.json()["daily"])
+        self.assertIn("punchline", home.json()["daily"]["joke"])
+        self.assertTrue(home.json()["today"])
 
     def test_an_api_call_counts_as_being_here(self):
         self.assertIsNone(Profile.objects.get(user=self.kiran).last_seen)

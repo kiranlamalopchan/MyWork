@@ -1,0 +1,13 @@
+{% load ui %}
+{% comment %}
+  A thought for the day, in the wide hub's header: one line worth reading
+  on the way in, and who said it. New at midnight, the same for everyone
+  (mywork/daily.py). Takes: daily.quote.
+{% endcomment %}
+<div class="card daily daily--quote">
+  <div class="card__pad">
+    <div class="daily__kicker">{% icon "sparkle" %} Thought for the day</div>
+    <blockquote class="daily__quote">{{ daily.quote.text }}</blockquote>
+    <div class="daily__who">— {{ daily.quote.who }}</div>
+  </div>
+</div>

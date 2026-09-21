@@ -16,9 +16,10 @@
 <div class="hub">
 
 {% comment %}
-  The header band, wide screens only: the greeting on the left, the clock
-  at a glance on the right. A phone has neither — the clock is a tab away
-  and the app bar already says whose phone it is.
+  The header band, wide screens only: the greeting on the left, a thought
+  for the day on the right; the side column opens with a little laugh.
+  Extras that are the hub's own — nothing borrowed from another tab. A
+  phone has none of them: it opens on the holiday, as it always has.
 {% endcomment %}
 <div class="hub__head">
   <div class="hub__greet">
@@ -26,14 +27,12 @@
     <h1 class="hub__name">{{ request.user.profile.name }}</h1>
     <div class="hub__today">{{ today|date:"l, j F" }}</div>
   </div>
-  {% include "timeclock/_now.html" %}
+  {% include "hub/_quote.html" %}
 </div>
 
 <aside class="hub__side">
 
-{% if limit %}
-  <div class="hub__wide">{% include "timeclock/_limit_bar.html" with limit=limit %}</div>
-{% endif %}
+<div class="hub__wide">{% include "hub/_joke.html" %}</div>
 
 {% comment %}
   The next public holiday, above everything.

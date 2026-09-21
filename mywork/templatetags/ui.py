@@ -54,6 +54,8 @@ ICONS = {
     "globe":      '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/>',
     "lock":       '<rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     "shield":     '<path d="M12 3 4 6v6c0 4.8 3.4 8 8 9 4.6-1 8-4.2 8-9V6Z"/><path d="m9 12 2 2 4-4"/>',
+    "sparkle":    '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="m12 7 1.6 3.4L17 12l-3.4 1.6L12 17l-1.6-3.4L7 12l3.4-1.6Z"/>',
+    "smile":      '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/>',
 }
 
 

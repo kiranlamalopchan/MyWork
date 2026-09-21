@@ -1,0 +1,14 @@
+{% load ui %}
+{% comment %}
+  A little laugh, in the wide hub's side column: the setup, and the
+  punchline behind a tap — a joke told, not printed. New at midnight
+  (mywork/daily.py). <details> so it needs no script. Takes: daily.joke.
+{% endcomment %}
+<details class="card daily daily--joke">
+  <summary class="card__pad daily__summary">
+    <div class="daily__kicker">{% icon "smile" %} A little laugh</div>
+    <p class="daily__setup">{{ daily.joke.setup }}</p>
+    <span class="daily__reveal">{% icon "chev-down" %} Punchline</span>
+  </summary>
+  <p class="daily__punchline">{{ daily.joke.punchline }}</p>
+</details>

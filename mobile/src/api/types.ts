@@ -153,6 +153,8 @@ export type HolidayCard = {
   is_national: boolean;
 };
 
+/** The hub's small pleasures (mywork/daily.py): new at midnight, the same for everyone. */
+export type Daily = { quote: { text: string; who: string }; joke: { setup: string; punchline: string } };
 export type Home = {
   holiday: { state: string; holiday: HolidayCard | null };
   stories: TrayRow[];
@@ -160,6 +162,9 @@ export type Home = {
   notice_total: number;
   unread: number;
   emoji: Emoji[];
+  /** "Monday, 21 September" — for the wide hub's header. */
+  today: string;
+  daily: Daily;
 };
 
 export type PluItem = { plu_no: number; description: string };

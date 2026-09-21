@@ -47,6 +47,27 @@ class NoticeBoardTests(TestCase):
         resp = self.client.get(reverse("notices:person", args=["sam"]))
         self.assertContains(resp, 'class="admin-badge"')
 
+    def test_the_hub_carries_a_thought_and_a_laugh_that_change_with_the_day(self):
+        from datetime import date
+        from mywork.daily import JOKES, QUOTES, daily
+        resp = self.client.get(reverse("home"))
+        self.assertContains(resp, "Thought for the day")
+        self.assertContains(resp, "A little laugh")
+        # Every line is on the page in full: nothing is cut or escaped away.
+        picked = daily()
+        self.assertContains(resp, picked["quote"]["text"], html=False)
+        self.assertContains(resp, picked["joke"]["punchline"], html=False)
+        # Picked by the date: the same all day, different tomorrow, and
+        # every entry well formed.
+        a, b = daily(date(2026, 9, 21)), daily(date(2026, 9, 22))
+        self.assertEqual(a, daily(date(2026, 9, 21)))
+        self.assertNotEqual(a["quote"], b["quote"])
+        self.assertNotEqual(a["joke"], b["joke"])
+        for text, who in QUOTES:
+            self.assertTrue(text and who)
+        for setup, punchline in JOKES:
+            self.assertTrue(setup and punchline)
+
     def test_the_board_needs_a_login(self):
         self.client.logout()
         resp = self.client.get(reverse("notices:board"))
