@@ -6,72 +6,50 @@
 {% block content %}
 
 {% comment %}
-  One column on a phone: the holiday, the stories, the board, in that
-  order. On a wide screen (app.css, "The hub on a wide screen") the same
-  three become two columns — the holiday and the stories in a side column
-  that stays put, the board reading beside it — which is why the first two
-  sit in an <aside> of their own and the board in a block of its own; the
-  order in the markup is the phone's, which is also the reading order.
+  The hub, in one order everywhere: the stories first — a row of faces,
+  each a photo from somebody's day, gone in twenty-four hours, looked at
+  rather than read — then the holiday, then the board. On a phone that is
+  one column. On a wide screen (app.css, "The hub on a wide screen") the
+  greeting and the stories span the page, and under them the small cards
+  — the holiday, a thought for the day, a little laugh — stand in a side
+  column that stays put while the board reads beside it. The markup order
+  is the phone's, which is also the reading order.
+
+  No tiles for PLU and TimeSheet here: they are tabs of the dock, a thumb
+  away on every screen, so the hub keeps to the things that are its own.
 {% endcomment %}
 <div class="hub">
 
-{% comment %}
-  The header band, wide screens only: the greeting on the left, a thought
-  for the day on the right; the side column opens with a little laugh.
-  Extras that are the hub's own — nothing borrowed from another tab. A
-  phone has none of them: it opens on the holiday, as it always has.
-{% endcomment %}
+{# The greeting, wide screens only: the app bar already says whose phone a phone is. #}
 <div class="hub__head">
-  <div class="hub__greet">
-    <div class="hub__hello">{% now "H" as hour %}{% if hour|add:0 < 12 %}Good morning{% elif hour|add:0 < 17 %}Good afternoon{% else %}Good evening{% endif %}</div>
-    <h1 class="hub__name">{{ request.user.profile.name }}</h1>
-    <div class="hub__today">{{ today|date:"l, j F" }}</div>
-  </div>
-  {% include "hub/_quote.html" %}
+  <div class="hub__hello">{% now "H" as hour %}{% if hour|add:0 < 12 %}Good morning{% elif hour|add:0 < 17 %}Good afternoon{% else %}Good evening{% endif %}</div>
+  <h1 class="hub__name">{{ request.user.profile.name }}</h1>
+  <div class="hub__today">{{ today|date:"l, j F" }}</div>
+</div>
+
+<div class="hub__stories">
+  {% include "stories/_tray.html" %}
 </div>
 
 <aside class="hub__side">
 
-<div class="hub__wide">{% include "hub/_joke.html" %}</div>
-
 {% comment %}
-  The next public holiday, above everything.
-
-  It is the one thing on this page that is true of the whole year rather than
-  of right now, and the one thing people open an app to check and then close
-  it again. Putting it first means that check costs nothing: you see
-  it on the way in, without choosing to go and look.
-
-  Absent entirely when there is nothing stored, rather than showing a card
-  with a shrug in it — the hub is not the place to explain that a management
-  command has not been run.
+  The next public holiday: the one thing on this page that is true of the
+  whole year rather than of right now, and the one thing people open an
+  app to check and then close it again. Absent entirely when there is
+  nothing stored, rather than a card with a shrug in it.
 {% endcomment %}
 {% if holiday %}
   {% include "holidays/_card.html" %}
 {% endif %}
 
-{% comment %}
-  No tiles for PLU and TimeSheet here: they are tabs of the dock, a thumb
-  away on every screen, so the hub keeps to the things that are its own —
-  the holiday, the stories, the board.
-{% endcomment %}
-
-{% comment %}
-  Stories: a row of faces, each a photo from somebody's day, gone in
-  twenty-four hours. Above the board because it is looked at rather than
-  read — a glance on the way past. The dialogs behind it sit at the end.
-{% endcomment %}
-{% include "stories/_tray.html" %}
+{# The hub's own extras, wide screens only — nothing borrowed from another tab. #}
+<div class="hub__wide">{% include "hub/_quote.html" %}</div>
+<div class="hub__wide">{% include "hub/_joke.html" %}</div>
 
 </aside>
 <div class="hub__main">
 
-{% comment %}
-  The notice board. It sits under the app tiles rather than above them: the
-  reason you opened KaamKoRecord is one of the two apps, and the board is what you
-  read on the way past. Everyone sees every notice; the edit and remove
-  buttons only ever appear on your own.
-{% endcomment %}
 <section class="board" aria-labelledby="board-title">
   <div class="board__head">
     <h2 class="board__title" id="board-title">

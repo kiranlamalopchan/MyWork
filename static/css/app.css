@@ -6699,39 +6699,58 @@ body::before {
 
 /* ---- The hub on a wide screen ----------------------------------------------
    From 1024px the hub stops being one phone column stretched wide. The
-   holiday and the stories — the things you glance at — stand in a side
+   greeting and the stories span the page; under them the small cards —
+   the holiday, a thought for the day, a little laugh — stand in a side
    column that stays put under the app bar, and the board — the thing you
    read — takes the rest, at a width a line of text is still comfortable
    at. The holiday card stacks, drawing above words, to suit the narrow
-   column; the stories row loses its gutter bleed, since the column is not
-   the page's edge. */
-/* Below the wide breakpoint these do not exist: the header band and the
-   cap bar are the wide hub's own, not a phone's. */
+   column; the stories row loses its gutter bleed, since inside the hub it
+   is not at the page's edge. */
+
+/* Below the wide breakpoint these do not exist: the greeting and the
+   extras are the wide hub's own, not a phone's. */
 .hub__head, .hub__wide { display: none; }
+.hub__stories { margin-bottom: var(--sp-4); }
 
 @media (min-width: 1024px) {
   .container--hub { max-width: 1180px; }
-  .hub__head {
-    display: flex;
-    align-items: center;
-    gap: 40px;
-    margin-bottom: var(--sp-5);
+  .hub {
+    display: grid;
+    grid-template-columns: 336px minmax(0, 1fr);
+    column-gap: var(--sp-7, 40px);
+    align-items: start;
   }
-  .hub__wide { display: block; }
-  .hub__greet { flex: 1; min-width: 0; }
+  .hub__head, .hub__stories { grid-column: 1 / -1; }
+
+  .hub__head { display: block; margin-bottom: var(--sp-4); }
   .hub__hello { font-size: 15px; font-weight: 600; color: var(--muted); }
   .hub__name { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; }
   .hub__today { margin-top: 6px; font-size: 15px; font-weight: 500; color: var(--muted); }
 
-  /* A thought for the day (hub/_quote.html), beside the greeting. */
-  .daily--quote { width: 380px; flex: none; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
+  .hub__stories { margin-bottom: var(--sp-5); }
+  .hub__stories .stories { margin: 0; }
+  .hub__stories .stories__row { padding-left: 0; padding-right: 0; scroll-padding-inline: 0; }
+
+  .hub__side {
+    position: sticky;
+    top: calc(var(--appbar-h) + var(--safe-t, 0px) + var(--sp-4));
+    display: grid;
+    gap: var(--sp-4);
+  }
+  .hub__wide { display: block; }
+  .hub__side .holiday { flex-direction: column-reverse; align-items: stretch; margin-bottom: 0; }
+  .hub__side .holiday__art { width: 168px; margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) 0 auto; }
+  .hub__main .board { margin-top: 0; }
+
+  /* A thought for the day (hub/_quote.html). */
+  .daily--quote { background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
   .daily__kicker { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--brand); }
   .daily__kicker svg { width: 14px; height: 14px; }
   .daily__quote { margin: var(--sp-2) 0 0; font-size: 17px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
   .daily__who { margin-top: var(--sp-2); font-size: 13.5px; color: var(--muted); }
 
-  /* A little laugh (hub/_joke.html), first in the side column: the
-     punchline is behind the tap, the way a joke is told. */
+  /* A little laugh (hub/_joke.html): the punchline is behind the tap, the
+     way a joke is told. */
   .daily--joke { padding: 0; }
   .daily__summary { display: block; cursor: pointer; list-style: none; }
   .daily__summary::-webkit-details-marker { display: none; }
@@ -6740,24 +6759,6 @@ body::before {
   .daily__reveal svg { width: 14px; height: 14px; transition: transform .15s ease; }
   .daily--joke[open] .daily__reveal svg { transform: rotate(180deg); }
   .daily__punchline { margin: calc(var(--sp-3) * -1) 0 0; padding: 0 var(--sp-5) var(--sp-5); font-size: 15px; line-height: 1.45; color: var(--text-2); }
-  .hub {
-    display: grid;
-    grid-template-columns: 336px minmax(0, 1fr);
-    column-gap: var(--sp-7, 40px);
-    align-items: start;
-  }
-  .hub__head { grid-column: 1 / -1; }
-  .hub__side {
-    position: sticky;
-    top: calc(var(--appbar-h) + var(--safe-t, 0px) + var(--sp-4));
-    display: grid;
-    gap: var(--sp-4);
-  }
-  .hub__side .holiday { flex-direction: column-reverse; align-items: stretch; margin-bottom: 0; }
-  .hub__side .holiday__art { width: 168px; margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) 0 auto; }
-  .hub__side .stories { margin: 0; }
-  .hub__side .stories__row { padding-left: 0; padding-right: 0; scroll-padding-inline: 0; }
-  .hub__main .board { margin-top: 0; }
 }
 
 /* ---- The line above: what this is, and whose it is ---- */

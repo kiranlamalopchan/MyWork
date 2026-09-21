@@ -18,9 +18,9 @@ import { useLayout } from "./layout";
 import { radius, sp, useTheme } from "./theme";
 
 /**
- * `boxed`: in the hub's side column on a wide screen, where the row is not
- * at the page's edge — so no bleed into the gutter, and tiles of a size
- * that suits a column rather than a share of the screen.
+ * `boxed`: inside the wide hub, where the row is not at the page's edge —
+ * so no bleed into the gutter, and tiles at the full size rather than a
+ * share of a phone's width.
  */
 export function StoriesTray({ rows, boxed = false }: { rows: TrayRow[]; boxed?: boolean }) {
   const t = useTheme();
@@ -28,7 +28,7 @@ export function StoriesTray({ rows, boxed = false }: { rows: TrayRow[]; boxed?: 
   const { me } = useSession();
   const layout = useLayout();
   // 9:16 tiles: three and a bit across a phone, whatever its width.
-  const W = boxed ? 100 : Math.round(Math.min(112, Math.max(88, (layout.width - 2 * layout.gutter - 2 * sp[2]) / 3.3)));
+  const W = boxed ? 112 : Math.round(Math.min(112, Math.max(88, (layout.width - 2 * layout.gutter - 2 * sp[2]) / 3.3)));
   const H = Math.round((W * 16) / 9);
   const side = boxed ? 0 : (layout.column.paddingLeft as number);
   const tile = { width: W, height: H };

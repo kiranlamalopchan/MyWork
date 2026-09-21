@@ -1,7 +1,7 @@
 /**
- * The hub's small pleasures, on a wide screen: a thought for the day
- * beside the greeting, and a little laugh at the top of the side column
- * with its punchline behind a tap — a joke told, not printed. Both come
+ * The hub's small pleasures, on a wide screen, in the side column under
+ * the holiday: a thought for the day, and a little laugh with its
+ * punchline behind a tap — a joke told, not printed. Both come
  * from the server's daily pick (mywork/daily.py), the same for everyone
  * and new at midnight.
  */
@@ -17,7 +17,7 @@ import { mix, sp, useTheme } from "./theme";
 export function QuoteCard({ quote, style }: { quote: Daily["quote"]; style?: object }) {
   const t = useTheme();
   return (
-    <Card style={[styles.quote, style]} tint={mix(t.brand, t.surface, 0.08)} testID="daily-quote">
+    <Card style={style} tint={mix(t.brand, t.surface, 0.08)} testID="daily-quote">
       <View style={styles.kicker}>
         <Ionicons name="sparkles-outline" size={14} color={t.brandStrong} />
         <Text style={[styles.kickerText, { color: t.brandStrong }]}>Thought for the day</Text>
@@ -53,7 +53,6 @@ export function JokeCard({ joke }: { joke: Daily["joke"] }) {
 }
 
 const styles = StyleSheet.create({
-  quote: { width: 380 },
   kicker: { flexDirection: "row", alignItems: "center", gap: 6 },
   kickerText: { fontSize: 11.5, fontWeight: "700", letterSpacing: 0.5, textTransform: "uppercase" },
   quoteText: { marginTop: sp[2], fontSize: 17, lineHeight: 24, fontWeight: "600", letterSpacing: -0.2 },
