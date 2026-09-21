@@ -3593,6 +3593,19 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
 }
 .admin-badge svg { width: 12px; height: 12px; }
 .page-title .admin-badge, .profile-id__name .admin-badge, .profile__name .admin-badge { font-size: 12px; vertical-align: 5px; }
+/* The notice head is a flex row with its own gap, so the pill needs no
+   margin of its own there; in a comment bubble the name and the words run
+   on in one line, so the mark sits between them at the words' size, with
+   the name's own 6px before the text and none doubled up after the name. */
+.notice__head .admin-badge { margin-left: 0; }
+.comment__body .admin-badge {
+  margin: 0 2px 0 0; /* the space in the markup makes up the rest */
+  padding: 0 6px 0 4px;
+  font-size: 10px;
+  line-height: 15px;
+  vertical-align: -1px;
+}
+.comment__body .admin-badge svg { width: 11px; height: 11px; }
 
 /* ---- Reading them ------------------------------------------------------- */
 /* Notices sit apart from each other the way notifications do, rather than
