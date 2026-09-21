@@ -1,0 +1,38 @@
+{% load timeclock_extras ui %}
+{% comment %}
+  "Right now": the clock at a glance, in the wide hub's header — where you
+  are clocked in and since when, that you are on a break, or that you are
+  not clocked in at all — and the way to the clock itself. The figure that
+  ticks lives on the clock page; this shows it as of the page load, which
+  is what a glance on the way past wants.
+
+  Takes: shift, running_break, selected_workplace.
+{% endcomment %}
+<div class="card now now--{% if not shift %}off{% elif running_break %}break{% else %}on{% endif %}">
+  <div class="card__pad">
+    <div class="now__head">
+      <span class="now__dot" aria-hidden="true"></span>
+      <span class="now__label">
+        {% if not shift %}Not clocked in{% elif running_break %}On a break{% else %}Clocked in{% endif %}
+      </span>
+      {% icon "clock" class="now__icon" %}
+    </div>
+    <div class="now__where">
+      {% if shift %}{{ shift.workplace.name }}{% elif selected_workplace %}{{ selected_workplace.name }}{% else %}No workplace yet{% endif %}
+    </div>
+    <div class="now__sub">
+      {% if shift and running_break %}
+        Since {{ running_break.break_start|time:"g:i A" }} · {{ shift.worked_duration|hm }} worked before it
+      {% elif shift %}
+        Since {{ shift.clock_in|time:"g:i A" }} · {{ shift.worked_duration|hm }} so far
+      {% elif selected_workplace %}
+        Ready when you are.
+      {% else %}
+        Add one on the Clock page.
+      {% endif %}
+    </div>
+    <a class="btn btn--sm {% if shift %}btn--ghost{% else %}btn--primary{% endif %} now__go" href="{% url 'timeclock:dashboard' %}">
+      {% if shift %}Open the clock {% icon "chev" %}{% else %}Clock in{% endif %}
+    </a>
+  </div>
+</div>
