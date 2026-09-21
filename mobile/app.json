@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.kiranlama.mywork",
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "infoPlist": {
         "NSCameraUsageDescription": "To take a photo or video for your story.",
         "NSPhotoLibraryUsageDescription": "To choose a photo or video for your story, or a profile photo.",
