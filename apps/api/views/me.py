@@ -24,6 +24,7 @@ class Me(APIView):
         """The words about you. Fields left out stay as they are."""
         profile = Profile.of(request.user)
         current = {
+            "username": request.user.get_username(),
             "display_name": profile.display_name,
             "email": request.user.email,
             "phone": profile.phone,

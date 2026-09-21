@@ -201,6 +201,51 @@ class FriendshipTests(TestCase):
         self.assertRedirects(resp, reverse("accounts:profile") + "#friends")
 
 
+class UsernameChangeTests(TestCase):
+    """The name you sign in by can be changed — to one nobody else has."""
+
+    def setUp(self):
+        self.me = User.objects.create_user("me", password="pw12345678")
+        User.objects.create_user("taken", password="pw12345678")
+        self.client.force_login(self.me)
+        self.url = reverse("accounts:edit")
+
+    def post(self, username):
+        return self.client.post(self.url, {"username": username, "display_name": "", "email": "", "phone": "", "address": ""})
+
+    def test_the_username_is_on_the_edit_page_and_can_be_changed(self):
+        resp = self.client.get(self.url)
+        self.assertContains(resp, 'name="username"')
+        self.assertContains(resp, 'value="me"')
+        resp = self.post("  newme ")
+        self.assertEqual(resp.status_code, 302, resp.content)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.get_username(), "newme")
+        # Still signed in as the same account afterwards.
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_a_taken_username_is_refused_whatever_its_case(self):
+        for attempt in ("taken", "Taken", "TAKEN"):
+            resp = self.post(attempt)
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, "That username is taken.")
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.get_username(), "me")
+
+    def test_keeping_your_own_name_is_not_a_clash(self):
+        self.assertEqual(self.post("me").status_code, 302)
+        self.assertEqual(self.post("ME").status_code, 302)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.get_username(), "ME")
+
+    def test_the_sign_up_rules_still_apply(self):
+        for bad in ("", "has space", "no!bang"):
+            resp = self.post(bad)
+            self.assertEqual(resp.status_code, 200, bad)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.get_username(), "me")
+
+
 class AccountDeletionTests(TestCase):
     """The way out for good, and the page the stores ask for."""
 

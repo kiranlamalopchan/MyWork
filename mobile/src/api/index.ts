@@ -33,7 +33,7 @@ export const auth = {
 
 export const me = {
   get: () => api<Me>("me/"),
-  update: (fields: Partial<Pick<Me, "display_name" | "email" | "phone" | "address">>) =>
+  update: (fields: Partial<Pick<Me, "username" | "display_name" | "email" | "phone" | "address">>) =>
     api<Me>("me/", { method: "PATCH", body: fields }),
   setPhoto: (photo: FilePart) => api<Me>("me/photo/", { method: "POST", form: formWith({ photo }) }),
   clearPhoto: () => api<Me>("me/photo/", { method: "DELETE" }),

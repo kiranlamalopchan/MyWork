@@ -121,6 +121,24 @@ class MeTests(ApiTestCase):
         self.assertEqual(bad.status_code, 400)
         self.assertIn("email", bad.json()["fields"])
 
+    def test_the_username_can_be_changed_but_not_to_someone_elses(self):
+        resp = self.api("patch", "me", {"username": "kiran_l"})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.json()["username"], "kiran_l")
+        self.assertTrue(User.objects.filter(username="kiran_l", pk=self.kiran.pk).exists())
+        # The token still opens the account under its new name.
+        self.assertEqual(self.api("get", "me").json()["username"], "kiran_l")
+        # Sam's name, in any case, is Sam's.
+        for attempt in ("sam", "SAM"):
+            clash = self.api("patch", "me", {"username": attempt})
+            self.assertEqual(clash.status_code, 400)
+            self.assertEqual(clash.json()["fields"]["username"], ["That username is taken."])
+        bad = self.api("patch", "me", {"username": "no spaces"})
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("username", bad.json()["fields"])
+        # Left out, it stays as it is.
+        self.assertEqual(self.api("patch", "me", {"phone": "0400"}).json()["username"], "kiran_l")
+
     def test_the_account_can_be_deleted_behind_the_password(self):
         from apps.timeclock.models import Shift, Workplace
         place = Workplace.objects.create(user=self.kiran, name="Butcher Shop")

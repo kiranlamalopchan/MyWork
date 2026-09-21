@@ -1,9 +1,17 @@
-/** The words about you (templates/accounts/profile_form.html), and which state's holidays you keep. */
+/**
+ * The words about you (templates/accounts/profile_form.html), and which
+ * state's holidays you keep. The username is one of the words: it can be
+ * changed, to one nobody else has — the server is the judge of that — and
+ * a phone whose lock opened for the old name is told the new one, so the
+ * next sign-in still recognises the same person.
+ */
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 
 import { me as api } from "@/api";
+import { armBiometric, biometricUser } from "@/auth/biometric";
 import { useSession } from "@/auth/session";
+import { getToken } from "@/auth/token";
 import { Button, Card, Chip, Field, Input, Page, PageTitle, Screen } from "@/ui";
 import { goBack } from "@/nav/paths";
 import { sp, useTheme } from "@/ui/theme";
@@ -14,6 +22,7 @@ const STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 export default function EditProfile() {
   const t = useTheme();
   const { me, setMe } = useSession();
+  const [username, setUsername] = useState(me?.username || "");
   const [display, setDisplay] = useState(me?.display_name || "");
   const [email, setEmail] = useState(me?.email || "");
   const [phone, setPhone] = useState(me?.phone || "");
@@ -26,7 +35,17 @@ export default function EditProfile() {
     setError("");
     setBusy(true);
     try {
-      setMe(await api.update({ display_name: display, email, phone, address }));
+      const was = me.username;
+      const saved = await api.update({ username: username.trim(), display_name: display, email, phone, address });
+      setMe(saved);
+      if (saved.username !== was) {
+        try {
+          const token = await getToken();
+          if (token && (await biometricUser()) === was) await armBiometric(saved.username, token);
+        } catch {
+          /* the lock will simply ask for the password once more */
+        }
+      }
       success();
       goBack();
     } catch (e: any) {
@@ -43,7 +62,10 @@ export default function EditProfile() {
       <Page>
         <PageTitle>Edit profile</PageTitle>
         <Card style={{ gap: sp[4] }}>
-          <Field label="Display name" help={`How you appear on the board. Blank means ${me.username}.`}>
+          <Field label="Username" help="How you sign in and how friends find you. Letters, digits and @ . + - _ only.">
+            <Input placeholder="e.g. kiran" value={username} onChangeText={setUsername} maxLength={150} autoCapitalize="none" autoCorrect={false} autoComplete="username" testID="username" />
+          </Field>
+          <Field label="Display name" help={`How you appear on the board. Blank means ${username.trim() || me.username}.`}>
             <Input placeholder="e.g. Kiran L." value={display} onChangeText={setDisplay} maxLength={40} autoComplete="name" testID="display-name" />
           </Field>
           <Field label="Email">
