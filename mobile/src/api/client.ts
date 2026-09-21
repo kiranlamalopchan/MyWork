@@ -44,8 +44,10 @@ type Options = {
 // (fetch's own limit on iOS is a minute, which is exactly too short.)
 const UPLOAD_TIMEOUT = 10 * 60_000;
 // A plain request gives up after this: fetch on Android would otherwise
-// wait forever on a connection that has quietly died.
-const REQUEST_TIMEOUT = 20_000;
+// wait forever on a connection that has quietly died. Long enough for a
+// sleeping host to wake up and answer — the first request after a quiet
+// spell is the slow one, and cutting it off looks like no connection at all.
+const REQUEST_TIMEOUT = 45_000;
 
 type Reply = { status: number; ok: boolean; text: string; contentType: string };
 
@@ -56,7 +58,10 @@ function send(url: string, method: string, headers: Record<string, string>, body
     const id = setTimeout(() => ctl.abort(), REQUEST_TIMEOUT);
     return fetch(url, { method, headers, body, signal: ctl.signal })
       .then(async (r) => ({ status: r.status, ok: r.ok, text: r.status === 204 ? "" : await r.text(), contentType: r.headers?.get?.("content-type") || "" }))
-      .catch((e) => { throw e?.name === "AbortError" ? new Error("The server took too long to answer") : e; })
+      // Our own timeout, however the platform reports it: iOS raises a
+      // native cancellation of its own rather than an `AbortError`, so the
+      // signal is what we trust, not the error's name.
+      .catch((e) => { throw ctl.signal.aborted ? new Error("The server took too long to answer") : e; })
       .finally(() => clearTimeout(id));
   }
   return new Promise((resolve, reject) => {
@@ -71,6 +76,23 @@ function send(url: string, method: string, headers: Record<string, string>, body
     xhr.onabort = () => reject(new Error("The upload was cancelled"));
     xhr.send(body as XMLHttpRequestBodyInit);
   });
+}
+
+/**
+ * The half-sentence in brackets after "couldn't reach", or nothing. The
+ * native side says things like "FetchRequestCanceledException: … (at
+ * ExpoURLSessionTask.swift:56)" — a Swift file and a line number tell the
+ * person holding the phone nothing, and reading one is alarming — so only
+ * a short, plain sentence of our own is passed on; anything else is
+ * dropped and the advice that follows stands on its own.
+ */
+function reason(error: any): string {
+  const raw = String(error?.message || "").trim();
+  if (!raw) return "";
+  if (/^network request failed$/i.test(raw)) return "";
+  if (/\.(swift|kt|java|mm?|cpp|c):\d+|exception|\bat .+:\d+|\bnserror|domain=/i.test(raw)) return "";
+  if (raw.length > 60) return "";
+  return raw.toLowerCase();
 }
 
 export async function api<T = unknown>(path: string, options: Options = {}): Promise<T> {
@@ -100,7 +122,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
   try {
     response = await send(url.toString(), options.method || "GET", headers, body, !!options.form, options.onProgress);
   } catch (error: any) {
-    const why = String(error?.message || "").replace(/^Network request failed$/i, "");
+    const why = reason(error);
     throw new ApiError(0, `Couldn't reach ${serverUrl()}${why ? ` (${why.toLowerCase()})` : ""}. Check the connection — or the server address on the sign-in screen.`);
   }
 

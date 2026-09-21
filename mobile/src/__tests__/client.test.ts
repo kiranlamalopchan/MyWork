@@ -29,6 +29,16 @@ describe("the API client", () => {
     globalThis.fetch = jest.fn(async () => { throw new Error("Network request failed"); }) as any;
     await expect(api("me/")).rejects.toMatchObject({ status: 0, message: expect.stringMatching(/Couldn't reach http:\/\/.*connection.*server address/) });
   });
+  it("keeps a native cancellation out of what the person reads", async () => {
+    // What Expo's iOS fetch throws when a request is cancelled: a class
+    // name, a Swift file and a line number, none of which belong on screen.
+    globalThis.fetch = jest.fn(async () => {
+      throw new Error("FetchRequestCanceledException: Fetch request has been canceled (at ExpoURLSessionTask.swift:56)");
+    }) as any;
+    const failed: any = await api("me/").catch((e) => e);
+    expect(failed.message).toMatch(/Couldn't reach http:\/\/.*Check the connection/);
+    expect(failed.message).not.toMatch(/swift|Exception/i);
+  });
   it("tells a site without the API apart from a missing thing", async () => {
     // Django's own HTML 404 page: the site is there, the API is not.
     globalThis.fetch = jest.fn(async () => ({ status: 404, ok: false, text: async () => "<!DOCTYPE html><title>Page not found</title>" })) as any;
