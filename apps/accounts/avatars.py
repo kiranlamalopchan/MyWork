@@ -1,5 +1,5 @@
 """
-What somebody looks like on MyWork, before they have uploaded anything.
+What somebody looks like on KaamKoRecord, before they have uploaded anything.
 
 The letter and the colour are derived from the username rather than stored, so
 a new account has a face from its first page load, the same face on every

@@ -1,4 +1,4 @@
-/* MyWork — progressive enhancement.
+/* KaamKoRecord — progressive enhancement.
    Everything here is optional: each page works fully with JS disabled, and
    these handlers only bind when the elements they need are actually present. */
 (function () {
@@ -212,7 +212,7 @@
 
      Runs on load, on hashchange, and when a soft navigation lands on an
      anchor — which fires neither. hashchange matters because a notification
-     tapped while MyWork is already open navigates the tab it finds (see
+     tapped while KaamKoRecord is already open navigates the tab it finds (see
      sw.js), and :target does not re-animate for that.
      ---------------------------------------------------------------------- */
   function landOnHash() {

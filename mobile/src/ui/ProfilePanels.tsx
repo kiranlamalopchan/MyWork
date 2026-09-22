@@ -1,7 +1,7 @@
 /**
  * The profile page's other two panels (templates/accounts/profile.html): a
  * statement to keep — the dates you pick, one job or all, as a PDF — and
- * what you have done in MyWork. Each is an expandable item on the
+ * what you have done in KaamKoRecord. Each is an expandable item on the
  * profile's list; the page puts them on one surface.
  */
 import React, { useEffect, useState } from "react";

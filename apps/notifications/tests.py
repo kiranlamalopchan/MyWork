@@ -11,7 +11,7 @@ and a reminder that runs every twenty minutes buzzes once.
 """
 
 import json
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from unittest import mock
 
 from django.contrib.auth.models import User
@@ -556,6 +556,22 @@ class InboxLookTests(TestCase):
         self.assertIn("note__chev", second)
 
 
+def midday():
+    """
+    Today, at noon — a clock for the demo tests to run against.
+
+    The demo lays its rows from four minutes back to a day and eight hours
+    back, and both of those are measured from whenever the suite happens to
+    run. Near midnight nothing lands on today, so the "Today" heading cannot
+    appear; between about two and eight in the morning the oldest row falls
+    two days back instead of one, so the rows span three days rather than
+    the two the grouping is there to show. Neither is a fault in the demo —
+    it is the tests that were reading a clock they did not set. Noon puts
+    every row where both tests expect it, whatever time it really is.
+    """
+    return timezone.make_aware(datetime.combine(timezone.localdate(), time(12, 0)))
+
+
 class TestNotificationCommandTests(TestCase):
     """
     The command that fills an inbox so there is something to look at, and
@@ -589,7 +605,8 @@ class TestNotificationCommandTests(TestCase):
         self.assertIn("wayne", str(caught.exception))
 
     def test_demo_fills_the_inbox_with_every_kind(self):
-        self._run("wayne", "--demo")
+        with mock.patch("django.utils.timezone.now", return_value=midday()):
+            self._run("wayne", "--demo")
 
         made = Notification.objects.filter(recipient=self.wayne)
         self.assertEqual(made.count(), 8)
@@ -642,10 +659,12 @@ class TestNotificationCommandTests(TestCase):
         self.assertNotIn("still be recorded", out)
 
     def test_the_demo_inbox_renders(self):
-        self._run("wayne", "--demo")
-        self.client.force_login(self.wayne)
-
-        resp = self.client.get(reverse("notifications:inbox"))
+        # The rows are backdated off the clock and the headings are worked out
+        # from it, so the two have to be reading the same one.
+        with mock.patch("django.utils.timezone.now", return_value=midday()):
+            self._run("wayne", "--demo")
+            self.client.force_login(self.wayne)
+            resp = self.client.get(reverse("notifications:inbox"))
 
         self.assertContains(resp, "note--from")
         self.assertContains(resp, "note--app")

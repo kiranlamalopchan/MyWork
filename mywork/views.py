@@ -1,8 +1,8 @@
 """
 Project-level screens: the app chooser you land on after signing in, plus the
-account pages that belong to MyWork as a whole rather than to either app.
+account pages that belong to KaamKoRecord as a whole rather than to either app.
 
-MyWork hosts two independent apps — PLU Management and TimeSheet Management.
+KaamKoRecord hosts two independent apps — PLU Management and TimeSheet Management.
 Nothing here knows what either one does; it only points at their front doors.
 """
 
@@ -27,7 +27,7 @@ def home(request):
     over to that app's own section, so the tab bar only ever shows the
     features of the app you're currently inside.
 
-    Under them, the notice board: the one thing on MyWork that everybody
+    Under them, the notice board: the one thing on KaamKoRecord that everybody
     shares, so it belongs on the page everybody lands on.
 
     Above both, the next public holiday — one line of the year everybody wants
@@ -82,7 +82,7 @@ PRIVACY_EFFECTIVE = date(2026, 9, 17)
 
 def privacy(request):
     """
-    What MyWork keeps about you and why — public, and linked from the way in
+    What KaamKoRecord keeps about you and why — public, and linked from the way in
     and from your profile. The app stores ask for it by address, so it lives
     at one that never moves: /privacy/.
     """

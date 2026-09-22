@@ -132,7 +132,7 @@ class Devices(APIView):
 
 class Activity(APIView):
     """
-    The profile page's other two panels: what you have done in MyWork, and
+    The profile page's other two panels: what you have done in KaamKoRecord, and
     where the statement form opens — the same figures accounts.views gathers.
     """
 

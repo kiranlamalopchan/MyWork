@@ -87,7 +87,7 @@ def money(amount):
 
 def draw_mark(canvas, x, y, size):
     """
-    The MyWork mark: the app icon, drawn rather than pasted.
+    The KaamKoRecord mark: the app icon, drawn rather than pasted.
 
     The same shapes static/img/icon.svg is made of — a rounded square with
     the green running light to deep across it, and the M as one stroke with

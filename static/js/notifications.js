@@ -1,4 +1,4 @@
-/* MyWork — notifications on this device.
+/* KaamKoRecord — notifications on this device.
 
    Everything here is an enhancement over a page that already works: the
    bell in the app bar, the inbox behind it and the count on both are rendered by

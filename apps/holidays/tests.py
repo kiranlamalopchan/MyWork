@@ -123,7 +123,7 @@ class NextHolidayTests(TestCase):
 
     def test_finding_it_is_a_single_query(self):
         """
-        The card renders on the hub, which is the most-visited page in MyWork.
+        The card renders on the hub, which is the most-visited page in KaamKoRecord.
         One indexed query is the budget.
         """
         with self.assertNumQueries(1):

@@ -1,7 +1,7 @@
 """
 Changing a password, and the one way back in when it has been forgotten.
 
-MyWork cannot send email. The host's free tier carries no outbound mail, and
+KaamKoRecord cannot send email. The host's free tier carries no outbound mail, and
 five of the six accounts have no address on them at all — signing up never
 asks for one. So "email me a link", the flow every other site uses, is not
 one this site can offer: it would lock most people out of their own accounts

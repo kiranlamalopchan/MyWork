@@ -1,6 +1,6 @@
 # accounts/urls.py
 #
-# Who you are on MyWork. Mounted by the project at /profile/, one level up
+# Who you are on KaamKoRecord. Mounted by the project at /profile/, one level up
 # from either app, because your face is not a feature of PLU or of TimeSheet.
 
 from django.urls import path

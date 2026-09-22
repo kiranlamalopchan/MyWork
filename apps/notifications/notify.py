@@ -1,5 +1,5 @@
 """
-The one way anything in MyWork raises a notification.
+The one way anything in KaamKoRecord raises a notification.
 
 Two steps, always in this order: write it down, then try to interrupt them
 about it. The record is the part that must not fail — it is what the bell

@@ -1,6 +1,6 @@
-# MyWork (Django)
+# KaamKoRecord (Django)
 
-MyWork is the mother project. It hosts two independent apps, and signing in
+KaamKoRecord is the mother project. It hosts two independent apps, and signing in
 lands you on a hub where you pick one; from there the navigation belongs
 entirely to that app. The same two, and the shared half — board, stories,
 alerts, holidays, profiles — are also the native phone app (`mobile/`, over
@@ -184,7 +184,7 @@ VAPID_PUBLIC_KEY=...
 VAPID_CONTACT_EMAIL=you@example.com
 ```
 
-Then **Reload** the web app. With no keys set, MyWork runs exactly as before
+Then **Reload** the web app. With no keys set, KaamKoRecord runs exactly as before
 and simply never interrupts anyone — the inbox says so rather than offering a
 switch that cannot work.
 
@@ -220,7 +220,7 @@ PythonAnywhere account gets **one scheduled task, once a day**. A clock-out
 forgotten at four in the afternoon would go unmentioned until that task ran
 in the evening, which is late enough to be an accusation rather than a
 reminder. Riding on traffic instead means a reminder within about fifteen
-minutes for as long as anybody is using MyWork.
+minutes for as long as anybody is using KaamKoRecord.
 
 What it cannot do is fire at three in the morning with nobody around. So point
 the one daily task at the same work as a backstop — **Tasks** tab, at a time

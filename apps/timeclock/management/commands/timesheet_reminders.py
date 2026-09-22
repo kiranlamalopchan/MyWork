@@ -1,7 +1,7 @@
 """
 The scheduled half of notifications.
 
-Everything else MyWork notifies about happens because somebody pressed
+Everything else KaamKoRecord notifies about happens because somebody pressed
 something, and can be raised in the request that pressed it. A forgotten
 clock-out is the opposite: nothing happens, and that is the thing worth
 saying. So it needs something outside a request to notice, which on a host

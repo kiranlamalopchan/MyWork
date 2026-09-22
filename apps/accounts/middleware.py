@@ -1,6 +1,6 @@
 """Who is here.
 
-The notice board shows a dot on the face of anybody using MyWork right now, and
+The notice board shows a dot on the face of anybody using KaamKoRecord right now, and
 this is what feeds it: every page a signed-in person asks for records that they
 asked for it.
 

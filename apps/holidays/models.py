@@ -144,7 +144,7 @@ class HolidayPreference(models.Model):
 
     Its own row rather than a field on the profile, following TimePreference:
     where you work is a setting of this feature, not part of how you appear in
-    MyWork, and keeping it here means the accounts app never learns what a
+    KaamKoRecord, and keeping it here means the accounts app never learns what a
     public holiday is.
     """
 

@@ -1,6 +1,6 @@
 # mywork/urls.py
 #
-# MyWork is the mother project. It owns the hub and the account pages; each
+# KaamKoRecord is the mother project. It owns the hub and the account pages; each
 # app is mounted under its own prefix so the two never collide and either one
 # can be moved or removed without touching the other.
 
@@ -40,7 +40,7 @@ urlpatterns = [
     # Blocking people and reporting posts, and the rules they enforce.
     path("safety/", include("apps.moderation.urls")),
     # Your photo and your name — one level up from either app, because they
-    # are true of you across the whole of MyWork.
+    # are true of you across the whole of KaamKoRecord.
     path("profile/", include("apps.accounts.urls")),
 
     # The shared notice board behind the hub

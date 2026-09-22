@@ -1,5 +1,5 @@
 """
-`{% avatar %}` — one person's face, wherever MyWork needs to show one.
+`{% avatar %}` — one person's face, wherever KaamKoRecord needs to show one.
 
 Every surface that names somebody also shows their face, and each one used to
 build that face itself out of an initial and a hue. Adding photos would have
@@ -28,7 +28,7 @@ def avatar(user, size="", link=False, me=False, label=None):
     label — accessible name; omitted (the default) means decorative, which is
             right whenever the person's name is already written beside it.
 
-    A person using MyWork right now gets a dot on their face — except on a
+    A person using KaamKoRecord right now gets a dot on their face — except on a
     `me` avatar, which sits beside your own compose box and would be telling
     you that you are here.
     """

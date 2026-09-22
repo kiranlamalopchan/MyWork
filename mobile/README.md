@@ -1,4 +1,4 @@
-# MyWork for Android and iOS
+# KaamKoRecord for Android and iOS
 
 The native app: Expo (React Native, TypeScript, Expo Router). It talks to
 the Django site through `/api/v1/` (see `apps/api` in the repo root) with a

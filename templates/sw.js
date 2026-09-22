@@ -1,5 +1,5 @@
 {% load static %}/*
- * MyWork's service worker.
+ * KaamKoRecord's service worker.
  *
  * Served from the site root rather than from /static/, because a worker may
  * only control pages underneath where it was served from: at

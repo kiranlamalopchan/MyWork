@@ -1,4 +1,4 @@
-"""MyWork's own applications.
+"""KaamKoRecord's own applications.
 
 Django's built-in apps, third-party apps and the four written for this project
 all used to sit in one flat list at the root of the repository, where nothing

@@ -380,7 +380,7 @@ def hours_this_week(user):
     Net worked time so far this week, over the account's own week start.
 
     Public because the profile page shows it too: one reading of "this week"
-    for the whole of MyWork, rather than a second sum that rounds or starts
+    for the whole of KaamKoRecord, rather than a second sum that rounds or starts
     the week differently from the timesheet it is meant to agree with.
     """
     pref = TimePreference.for_user(user)
@@ -1425,7 +1425,7 @@ def workplace_delete(request, pk):
     """
     Remove a workplace and everything recorded against it.
 
-    No archiving. Asked to remove a job, MyWork removes it — the shifts, the
+    No archiving. Asked to remove a job, KaamKoRecord removes it — the shifts, the
     breaks and the payments — because a list of jobs quietly
     keeping the one you deleted is a list you stop trusting.
     """

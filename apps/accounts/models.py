@@ -13,7 +13,7 @@ still creates on demand, because a row that must exist is worth guaranteeing at
 the point of use rather than trusting three separate places to have run.
 
 The photo is squared and shrunk on the way in. A phone camera hands over a
-4000px portrait; every place MyWork shows a face is at most 96px across, so
+4000px portrait; every place KaamKoRecord shows a face is at most 96px across, so
 storing the original would mean megabytes on disk and megabytes down a mobile
 connection to draw a thumbnail.
 """
@@ -31,7 +31,7 @@ from django.utils import timezone
 
 from .avatars import hue_for, initial_for
 
-# Every face on MyWork is drawn small; this is comfortably above the largest
+# Every face on KaamKoRecord is drawn small; this is comfortably above the largest
 # of them (the profile page's own, at 96px) on a 3x screen.
 PHOTO_PX = 320
 
@@ -77,7 +77,7 @@ def photo_path(instance, filename):
 
 
 class Profile(models.Model):
-    """How somebody appears everywhere in MyWork."""
+    """How somebody appears everywhere in KaamKoRecord."""
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -96,7 +96,7 @@ class Profile(models.Model):
         blank=True,
     )
 
-    # Contact details. Every one of them is optional, and MyWork asks nothing
+    # Contact details. Every one of them is optional, and KaamKoRecord asks nothing
     # of them: they are here because a workplace app is where you keep the
     # number a manager rings and the address a roster is sent to, and having
     # to look them up somewhere else is the reason people write them on paper.

@@ -1,10 +1,10 @@
 """
-Your own profile: the face MyWork shows for you, and what you have done in it.
+Your own profile: the face KaamKoRecord shows for you, and what you have done in it.
 
 This is the one page behind the avatar in the app bar. It is deliberately not
 a second copy of either app's settings — TimeSheet's own preferences stay
 behind TimeSheet's More, and the board's stay on the board. What belongs here
-is only what is true of you across the whole of MyWork: your photo, your name,
+is only what is true of you across the whole of KaamKoRecord: your photo, your name,
 and the figures both apps can add up about you.
 """
 
@@ -33,7 +33,7 @@ from .passwords import reset_url, revoke_app_tokens
 
 def _activity(user):
     """
-    What MyWork can say about you, gathered from the apps that know.
+    What KaamKoRecord can say about you, gathered from the apps that know.
 
     Each app answers for itself — hours are TimeSheet's reading of the week,
     notices are the board's count — so nothing here re-implements a figure

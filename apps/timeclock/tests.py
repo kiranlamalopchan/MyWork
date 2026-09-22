@@ -2811,7 +2811,7 @@ class ReminderSweepTests(TestCase):
 
     def test_a_broken_sweep_does_not_break_the_page(self):
         """
-        The sweep hangs off every page in MyWork, so it has to fail quietly.
+        The sweep hangs off every page in KaamKoRecord, so it has to fail quietly.
         """
         from unittest.mock import patch
 

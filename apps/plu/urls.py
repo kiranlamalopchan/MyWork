@@ -1,7 +1,7 @@
 # plu/urls.py
 #
 # Mounted by the project under /plu/, so every path here is relative to that.
-# Sign-in and registration belong to MyWork itself and live in mywork/urls.py.
+# Sign-in and registration belong to KaamKoRecord itself and live in mywork/urls.py.
 
 from django.urls import path
 

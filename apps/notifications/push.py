@@ -1,10 +1,10 @@
 """
-Getting a notification onto a phone that isn't looking at MyWork.
+Getting a notification onto a phone that isn't looking at KaamKoRecord.
 
 Two ways there. Web Push, with VAPID, for the site on a phone's browser or
 Home Screen: the browser gives out an endpoint on its own push service —
 Google's for Chrome, Apple's for Safari, Mozilla's for Firefox — and a pair
-of keys. MyWork encrypts the payload to those keys and signs the request
+of keys. KaamKoRecord encrypts the payload to those keys and signs the request
 with its own, so the push service can carry the message without being able
 to read it and cannot be used by anyone else to impersonate this site. And
 Expo's push service, for the native app (mobile/): the app hands over a

@@ -75,7 +75,7 @@ class ReminderSweepMiddleware:
     PresenceMiddleware already makes to put a dot on somebody's face, and the
     reason the check is a single statement rather than a read followed by a
     write. What it buys is a reminder within about fifteen minutes for as long
-    as anybody is using MyWork, which on a shared board is most of a working
+    as anybody is using KaamKoRecord, which on a shared board is most of a working
     day. What it cannot do is fire at three in the morning with nobody
     around — the daily scheduled task is still worth pointing at this same
     command as a backstop for exactly that.
@@ -109,7 +109,7 @@ class ReminderSweepMiddleware:
         """
         Run the reminders if they are due. Never raises.
 
-        Wrapped because this hangs off every page in MyWork: a reminder that
+        Wrapped because this hangs off every page in KaamKoRecord: a reminder that
         cannot be worked out, or a push service that is down, must not turn
         somebody's timesheet into an error page.
         """

@@ -123,7 +123,7 @@ class PaidIn(models.TextChoices):
     How the money reaches you, which decides whether tax is part of the story.
 
     Paid into an account there is a payslip behind it and a percentage taken
-    out, and every figure MyWork shows is worth splitting into gross and
+    out, and every figure KaamKoRecord shows is worth splitting into gross and
     take-home. Paid cash in hand there is no withholding to split off: what
     you are handed is what you earned, and showing "before tax" beside it
     would be inventing a deduction nobody made.

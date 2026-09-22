@@ -1,6 +1,6 @@
 /**
  * Your profile, to look at (templates/accounts/profile.html): who you are,
- * what MyWork knows about you, and the way to change it. Nothing here is a
+ * what KaamKoRecord knows about you, and the way to change it. Nothing here is a
  * form — changing your details is a screen you go to on purpose, behind
  * the Edit button under your name. The picture is the exception: tapping
  * your face offers the only two choices there are.

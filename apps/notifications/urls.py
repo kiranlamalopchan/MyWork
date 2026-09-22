@@ -2,7 +2,7 @@
 #
 # The bell and what is behind it. Mounted by the project at /notifications/.
 #
-# Not a section of MyWork the way PLU and TimeSheet are — there is no tab bar
+# Not a section of KaamKoRecord the way PLU and TimeSheet are — there is no tab bar
 # for it, because it is not somewhere you go to work. It is the thing that
 # tells you to go somewhere else.
 

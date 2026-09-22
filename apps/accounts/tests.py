@@ -16,7 +16,7 @@ User = get_user_model()
 
 
 class PresenceTests(TestCase):
-    """The dot that says somebody is using MyWork right now."""
+    """The dot that says somebody is using KaamKoRecord right now."""
 
     def setUp(self):
         self.me = User.objects.create_user("me", password="pw")
@@ -342,7 +342,7 @@ class ResetLinkTests(TestCase):
     """
     An admin letting somebody back in.
 
-    MyWork can email nobody, so this is the only road back for a person who
+    KaamKoRecord can email nobody, so this is the only road back for a person who
     has forgotten their password entirely — see apps/accounts/passwords.py.
     """
 

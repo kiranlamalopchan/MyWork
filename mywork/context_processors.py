@@ -1,5 +1,5 @@
 """
-Tells every template which of MyWork's apps the current page belongs to.
+Tells every template which of KaamKoRecord's apps the current page belongs to.
 
 The tab bar is the same everywhere; what changes inside an app is the
 segmented control at the top of its pages, which lists that app's own

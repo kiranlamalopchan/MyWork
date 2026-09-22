@@ -2,7 +2,7 @@
 The inbox behind the bell, and the two endpoints a browser talks to.
 
 The pages are ordinary Django: a list, and a POST that empties it. The two
-subscription endpoints are the only JSON in MyWork, and they are JSON because
+subscription endpoints are the only JSON in KaamKoRecord, and they are JSON because
 their caller is the service-worker registration in notifications.js rather
 than a form somebody submitted — there is no page to render back to.
 """
@@ -159,7 +159,7 @@ def subscribe(request):
 
     Called every time the page loads with permission already granted, not
     only the first time: browsers rotate endpoints on their own, and a
-    subscription MyWork never heard about is one that silently stops working.
+    subscription KaamKoRecord never heard about is one that silently stops working.
     `PushSubscription.store` makes that idempotent.
     """
     parsed = _subscription_from(request)

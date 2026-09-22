@@ -139,7 +139,7 @@ class Notification(models.Model):
     def hue(self):
         """
         The colour of whoever caused it — the same one they wear on the board
-        and in the app bar, so a person is one colour everywhere in MyWork.
+        and in the app bar, so a person is one colour everywhere in KaamKoRecord.
 
         Nobody behind it means the app itself spoke, and that takes the
         brand's own hue rather than borrowing somebody's.
@@ -264,7 +264,7 @@ class Sweep(models.Model):
     """
     When a periodic job last ran.
 
-    MyWork has no queue and no worker, and on a free host it has no cron worth
+    KaamKoRecord has no queue and no worker, and on a free host it has no cron worth
     the name either — one scheduled task a day, which is no use at all for
     noticing a clock-out that was forgotten at four in the afternoon. So the
     periodic work rides on ordinary web traffic instead: every request asks

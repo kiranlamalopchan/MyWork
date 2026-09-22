@@ -1,4 +1,4 @@
-"""Settings shared by every environment MyWork runs in.
+"""Settings shared by every environment KaamKoRecord runs in.
 
 This file makes no decision that depends on where the code is running. It has
 no `if DEBUG`, reads no environment variables, and does not define SECRET_KEY,
@@ -30,7 +30,7 @@ DJANGO_APPS = [
 ]
 
 LOCAL_APPS = [
-    # Who you are on MyWork — the profile behind the avatar in the app bar.
+    # Who you are on KaamKoRecord — the profile behind the avatar in the app bar.
     'apps.accounts',
     'apps.plu',
     'apps.timeclock',
@@ -102,7 +102,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # Which of MyWork's apps the current page belongs to, so
+                # Which of KaamKoRecord's apps the current page belongs to, so
                 # base.html can render that app's navigation and nothing else.
                 'mywork.context_processors.section',
                 # The signed-in user's own photo and name, for the app bar.

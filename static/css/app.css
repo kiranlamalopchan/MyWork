@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MyWork — mobile-first design system
+   KaamKoRecord — mobile-first design system
    Built phone-first: everything below is the phone layout, and a small number
    of min-width queries at the bottom widen it for tablet/desktop.
    ========================================================================== */
@@ -2823,7 +2823,7 @@ select, textarea {
    18. Hub — the app chooser you land on after signing in
    -------------------------------------------------------------------------- */
 
-/* Which of MyWork's apps you're inside, shown next to the brand. Hidden on the
+/* Which of KaamKoRecord's apps you're inside, shown next to the brand. Hidden on the
    narrowest phones, where the tab bar already answers the question. */
 .brand__section {
   flex: none;
@@ -3358,7 +3358,7 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 
 
 /* --------------------------------------------------------------------------
-   25. Notice board — the one surface everybody on MyWork shares
+   25. Notice board — the one surface everybody on KaamKoRecord shares
 
    Reads as a wall of short messages: a coloured initial for who wrote it, the
    words, and nothing else unless it's yours. The colour comes from the name
@@ -3413,7 +3413,7 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 .avatar--me { background: var(--brand); color: var(--brand-ink); }
 
 /* ---- Here now ----------------------------------------------------------
-   A dot on the corner of somebody's face while they are using MyWork.
+   A dot on the corner of somebody's face while they are using KaamKoRecord.
 
    It sits half outside the circle with a ring of the page behind it, which is
    what separates it from the face rather than making it look like part of the
@@ -3458,7 +3458,7 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 /* Your own photo, on your own profile, already has a button in that corner
    for changing it. The dot moves to the opposite one rather than sitting
    under the camera — and it stays, because a face is a face and this is
-   still the place you check that MyWork thinks you are here. */
+   still the place you check that KaamKoRecord thinks you are here. */
 .photo-menu .avatar__live { bottom: auto; top: 4px; right: 4px; }
 
 @keyframes mw-here {
@@ -3622,7 +3622,7 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
    while it is still new. --hue comes off the author's name (see Notice.hue),
    so a person is the same colour on every device with nothing stored.
 
-   This is the one place in MyWork that carries a shadow on purpose. The rule
+   This is the one place in KaamKoRecord that carries a shadow on purpose. The rule
    in section 1 is that only things which genuinely float cast one — and a
    notification is exactly that: something that arrived on top of the page
    rather than a piece of it.
@@ -6324,14 +6324,14 @@ body::before {
    colour of whoever caused it, a lift off the page, a dot while it is unread,
    and the same staggered arrival the board uses. The vocabulary is section
    24's (.notice), borrowed rather than reinvented — a person is one colour
-   everywhere in MyWork, and two different-looking cards about the same event
+   everywhere in KaamKoRecord, and two different-looking cards about the same event
    would be two things to learn instead of one.
    ---------------------------------------------------------------------- */
 
 /* The day a run of notifications belongs to.
 
    Not sticky, and that was a mistake worth recording. A pill that follows you
-   down the page needs something to sit against, and MyWork's app bar scrolls
+   down the page needs something to sit against, and KaamKoRecord's app bar scrolls
    away with the content — so it had nothing to anchor to and simply hovered
    over whatever was underneath, landing square on the first face in the list.
    A label that obscures the thing it is labelling is worse than one you have
@@ -6625,7 +6625,7 @@ body::before {
    upright, so in a short window it all gives back what it can.
 
    Scoped to .inbox rather than written against .page-head and .page-title,
-   which belong to every screen in MyWork. This is a fix for one page in one
+   which belong to every screen in KaamKoRecord. This is a fix for one page in one
    shape of window, not a new opinion about headings.
    -------------------------------------------------------------------------- */
 @media (max-height: 520px) and (orientation: landscape) {

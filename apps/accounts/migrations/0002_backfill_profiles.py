@@ -2,7 +2,7 @@
 Give every account that predates profiles one.
 
 The signal in apps.accounts.models only fires for accounts created after it, so
-without this the people already using MyWork would be the only ones unable to
+without this the people already using KaamKoRecord would be the only ones unable to
 set a photo — and every page reading `user.profile` would have to guard
 against them for good.
 """
