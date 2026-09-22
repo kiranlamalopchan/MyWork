@@ -11,8 +11,11 @@ and the figures both apps can add up about you.
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth import get_user_model, logout
+from django.contrib.auth import get_user_model, logout, update_session_auth_hash
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -25,6 +28,7 @@ from apps.timeclock.views import hours_this_week
 from . import notify
 from .forms import PhotoForm, ProfileForm
 from .models import FriendRequest, Friendship, Profile
+from .passwords import reset_url, revoke_app_tokens
 
 
 def _activity(user):
@@ -323,3 +327,89 @@ def account_delete(request):
             return redirect("login")
         messages.error(request, "That password isn't right.")
     return render(request, "accounts/delete.html")
+
+
+# ---------------------------------------------------------------------------
+# Passwords
+# ---------------------------------------------------------------------------
+
+@login_required
+def password_change(request):
+    """
+    Changing the password you already know.
+
+    Django's own form, so the rules are the ones AUTH_PASSWORD_VALIDATORS
+    already states and the old password is checked before anything is
+    written. `update_session_auth_hash` is what keeps this browser signed in:
+    changing a password rotates the hash every session is checked against, so
+    without it the page that had just succeeded would bounce to the login
+    screen — which reads exactly like a failure.
+
+    The app is signed out on purpose, and is told so rather than left to
+    discover it: one token covers every phone, and a password that has just
+    changed is a password the old sessions should not outlive.
+    """
+    if request.method == "POST":
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            form.save()
+            update_session_auth_hash(request, form.user)
+            signed_out = revoke_app_tokens(request.user)
+            messages.success(request, (
+                "Your password has been changed. Sign in again on the app with the new one."
+                if signed_out else "Your password has been changed."
+            ))
+            return redirect("accounts:profile")
+    else:
+        form = PasswordChangeForm(request.user)
+    return render(request, "accounts/password.html", {"form": form})
+
+
+@login_required
+def reset_links(request):
+    """
+    An admin's way of letting somebody back in who cannot get in at all.
+
+    This site has no way to email anybody (see apps/accounts/passwords.py), so
+    the link is made here and handed over by whoever runs the place. It is
+    404 rather than 403 for everyone else: a page only admins may use is a
+    page only admins need to know exists.
+
+    Nothing is stored. The link is built from the account's own state, shown
+    once, and can be made again at any time — so there is no table of live
+    links to leak, and closing the page is enough to be rid of it.
+    """
+    if not request.user.is_staff:
+        raise Http404
+
+    people = get_user_model().objects.filter(is_active=True).order_by("username")
+    link = person = None
+
+    if request.method == "POST":
+        person = get_object_or_404(
+            get_user_model(), pk=request.POST.get("user") or 0, is_active=True
+        )
+        link = reset_url(request, person)
+
+    return render(request, "accounts/reset_links.html", {
+        "people": people, "link": link, "person": person,
+    })
+
+
+class ResetConfirm(auth_views.PasswordResetConfirmView):
+    """
+    Where an admin's link lands.
+
+    Django's own view does the part worth not rewriting: it reads the account
+    out of the link, checks the token against that account's current password
+    hash, and refuses a link that has been used or has aged out. All this adds
+    is signing the phones out afterwards, for the same reason the change-
+    password page does.
+    """
+
+    template_name = "registration/password_reset_confirm.html"
+
+    def form_valid(self, response_form):
+        response = super().form_valid(response_form)
+        revoke_app_tokens(response_form.user)
+        return response

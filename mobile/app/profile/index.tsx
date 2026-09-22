@@ -121,6 +121,7 @@ export default function Profile() {
         <PushRow />
         <BiometricRow username={me.username} />
         <Card pad={false}>
+          <MenuRow icon="key-outline" title="Change password" sub="You'll need the one you use now" onPress={() => router.push("/profile/password")} testID="change-password" />
           <MenuRow icon="ban-outline" title="Blocked people" sub="Who you've chosen not to hear from" onPress={() => router.push("/profile/blocked")} tint={t.danger} last testID="blocked-people" />
         </Card>
         <Button title="Sign out" icon="log-out-outline" kind="danger" onPress={() => confirm("Sign out?", undefined, "Sign out", signOut)} testID="sign-out" />

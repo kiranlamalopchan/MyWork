@@ -13,6 +13,10 @@ urlpatterns = [
     path("", views.profile, name="profile"),
     path("edit/", views.profile_edit, name="edit"),
     path("delete/", views.account_delete, name="delete"),
+    # The password you already know, and — for an admin — a link for somebody
+    # who no longer knows theirs. See apps/accounts/passwords.py.
+    path("password/", views.password_change, name="password"),
+    path("reset-links/", views.reset_links, name="reset_links"),
     # The picture is changed and dropped from the menu on the picture, so each
     # is a POST of its own rather than a field on the details form.
     path("photo/", views.photo_upload, name="photo"),

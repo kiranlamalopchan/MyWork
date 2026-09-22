@@ -1007,3 +1007,76 @@ class ChunkedUploadTests(ApiTestCase):
         resp = self.api("post", "uploads", {"upload_id": "ab12cd34ef56ab12cd34", "index": 0, "total": 1, "data": base64.b64encode(blob).decode()})
         self.assertEqual(resp.status_code, 200, resp.content[:200])
         self.assertEqual(resp.json()["bytes"], len(blob))
+
+
+class PasswordApiTests(ApiTestCase):
+    """
+    Changing the password from the app.
+
+    The token is the interesting part: one covers every phone, so changing a
+    password has to kill it — and hand this phone a new one, or the app would
+    throw its owner out as a reward for doing the right thing.
+    """
+
+    def change(self, old="pw12345678", new="quokka-brunch-91", again=None):
+        return self.api("post", "me_password", {
+            "old_password": old,
+            "new_password": new,
+            "new_password_again": new if again is None else again,
+        })
+
+    def test_the_new_password_works_and_the_old_one_stops(self):
+        response = self.change()
+        self.assertEqual(response.status_code, 200, response.content)
+        self.kiran.refresh_from_db()
+        self.assertTrue(self.kiran.check_password("quokka-brunch-91"))
+        self.assertFalse(self.kiran.check_password("pw12345678"))
+
+    def test_the_old_token_dies_and_this_phone_is_handed_a_new_one(self):
+        fresh = self.change().json()["token"]
+
+        self.assertNotEqual(fresh, self.token)
+        self.assertEqual(self.api("get", "me").status_code, 401)
+        self.assertEqual(self.api("get", "me", token=fresh).status_code, 200)
+
+    def test_the_new_password_signs_in(self):
+        self.change()
+        response = self.client.post(
+            reverse("api:login"), {"username": "kiran", "password": "quokka-brunch-91"}
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def test_the_wrong_current_password_changes_nothing(self):
+        response = self.change(old="not-the-one")
+        self.assertEqual(response.status_code, 400)
+        self.kiran.refresh_from_db()
+        self.assertTrue(self.kiran.check_password("pw12345678"))
+
+    def test_the_wrong_current_password_leaves_the_token_alone(self):
+        """A failed attempt must not sign the phone out."""
+        self.change(old="not-the-one")
+        self.assertEqual(self.api("get", "me").status_code, 200)
+
+    def test_two_different_new_passwords_change_nothing(self):
+        response = self.change(again="quokka-brunch-92")
+        self.assertEqual(response.status_code, 400)
+        self.kiran.refresh_from_db()
+        self.assertTrue(self.kiran.check_password("pw12345678"))
+
+    def test_a_password_the_validators_refuse_comes_back_as_a_sentence(self):
+        """
+        Django hangs validator errors on the *confirm* box, not the first one
+        — `SetPasswordForm.clean_new_password2` is where validate_password
+        runs. The app shows `detail` rather than placing errors under boxes,
+        so this only matters to whoever reads `fields`.
+        """
+        response = self.change(new="1234")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("new_password2", response.json()["fields"])
+        self.assertIn("too short", response.json()["detail"])
+
+    def test_it_needs_a_token(self):
+        response = self.client.post(
+            reverse("api:me_password"), {}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 401)

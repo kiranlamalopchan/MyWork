@@ -41,6 +41,16 @@ export const me = {
   registerDevice: (token: string, platform: string, name: string) =>
     api("devices/", { method: "POST", body: { token, platform, name } }),
   unregisterDevice: (token: string) => api("devices/", { method: "DELETE", body: { token } }),
+  /**
+   * A new password, behind the old one. A fresh token comes back with it:
+   * one token covers every phone, so the old one retires with the password
+   * it was issued under.
+   */
+  changePassword: (current: string, next: string, again: string) =>
+    api<{ token: string }>("me/password/", {
+      method: "POST",
+      body: { old_password: current, new_password: next, new_password_again: again },
+    }),
   /** The account and everything in it, behind the password. */
   deleteAccount: (password: string) => api("me/", { method: "DELETE", body: { password } }),
 };

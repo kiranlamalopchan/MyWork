@@ -19,6 +19,7 @@ urlpatterns = [
 
     path("me/", me.Me.as_view(), name="me"),
     path("me/activity/", me.Activity.as_view(), name="activity"),
+    path("me/password/", me.Password.as_view(), name="me_password"),
     path("me/photo/", me.Photo.as_view(), name="me_photo"),
     path("me/holiday-state/", me.HolidayState.as_view(), name="me_holiday_state"),
     path("devices/", me.Devices.as_view(), name="devices"),

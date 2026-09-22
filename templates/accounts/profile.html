@@ -403,6 +403,14 @@
   </div>
 </details>
 
+<div class="card card__pad" style="margin-top: var(--sp-4)">
+  <a class="btn btn--block" href="{% url 'accounts:password' %}">Change password</a>
+  {% if request.user.is_staff %}
+    {# Only an admin can let somebody back in: there is no email to send a link with. #}
+    <a class="btn btn--block" href="{% url 'accounts:reset_links' %}" style="margin-top: var(--sp-2)">Password reset links</a>
+  {% endif %}
+</div>
+
 <p class="muted text-sm" style="text-align: center; margin-top: var(--sp-4)">
   <a href="{% url 'moderation:blocked' %}">Blocked people</a> · <a href="{% url 'moderation:rules' %}">Rules</a> · <a href="{% url 'privacy' %}">Privacy</a> · <a href="{% url 'accounts:delete' %}" style="color: var(--danger)">Delete account</a>
 </p>

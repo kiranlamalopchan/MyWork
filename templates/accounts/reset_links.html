@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}
+  An admin letting somebody back in. This site cannot email anybody, so the
+  link is made here and passed on by hand — see apps/accounts/passwords.py
+  for why that is the flow rather than a shortcut around one.
+{% endcomment %}
+{% block title %}Reset links · KaamKoRecord{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'accounts:profile' %}">{% icon "back" %} Profile</a>
+
+<div class="page-head">
+  <h1 class="page-title">Password reset links</h1>
+  <p class="page-sub">For somebody who is locked out and cannot sign in at all.</p>
+</div>
+
+{% if link %}
+  <div class="card card__pad" style="margin-bottom:var(--sp-4);">
+    <p class="section-label" style="margin-bottom:var(--sp-2);">Link for {{ person.username }}</p>
+    <input class="input" type="text" readonly value="{{ link }}"
+           aria-label="Reset link for {{ person.username }}"
+           style="font-family:var(--mono,ui-monospace,monospace);font-size:13px;">
+    <div class="help" style="margin-top:var(--sp-3);">
+      Send this to {{ person.username }} however you normally reach them. It lets whoever
+      opens it set a new password without knowing the old one, so treat it like the password
+      itself.
+    </div>
+    <ul class="help" style="margin-top:var(--sp-2);padding-left:1.2em;">
+      <li>It stops working as soon as it has been used once.</li>
+      <li>It stops working on its own after three days.</li>
+      <li>Making a new link below replaces this one.</li>
+      <li>Using it signs {{ person.username }} out of the app everywhere.</li>
+    </ul>
+  </div>
+{% endif %}
+
+<form method="post" class="card card__pad">
+  {% csrf_token %}
+  <div class="field">
+    <label class="label" for="reset-user">Who is locked out?</label>
+    <select class="input" id="reset-user" name="user" required>
+      <option value="">Choose somebody…</option>
+      {% for person in people %}
+        <option value="{{ person.pk }}">{{ person.username }}{% if person.profile.display_name %} — {{ person.profile.display_name }}{% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn--primary btn--block" type="submit" style="margin-top:var(--sp-4);">
+    Make a reset link
+  </button>
+</form>
+{% endblock %}

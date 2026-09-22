@@ -270,3 +270,170 @@ class AccountDeletionTests(TestCase):
         self.assertFalse(User.objects.filter(username="me").exists())
         self.assertFalse(Profile.objects.filter(user__username="me").exists())
         self.assertEqual(self.client.get(reverse("accounts:profile")).status_code, 302)
+
+
+class PasswordChangeTests(TestCase):
+    """Changing the password you still know, from the site."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="old-password-77")
+        self.client.force_login(self.user)
+        self.url = reverse("accounts:password")
+
+    def _change(self, old="old-password-77", new="quokka-brunch-91"):
+        return self.client.post(self.url, {
+            "old_password": old, "new_password1": new, "new_password2": new,
+        })
+
+    def test_the_new_password_works_and_the_old_one_stops(self):
+        self.assertRedirects(self._change(), reverse("accounts:profile"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("quokka-brunch-91"))
+        self.assertFalse(self.user.check_password("old-password-77"))
+
+    def test_the_browser_that_changed_it_stays_signed_in(self):
+        """
+        What `update_session_auth_hash` is for. Changing a password rotates
+        the hash sessions are checked against, so without it the very page
+        that succeeded would bounce to the login screen.
+        """
+        self._change()
+        self.assertEqual(self.client.get(reverse("accounts:profile")).status_code, 200)
+
+    def test_the_wrong_current_password_changes_nothing(self):
+        response = self._change(old="not-the-one")
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("old-password-77"))
+
+    def test_two_different_new_passwords_change_nothing(self):
+        response = self.client.post(self.url, {
+            "old_password": "old-password-77",
+            "new_password1": "quokka-brunch-91",
+            "new_password2": "quokka-brunch-92",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("old-password-77"))
+
+    def test_a_password_the_validators_refuse_is_refused(self):
+        response = self._change(new="1234")
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("old-password-77"))
+
+    def test_the_phones_are_signed_out_of_the_app(self):
+        from rest_framework.authtoken.models import Token
+
+        Token.objects.create(user=self.user)
+        self._change()
+        self.assertFalse(Token.objects.filter(user=self.user).exists())
+
+    def test_the_page_renders_and_the_profile_points_at_it(self):
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertContains(self.client.get(reverse("accounts:profile")), self.url)
+
+    def test_it_needs_a_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+
+class ResetLinkTests(TestCase):
+    """
+    An admin letting somebody back in.
+
+    MyWork can email nobody, so this is the only road back for a person who
+    has forgotten their password entirely — see apps/accounts/passwords.py.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user("boss", password="boss-password-12", is_staff=True)
+        self.person = User.objects.create_user("kiran", password="old-password-77")
+        self.url = reverse("accounts:reset_links")
+
+    def _link(self):
+        from apps.accounts.passwords import reset_path
+
+        return reset_path(self.person)
+
+    def _set_password(self, link, password="quokka-brunch-91"):
+        """
+        Walk Django's two steps: the link itself redirects to the form, with
+        the token moved into the session on the way so it never sits in the
+        address bar to be shoulder-read or logged.
+        """
+        page = self.client.get(link, follow=True)
+        form_url = page.redirect_chain[-1][0] if page.redirect_chain else link
+        return self.client.post(form_url, {"new_password1": password, "new_password2": password})
+
+    # ---- who may make one ------------------------------------------------
+
+    def test_the_page_hides_from_everybody_but_staff(self):
+        self.client.force_login(self.person)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_it_needs_a_login_at_all(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_only_an_admin_is_told_the_page_is_there(self):
+        """A page only admins may use is a page only admins need to see."""
+        self.client.force_login(self.person)
+        self.assertNotContains(self.client.get(reverse("accounts:profile")), self.url)
+
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("accounts:profile")), self.url)
+
+    def test_an_admin_is_offered_everybody(self):
+        self.client.force_login(self.admin)
+        page = self.client.get(self.url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "kiran")
+
+    def test_an_admin_gets_a_whole_link_back(self):
+        self.client.force_login(self.admin)
+        page = self.client.post(self.url, {"user": self.person.pk})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "/reset/")
+
+    # ---- what the link does ----------------------------------------------
+
+    def test_it_lets_somebody_set_a_new_password_without_the_old_one(self):
+        self._set_password(self._link())
+        self.person.refresh_from_db()
+        self.assertTrue(self.person.check_password("quokka-brunch-91"))
+
+    def test_it_works_once_and_not_twice(self):
+        link = self._link()
+        self._set_password(link)
+        self._set_password(link, password="second-attempt-55")
+
+        self.person.refresh_from_db()
+        self.assertTrue(self.person.check_password("quokka-brunch-91"))
+        self.assertFalse(self.person.check_password("second-attempt-55"))
+
+    def test_a_link_made_before_a_password_change_is_already_dead(self):
+        """Two links out at once must not both work: the older one is stale."""
+        stale = self._link()
+        self._set_password(self._link(), password="quokka-brunch-91")
+        self.client.logout()
+
+        self._set_password(stale, password="stale-link-took-42")
+
+        self.person.refresh_from_db()
+        self.assertFalse(self.person.check_password("stale-link-took-42"))
+
+    def test_a_tampered_link_is_refused(self):
+        page = self.client.get(self._link()[:-6] + "abcde/", follow=True)
+        self.assertContains(page, "expired")
+
+    def test_using_it_signs_the_phones_out_of_the_app(self):
+        from rest_framework.authtoken.models import Token
+
+        Token.objects.create(user=self.person)
+        self._set_password(self._link())
+        self.assertFalse(Token.objects.filter(user=self.person).exists())
+
+    def test_nobody_is_signed_in_by_setting_a_password(self):
+        """The first thing a new password should do is be typed once."""
+        self._set_password(self._link())
+        self.assertNotIn("_auth_user_id", self.client.session)

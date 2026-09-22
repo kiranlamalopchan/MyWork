@@ -1,13 +1,16 @@
 """You: what the app shows in its own corner, and lets you change."""
 
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import AnonymousUser
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.forms import PhotoForm, ProfileForm
 from apps.accounts.models import Profile
+from apps.accounts.passwords import revoke_app_tokens
 from apps.accounts.views import delete_account
 from apps.holidays.models import HolidayPreference, State
 from apps.notifications.models import Device
@@ -48,6 +51,36 @@ class Me(APIView):
         delete_account(request.user)
         request._request.user = AnonymousUser()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class Password(APIView):
+    """
+    Changing the password from the app.
+
+    The site's own form does the deciding, so the rules cannot drift apart
+    from the ones /profile/password/ enforces — including that the old one
+    has to be right before the new one is looked at.
+
+    The token is what changes here. One covers every phone rather than one
+    each (it is a OneToOneField in DRF), so the old one has to go: a password
+    just changed should not leave the sessions behind it alive. A fresh token
+    comes back for this phone to keep, because signing somebody out of the
+    app they are standing in, as a reward for changing their password, reads
+    as the change having failed.
+    """
+
+    def post(self, request):
+        form = PasswordChangeForm(request.user, {
+            "old_password": str(request.data.get("old_password", "")),
+            "new_password1": str(request.data.get("new_password", "")),
+            "new_password2": str(request.data.get("new_password_again", "")),
+        })
+        if not form.is_valid():
+            return Response(form_errors(form), status=status.HTTP_400_BAD_REQUEST)
+
+        form.save()
+        revoke_app_tokens(request.user)
+        return Response({"token": Token.objects.create(user=request.user).key})
 
 
 class Photo(APIView):

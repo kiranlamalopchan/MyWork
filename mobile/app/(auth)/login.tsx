@@ -113,6 +113,10 @@ export default function Login() {
         </View>
       </Field>
       <Button title="Sign in" onPress={go} busy={busy} disabled={!username || !password} />
+      {/* No self-service reset: nobody can be emailed a link (apps/accounts/passwords.py). */}
+      <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>
+        Forgotten your password? Ask whoever looks after KaamKoRecord for a reset link.
+      </Text>
       {Platform.OS !== "web" && kind && !locked ? (
         <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>After you sign in, you can use {biometricName(kind)} next time.</Text>
       ) : null}
