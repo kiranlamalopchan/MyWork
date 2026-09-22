@@ -62,10 +62,9 @@ def _due_again(notification, renotify_after):
     again. False whenever no window was given, which is every caller but the
     reminders.
     """
-    previous_at = getattr(notification, "previous_at", None)
-    if renotify_after is None or previous_at is None:
+    if renotify_after is None or notification.pushed_at is None:
         return False
-    return timezone.now() - previous_at >= renotify_after
+    return timezone.now() - notification.pushed_at >= renotify_after
 
 
 def notify_many(recipients, kind, title, *, url, body="", actor=None, emoji="",
@@ -104,5 +103,7 @@ def _deliver(notification):
     try:
         unread = Notification.unread_count(notification.recipient)
         push.send_to_user(notification.recipient, push.payload_for(notification, unread))
+        notification.pushed_at = timezone.now()
+        notification.save(update_fields=["pushed_at"])
     except Exception:
         log.exception("delivering notification %s failed", notification.pk)

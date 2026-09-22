@@ -111,6 +111,7 @@ class Notification(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    pushed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -184,7 +185,6 @@ class Notification(models.Model):
                 recipient=recipient, dedupe_key=dedupe_key, read_at__isnull=True
             ).first()
             if existing is not None:
-                existing.previous_at = existing.created_at
                 existing.title = title
                 existing.body = body
                 existing.url = url
