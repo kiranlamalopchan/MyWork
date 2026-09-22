@@ -18,7 +18,7 @@ export default function NewShift() {
     <Screen back backLabel="Timesheet">
       <Page>
         <PageTitle sub="For a day you forgot to clock in on. Set the times you actually worked and add any breaks you took.">Add a shift</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonForm fields={4} /> : null}
         {q.data ? (
           <ShiftForm

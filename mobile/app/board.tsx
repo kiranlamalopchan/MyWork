@@ -61,7 +61,7 @@ export default function Board() {
                   </View>
                 </Card>
               ) : null}
-              {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+              {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
             </View>
           }
           ListEmptyComponent={q.isLoading ? <View style={{ gap: sp[4] }}><SkeletonNotices count={3} /></View> : <Empty icon="chatbubble-outline" title="Nothing on the board" sub="Post the first notice — everyone signed in will see it." />}

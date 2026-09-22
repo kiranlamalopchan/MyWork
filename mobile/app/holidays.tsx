@@ -50,7 +50,7 @@ export default function Holidays() {
           onChange={(s) => { setState(s); setOpen(null); }}
           testID="holiday-state"
         />
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonHolidays /> : null}
         {q.data && total === 0 ? <Empty icon="calendar-outline" title={`Nothing loaded for ${LABELS[shown] || shown} yet`} sub="A staff member loads the year's calendar on the site." /> : null}
         {months.map((m) => {

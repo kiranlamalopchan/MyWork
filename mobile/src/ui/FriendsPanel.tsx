@@ -64,7 +64,7 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
       <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>
         Posts and comments marked "Friends only" are shown to the people here.
       </Text>
-      {query.error ? <ErrorBanner message={(query.error as Error).message} onRetry={query.refetch} /> : null}
+      {query.error ? <ErrorBanner error={query.error} onRetry={query.refetch} /> : null}
       {query.isLoading ? <SkeletonFriends /> : null}
 
       {data?.received.length ? (

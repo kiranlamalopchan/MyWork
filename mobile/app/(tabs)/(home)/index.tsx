@@ -47,7 +47,7 @@ export default function Home() {
             <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
           </View>
         ) : null}
-        {error ? <ErrorBanner message={(error as Error).message} onRetry={refetch} /> : null}
+        {error ? <ErrorBanner error={error} onRetry={refetch} /> : null}
         {isLoading ? <SkeletonHome /> : null}
         {data ? (
           // Wide: two columns starting together at the top — the greeting

@@ -50,7 +50,7 @@ export default function Timesheet() {
               ))}
             </View>
           ) : null}
-          {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+          {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
           {q.isLoading ? <SkeletonTimesheet /> : null}
           {first ? <SummaryBlock summary={first.summary} /> : null}
           {days.map((day) => <Day key={day.date} day={day} open />)}

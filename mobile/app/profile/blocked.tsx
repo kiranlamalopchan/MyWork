@@ -30,7 +30,7 @@ export default function BlockedScreen() {
     <Screen back backLabel="Profile">
       <Page>
         <PageTitle sub="Neither of you sees the other's posts, comments or stories.">Blocked people</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonRows count={3} badge={false} /> : null}
         {q.data && people.length === 0 ? <Empty icon="ban-outline" title="You haven't blocked anyone" sub="Block somebody from their page, or from the menu on one of their posts." /> : null}
         {people.length ? (

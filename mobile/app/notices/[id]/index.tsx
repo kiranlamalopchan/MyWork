@@ -18,7 +18,7 @@ export default function NoticeScreen() {
   return (
     <Screen back title="Notice" backLabel="Board">
       <Page>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonNotice lines={4} comments={2} /> : null}
         {q.data ? <NoticeCard notice={q.data} full /> : null}
       </Page>

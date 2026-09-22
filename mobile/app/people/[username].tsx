@@ -44,7 +44,7 @@ export default function PersonScreen() {
   return (
     <Screen back backLabel="Notice board">
       <Page>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonPerson /> : null}
         {q.data ? (
           <>

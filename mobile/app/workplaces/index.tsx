@@ -33,7 +33,7 @@ export default function Workplaces() {
     <Screen back backLabel="More">
       <Page>
         <PageTitle sub="The default one is picked automatically when you clock in. Each one keeps its own hours limit.">My workplaces</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonWorkplaces /> : null}
         {data && data.workplaces.length === 0 ? <Empty icon="home-outline" title="No workplaces yet" sub="Add the places you work so shifts can be recorded against them." /> : null}
         <View style={wide && styles.grid}>

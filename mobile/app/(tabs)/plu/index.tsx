@@ -157,7 +157,7 @@ export default function Plu() {
             </Pressable>
           </View>
         )}
-        {search.error ? <ErrorBanner message={(search.error as Error).message} onRetry={search.refetch} /> : null}
+        {search.error ? <ErrorBanner error={search.error} onRetry={search.refetch} /> : null}
       </View>
       {idle ? null : (
         <FlatList

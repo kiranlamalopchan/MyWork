@@ -37,7 +37,7 @@ export default function RemoveWorkplace() {
   return (
     <Screen back backLabel="Workplaces">
       <Page>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonRemove /> : null}
         {d ? (
           <>

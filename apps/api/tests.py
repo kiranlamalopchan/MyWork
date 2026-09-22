@@ -1080,3 +1080,51 @@ class PasswordApiTests(ApiTestCase):
             reverse("api:me_password"), {}, content_type="application/json"
         )
         self.assertEqual(response.status_code, 401)
+
+
+class PayslipApiTests(ApiTestCase):
+    """
+    The app's half of the payslip reader.
+
+    The site's is PayslipFillTests in apps/timeclock; this drives the same
+    slip through the app's endpoint and expects the same boxes back, because
+    one of them filling the form and the other not is exactly the bug this
+    is here to catch.
+    """
+
+    def _pdf(self, lines):
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+
+        buffer = io.BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=A4)
+        y = 800
+        for line in lines.splitlines():
+            pdf.drawString(40, y, line)
+            y -= 16
+        pdf.save()
+        return SimpleUploadedFile("payslip.pdf", buffer.getvalue(), content_type="application/pdf")
+
+    def _slip(self):
+        from apps.timeclock.tests import PayslipFillTests
+
+        return PayslipFillTests.FORTNIGHTLY
+
+    def test_the_app_gets_the_same_boxes_back_as_the_site(self):
+        response = self.api("post", "payslip", {"payslip": self._pdf(self._slip())}, fmt="multipart")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        fields = response.json()["fields"]
+        self.assertEqual(fields["hourly_rate"], "32.45")
+        self.assertEqual(fields["tax_rate"], "17.04")
+        self.assertEqual(fields["pay_cycle"], "FORTNIGHT")
+
+    def test_no_file_is_a_400_in_words(self):
+        response = self.api("post", "payslip", {}, fmt="multipart")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("payslip", response.json()["detail"].lower())
+
+    def test_a_slip_with_nothing_usable_is_a_400(self):
+        response = self.api("post", "payslip", {"payslip": self._pdf("Just some words on a page.")}, fmt="multipart")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("detail", response.json())

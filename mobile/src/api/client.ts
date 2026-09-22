@@ -13,12 +13,24 @@ export const siteUrl = (path: string) => `${serverUrl()}${path.startsWith("/") ?
 export class ApiError extends Error {
   status: number;
   fields: Record<string, string[]>;
-  constructor(status: number, detail: string, fields: Record<string, string[]> = {}) {
+  /**
+   * The phone said it has no connection, rather than the server failing to
+   * answer one. Both come back as status 0 — nothing replied either way —
+   * but they are not the same thing to tell somebody, so the screen picks
+   * its words from this rather than from the message.
+   */
+  offline: boolean;
+  constructor(status: number, detail: string, fields: Record<string, string[]> = {}, offline = false) {
     super(detail);
     this.status = status;
     this.fields = fields;
+    this.offline = offline;
   }
 }
+
+/** Nothing answered: the phone is off the network, or the server is. */
+export const unreachable = (error: unknown): error is ApiError =>
+  (error as ApiError | undefined)?.status === 0;
 
 function timezone(): string {
   try {
@@ -86,6 +98,24 @@ function send(url: string, method: string, headers: Record<string, string>, body
  * a short, plain sentence of our own is passed on; anything else is
  * dropped and the advice that follows stands on its own.
  */
+/**
+ * How a phone with no connection words it. iOS says the internet connection
+ * appears to be offline; Android cannot resolve the host at all. Everything
+ * else that fails to reach the server — it is down, asleep on a free host,
+ * the address is wrong — looks identical to fetch and is deliberately not
+ * matched here, because "you are offline" would be a lie about somebody
+ * else's outage.
+ */
+const OFFLINE = /appears to be offline|internet connection|no internet|network is unreachable|unable to resolve host/i;
+
+// React Native's own "Network request failed" carries no such clue and is
+// left unmatched on purpose: it is what both causes can look like, so the
+// screen falls back to wording that claims neither.
+
+function isOffline(error: any): boolean {
+  return OFFLINE.test(String(error?.message || ""));
+}
+
 function reason(error: any): string {
   const raw = String(error?.message || "").trim();
   if (!raw) return "";
@@ -123,7 +153,15 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
     response = await send(url.toString(), options.method || "GET", headers, body, !!options.form, options.onProgress);
   } catch (error: any) {
     const why = reason(error);
-    throw new ApiError(0, `Couldn't reach ${serverUrl()}${why ? ` (${why.toLowerCase()})` : ""}. Check the connection — or the server address on the sign-in screen.`);
+    // The sentence is kept for anywhere that still shows one — the sign-in
+    // screen, where a wrong server address is the likely cause. Ordinary
+    // screens show ErrorBanner's drawing instead and never print it.
+    throw new ApiError(
+      0,
+      `Couldn't reach ${serverUrl()}${why ? ` (${why.toLowerCase()})` : ""}. Check the connection — or the server address on the sign-in screen.`,
+      {},
+      isOffline(error),
+    );
   }
 
   if (response.status === 204) return undefined as T;

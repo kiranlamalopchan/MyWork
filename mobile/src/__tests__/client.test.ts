@@ -1,4 +1,4 @@
-import { api, ApiError } from "@/api/client";
+import { api, ApiError, unreachable } from "@/api/client";
 
 jest.mock("@/auth/token", () => ({ getToken: jest.fn(async () => "tok"), signOutEverywhere: jest.fn(async () => {}) }));
 
@@ -38,6 +38,33 @@ describe("the API client", () => {
     const failed: any = await api("me/").catch((e) => e);
     expect(failed.message).toMatch(/Couldn't reach http:\/\/.*Check the connection/);
     expect(failed.message).not.toMatch(/swift|Exception/i);
+  });
+  it("knows the phone is off the network from what iOS says", async () => {
+    globalThis.fetch = jest.fn(async () => {
+      throw new Error("The Internet connection appears to be offline.");
+    }) as any;
+    const failed: any = await api("me/").catch((e) => e);
+    expect(unreachable(failed)).toBe(true);
+    expect(failed.offline).toBe(true);
+  });
+  it("knows it from what Android says too", async () => {
+    globalThis.fetch = jest.fn(async () => {
+      throw new Error("Unable to resolve host \"example.com\": No address associated with hostname");
+    }) as any;
+    await expect(api("me/")).rejects.toMatchObject({ status: 0, offline: true });
+  });
+  it("does not claim the phone is offline when it cannot tell", async () => {
+    // "Network request failed" is what both a dead server and a dead
+    // connection look like, so the screen must not pick a side.
+    globalThis.fetch = jest.fn(async () => { throw new Error("Network request failed"); }) as any;
+    const failed: any = await api("me/").catch((e) => e);
+    expect(unreachable(failed)).toBe(true);
+    expect(failed.offline).toBe(false);
+  });
+  it("does not call a refusal unreachable", async () => {
+    globalThis.fetch = reply(400, { detail: "No." }) as any;
+    const failed: any = await api("notices/", { method: "POST" }).catch((e) => e);
+    expect(unreachable(failed)).toBe(false);
   });
   it("tells a site without the API apart from a missing thing", async () => {
     // Django's own HTML 404 page: the site is there, the API is not.

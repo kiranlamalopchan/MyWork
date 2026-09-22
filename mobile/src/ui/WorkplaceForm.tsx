@@ -10,7 +10,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { ApiError, timesheet, type Workplace, type WorkplaceInput, type WorkplacesPage } from "@/api";
-import type { FilePart } from "@/api/client";
+import { unreachable, type FilePart } from "@/api/client";
 
 import { Button, Card, Field, Input, SectionLabel } from "./index";
 import { native } from "./native";
@@ -48,6 +48,14 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
   const [read, setRead] = useState<{ label: string; value: string; how: string }[] | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
   const [reading, setReading] = useState(false);
+  // Which boxes the payslip put a value in, so each can say so until it is
+  // edited. Counted at the time of filling rather than from this, which
+  // empties as the boxes are checked off.
+  const [filled, setFilled] = useState<Record<string, boolean>>({});
+  const [filledCount, setFilledCount] = useState(0);
+
+  /** This box is the reader's own now, so it stops claiming to be the slip's. */
+  const mine = (key: string) => setFilled((was) => (was[key] ? { ...was, [key]: false } : was));
 
   const fillFromPayslip = async () => {
     setReading(true);
@@ -62,19 +70,29 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
         : { uri: asset.uri, name: asset.name, type: asset.mimeType || "application/octet-stream" };
       const slip = await timesheet.readPayslip(file);
       const f = slip.fields;
-      if (f.name && !name) setName(String(f.name));
-      if (f.hourly_rate != null) setRate(String(f.hourly_rate));
-      if (f.tax_rate != null) setTax(String(f.tax_rate));
-      if (f.pay_cycle) setPayCycle(String(f.pay_cycle) as Workplace["pay_cycle"]);
-      if (f.limit_period) setLimitPeriod(String(f.limit_period) as Workplace["limit_period"]);
-      if (f.week_starts_on != null) setWeek(Number(f.week_starts_on));
-      if (f.fortnight_starts_on != null) setFortnight(Number(f.fortnight_starts_on));
-      if (f.fortnight_phase) setPhase(String(f.fortnight_phase));
-      if (f.month_starts_on != null) setMonth(String(f.month_starts_on));
+      const got: Record<string, boolean> = {};
+      if (f.name && !name) { setName(String(f.name)); got.name = true; }
+      if (f.hourly_rate != null) { setRate(String(f.hourly_rate)); got.hourly_rate = true; }
+      if (f.tax_rate != null) { setTax(String(f.tax_rate)); got.tax_rate = true; }
+      if (f.pay_cycle) { setPayCycle(String(f.pay_cycle) as Workplace["pay_cycle"]); got.pay_cycle = true; }
+      if (f.limit_period) { setLimitPeriod(String(f.limit_period) as Workplace["limit_period"]); got.limit_period = true; }
+      if (f.week_starts_on != null) { setWeek(Number(f.week_starts_on)); got.week_starts_on = true; }
+      if (f.fortnight_starts_on != null) { setFortnight(Number(f.fortnight_starts_on)); got.fortnight_starts_on = true; }
+      if (f.fortnight_phase) { setPhase(String(f.fortnight_phase)); got.fortnight_phase = true; }
+      if (f.month_starts_on != null) { setMonth(String(f.month_starts_on)); got.month_starts_on = true; }
+      setFilled(got);
+      setFilledCount(Object.keys(got).length);
       setRead(slip.read);
       setNotes(slip.notes);
+      success();
     } catch (e: any) {
-      notify("Couldn't read that payslip", e?.message || "");
+      // A network failure here has the same two causes as anywhere else, and
+      // the same reason not to print what the phone's native side called it.
+      notify("Couldn't read that payslip", unreachable(e)
+        ? e.offline
+          ? "You're offline. Turn Wi-Fi or mobile data back on and try again."
+          : "Couldn't reach KaamKoRecord. Check your connection, or try again in a moment."
+        : e?.message || "That file couldn't be read.");
     } finally {
       setReading(false);
     }
@@ -121,6 +139,13 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
         <Button title={reading ? "Reading…" : "Choose a file"} icon="cloud-upload-outline" kind="plain" size="sm" onPress={fillFromPayslip} busy={reading} style={{ alignSelf: "flex-start" }} />
         {read ? (
           <View style={[styles.read, { backgroundColor: t.surface }]}>
+            {/* Said here as well as marked on each box: the boxes are below
+                the fold, and a fill nobody notices is a fill nobody checks. */}
+            <Text style={{ color: t.violet, fontWeight: "700", fontSize: 13.5 }}>
+              {filledCount === 0
+                ? "Nothing on the slip matched a box below."
+                : `${filledCount} box${filledCount === 1 ? "" : "es"} filled below — marked in violet. Check ${filledCount === 1 ? "it" : "them"} before saving.`}
+            </Text>
             {read.map((r) => <Text key={r.label} style={{ color: t.text2, fontSize: 13 }}><Text style={{ fontWeight: "700", color: t.text }}>{r.label}:</Text> {r.value} <Text style={{ color: t.muted }}>— {r.how}</Text></Text>)}
             {notes.map((n) => <Text key={n} style={{ color: t.warn, fontSize: 13 }}>{n}</Text>)}
           </View>
@@ -133,8 +158,8 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
           always worth answering. */}
       <SectionLabel>The job</SectionLabel>
       <Card style={{ gap: sp[4] }}>
-        <Field label="Workplace name" error={errors.name}>
-          <Input value={name} onChangeText={setName} placeholder="e.g. Courtlands Aged Care" testID="wp-name" />
+        <Field label="Workplace name" error={errors.name} filled={filled.name}>
+          <Input value={name} onChangeText={(v) => { setName(v); mine("name"); }} placeholder="e.g. Courtlands Aged Care" testID="wp-name" />
         </Field>
         <Field label="Address (optional)" error={errors.address}>
           <Input value={address} onChangeText={setAddress} placeholder="Street, suburb" />
@@ -161,18 +186,18 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
 
       <SectionLabel>How it pays</SectionLabel>
       <Card style={{ gap: sp[4] }}>
-        <Field label="How this job pays" help="On a cycle, the pay run uses the same week / fortnight / month settings below — payday is the last day of each run." error={errors.pay_cycle}>
-          <Select label="How this job pays" value={payCycle} onChange={(v) => setPayCycle(v as Workplace["pay_cycle"])} options={choices.pay_cycles.map((c) => ({ value: String(c.value), label: c.label }))} />
+        <Field label="How this job pays" help="On a cycle, the pay run uses the same week / fortnight / month settings below — payday is the last day of each run." error={errors.pay_cycle} filled={filled.pay_cycle}>
+          <Select label="How this job pays" value={payCycle} onChange={(v) => { setPayCycle(v as Workplace["pay_cycle"]); mine("pay_cycle"); }} options={choices.pay_cycles.map((c) => ({ value: String(c.value), label: c.label }))} />
         </Field>
         <Field label="How you're paid" help="Cash in hand has no tax to take off, so the withholding below drops away and every figure is simply what you earned." error={errors.paid_in}>
           <Select label="How you're paid" value={paidIn} onChange={(v) => setPaidIn(v as Workplace["paid_in"])} options={choices.paid_in.map((c) => ({ value: String(c.value), label: c.label }))} />
         </Field>
-        <Field label="Hourly rate (optional)" help="Optional. Used to estimate pay alongside your hours." error={errors.hourly_rate}>
-          <Input value={rate} onChangeText={setRate} keyboardType="decimal-pad" placeholder="e.g. 28.50" style={{ maxWidth: 160 }} />
+        <Field label="Hourly rate (optional)" help="Optional. Used to estimate pay alongside your hours." error={errors.hourly_rate} filled={filled.hourly_rate}>
+          <Input value={rate} onChangeText={(v) => { setRate(v); mine("hourly_rate"); }} keyboardType="decimal-pad" placeholder="e.g. 28.50" style={{ maxWidth: 160 }} />
         </Field>
         {paidIn !== "CASH" ? (
-          <Field label="Tax withheld % (optional)" help="From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax." error={errors.tax_rate}>
-            <Input value={tax} onChangeText={setTax} keyboardType="decimal-pad" placeholder="e.g. 10.8" style={{ maxWidth: 160 }} />
+          <Field label="Tax withheld % (optional)" help="From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax." error={errors.tax_rate} filled={filled.tax_rate}>
+            <Input value={tax} onChangeText={(v) => { setTax(v); mine("tax_rate"); }} keyboardType="decimal-pad" placeholder="e.g. 10.8" style={{ maxWidth: 160 }} />
           </Field>
         ) : null}
       </Card>
@@ -184,25 +209,25 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
         </Field>
         {/* Nothing to apply until there is a number to apply it to. */}
         {limit.trim() ? (
-          <Field label="Applies" error={errors.limit_period}>
-            <Select label="Applies" value={limitPeriod} onChange={(v) => setLimitPeriod(v as Workplace["limit_period"])} options={choices.limit_periods.map((c) => ({ value: String(c.value), label: c.label }))} />
+          <Field label="Applies" error={errors.limit_period} filled={filled.limit_period}>
+            <Select label="Applies" value={limitPeriod} onChange={(v) => { setLimitPeriod(v as Workplace["limit_period"]); mine("limit_period"); }} options={choices.limit_periods.map((c) => ({ value: String(c.value), label: c.label }))} />
           </Field>
         ) : null}
       </Card>
 
       <SectionLabel>This job's cycles</SectionLabel>
       <Card style={{ gap: sp[4] }}>
-        <Field label="Week starts on" help="Used for a weekly limit, and for this job's week totals." error={errors.week_starts_on}>
-          <Select label="Week starts on" value={String(week)} onChange={(v) => setWeek(Number(v))} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
+        <Field label="Week starts on" help="Used for a weekly limit, and for this job's week totals." error={errors.week_starts_on} filled={filled.week_starts_on}>
+          <Select label="Week starts on" value={String(week)} onChange={(v) => { setWeek(Number(v)); mine("week_starts_on"); }} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
         </Field>
-        <Field label="Fortnight starts on" help="Every fortnight opens on this day; the count starts again with it." error={errors.fortnight_starts_on}>
-          <Select label="Fortnight starts on" value={String(fortnight)} onChange={(v) => setFortnight(Number(v))} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
+        <Field label="Fortnight starts on" help="Every fortnight opens on this day; the count starts again with it." error={errors.fortnight_starts_on} filled={filled.fortnight_starts_on}>
+          <Select label="Fortnight starts on" value={String(fortnight)} onChange={(v) => { setFortnight(Number(v)); mine("fortnight_starts_on"); }} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
         </Field>
-        <Field label="The fortnight you are in now began" help={w?.fortnight_hint || cycles.fortnight_hint} error={errors.fortnight_phase}>
-          <Select label="The fortnight you are in now began" value={phase} onChange={setPhase} options={choices.phases.map((p) => ({ value: String(p.value), label: p.label }))} />
+        <Field label="The fortnight you are in now began" help={w?.fortnight_hint || cycles.fortnight_hint} error={errors.fortnight_phase} filled={filled.fortnight_phase}>
+          <Select label="The fortnight you are in now began" value={phase} onChange={(v) => { setPhase(v); mine("fortnight_phase"); }} options={choices.phases.map((p) => ({ value: String(p.value), label: p.label }))} />
         </Field>
-        <Field label="Month starts on day" help={`1–${choices.max_month_start}. Use the day your pay month opens.`} error={errors.month_starts_on}>
-          <Input value={month} onChangeText={setMonth} keyboardType="number-pad" style={{ maxWidth: 120 }} />
+        <Field label="Month starts on day" help={`1–${choices.max_month_start}. Use the day your pay month opens.`} error={errors.month_starts_on} filled={filled.month_starts_on}>
+          <Input value={month} onChangeText={(v) => { setMonth(v); mine("month_starts_on"); }} keyboardType="number-pad" style={{ maxWidth: 120 }} />
         </Field>
       </Card>
       <View style={{ gap: sp[3] }}>

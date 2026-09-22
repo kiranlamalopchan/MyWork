@@ -61,7 +61,7 @@ export default function More() {
     <Screen>
       <Page refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={t.brand} />}>
         <PageTitle sub={`TimeSheet settings for ${me?.username ?? "you"}`}>More</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         <SectionLabel>TimeSheet</SectionLabel>
         {wide ? (
           <View style={styles.grid}>

@@ -37,7 +37,7 @@ export default function Pay() {
     <Screen back backLabel="More">
       <Page>
         <PageTitle>Pay</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonPay /> : null}
         {q.data && rows.length === 0 ? (
           <Empty icon="cash-outline" title="No workplaces yet" sub="Add one and the hours you work there start counting here." action={<Button title="Add a workplace" onPress={() => router.push("/workplaces/new")} />} />

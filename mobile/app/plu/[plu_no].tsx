@@ -26,7 +26,7 @@ export default function PluItem() {
   return (
     <Screen back backLabel="PLU">
       <Page>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonPlu /> : null}
         {q.data ? (
           <>

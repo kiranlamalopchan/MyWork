@@ -27,7 +27,7 @@ export function CalendarView() {
 
   return (
     <>
-    {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+    {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
     {q.isLoading && !data ? <SkeletonCalendar /> : null}
     {data ? (
       <Card pad={false} style={{ padding: sp[3] }}>

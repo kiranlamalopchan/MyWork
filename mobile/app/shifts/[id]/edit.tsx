@@ -18,7 +18,7 @@ export default function EditShift() {
     <Screen back backLabel="Back to shift">
       <Page>
         <PageTitle sub="Totals are worked out from these times, so fixing one here fixes every figure built on it.">Edit shift</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading || places.isLoading ? <SkeletonForm fields={4} /> : null}
         {s && places.data ? (
           <ShiftForm

@@ -65,7 +65,7 @@ export default function Clock() {
   };
 
   if (q.isLoading && !shown) return <Screen><Page><SkeletonClock /></Page></Screen>;
-  if (!shown) return <Screen><Page>{q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}</Page></Screen>;
+  if (!shown) return <Screen><Page>{q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}</Page></Screen>;
 
   const shift = shown.shift;
   const status = shift?.status ?? "IDLE";

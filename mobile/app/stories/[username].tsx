@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { stories as api, useStoriesChanged, useStoryPerson, type Story } from "@/api";
+import { unreachable } from "@/api/client";
 import { AdminBadge, Avatar, EmojiRow } from "@/ui";
 import { SkeletonStory } from "@/ui/Skeleton";
 import { confirm } from "@/ui/confirm";
@@ -152,7 +153,15 @@ export default function Viewer() {
   if (q.error) {
     return (
       <View style={[styles.stage, { justifyContent: "center", alignItems: "center", padding: sp[6] }]}>
-        <Text style={{ color: "#fff", textAlign: "center" }}>{(q.error as Error).message}</Text>
+        {/* The stage is a black screen with nothing else on it: a server
+            address and a fetch failure read worse here than anywhere. */}
+        <Text style={{ color: "#fff", textAlign: "center" }}>
+          {unreachable(q.error)
+            ? q.error.offline
+              ? "You're offline. Turn Wi-Fi or mobile data back on to see stories."
+              : "Can't reach KaamKoRecord. Check your connection, or try again in a moment."
+            : (q.error as Error).message}
+        </Text>
         <Pressable onPress={close} style={{ marginTop: sp[4] }}><Text style={{ color: "#34d399", fontWeight: "700" }}>Close</Text></Pressable>
       </View>
     );

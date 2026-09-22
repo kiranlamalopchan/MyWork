@@ -16,7 +16,7 @@ export default function EditWorkplace() {
     <Screen back backLabel="Workplaces">
       <Page>
         <PageTitle>Edit workplace</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonForm fields={5} /> : null}
         {q.data && workplace ? (
           <WorkplaceForm

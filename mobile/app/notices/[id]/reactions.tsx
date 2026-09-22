@@ -23,7 +23,7 @@ export default function Reactions() {
     <Screen back backLabel="Back">
       <Page>
         {q.data ? <PageTitle sub={comment ? "On a comment" : "On the notice"}>{total} reaction{total === 1 ? "" : "s"}</PageTitle> : null}
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonReactions /> : null}
         {q.data && total === 0 ? <Empty icon="happy-outline" title="No reactions yet" sub="Be the first — the faces are under the post." /> : null}
         {q.data?.groups.map((g) => (

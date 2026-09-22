@@ -69,7 +69,7 @@ export default function Inbox() {
         ListHeaderComponent={
           <>
             <PageTitle>Notifications</PageTitle>
-            {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+            {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
           </>
         }
         ListEmptyComponent={q.isLoading ? <SkeletonNotifications /> : (

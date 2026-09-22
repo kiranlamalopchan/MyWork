@@ -15,7 +15,7 @@ export default function NewWorkplace() {
     <Screen back backLabel="Workplaces">
       <Page>
         <PageTitle>Add workplace</PageTitle>
-        {q.error ? <ErrorBanner message={(q.error as Error).message} onRetry={q.refetch} /> : null}
+        {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonForm fields={5} /> : null}
         {q.data ? (
           <WorkplaceForm

@@ -12,6 +12,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import type { Emoji, ReactionTally } from "@/api";
+import { unreachable } from "@/api/client";
+
+import { OfflineArt } from "./OfflineArt";
 
 import { AppBar } from "./AppBar";
 import { Backdrop } from "./Backdrop";
@@ -153,11 +156,48 @@ export function Empty({ icon, title, sub, action, card = true }: { icon: keyof t
   return card ? <Card pad={false}>{body}</Card> : body;
 }
 
-export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
+/**
+ * Nothing answered — a drawing rather than a sentence.
+ *
+ * What went wrong is not the reader's to fix and not theirs to read: a
+ * server address, a fetch, and the Swift file the failure came out of say
+ * nothing to somebody standing in a cool room with no bars. Two cases, since
+ * they call for different things: no connection is theirs to turn back on,
+ * and a server that will not answer is only theirs to wait for.
+ */
+function NoConnection({ offline, onRetry }: { offline: boolean; onRetry?: () => void }) {
   const t = useTheme();
   return (
+    <View style={styles.empty} testID="no-connection">
+      <View style={styles.offlineArt}><OfflineArt /></View>
+      <Text style={[styles.emptyTitle, { color: t.text }]}>
+        {offline ? "You're offline" : "Can't reach KaamKoRecord"}
+      </Text>
+      <Text style={[styles.emptySub, { color: t.muted }]}>
+        {offline
+          ? "Turn Wi-Fi or mobile data back on and this picks up where it left off."
+          : "Check your connection, or try again in a moment."}
+      </Text>
+      {onRetry ? (
+        <View style={{ marginTop: sp[4] }}>
+          <Button title="Try again" kind="plain" size="sm" icon="refresh-outline" onPress={onRetry} testID="retry" />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+export function ErrorBanner({ error, message, onRetry }: { error?: unknown; message?: string; onRetry?: () => void }) {
+  const t = useTheme();
+
+  // Status 0 is the client's own "nothing answered" (api/client.ts). Every
+  // other error is something the server said, and worth saying back.
+  if (unreachable(error)) return <NoConnection offline={error.offline} onRetry={onRetry} />;
+
+  const text = message || (error as Error | undefined)?.message || "Something went wrong.";
+  return (
     <View style={[styles.alert, { backgroundColor: t.dangerSoft, borderColor: alpha(t.danger, 0.25) }]}>
-      <Text style={{ color: t.danger, flex: 1, fontSize: 14.5, lineHeight: 20 }}>{message}</Text>
+      <Text style={{ color: t.danger, flex: 1, fontSize: 14.5, lineHeight: 20 }}>{text}</Text>
       {onRetry ? (
         <Pressable onPress={onRetry} hitSlop={8}>
           <Text style={{ color: t.danger, fontWeight: "700" }}>Try again</Text>
@@ -220,11 +260,30 @@ export function Input(props: TextInputProps & { invalid?: boolean }) {
   );
 }
 
-export function Field({ label, help, error, children }: { label?: string; help?: string; error?: string; children: React.ReactNode }) {
+/**
+ * `filled` marks a box something else put a value in — today only the
+ * payslip reader (WorkplaceForm). A value that appears in a box nobody
+ * typed in is worth pointing at: the whole promise of reading a payslip is
+ * that the reader checks the figures, and they cannot check what they
+ * cannot find. It is drawn in the violet the payslip card wears, so the
+ * boxes and the thing that filled them are plainly the same event, and it
+ * clears as soon as the box is edited — from then on the value is theirs.
+ */
+export function Field({ label, help, error, filled, children }: { label?: string; help?: string; error?: string; filled?: boolean; children: React.ReactNode }) {
   const t = useTheme();
   return (
-    <View style={{ gap: sp[2] }}>
-      {label ? <Text style={[styles.label, { color: t.text2 }]}>{label}</Text> : null}
+    <View style={[{ gap: sp[2] }, filled ? [styles.fieldFilled, { backgroundColor: alpha(t.violet, 0.09), borderColor: alpha(t.violet, 0.4) }] : null]}>
+      {label ? (
+        <View style={styles.fieldHead}>
+          <Text style={[styles.label, { color: t.text2 }]}>{label}</Text>
+          {filled ? (
+            <View style={[styles.fieldTag, { backgroundColor: alpha(t.violet, 0.18) }]}>
+              <Ionicons name="document-text" size={11} color={t.violet} />
+              <Text style={{ color: t.violet, fontSize: 11, fontWeight: "700" }}>From payslip</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       {children}
       {error ? <Text style={[styles.help, { color: t.danger }]}>{error}</Text> : help ? <Text style={[styles.help, { color: t.muted }]}>{help}</Text> : null}
     </View>
@@ -403,6 +462,10 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: sp[3] },
   emptyTitle: { fontSize: 17, fontWeight: "700", letterSpacing: -0.2 },
   emptySub: { marginTop: sp[1], fontSize: 14, lineHeight: 20, textAlign: "center" },
+  offlineArt: { width: 168, height: 146, marginBottom: sp[1] },
+  fieldFilled: { borderWidth: 1.5, borderRadius: radius.md, padding: sp[3] },
+  fieldHead: { flexDirection: "row", alignItems: "center", gap: sp[2], flexWrap: "wrap" },
+  fieldTag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.pill },
   alert: { flexDirection: "row", alignItems: "center", gap: sp[3], padding: sp[3], paddingHorizontal: sp[4], borderRadius: radius.md, borderWidth: 1 },
   button: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: sp[2], minHeight: 52, paddingHorizontal: sp[6], borderRadius: radius.pill },
   buttonSm: { minHeight: 40, paddingHorizontal: sp[4] },
