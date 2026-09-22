@@ -2003,7 +2003,7 @@ def statement(request):
         ),
         "footnote": (
             f"Prepared {today.strftime('%d %B %Y').lstrip('0')} from your own "
-            "MyWork timesheet. It records what you entered, not what an "
+            "KaamKoRecord timesheet. It records what you entered, not what an "
             "employer has declared — keep it beside the payslip rather than "
             "instead of it."
         ),
