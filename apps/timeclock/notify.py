@@ -35,10 +35,13 @@ from .views import _limit_for, hm_words
 # shift, so this only ever fires for something that has gone wrong.
 LONG_SHIFT = timedelta(hours=10)
 
-# How often to say it again about the same shift. The row is rewritten with
-# the current hours, but the phone is only allowed to buzz about it again
-# after this — a forgotten clock-out is worth a second nudge, not a tenth.
-REMIND_AGAIN = timedelta(hours=3)
+# How often either reminder is allowed to interrupt about the same thing.
+# The row is rewritten on every sweep so the hours in it stay current, but the
+# phone only buzzes again once this much quiet has passed — a forgotten
+# clock-out, or a cap you are still over, is worth a second nudge, not a
+# tenth. Being over a cap is a state rather than an event: without a window it
+# would be news again on every sweep for as long as it stayed true.
+REMIND_AGAIN = timedelta(hours=4)
 
 
 def open_shift_reminders(now=None):
@@ -88,7 +91,8 @@ def limit_reminders(today=None):
     One per workplace per period, keyed on the period's start date. A cap
     crossed on Tuesday and still crossed on Friday is one fact, and the row is
     rewritten rather than repeated, so the number in it is current whenever
-    it is read.
+    it is read — and `REMIND_AGAIN` is what keeps that one fact from ringing
+    a phone every twenty minutes until the fortnight turns over.
     """
     today = today or timezone.localdate()
     made = []
@@ -121,6 +125,7 @@ def limit_reminders(today=None):
             body=body,
             url=reverse("timeclock:dashboard"),
             dedupe_key=f"timesheet:limit:{workplace.pk}:{limit['period_start']}:{limit['state']}",
+            renotify_after=REMIND_AGAIN,
         )
         if notification is not None:
             made.append(notification)

@@ -154,7 +154,7 @@ class Notification(models.Model):
 
     @classmethod
     def raise_for(cls, recipient, kind, title, *, url, body="", actor=None,
-                  emoji="", dedupe_key=""):
+                  emoji="", dedupe_key="", recurring=False):
         """
         Record something for `recipient`, or return None if there is nothing
         to record.
@@ -168,22 +168,28 @@ class Notification(models.Model):
         same key is rewritten and moved to the top rather than joined by a
         second one, so a reaction toggled on and off and on again stays one
         line. Once it has been read the next one is genuinely new, and comes
-        through as its own row.
+        through as its own row — somebody reacting again after you looked is
+        a second event.
+
+        `recurring` is for the ones that aren't: a reminder is the same fact
+        restated, and is still that fact after you have read it. Without this
+        the reminders would start a fresh row on the first sweep after the
+        inbox was opened, which is a phone buzzing every time its owner looks
+        at why it buzzed — see `apps/timeclock/notify.py`.
 
         Returns `(notification, is_new)`. The flag is what stops a rewritten
         row from buzzing a phone a second time: the mailbox is allowed to
         update itself quietly, and only the caller knows whether this repeat
-        is worth interrupting somebody about — see `notify()`. A rewritten
-        row also carries `previous_at`, the time the line it replaced was
-        raised, which is what a re-notify window is measured from.
+        is worth interrupting somebody about — see `notify()`.
         """
         if recipient is None or (actor is not None and recipient.pk == actor.pk):
             return None, False
 
         if dedupe_key:
-            existing = cls.objects.filter(
-                recipient=recipient, dedupe_key=dedupe_key, read_at__isnull=True
-            ).first()
+            rows = cls.objects.filter(recipient=recipient, dedupe_key=dedupe_key)
+            if not recurring:
+                rows = rows.filter(read_at__isnull=True)
+            existing = rows.first()
             if existing is not None:
                 existing.title = title
                 existing.body = body

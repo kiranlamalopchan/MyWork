@@ -2678,6 +2678,52 @@ class ReminderTests(TestCase):
         told = Notification.objects.get(recipient=self.user)
         self.assertIn("Over your", told.title)
 
+    def test_reading_it_does_not_start_the_buzzing_again(self):
+        """
+        Repeats collapse onto the row already there, read or not.
+
+        Without that they only collapsed onto an *unread* one, so opening the
+        inbox left the next sweep nothing to rewrite: it raised a second row
+        and rang the phone, every twenty minutes, for as long as the cap
+        stayed crossed.
+        """
+        from apps.notifications.models import Notification
+        from .notify import limit_reminders
+
+        self.job.hours_limit = 8
+        self.job.save()
+        self._worked(9)
+
+        limit_reminders()
+        Notification.mark_all_read(self.user)
+
+        limit_reminders()
+        limit_reminders()
+
+        told = Notification.objects.get(recipient=self.user)
+        self.assertIsNotNone(told.read_at, "a sweep inside the quiet window buzzed again")
+
+    def test_a_cap_still_crossed_is_worth_saying_again_once_the_window_passes(self):
+        from apps.notifications.models import Notification
+        from .notify import REMIND_AGAIN, limit_reminders
+
+        self.job.hours_limit = 8
+        self.job.save()
+        self._worked(9)
+
+        limit_reminders()
+        Notification.mark_all_read(self.user)
+
+        told = Notification.objects.get(recipient=self.user)
+        Notification.objects.filter(pk=told.pk).update(
+            pushed_at=timezone.now() - REMIND_AGAIN - timedelta(minutes=1)
+        )
+
+        limit_reminders()
+
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 1)
+        self.assertIsNone(Notification.objects.get(pk=told.pk).read_at)
+
     def test_crossing_from_close_to_over_is_a_second_thing_to_say(self):
         from apps.notifications.models import Notification
         from .notify import limit_reminders

@@ -34,6 +34,10 @@ def notify(recipient, kind, title, *, url, body="", actor=None, emoji="",
     a forgotten clock-out is worth saying again after a few hours, and passing
     a timedelta says how long the quiet lasts before the same line is allowed
     to interrupt a second time.
+
+    Passing it also marks the caller as one that restates a standing fact
+    rather than reporting a new one, which is what keeps a reminder to a
+    single row once its owner has read it.
     """
     # Somebody blocked, either way round, is somebody you don't hear from.
     if actor is not None:
@@ -44,6 +48,7 @@ def notify(recipient, kind, title, *, url, body="", actor=None, emoji="",
     notification, is_new = Notification.raise_for(
         recipient, kind, title,
         url=url, body=body, actor=actor, emoji=emoji, dedupe_key=dedupe_key,
+        recurring=renotify_after is not None,
     )
     if notification is None:
         return None
@@ -61,9 +66,17 @@ def _due_again(notification, renotify_after):
     Whether a rewritten line has been quiet long enough to be said out loud
     again. False whenever no window was given, which is every caller but the
     reminders.
+
+    The window is measured from the last time this line actually interrupted
+    somebody, not from the last time it was rewritten — the sweep rewrites it
+    every twenty minutes to keep the hours in it current, and measuring from
+    that would hold the quiet open for ever. A row that has never interrupted
+    anybody is due now.
     """
-    if renotify_after is None or notification.pushed_at is None:
+    if renotify_after is None:
         return False
+    if notification.pushed_at is None:
+        return True
     return timezone.now() - notification.pushed_at >= renotify_after
 
 
@@ -100,10 +113,20 @@ def _deliver(notification):
     notice, and a push service having a bad afternoon must not turn somebody
     else's post into an error page.
     """
+    # A reminder being said again is unread again: the phone is about to buzz,
+    # and the bell beside it should agree about why.
+    if notification.read_at is not None:
+        notification.read_at = None
+        notification.save(update_fields=["read_at"])
+
     try:
         unread = Notification.unread_count(notification.recipient)
         push.send_to_user(notification.recipient, push.payload_for(notification, unread))
-        notification.pushed_at = timezone.now()
-        notification.save(update_fields=["pushed_at"])
     except Exception:
         log.exception("delivering notification %s failed", notification.pk)
+
+    # Recorded whether or not the push landed, because this is what the quiet
+    # window is measured from: a push service having a bad afternoon is not a
+    # reason to try the same line again twenty minutes later.
+    notification.pushed_at = timezone.now()
+    notification.save(update_fields=["pushed_at"])
