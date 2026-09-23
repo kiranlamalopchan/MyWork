@@ -19,6 +19,8 @@ export type Me = Person & {
   address: string;
   is_staff: boolean;
   holiday_state: string;
+  /** Which KaamKoRecord the phone is talking to — see the line under the profile. */
+  server_version?: string;
   since: string;
 };
 

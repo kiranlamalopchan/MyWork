@@ -15,6 +15,7 @@ from django.views.decorators.http import require_GET
 
 from .models import HolidayPreference, PublicHoliday, State
 from .services import HolidayCard, by_month, card_for_user, next_card
+from .whereabouts import guess_state
 
 
 @require_GET
@@ -48,7 +49,7 @@ def next_holiday(request: HttpRequest) -> JsonResponse:
         state = asked.upper()
         card = next_card(state)
     else:
-        state, card = card_for_user(request.user)
+        state, card = card_for_user(request.user, guess=guess_state(request))
 
     return JsonResponse({
         "state": state,
@@ -69,7 +70,7 @@ def calendar(request: HttpRequest):
     difference between a calendar and a scroll.
     """
     asked = request.GET.get("state")
-    state = asked.upper() if State.is_state(asked) else HolidayPreference.state_for(request.user)
+    state = asked.upper() if State.is_state(asked) else HolidayPreference.state_for(request.user, guess=guess_state(request))
 
     cards = [HolidayCard.of(holiday) for holiday in PublicHoliday.upcoming_for(state)]
     months = by_month(cards)

@@ -115,7 +115,7 @@ def next_card(state: str, today: date | None = None) -> HolidayCard | None:
     return HolidayCard.of(holiday) if holiday else None
 
 
-def card_for_user(user, today: date | None = None) -> tuple[str, HolidayCard | None]:
+def card_for_user(user, today: date | None = None, guess: str | None = None) -> tuple[str, HolidayCard | None]:
     """
     What the dashboard shows this person: their state, and its next holiday.
 
@@ -123,7 +123,7 @@ def card_for_user(user, today: date | None = None) -> tuple[str, HolidayCard | N
     there is nothing to show — "no holidays stored for VIC" is a useful thing
     to be told, where a blank space is not.
     """
-    state = HolidayPreference.state_for(user)
+    state = HolidayPreference.state_for(user, guess=guess)
     return state, next_card(state, today=today)
 
 

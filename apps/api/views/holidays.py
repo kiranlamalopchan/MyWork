@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.holidays.models import HolidayPreference, PublicHoliday, State
+from apps.holidays.whereabouts import guess_state
 from apps.holidays.services import HolidayCard, card_for_user, next_card
 
 
@@ -12,7 +13,9 @@ def _state(request):
     asked = request.GET.get("state")
     if asked and not State.is_state(asked):
         return None
-    return asked.upper() if asked else HolidayPreference.state_for(request.user)
+    if asked:
+        return asked.upper()
+    return HolidayPreference.state_for(request.user, guess=guess_state(request))
 
 
 def _unknown():

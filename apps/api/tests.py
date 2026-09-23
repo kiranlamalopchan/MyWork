@@ -1128,3 +1128,70 @@ class PayslipApiTests(ApiTestCase):
         response = self.api("post", "payslip", {"payslip": self._pdf("Just some words on a page.")}, fmt="multipart")
         self.assertEqual(response.status_code, 400)
         self.assertIn("detail", response.json())
+
+
+class WhereFromTests(ApiTestCase):
+    """
+    The state a phone is told about, when its owner has never chosen one.
+
+    The default used to be the Northern Territory for everybody, because
+    that is where this project's clock is set — so a new account in Sydney
+    was quietly given the wrong state's holidays with nothing on screen to
+    argue with.
+    """
+
+    def test_a_phone_in_sydney_is_given_nsw(self):
+        resp = self.api("get", "me", HTTP_X_TIMEZONE="Australia/Sydney")
+        self.assertEqual(resp.json()["holiday_state"], "NSW")
+
+    def test_a_phone_in_darwin_is_given_nt(self):
+        resp = self.api("get", "me", HTTP_X_TIMEZONE="Australia/Darwin")
+        self.assertEqual(resp.json()["holiday_state"], "NT")
+
+    def test_the_year_ahead_follows_the_phone_too(self):
+        """
+        Dates relative to today, because the calendar only looks a year
+        ahead — a fixed date far in the future is outside the horizon and
+        the list comes back empty whatever the state is.
+        """
+        from datetime import timedelta
+
+        soon = timezone.localdate() + timedelta(days=30)
+        PublicHoliday.objects.create(date=soon, name="Picnic Day", state="NT")
+        PublicHoliday.objects.create(date=soon, name="Labour Day", state="NSW")
+
+        resp = self.api("get", "holidays_upcoming", HTTP_X_TIMEZONE="Australia/Sydney")
+        data = resp.json()
+
+        self.assertEqual(data["state"], "NSW")
+        self.assertEqual([h["name"] for h in data["holidays"]], ["Labour Day"])
+
+    def test_a_choice_is_never_second_guessed(self):
+        """Somebody who picked Victoria keeps it, wherever they are standing."""
+        self.api("put", "me_holiday_state", {"state": "VIC"})
+
+        resp = self.api("get", "me", HTTP_X_TIMEZONE="Australia/Sydney")
+
+        self.assertEqual(resp.json()["holiday_state"], "VIC")
+
+    def test_a_phone_from_outside_australia_keeps_the_default(self):
+        resp = self.api("get", "me", HTTP_X_TIMEZONE="Asia/Kathmandu")
+        self.assertEqual(resp.json()["holiday_state"], "NT")
+
+    def test_a_phone_that_says_nothing_keeps_the_default(self):
+        self.assertEqual(self.api("get", "me").json()["holiday_state"], "NT")
+
+    def test_guessing_stores_nothing(self):
+        """A read path stays a read path: no row is written to answer this."""
+        self.api("get", "me", HTTP_X_TIMEZONE="Australia/Sydney")
+
+        self.assertEqual(HolidayPreference.objects.filter(user=self.kiran).count(), 0)
+
+
+class ServerVersionTests(ApiTestCase):
+    """What the phone is talking to, so a mismatch can be seen rather than guessed."""
+
+    def test_the_profile_payload_carries_it(self):
+        from mywork.version import VERSION
+
+        self.assertEqual(self.api("get", "me").json()["server_version"], VERSION)

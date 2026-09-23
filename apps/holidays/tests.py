@@ -428,3 +428,85 @@ class CalendarFoldTests(TestCase):
         self.assertEqual(resp.context["total"], upcoming)
         self.assertEqual(sum(g.count for g in resp.context["months"]), upcoming)
         self.assertContains(resp, "Christmas Day")
+
+
+class WhereaboutsTests(TestCase):
+    """
+    Guessing the state from the phone's own timezone, for somebody who has
+    never said where they are.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="pw")
+
+    def test_the_capitals(self):
+        from .whereabouts import state_from_timezone
+
+        for zone, state in [
+            ("Australia/Sydney", State.NSW),
+            ("Australia/Melbourne", State.VIC),
+            ("Australia/Brisbane", State.QLD),
+            ("Australia/Adelaide", State.SA),
+            ("Australia/Perth", State.WA),
+            ("Australia/Hobart", State.TAS),
+            ("Australia/Darwin", State.NT),
+        ]:
+            self.assertEqual(state_from_timezone(zone), state, zone)
+
+    def test_the_awkward_ones(self):
+        """
+        The reason for mapping the whole tz database rather than seven
+        capitals: these do not follow their own state's clock, and guessing
+        from the offset would put them in the wrong one.
+        """
+        from .whereabouts import state_from_timezone
+
+        # In New South Wales, on South Australian time.
+        self.assertEqual(state_from_timezone("Australia/Broken_Hill"), State.NSW)
+        # Western Australia, on three quarters of an hour of its own.
+        self.assertEqual(state_from_timezone("Australia/Eucla"), State.WA)
+        self.assertEqual(state_from_timezone("Australia/Lord_Howe"), State.NSW)
+        self.assertEqual(state_from_timezone("Australia/Lindeman"), State.QLD)
+
+    def test_canberra_cannot_be_told_from_sydney(self):
+        """
+        Not a defect to fix but a fact to record: Australia/Canberra is an
+        alias for Australia/Sydney in the tz database, so the ACT is
+        invisible and its people correct the guess once.
+        """
+        from .whereabouts import state_from_timezone
+
+        self.assertEqual(state_from_timezone("Australia/Canberra"), State.NSW)
+
+    def test_anywhere_else_has_no_opinion(self):
+        from .whereabouts import state_from_timezone
+
+        for zone in ["Europe/London", "Asia/Kathmandu", "", None, "nonsense/place", "UTC"]:
+            self.assertIsNone(state_from_timezone(zone), zone)
+
+    def test_case_and_spacing_do_not_matter(self):
+        from .whereabouts import state_from_timezone
+
+        self.assertEqual(state_from_timezone("  australia/SYDNEY  "), State.NSW)
+
+    def test_a_guess_stands_in_for_the_default(self):
+        self.assertEqual(
+            HolidayPreference.state_for(self.user, guess=State.NSW), State.NSW
+        )
+
+    def test_a_choice_beats_the_guess(self):
+        """Somebody in Sydney today who chose Victoria still watches Victoria."""
+        HolidayPreference.objects.create(user=self.user, state=State.VIC)
+        self.user.refresh_from_db()
+
+        self.assertEqual(
+            HolidayPreference.state_for(self.user, guess=State.NSW), State.VIC
+        )
+
+    def test_no_guess_and_no_choice_is_still_the_default(self):
+        self.assertEqual(HolidayPreference.state_for(self.user, guess=None), State.NT)
+
+    def test_guessing_writes_nothing(self):
+        HolidayPreference.state_for(self.user, guess=State.NSW)
+
+        self.assertEqual(HolidayPreference.objects.count(), 0)

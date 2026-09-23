@@ -13,8 +13,10 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 
 from apps.accounts.models import Profile
+from apps.holidays.whereabouts import guess_state
 from apps.noticeboard.models import Emoji
 from apps.noticeboard.views import COMMENTS_SHOWN, REPLIES_SHOWN
+from mywork.version import VERSION
 
 
 def absolute(request, url):
@@ -76,8 +78,16 @@ def me(request, user):
         "phone": profile.phone,
         "address": profile.address,
         "is_staff": user.is_staff,
-        "holiday_state": HolidayPreference.state_for(user),
+        "holiday_state": HolidayPreference.state_for(user, guess=guess_state(request)),
         "since": user.date_joined.strftime("%b %Y"),
+        # Which KaamKoRecord the phone is talking to. It rides along here
+        # rather than on an endpoint of its own because the profile screen —
+        # the one place that shows it — already asks for this and nothing
+        # else, and a footer is not worth a second request. It answers the
+        # question a phone cannot answer for itself: the app's own version
+        # says what was installed, and this says whether the server it is
+        # calling has caught up.
+        "server_version": VERSION,
     })
     return data
 

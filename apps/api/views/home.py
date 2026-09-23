@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.holidays.services import card_for_user
+from apps.holidays.whereabouts import guess_state
 from apps.noticeboard.models import Notice
 from apps.noticeboard.views import HUB_LIMIT
 from apps.notifications.models import Notification
@@ -27,7 +28,7 @@ class Home(APIView):
         notices = list(visible[:HUB_LIMIT])
         total = visible.count()
 
-        state, card = card_for_user(user)
+        state, card = card_for_user(user, guess=guess_state(request))
         return Response({
             "holiday": {"state": state, "holiday": card.as_payload() if card else None},
             "stories": [serialize.tray_row(request, row, user) for row in tray_for(user)],

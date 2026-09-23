@@ -164,13 +164,22 @@ class HolidayPreference(models.Model):
         return f"{self.user} watches {self.state} holidays"
 
     @classmethod
-    def state_for(cls, user) -> str:
+    def state_for(cls, user, guess=None) -> str:
         """
         The state to show `user`, without writing a row to find out.
 
         get_or_create on every dashboard render would be a write on a read
         path; the default is the same either way, so an absent row simply
         means the default.
+
+        That absence is also the whole of the distinction this makes: a row
+        means somebody chose, and a choice is never second-guessed — not
+        even for somebody standing in another state today. No row means
+        nobody has ever said, and `guess` (the phone's own timezone, see
+        whereabouts.py) is a better opening answer than the Territory this
+        project's clock happens to be set to.
         """
         pref = getattr(user, "holiday_pref", None)
-        return pref.state if pref else State.NT
+        if pref:
+            return pref.state
+        return guess or State.NT
