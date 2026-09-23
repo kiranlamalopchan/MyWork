@@ -17,7 +17,7 @@ import { stories as api, useStoriesChanged, useStoryPerson, type Story } from "@
 import { unreachable } from "@/api/client";
 import { AdminBadge, Avatar, EmojiRow } from "@/ui";
 import { SkeletonStory } from "@/ui/Skeleton";
-import { confirm } from "@/ui/confirm";
+import { confirm, notify } from "@/ui/confirm";
 import { ReportSheet, type ReportTarget } from "@/ui/ReportSheet";
 import { VisibilityBadge } from "@/ui/VisibilityPicker";
 import { goBack } from "@/nav/paths";
@@ -41,6 +41,8 @@ export default function Viewer() {
   const [tally, setTally] = useState<Record<number, { my_emoji: string; reactions: Story["reactions"] }>>({});
   const started = useRef(0);
   const elapsed = useRef(0);
+  // Which clip the player's reported time can be trusted to be about.
+  const playing = useRef<number | null>(null);
 
   const list = q.data?.stories ?? [];
   const story = index !== null ? list[index] : undefined;
@@ -89,30 +91,49 @@ export default function Viewer() {
     if (story?.kind === "video" && status === "readyToPlay" && !paused) player.play();
   }, [status, story?.id]);
 
+  // A story begins at its beginning. Only when the story itself changes:
+  // this used to run on `paused` too, which threw away the seconds already
+  // watched every time somebody held their thumb down — the bar jumped
+  // back to empty and the photo ran its full five seconds again.
   useEffect(() => {
     if (!story) return;
     setProgress(0);
     elapsed.current = 0;
     started.current = Date.now();
-    if (story.kind === "video") {
-      // Started by the effect above, once the clip is ready.
-      player.currentTime = 0;
-      return;
-    }
-    if (paused) return;
+    playing.current = null;
+    // Started by the effect above, once the clip is ready.
+    if (story.kind === "video") player.currentTime = 0;
+  }, [story?.id]);
+
+  // The photo's clock, which stops while it is held and picks up where it
+  // left off rather than starting over — what `elapsed` is for.
+  useEffect(() => {
+    if (!story || story.kind === "video" || paused) return;
+    started.current = Date.now();
     const tick = setInterval(() => {
       const p = Math.min((Date.now() - started.current + elapsed.current) / (PHOTO_SECONDS * 1000), 1);
       setProgress(p);
       if (p >= 1) { clearInterval(tick); next(); }
     }, 50);
     return () => clearInterval(tick);
-  }, [story?.id, paused]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [story?.id, story?.kind, paused]);
 
   useEffect(() => {
     if (story?.kind !== "video") return;
+    // The time reported belongs to whichever clip the player last spoke
+    // about, and a clip just swapped in has not spoken yet — so for a
+    // moment this reads the *previous* clip's position, which is at its
+    // end, and used to skip straight past the story that just started.
+    // A clip counts as running once it has reported a time near zero.
+    if (currentTime < 0.5) playing.current = story.id;
+    if (playing.current !== story.id) return;
+
     const d = story.duration || player.duration || 0;
-    if (d > 0) setProgress(Math.min(currentTime / d, 1));
-    if (d > 0 && currentTime >= d - 0.15 && !paused) next();
+    if (d <= 0) return;
+    setProgress(Math.min(currentTime / d, 1));
+    if (currentTime >= d - 0.15 && !paused) next();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTime, status]);
 
   // Away in the background, the timer would count the whole absence
@@ -126,12 +147,22 @@ export default function Viewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [story?.id, story?.kind]);
 
+  // Held or not, kept in a ref as well as in state, so that both of these
+  // can be called twice without doing anything twice. `onPressOut` has to
+  // be wired whether or not the screen has re-rendered since the thumb went
+  // down — read off `paused` it was sometimes not wired yet, and the story
+  // stayed frozen with nothing left to unfreeze it.
+  const held = useRef(false);
   const hold = () => {
+    if (held.current) return;
+    held.current = true;
     setPaused(true);
     if (story?.kind === "video") player.pause();
     else elapsed.current += Date.now() - started.current;
   };
   const release = () => {
+    if (!held.current) return;
+    held.current = false;
     setPaused(false);
     started.current = Date.now();
     if (story?.kind === "video") player.play();
@@ -139,13 +170,23 @@ export default function Viewer() {
 
   const react = async (emoji: string) => {
     if (!story) return;
-    const left = await api.react(story.id, emoji);
-    setTally((prev) => ({ ...prev, [story.id]: left }));
+    try {
+      const left = await api.react(story.id, emoji);
+      setTally((prev) => ({ ...prev, [story.id]: left }));
+    } catch (e: any) {
+      // Said out loud: the face not moving reads as the tap having missed.
+      notify("That didn't go through", e?.message || "");
+    }
   };
 
   const takeDown = () =>
     confirm("Take this story down?", "It goes for everyone.", "Delete", async () => {
-      await api.remove(story!.id);
+      try {
+        await api.remove(story!.id);
+      } catch (e: any) {
+        notify("Couldn't take it down", e?.message || "");
+        return;
+      }
       if (list.length <= 1) close();
       else { q.refetch(); setIndex(Math.max(0, (index || 1) - 1)); }
     });
@@ -179,8 +220,8 @@ export default function Viewer() {
       )}
 
       {/* Tap zones: the left third back, the rest on; hold anywhere to pause. */}
-      <Pressable onPress={prev} onLongPress={hold} onPressOut={paused ? release : undefined} delayLongPress={180} style={[styles.zone, { left: 0, width: width / 3 }]} />
-      <Pressable onPress={next} onLongPress={hold} onPressOut={paused ? release : undefined} delayLongPress={180} style={[styles.zone, { right: 0, width: (width * 2) / 3 }]} />
+      <Pressable onPress={prev} onLongPress={hold} onPressOut={release} delayLongPress={180} style={[styles.zone, { left: 0, width: width / 3 }]} />
+      <Pressable onPress={next} onLongPress={hold} onPressOut={release} delayLongPress={180} style={[styles.zone, { right: 0, width: (width * 2) / 3 }]} />
 
       <View style={[styles.head, { paddingTop: insets.top + 8 }]}>
         <View style={styles.bars}>

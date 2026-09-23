@@ -6,7 +6,7 @@
  * over sixty seconds gets a window to slide along it; the server cuts it
  * there and converts it, as it does for the site.
  */
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -53,6 +53,24 @@ export default function ComposeStory() {
   const needsCut = seconds > MAX_SECONDS + 0.5;
   const span = Math.min(MAX_SECONDS, seconds);
 
+  /**
+   * One picture, one story.
+   *
+   * The Share button disables itself while a post is in the air, which
+   * covers the obvious double-tap. What it does not cover is the moment
+   * after one succeeds: `goBack()` is asked for, `busy` goes back to false
+   * on the way out, and if leaving the screen does not take, the composer
+   * is still sitting there with the same photo in it and Share is live
+   * again. Pressed once more it posts the same picture a second time — and
+   * the viewer then draws a bar across the top for each one, which is what
+   * "I only posted one story" looks like from the other end.
+   *
+   * Refs rather than state, because a guard that only takes effect on the
+   * next render is not a guard.
+   */
+  const posting = useRef(false);
+  const posted = useRef(false);
+
   const pick = async (from: "library" | "camera") => {
     tick();
     setError("");
@@ -80,6 +98,8 @@ export default function ComposeStory() {
       setPicked(result.assets[0]);
       setStart(0);
       setMeasured(0);
+      // A different picture is a different story, and may be posted.
+      posted.current = false;
     } catch (e: any) {
       setError(e?.message || "That couldn't be opened.");
     }
@@ -114,8 +134,10 @@ export default function ComposeStory() {
     [seconds, span, trackWidth]
   );
 
+
   const share = async () => {
-    if (!picked) return;
+    if (!picked || posting.current || posted.current) return;
+    posting.current = true;
     tap("medium");
     setError("");
     setBusy(true);
@@ -128,6 +150,9 @@ export default function ComposeStory() {
         ? { video: file, caption, visibility, duration: seconds || undefined, trim_start: needsCut ? start : undefined, trim_end: needsCut ? start + span : undefined }
         : { image: file, caption, visibility };
       await api.post(fields, setSent);
+      // Before anything else: this picture has been posted, and nothing
+      // this screen does afterwards may post it a second time.
+      posted.current = true;
       success();
       changed();
       goBack();
@@ -135,6 +160,7 @@ export default function ComposeStory() {
       fail();
       setError(e?.message || "That couldn't be shared.");
     } finally {
+      posting.current = false;
       setBusy(false);
     }
   };
