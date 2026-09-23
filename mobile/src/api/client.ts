@@ -192,6 +192,34 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
   return data as T;
 }
 
+/**
+ * A refused form as one message per box on the screen.
+ *
+ * The server answers with Django's own field names — `old_password`,
+ * `username` — and `map` says which box on this screen each of them belongs
+ * under. Without it a screen can only show the first message wherever it
+ * happens to have room, which is how "your old password was wrong" ends up
+ * printed under Confirm new password.
+ *
+ * Anything with no box of its own — a rule about the form as a whole, or a
+ * plain failure carrying no fields at all — lands under `fallback`, so no
+ * message is ever swallowed for want of somewhere to put it.
+ */
+export function fieldErrors(error: unknown, map: Record<string, string>, fallback: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const fields = error instanceof ApiError ? error.fields : {};
+  for (const [name, messages] of Object.entries(fields)) {
+    const text = (messages || []).join(" ").trim();
+    if (!text) continue;
+    const box = map[name] || fallback;
+    out[box] = out[box] ? `${out[box]} ${text}` : text;
+  }
+  if (!Object.keys(out).length) {
+    out[fallback] = (error as Error | undefined)?.message || "That couldn't be done.";
+  }
+  return out;
+}
+
 /** A file the way React Native's FormData wants it: a uri, a name and a type. */
 export type FilePart = { uri: string; name: string; type: string };
 

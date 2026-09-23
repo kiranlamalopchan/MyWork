@@ -22,6 +22,19 @@ import { fail, success } from "./haptics";
 
 type Choices = WorkplacesPage["choices"];
 
+/**
+ * What the file picker will let you choose.
+ *
+ * Android filters on EXTRA_MIME_TYPES, and several of the providers people
+ * actually pick a payslip from — Drive, Files — treat a wildcard entry
+ * there as matching nothing at all, so every file greys out and the picker
+ * comes back with nothing. They want the types spelled out. iOS reads the
+ * same list as UTTypes and takes the wildcard happily, so it keeps it.
+ */
+const PAYSLIP_TYPES = Platform.OS === "android"
+  ? ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
+  : ["application/pdf", "image/*"];
+
 export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: {
   choices: Choices; workplace?: Workplace; cycles: WorkplacesPage["cycles"];
   onSave: (input: WorkplaceInput) => Promise<void>; onCancel: () => void;
@@ -62,7 +75,7 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
     try {
       // Loaded on tap so a build without the picker still shows the form.
       const DocumentPicker = native<typeof import("expo-document-picker")>(() => require("expo-document-picker"));
-      const picked = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"], copyToCacheDirectory: true });
+      const picked = await DocumentPicker.getDocumentAsync({ type: PAYSLIP_TYPES, copyToCacheDirectory: true });
       if (picked.canceled) return;
       const asset = picked.assets[0];
       const file: FilePart = Platform.OS === "web"

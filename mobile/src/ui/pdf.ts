@@ -9,7 +9,7 @@ import { Platform } from "react-native";
 
 import { getToken } from "@/auth/token";
 
-import { notify } from "./confirm";
+import { tell } from "./confirm";
 import { native } from "./native";
 
 export async function openPdf(url: string, name: string, body?: unknown): Promise<void> {
@@ -37,5 +37,5 @@ export async function openPdf(url: string, name: string, body?: unknown): Promis
   const file = new File(dir, name);
   file.write(new Uint8Array(await response.arrayBuffer()));
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
-  else notify("Saved", file.uri);
+  else tell("Saved", file.uri);
 }

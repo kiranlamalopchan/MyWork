@@ -8,13 +8,13 @@
  * mostly empty screen.
  */
 import React from "react";
-import { RefreshControl, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useMore } from "@/api";
 import { useSession } from "@/auth/session";
-import { Card, ErrorBanner, MenuRow, Page, PageTitle, Screen, SectionLabel, useLayout } from "@/ui";
+import { Card, ErrorBanner, MenuRow, Page, PageTitle, Screen, SectionLabel, useLayout, usePullRefresh } from "@/ui";
 import { sp, useTheme } from "@/ui/theme";
 
 type Way = {
@@ -34,6 +34,7 @@ export default function More() {
   const { wide } = useLayout();
   const { me } = useSession();
   const q = useMore();
+  const refresh = usePullRefresh(q.refetch);
   const d = q.data;
 
   // Until the figures land the rows still say what they are for, rather than
@@ -59,7 +60,7 @@ export default function More() {
 
   return (
     <Screen>
-      <Page refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={t.brand} />}>
+      <Page refreshControl={refresh}>
         <PageTitle sub={`TimeSheet settings for ${me?.username ?? "you"}`}>More</PageTitle>
         {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         <SectionLabel>TimeSheet</SectionLabel>

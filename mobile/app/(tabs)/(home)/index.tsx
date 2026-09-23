@@ -13,13 +13,13 @@
  * The extras are the hub's own: nothing is borrowed from another tab.
  */
 import React from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useHome, type HolidayCard } from "@/api";
 import { useSession } from "@/auth/session";
-import { Card, ErrorBanner, Page, Screen } from "@/ui";
+import { Card, ErrorBanner, Page, Screen, usePullRefresh } from "@/ui";
 import { HUB_SIDE, useLayout } from "@/ui/layout";
 import { JokeCard, QuoteCard } from "@/ui/DailyCard";
 import { SkeletonHome } from "@/ui/Skeleton";
@@ -32,13 +32,14 @@ export default function Home() {
   const t = useTheme();
   const router = useRouter();
   const { me } = useSession();
-  const { data, isLoading, error, refetch, isRefetching } = useHome();
+  const { data, isLoading, error, refetch } = useHome();
+  const refresh = usePullRefresh(refetch);
   const layout = useLayout();
   const desk = layout.desk;
 
   return (
     <Screen>
-      <Page refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.brand} />} contentContainerStyle={desk ? layout.hub : undefined}>
+      <Page refreshControl={refresh} contentContainerStyle={desk ? layout.hub : undefined}>
         {/* The greeting: at the top of the page on a phone, at the top of
             the left column on a wide screen (below, inside hubSide). */}
         {!desk ? (

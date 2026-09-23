@@ -85,12 +85,17 @@ export const board = {
   person: (username: string) => api<PersonPage>(`people/${encodeURIComponent(username)}/`),
 };
 
+// A list asked for again is asked for a page at a time, every page it holds,
+// so the cost of coming back to the app grows with how far down it was read.
+// These three hold still for a moment before they are worth asking again —
+// the same short pause the clock, More and Home already take.
 export function useBoard() {
   return useInfiniteQuery({
     queryKey: ["board"],
     queryFn: ({ pageParam }) => board.page(pageParam),
     initialPageParam: 1,
     getNextPageParam: (last) => last.next ?? undefined,
+    staleTime: 15_000,
   });
 }
 
@@ -226,6 +231,7 @@ export function useInbox() {
     queryFn: ({ pageParam }) => inbox.page(pageParam),
     initialPageParam: 1,
     getNextPageParam: (last) => last.next ?? undefined,
+    staleTime: 15_000,
   });
 }
 
@@ -362,6 +368,7 @@ export function useTimesheet(workplace: number | null) {
     queryFn: ({ pageParam }) => timesheet.page(pageParam, workplace),
     initialPageParam: 1,
     getNextPageParam: (last) => last.next ?? undefined,
+    staleTime: 15_000,
   });
 }
 export function useCalendar(year?: number, month?: number, day?: string | null) {

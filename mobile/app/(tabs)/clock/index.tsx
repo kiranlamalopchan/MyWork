@@ -5,13 +5,13 @@
  * working against. Nothing else: the timesheet is one tap away for figures.
  */
 import React, { useEffect, useState } from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import Svg, { Circle } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, useClock, useTimesheetChanged, type ClockState } from "@/api";
-import { Button, Chip, Empty, ErrorBanner, Page, Screen, useLayout } from "@/ui";
+import { Button, Chip, Empty, ErrorBanner, Page, Screen, useLayout, usePullRefresh } from "@/ui";
 import { SkeletonClock } from "@/ui/Skeleton";
 import { confirm, notify } from "@/ui/confirm";
 import { success, tap } from "@/ui/haptics";
@@ -32,6 +32,7 @@ export default function Clock() {
   // The job chosen drives the ask: the cap under the dial belongs to whichever
   // job is picked, and asking again is the only way to know what it is.
   const q = useClock(picked);
+  const refresh = usePullRefresh(q.refetch);
   const [busy, setBusy] = useState(false);
   const shown = state || q.data || null;
   // Picked here, or else whichever the server said was yours.
@@ -41,7 +42,8 @@ export default function Clock() {
   // The phone's clock may be off; count from the server's, as app.js does.
   const [skew, setSkew] = useState(0);
   useEffect(() => { if (shown) setSkew(Date.now() - Date.parse(shown.server_now)); }, [shown?.server_now]);
-  const [tick, setTick] = useState(0);
+  // Nothing reads the number; setting it is what redraws the dial each second.
+  const [, setTick] = useState(0);
   useEffect(() => {
     if (!shown?.shift) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
@@ -91,7 +93,7 @@ export default function Clock() {
 
   return (
     <Screen>
-      <Page refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} tintColor={t.brand} />}>
+      <Page refreshControl={refresh}>
         {shown.workplaces.length === 0 ? (
           <Empty
             icon="home-outline"

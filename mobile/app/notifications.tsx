@@ -6,13 +6,13 @@
  * show as unread, because that is what you came to see.
  */
 import React, { useCallback, useRef } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { inbox, useInbox, useInboxChanged, type Notification } from "@/api";
 import { navigateTo } from "@/nav/paths";
-import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen } from "@/ui";
+import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen, usePullRefresh } from "@/ui";
 import { SkeletonNotifications } from "@/ui/Skeleton";
 import { useLayout } from "@/ui/layout";
 import { hsl, sp, useTheme } from "@/ui/theme";
@@ -27,6 +27,7 @@ export default function Inbox() {
   const layout = useLayout();
   const router = useRouter();
   const q = useInbox();
+  const refresh = usePullRefresh(q.refetch);
   const changed = useInboxChanged();
   const rows = q.data?.pages.flatMap((p) => p.results) ?? [];
   // What was unread when you arrived stays lit until you leave.
@@ -63,7 +64,7 @@ export default function Inbox() {
         data={rows}
         keyExtractor={(n) => String(n.id)}
         contentContainerStyle={[layout.column, { paddingTop: sp[4], paddingBottom: layout.bottom + sp[6] }]}
-        refreshControl={<RefreshControl refreshing={q.isRefetching && !q.isFetchingNextPage} onRefresh={q.refetch} tintColor={t.brand} />}
+        refreshControl={refresh}
         onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
         onEndReachedThreshold={0.6}
         ListHeaderComponent={

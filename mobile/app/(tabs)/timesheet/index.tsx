@@ -7,12 +7,12 @@
  * page's.
  */
 import React, { useEffect, useState } from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTimesheet, type Summary, type TimesheetDay, type TimesheetWeek } from "@/api";
-import { Button, Card, Chip, Empty, ErrorBanner, Page, PageTitle, Screen, Segments } from "@/ui";
+import { Button, Card, Chip, Empty, ErrorBanner, Page, PageTitle, Screen, Segments, usePullRefresh } from "@/ui";
 import { SkeletonTimesheet } from "@/ui/Skeleton";
 import { radius, sp, useTheme } from "@/ui/theme";
 import { cssColour, Ledger, LedgerRow, ShiftRow } from "@/ui/timesheet";
@@ -20,7 +20,6 @@ import { CalendarView } from "@/ui/CalendarView";
 import { joinWeeks, weekLabel } from "@/ui/weeks";
 
 export default function Timesheet() {
-  const t = useTheme();
   const router = useRouter();
   const [workplace, setWorkplace] = useState<number | null>(null);
   // List or Calendar are two faces of one screen, not two screens. A link in
@@ -31,13 +30,14 @@ export default function Timesheet() {
   // building it again, so the ask has to be followed as well as read.
   useEffect(() => { if (asked === "calendar") setView("calendar"); }, [asked]);
   const q = useTimesheet(workplace);
+  const refresh = usePullRefresh(q.refetch);
   const first = q.data?.pages[0];
   const days = q.data?.pages.flatMap((p) => p.days) ?? [];
   const weeks = joinWeeks(q.data?.pages.flatMap((p) => p.weeks ?? []) ?? []);
 
   return (
     <Screen>
-      <Page refreshControl={view === "list" ? <RefreshControl refreshing={q.isRefetching && !q.isFetchingNextPage} onRefresh={q.refetch} tintColor={t.brand} /> : undefined}>
+      <Page refreshControl={view === "list" ? refresh : undefined}>
         <PageTitle>Timesheet</PageTitle>
         <Segments value={view} onChange={(v) => setView(v as "list" | "calendar")} options={[{ value: "list", label: "List" }, { value: "calendar", label: "Calendar" }]} />
         {view === "calendar" ? <CalendarView /> : (

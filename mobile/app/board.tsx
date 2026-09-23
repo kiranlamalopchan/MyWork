@@ -4,13 +4,13 @@
  * name — "Share something…" — which is the way to post.
  */
 import React, { useCallback, useRef } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useBoard, type Notice } from "@/api";
 import { useSession } from "@/auth/session";
-import { Avatar, Card, Empty, ErrorBanner, Screen } from "@/ui";
+import { Avatar, Card, Empty, ErrorBanner, Screen, usePullRefresh } from "@/ui";
 import { SkeletonNotice, SkeletonNotices } from "@/ui/Skeleton";
 import { RevealProvider, useKeyboardScroll } from "@/ui/keyboard";
 import { useLayout } from "@/ui/layout";
@@ -23,6 +23,7 @@ export default function Board() {
   const router = useRouter();
   const { me } = useSession();
   const q = useBoard();
+  const refresh = usePullRefresh(q.refetch);
   const notices = q.data?.pages.flatMap((p) => p.results) ?? [];
   const total = q.data?.pages[0]?.count ?? 0;
   const list = useRef<FlatList<Notice>>(null);
@@ -41,7 +42,7 @@ export default function Board() {
           keyboardShouldPersistTaps="handled"
           onScroll={keyboard.onScroll}
           scrollEventThrottle={32}
-          refreshControl={<RefreshControl refreshing={q.isRefetching && !q.isFetchingNextPage} onRefresh={q.refetch} tintColor={t.brand} />}
+          refreshControl={refresh}
           onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
           onEndReachedThreshold={0.6}
           ListHeaderComponent={

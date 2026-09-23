@@ -14,6 +14,7 @@ import { useSession } from "@/auth/session";
 import { getToken } from "@/auth/token";
 import { Button, Card, Chip, Field, Input, Page, PageTitle, Screen } from "@/ui";
 import { goBack } from "@/nav/paths";
+import { notify } from "@/ui/confirm";
 import { sp, useTheme } from "@/ui/theme";
 import { fail, success } from "@/ui/haptics";
 
@@ -55,7 +56,14 @@ export default function EditProfile() {
       setBusy(false);
     }
   };
-  const setState = async (state: string) => setMe(await api.setHolidayState(state));
+  const setState = async (state: string) => {
+    // A tap with nothing to catch it left the chip unmoved and said nothing.
+    try {
+      setMe(await api.setHolidayState(state));
+    } catch (e: any) {
+      notify("Couldn't change that", e?.message || "");
+    }
+  };
 
   return (
     <Screen back backLabel="Profile">

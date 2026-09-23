@@ -9,7 +9,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { timesheet, useActivity } from "@/api";
 
-import { Button, Field, Input } from "./index";
+import { Button, ErrorBanner, Field, Input } from "./index";
 import { Disclosure } from "./Disclosure";
 import { openPdf } from "./pdf";
 import { notify } from "./confirm";
@@ -42,6 +42,9 @@ export function StatementPanel({ open, onToggle, last }: PanelProps) {
 
   return (
     <Disclosure icon="document-text-outline" tint={t.blue} title="Statement" hint="Hours and pay as a PDF, any dates" open={open} onToggle={onToggle} last={last}>
+      {/* Opened with nothing behind it, this was an empty box that said
+          nothing about why — offline being the usual why. */}
+      {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
       {st ? (
         <>
           <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>Hours, pay and payments over the dates you pick, as a PDF to keep beside a payslip or a bank line.</Text>
@@ -77,6 +80,7 @@ export function ActivityPanel({ open, onToggle, last }: PanelProps) {
   );
   return (
     <Disclosure icon="pulse-outline" tint={t.violet} title="Activity" hint={a ? `${a.week_hours.toFixed(1)}h worked this week` : "What you've done in KaamKoRecord"} open={open} onToggle={onToggle} last={last}>
+      {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
       {a ? (
         <>
           <View style={[styles.lead, { backgroundColor: t.brandSoft }]}>

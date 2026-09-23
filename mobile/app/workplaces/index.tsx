@@ -17,8 +17,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { timesheet, useTimesheetChanged, useWorkplaces, type Cycles, type Workplace } from "@/api";
 import { Button, Card, Empty, ErrorBanner, Field, Input, Page, PageTitle, Screen, useLayout } from "@/ui";
 import { SkeletonWorkplaces } from "@/ui/Skeleton";
-import { notify } from "@/ui/confirm";
-import { tap } from "@/ui/haptics";
+import { notify, tell } from "@/ui/confirm";
+import { success, tap } from "@/ui/haptics";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
 import { cssColour, hslAlpha } from "@/ui/timesheet";
 import { Select } from "@/ui/Select";
@@ -56,6 +56,18 @@ function Job({ w }: { w: Workplace }) {
   const changed = useTimesheetChanged();
   const hue = cssColour(w.css);
 
+  // Said out loud when it fails. The star simply not moving is what this
+  // looked like before, which reads as the tap having missed.
+  const makeDefault = async () => {
+    try {
+      await timesheet.makeDefault(w.id);
+      changed();
+      success();
+    } catch (e: any) {
+      notify("Couldn't make it the default", e?.message || "");
+    }
+  };
+
   return (
     <Card pad={false} style={styles.card} testID={`workplace-${w.id}`}>
       <View style={styles.head}>
@@ -86,7 +98,7 @@ function Job({ w }: { w: Workplace }) {
 
       <View style={[styles.acts, { borderTopColor: t.line }]}>
         {!w.is_default ? (
-          <Act icon="star-outline" label="Make default" a11y={`Make ${w.name} the default`} onPress={async () => { await timesheet.makeDefault(w.id); changed(); }} />
+          <Act icon="star-outline" label="Make default" a11y={`Make ${w.name} the default`} onPress={makeDefault} />
         ) : null}
         <Act icon="pencil-outline" label="Edit" a11y={`Edit ${w.name}`} onPress={() => router.push(`/workplaces/${w.id}/edit`)} />
         <Act icon="trash-outline" label="Remove" a11y={`Remove ${w.name}`} danger onPress={() => router.push(`/workplaces/${w.id}/remove`)} />
@@ -144,7 +156,7 @@ function CyclesPanel({ cycles, choices }: { cycles: Cycles; choices: { weekdays:
     try {
       await timesheet.savePreferences({ week_starts_on: week, fortnight_starts_on: fortnight, fortnight_phase: phase as "this" | "last", month_starts_on: Number(month) });
       changed();
-      notify("Saved", "Where your week, fortnight and month begin.");
+      tell("Saved", "Where your week, fortnight and month begin.");
       setOpen(false);
     } catch (e: any) {
       notify("Not saved", e?.message || "");

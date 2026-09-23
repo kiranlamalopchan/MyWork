@@ -4,7 +4,7 @@
  */
 import { Alert, Platform } from "react-native";
 
-import { fail, warn } from "./haptics";
+import { fail, success, warn } from "./haptics";
 
 export function confirm(title: string, message: string | undefined, action: string, onYes: () => void, destructive = true): void {
   if (destructive) warn();
@@ -20,6 +20,17 @@ export function confirm(title: string, message: string | undefined, action: stri
 
 export function notify(title: string, message?: string): void {
   fail();
+  if (Platform.OS === "web") globalThis.alert?.(message ? `${title}\n\n${message}` : title);
+  else Alert.alert(title, message);
+}
+
+/**
+ * The same, for something that went right. `notify` buzzes the failure
+ * pattern, which is wrong under the word "Saved": the hand is told the
+ * opposite of what the screen says.
+ */
+export function tell(title: string, message?: string): void {
+  success();
   if (Platform.OS === "web") globalThis.alert?.(message ? `${title}\n\n${message}` : title);
   else Alert.alert(title, message);
 }

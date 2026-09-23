@@ -11,11 +11,13 @@ import React, { useState } from "react";
 import { Text } from "react-native";
 
 import { me as api } from "@/api";
+import { fieldErrors } from "@/api/client";
 import { armBiometric, biometricUser } from "@/auth/biometric";
 import { setToken } from "@/auth/token";
 import { goBack } from "@/nav/paths";
+import { tell } from "@/ui/confirm";
 import { Button, Card, Field, Input, Page, PageTitle, Screen } from "@/ui";
-import { fail, success } from "@/ui/haptics";
+import { fail } from "@/ui/haptics";
 import { sp, useTheme } from "@/ui/theme";
 
 export default function ChangePassword() {
@@ -23,11 +25,13 @@ export default function ChangePassword() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [again, setAgain] = useState("");
-  const [error, setError] = useState("");
+  // Keyed by box: the server can refuse the old password, the new one, or
+  // both at once, and each message belongs where it was typed.
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   const go = async () => {
-    setError("");
+    setErrors({});
     setBusy(true);
     try {
       const { token } = await api.changePassword(current, next, again);
@@ -38,11 +42,17 @@ export default function ChangePassword() {
       } catch {
         /* the lock will simply ask for the password once more */
       }
-      success();
       goBack();
+      // Nothing on the screen behind says it worked, and a password that
+      // silently did nothing is the one people try again.
+      tell("Password changed", "Use the new one next time you sign in.");
     } catch (e: any) {
       fail();
-      setError(e?.message || "That couldn't be changed.");
+      setErrors(fieldErrors(e, {
+        old_password: "current",
+        new_password1: "next",
+        new_password2: "again",
+      }, "again"));
     } finally {
       setBusy(false);
     }
@@ -53,13 +63,13 @@ export default function ChangePassword() {
       <Page>
         <PageTitle sub="You'll need the one you use now.">Change your password</PageTitle>
         <Card style={{ gap: sp[4] }}>
-          <Field label="Your current password">
+          <Field label="Your current password" error={errors.current}>
             <Input secureTextEntry value={current} onChangeText={setCurrent} textContentType="password" autoComplete="current-password" testID="password-current" />
           </Field>
-          <Field label="New password" help="At least 8 characters, and not all numbers.">
+          <Field label="New password" help="At least 8 characters, and not all numbers." error={errors.next}>
             <Input secureTextEntry value={next} onChangeText={setNext} textContentType="newPassword" autoComplete="new-password" testID="password-new" />
           </Field>
-          <Field label="Confirm new password" error={error}>
+          <Field label="Confirm new password" error={errors.again}>
             <Input secureTextEntry value={again} onChangeText={setAgain} textContentType="newPassword" autoComplete="new-password" testID="password-again" />
           </Field>
           <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18 }}>

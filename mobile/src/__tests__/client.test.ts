@@ -1,4 +1,4 @@
-import { api, ApiError, unreachable } from "@/api/client";
+import { api, ApiError, fieldErrors, unreachable } from "@/api/client";
 
 jest.mock("@/auth/token", () => ({ getToken: jest.fn(async () => "tok"), signOutEverywhere: jest.fn(async () => {}) }));
 
@@ -88,5 +88,49 @@ describe("the server address", () => {
   it("never defaults to localhost on a phone running from Metro", () => {
     // In this test environment EXPO_PUBLIC_API_URL is unset and there is no Metro host, so the last resort applies.
     expect(defaultServer()).toMatch(/^https?:\/\//);
+  });
+});
+
+/**
+ * The bug this was written for: changing a password with the wrong current
+ * one printed "your old password was entered incorrectly" under Confirm new
+ * password, because a screen could only show the first message and only had
+ * one place to show it.
+ */
+describe("a refused form, box by box", () => {
+  const MAP = { old_password: "current", new_password1: "next", new_password2: "again" };
+
+  it("puts each message under the box it is about", () => {
+    const refused = new ApiError(400, "Your old password was entered incorrectly.", {
+      old_password: ["Your old password was entered incorrectly."],
+    });
+    expect(fieldErrors(refused, MAP, "again")).toEqual({
+      current: "Your old password was entered incorrectly.",
+    });
+  });
+
+  it("can fill more than one box at once", () => {
+    const refused = new ApiError(400, "first", {
+      old_password: ["Wrong."],
+      new_password2: ["Too short.", "Too common."],
+    });
+    expect(fieldErrors(refused, MAP, "again")).toEqual({
+      current: "Wrong.",
+      again: "Too short. Too common.",
+    });
+  });
+
+  it("sends a message with no box of its own to the fallback", () => {
+    const refused = new ApiError(400, "no", { __all__: ["Something about the whole form."] });
+    expect(fieldErrors(refused, MAP, "again")).toEqual({ again: "Something about the whole form." });
+  });
+
+  it("falls back to the sentence when there are no fields at all", () => {
+    const offline = new ApiError(0, "Couldn't reach the server.");
+    expect(fieldErrors(offline, MAP, "again")).toEqual({ again: "Couldn't reach the server." });
+  });
+
+  it("does the same for something that isn't an ApiError", () => {
+    expect(fieldErrors(new Error("Boom."), MAP, "again")).toEqual({ again: "Boom." });
   });
 });
