@@ -23,6 +23,7 @@ import { confirm, notify } from "@/ui/confirm";
 import { ActivityPanel, StatementPanel } from "@/ui/ProfilePanels";
 import { BiometricRow } from "@/ui/BiometricRow";
 import { PushRow } from "@/ui/PushRow";
+import { Version } from "@/ui/Version";
 import { FriendsPanel } from "@/ui/FriendsPanel";
 import { siteUrl } from "@/api/client";
 import { openBrowserAsync } from "expo-web-browser";
@@ -132,6 +133,9 @@ export default function Profile() {
           <Text style={{ color: t.muted }}>·</Text>
           <Pressable onPress={() => router.push("/profile/delete")} hitSlop={8} testID="delete-account"><Text style={[styles.legalLink, { color: t.danger }]}>Delete account</Text></Pressable>
         </View>
+        {/* Last and quietest: held long enough to copy, for when somebody is
+            being asked over the phone which version they are on. */}
+        <Version />
       </Page>
     </Screen>
   );

@@ -415,4 +415,10 @@
   <a href="{% url 'moderation:blocked' %}">Blocked people</a> · <a href="{% url 'moderation:rules' %}">Rules</a> · <a href="{% url 'privacy' %}">Privacy</a> · <a href="{% url 'accounts:delete' %}" style="color: var(--danger)">Delete account</a>
 </p>
 
+{# Quiet, and last: the answer to "which version are you on?" when something #}
+{# is being worked out over the phone, and nothing anyone reads day to day.  #}
+<p class="muted" style="text-align: center; font-size: 12.5px; margin-top: var(--sp-3); letter-spacing: 0.2px">
+  KaamKoRecord {{ app_version }}
+</p>
+
 {% endblock %}

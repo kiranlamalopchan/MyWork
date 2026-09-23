@@ -109,6 +109,8 @@ TEMPLATES = [
                 'mywork.context_processors.me',
                 # What is waiting for them, for the bell beside it.
                 'apps.notifications.context_processors.notifications',
+                # Which version this is, for the line under the profile.
+                'mywork.context_processors.version',
             ],
             # Tags belonging to the project rather than to any one app: the
             # icon set and the backlink, used by all four. Registered here so

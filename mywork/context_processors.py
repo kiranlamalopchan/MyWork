@@ -64,3 +64,16 @@ def me(request):
     from apps.accounts.models import Profile
 
     return {"me": Profile.of(getattr(request, "user", None))}
+
+
+def version(request):
+    """
+    The project's version, for the line at the foot of the profile page.
+
+    A context processor rather than something the profile view passes, so
+    that anywhere else it is wanted later — an about page, a footer — it is
+    already there.
+    """
+    from .version import VERSION
+
+    return {"app_version": VERSION}

@@ -437,3 +437,46 @@ class ResetLinkTests(TestCase):
         """The first thing a new password should do is be typed once."""
         self._set_password(self._link())
         self.assertNotIn("_auth_user_id", self.client.session)
+
+
+class VersionTests(TestCase):
+    """
+    The version shown on the profile, and the one thing that can go wrong
+    with it: the site saying one number while the app says another.
+    """
+
+    def test_site_and_app_agree(self):
+        """
+        mywork/version.py and mobile/app.json are two files nobody will
+        remember to change together. The stores read the second and only
+        the second, so it cannot simply be derived from the first — which
+        leaves this, failing the moment they drift.
+        """
+        import json
+        from pathlib import Path
+
+        from mywork.version import VERSION
+
+        app_json = Path(__file__).resolve().parents[2] / "mobile" / "app.json"
+        in_app = json.loads(app_json.read_text())["expo"]["version"]
+        self.assertEqual(
+            VERSION, in_app,
+            f"mywork/version.py says {VERSION}, mobile/app.json says {in_app} — "
+            "the site and the app would show different numbers.",
+        )
+
+    def test_the_profile_page_shows_it(self):
+        from mywork.version import VERSION
+
+        user = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(user)
+        response = self.client.get(reverse("accounts:profile"))
+        self.assertContains(response, f"KaamKoRecord {VERSION}")
+
+    def test_it_is_there_for_every_page_to_use(self):
+        """A context processor, so a footer or an about page gets it free."""
+        user = User.objects.create_user("sam", password="pw")
+        self.client.force_login(user)
+        response = self.client.get(reverse("accounts:profile"))
+        from mywork.version import VERSION
+        self.assertEqual(response.context["app_version"], VERSION)
