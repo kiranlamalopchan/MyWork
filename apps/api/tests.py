@@ -1195,3 +1195,56 @@ class ServerVersionTests(ApiTestCase):
         from mywork.version import VERSION
 
         self.assertEqual(self.api("get", "me").json()["server_version"], VERSION)
+
+
+class PinApiTests(ApiTestCase):
+    """The same rule as the site's, through the app's door."""
+
+    def setUp(self):
+        super().setUp()
+        self.notice = Notice.objects.create(author=self.sam, body="Roster changes Monday.")
+        self.admin = User.objects.create_user("boss", password="pw12345678", is_staff=True)
+        self.admin_token = self.client.post(
+            reverse("api:login"), {"username": "boss", "password": "pw12345678"}
+        ).json()["token"]
+
+    def test_an_admin_pins_and_unpins(self):
+        resp = self.api("post", "notice_pin", args=[self.notice.pk], token=self.admin_token)
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(resp.json()["pinned"])
+
+        resp = self.api("delete", "notice_pin", args=[self.notice.pk], token=self.admin_token)
+        self.assertFalse(resp.json()["pinned"])
+
+    def test_anyone_else_gets_a_404(self):
+        resp = self.api("post", "notice_pin", args=[self.notice.pk])
+
+        self.assertEqual(resp.status_code, 404)
+        self.notice.refresh_from_db()
+        self.assertFalse(self.notice.is_pinned)
+
+    def test_a_private_notice_is_refused_in_words(self):
+        mine = Notice.objects.create(author=self.admin, body="Just me", visibility="private")
+
+        resp = self.api("post", "notice_pin", args=[mine.pk], token=self.admin_token)
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("public", resp.json()["detail"])
+
+    def test_only_an_admin_is_offered_it(self):
+        mine = self.api("get", "notice", args=[self.notice.pk]).json()
+        theirs = self.api("get", "notice", args=[self.notice.pk], token=self.admin_token).json()
+
+        self.assertFalse(mine["can_pin"])
+        self.assertTrue(theirs["can_pin"])
+
+    def test_the_hub_and_the_board_lead_with_it(self):
+        Notice.objects.create(author=self.sam, body="Newer, but not pinned.")
+        self.notice.pin()
+
+        home = self.api("get", "home").json()["notices"]
+        board = self.api("get", "notices").json()["results"]
+
+        self.assertEqual(home[0]["id"], self.notice.pk)
+        self.assertEqual(board[0]["id"], self.notice.pk)
+        self.assertTrue(home[0]["pinned"])

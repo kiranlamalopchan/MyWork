@@ -25,12 +25,17 @@
     somebody sent you; what you posted yourself is not news to you, so it gets
     no tint, no dot and a quiet brand rail down the edge instead.
   {% endcomment %}
-  <li class="notice{% if notice.is_mine %} notice--mine{% else %} notice--from{% endif %}{% if notice.is_new and not notice.is_mine %} notice--new{% endif %}"
+  <li class="notice{% if notice.is_mine %} notice--mine{% else %} notice--from{% endif %}{% if notice.is_new and not notice.is_mine %} notice--new{% endif %}{% if notice.is_pinned %} notice--pinned{% endif %}"
       style="--hue: {{ notice.hue }}; --i: {% firstof forloop.counter0 "0" %}"
       id="notice-{{ notice.pk }}">
 
     {% if notice.is_new and not notice.is_mine %}
       <span class="notice__dot" role="img" aria-label="New"></span>
+    {% endif %}
+
+    {% if notice.is_pinned %}
+      {# Held at the top by an admin: said in words, so nobody wonders why last week's notice is first. #}
+      <div class="notice__pinned">{% icon "pin" %} Pinned</div>
     {% endif %}
 
     <div class="notice__main">
@@ -52,7 +57,7 @@
       Edit is a link to the edit page; app.js catches the tap and opens the
       editor inside the card instead (see _notice_body.html).
     {% endcomment %}
-    <div class="acts">
+    <div class="acts{% if request.user.is_staff %} acts--admin{% endif %}">
       {% include "noticeboard/_react.html" with item=notice %}
 
       {% comment %}
@@ -88,6 +93,28 @@
           </svg>
           <span class="act__label">Report</span>
         </a>
+      {% endif %}
+
+      {% comment %}
+        Admins only: hold this at the top of the board, or let it go. A
+        public notice can be pinned; one that is already pinned can always be
+        let go. Says which way it means ("pin" 1 or 0) rather than toggling,
+        so a double tap lands where it was meant to.
+      {% endcomment %}
+      {% if request.user.is_staff %}
+        {% if notice.is_pinned or notice.can_be_pinned %}
+          <form class="acts__form" method="post" action="{% url 'notices:pin' notice.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="pin" value="{% if notice.is_pinned %}0{% else %}1{% endif %}">
+            <button type="submit" class="act act--quiet act--pin{% if notice.is_pinned %} is-on{% endif %}"
+                    title="{% if notice.is_pinned %}Unpin{% else %}Pin to the top{% endif %}"
+                    aria-label="{% if notice.is_pinned %}Unpin this notice{% else %}Pin this notice to the top{% endif %}">
+              {% icon "pin" class="act__icon" %}
+              <span class="act__label">{% if notice.is_pinned %}Unpin{% else %}Pin{% endif %}</span>
+            </button>
+          </form>
+        {% endif %}
       {% endif %}
     </div>
 

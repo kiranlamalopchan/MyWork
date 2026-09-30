@@ -4031,6 +4031,39 @@ a.tally__emoji:hover .tally__who { text-decoration: underline; }
   .act--quiet .act__label { display: none; }
 }
 
+/* An admin's row carries one more cell — Pin — which is five on their own
+   notices. Five do not fit their words on a phone, so there the quiet ones
+   (Edit, Remove, Report, Pin) are their icons, as they already are below
+   360px for everyone. */
+@media (max-width: 479px) {
+  .acts--admin .act--quiet { padding: 0; min-width: 40px; }
+  .acts--admin .act--quiet .act__label { display: none; }
+  /* And the cells stop being equal: equal fifths squeeze "Comment" into
+     the cell beside it, where React and Comment keep their words and the
+     icons need only their own width. */
+  .acts--admin { grid-auto-columns: auto; justify-content: space-between; }
+}
+
+/* ---- Pinned --------------------------------------------------------------
+   A notice an admin is holding at the top: a line above the author saying
+   so, and a thin brand ring round the card, so it reads as deliberate
+   rather than as last week's notice that somehow never sank. A ring, not
+   a rail: the rail down the left edge already means "yours". */
+.notice__pinned {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  color: var(--brand);
+}
+.notice__pinned svg { width: 14px; height: 14px; }
+/* An outline rather than a shadow: the card's own shadow is a stack set
+   further down (its glass look), and a ring added there is overwritten. */
+.notice--pinned { outline: 1.5px solid color-mix(in srgb, var(--brand) 55%, transparent); outline-offset: -1.5px; }
+.act--pin.is-on { color: var(--brand); }
+
 /* ---- Editing in place ---------------------------------------------------
    Edit turns the words of your own notice into a box, in the card, where
    they were (app.js initEditing). The box takes the text's place and its
@@ -4748,6 +4781,14 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
 }
 .photo-menu__item:focus-within { background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--brand); }
 
+/* The inbox's last line: why last month's are not there. */
+.inbox__kept {
+  margin: var(--sp-5) 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 /* ---- The folded lines ---------------------------------------------------
    One row each, shut: a title, and the answer you would have opened it for.
    Opening one is then a choice rather than the only way to read the page. */
@@ -4802,6 +4843,57 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   display: grid;
   gap: var(--sp-2);
   padding: 0 var(--sp-4) var(--sp-4);
+  animation: mw-rise var(--dur-3) var(--ease-out) both;
+}
+
+/* A fold inside a panel's body: a labelled row with a count, the list under
+   it. The Friends lists are these, so a long list of everyone is not the
+   price of opening your friends. The row reaches the panel's edges so its
+   hover wash reads as the whole line, and a hairline keeps two shut ones
+   from reading as one. */
+.subfold { border-top: 1px solid var(--line); margin: 0 calc(-1 * var(--sp-4)); }
+.subfold:last-child { margin-bottom: calc(-1 * var(--sp-4)); }
+
+.subfold__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--dur-2) var(--ease);
+}
+.subfold__head::-webkit-details-marker { display: none; }
+.subfold__head:hover { background: var(--surface-2); }
+.subfold__head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+.subfold__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.subfold__chev {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform var(--dur-2) var(--ease);
+}
+.subfold[open] .subfold__chev { transform: rotate(180deg); }
+
+.subfold__body {
+  margin: 0 var(--sp-4) var(--sp-4);
   animation: mw-rise var(--dur-3) var(--ease-out) both;
 }
 
@@ -6712,10 +6804,50 @@ body::before {
    column; the stories row loses its gutter bleed, since inside the hub it
    is not at the page's edge. */
 
-/* Below the wide breakpoint these do not exist: the greeting and the
-   extras are the wide hub's own, not a phone's. */
+/* Below the wide breakpoint the greeting and the side column's copies of
+   the extras do not exist — the app bar already says whose phone it is,
+   and the extras are shown beside the stories instead (.hub__daily). */
 .hub__head, .hub__wide { display: none; }
 .hub__stories { margin-bottom: var(--sp-4); }
+
+/* The thought and the laugh as a pair just under the stories: two small
+   cards side by side, the same height, a glance each. The quotes are
+   short (under a hundred characters) and the setups shorter, so half a
+   phone is room enough; below 360px, where half is not, they stack. */
+.hub__daily {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.hub__daily .card + .card { margin-top: 0; }
+.hub__daily .card__pad { padding: var(--sp-4); }
+.hub__daily .daily__kicker { font-size: 10.5px; letter-spacing: .3px; }
+.hub__daily .daily__quote { font-size: 15px; line-height: 1.35; }
+.hub__daily .daily__who { font-size: 12.5px; }
+.hub__daily .daily__setup { font-size: 14.5px; line-height: 1.4; }
+.hub__daily .daily__punchline { padding: 0 var(--sp-4) var(--sp-4); font-size: 14.5px; }
+@media (max-width: 359px) {
+  .hub__daily { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A thought for the day (hub/_quote.html). */
+.daily--quote { background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
+.daily__kicker { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--brand); }
+.daily__kicker svg { width: 14px; height: 14px; }
+.daily__quote { margin: var(--sp-2) 0 0; font-size: 17px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
+.daily__who { margin-top: var(--sp-2); font-size: 13.5px; color: var(--muted); }
+
+/* A little laugh (hub/_joke.html): the punchline is behind the tap, the
+   way a joke is told. */
+.daily--joke { padding: 0; }
+.daily__summary { display: block; cursor: pointer; list-style: none; }
+.daily__summary::-webkit-details-marker { display: none; }
+.daily__setup { margin: var(--sp-2) 0 0; font-size: 15px; line-height: 1.45; font-weight: 600; }
+.daily__reveal { display: inline-flex; align-items: center; gap: 3px; margin-top: var(--sp-2); font-size: 13px; font-weight: 700; color: var(--brand); }
+.daily__reveal svg { width: 14px; height: 14px; transition: transform .15s ease; }
+.daily--joke[open] .daily__reveal svg { transform: rotate(180deg); }
+.daily__punchline { margin: calc(var(--sp-3) * -1) 0 0; padding: 0 var(--sp-5) var(--sp-5); font-size: 15px; line-height: 1.45; color: var(--text-2); }
 
 @media (min-width: 1024px) {
   .container--hub { max-width: 1180px; }
@@ -6749,27 +6881,11 @@ body::before {
     gap: var(--sp-4);
   }
   .hub__wide { display: block; }
+  .hub__daily { display: none; }
   .hub__side .holiday { flex-direction: column-reverse; align-items: stretch; margin-bottom: 0; }
   .hub__side .holiday__art { width: 168px; margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) 0 auto; }
   .hub__main .board { margin-top: 0; }
 
-  /* A thought for the day (hub/_quote.html). */
-  .daily--quote { background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
-  .daily__kicker { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--brand); }
-  .daily__kicker svg { width: 14px; height: 14px; }
-  .daily__quote { margin: var(--sp-2) 0 0; font-size: 17px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
-  .daily__who { margin-top: var(--sp-2); font-size: 13.5px; color: var(--muted); }
-
-  /* A little laugh (hub/_joke.html): the punchline is behind the tap, the
-     way a joke is told. */
-  .daily--joke { padding: 0; }
-  .daily__summary { display: block; cursor: pointer; list-style: none; }
-  .daily__summary::-webkit-details-marker { display: none; }
-  .daily__setup { margin: var(--sp-2) 0 0; font-size: 15px; line-height: 1.45; font-weight: 600; }
-  .daily__reveal { display: inline-flex; align-items: center; gap: 3px; margin-top: var(--sp-2); font-size: 13px; font-weight: 700; color: var(--brand); }
-  .daily__reveal svg { width: 14px; height: 14px; transition: transform .15s ease; }
-  .daily--joke[open] .daily__reveal svg { transform: rotate(180deg); }
-  .daily__punchline { margin: calc(var(--sp-3) * -1) 0 0; padding: 0 var(--sp-5) var(--sp-5); font-size: 15px; line-height: 1.45; color: var(--text-2); }
 }
 
 /* ---- The line above: what this is, and whose it is ---- */

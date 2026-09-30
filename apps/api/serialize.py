@@ -14,7 +14,7 @@ from django.utils.timesince import timesince
 
 from apps.accounts.models import Profile
 from apps.holidays.whereabouts import guess_state
-from apps.noticeboard.models import Emoji
+from apps.noticeboard.models import Emoji, Notice
 from apps.noticeboard.views import COMMENTS_SHOWN, REPLIES_SHOWN
 from mywork.version import VERSION
 
@@ -169,6 +169,11 @@ def notice(request, item, viewer, folded=True, friend_ids=None):
         "edited": item.was_edited,
         "is_new": item.is_new,
         "mine": item.author_id == viewer.pk,
+        "pinned": item.is_pinned,
+        # Whether this viewer is offered Pin / Unpin on it. Decided here, not
+        # on the phone, so the rule — admins only, public notices only, and a
+        # pin can always be let go — lives in one place.
+        "can_pin": Notice.may_pin(viewer) and (item.is_pinned or item.can_be_pinned),
         "comment_total": item.comment_total(viewer, friend_ids),
         "comments": [comment(request, c, viewer, folded) for c in recent],
         "older_comments": len(older),

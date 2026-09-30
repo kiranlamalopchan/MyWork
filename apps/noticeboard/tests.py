@@ -53,10 +53,15 @@ class NoticeBoardTests(TestCase):
         resp = self.client.get(reverse("home"))
         self.assertContains(resp, "Thought for the day")
         self.assertContains(resp, "A little laugh")
-        # Every line is on the page in full: nothing is cut or escaped away.
+        # Every line is on the page in full: nothing is cut or lost. Looked
+        # for as the page actually holds it — escaped — because a joke with
+        # an apostrophe in it ("I'm done") is on the page as &#x27;, which
+        # the browser shows as ', and the raw text would only be found on the
+        # days whose pick happens to have no quote marks in it.
+        from django.utils.html import escape
         picked = daily()
-        self.assertContains(resp, picked["quote"]["text"], html=False)
-        self.assertContains(resp, picked["joke"]["punchline"], html=False)
+        self.assertContains(resp, escape(picked["quote"]["text"]), html=False)
+        self.assertContains(resp, escape(picked["joke"]["punchline"]), html=False)
         # Picked by the date: the same all day, different tomorrow, and
         # every entry well formed.
         a, b = daily(date(2026, 9, 21)), daily(date(2026, 9, 22))
@@ -67,6 +72,19 @@ class NoticeBoardTests(TestCase):
             self.assertTrue(text and who)
         for setup, punchline in JOKES:
             self.assertTrue(setup and punchline)
+
+    def test_on_a_phone_the_pair_sits_beside_the_stories(self):
+        """
+        Both places are in the page — the phone's pair under the stories and
+        the wide screen's side column — and CSS shows exactly one. What this
+        guards is the phone's: that it exists, that it follows the stories,
+        and that it comes before the board.
+        """
+        html = self.client.get(reverse("home")).content.decode()
+
+        self.assertIn('class="hub__daily"', html)
+        self.assertLess(html.index('class="hub__stories"'), html.index('class="hub__daily"'))
+        self.assertLess(html.index('class="hub__daily"'), html.index('id="board-title"'))
 
     def test_the_board_needs_a_login(self):
         self.client.logout()
@@ -1199,3 +1217,139 @@ class VisibilityTests(TestCase):
         notify.comment_posted(reply)
 
         self.assertFalse(Notification.objects.filter(recipient=self.sam).exists())
+
+
+class PinTests(TestCase):
+    """
+    An admin holding a notice at the top of the board. Only admins may, only
+    a public notice can be, and a pin is a pin everywhere the board is read.
+    """
+
+    def setUp(self):
+        self.admin = User.objects.create_user("boss", password="pw", is_staff=True)
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.old = Notice.objects.create(author=self.kiran, body="Fridge rules: label your lunch.")
+        Notice.objects.filter(pk=self.old.pk).update(created_at=timezone.now() - timedelta(days=9))
+        self.new = Notice.objects.create(author=self.kiran, body="Swapping Friday.")
+
+    def pin(self, notice, who, on=True):
+        self.client.force_login(who)
+        return self.client.post(
+            reverse("notices:pin", args=[notice.pk]),
+            {"pin": "1" if on else "0", "next": reverse("notices:board")},
+        )
+
+    # ---- who may ----------------------------------------------------------
+
+    def test_an_admin_can_pin_and_unpin(self):
+        self.pin(self.old, self.admin)
+        self.old.refresh_from_db()
+        self.assertTrue(self.old.is_pinned)
+
+        self.pin(self.old, self.admin, on=False)
+        self.old.refresh_from_db()
+        self.assertFalse(self.old.is_pinned)
+
+    def test_anyone_else_gets_a_404_and_nothing_moves(self):
+        """Not a 403: an action only admins may take is one only they need to know exists."""
+        resp = self.pin(self.old, self.kiran)
+
+        self.assertEqual(resp.status_code, 404)
+        self.old.refresh_from_db()
+        self.assertFalse(self.old.is_pinned)
+
+    def test_only_a_public_notice_can_be_pinned(self):
+        private = Notice.objects.create(author=self.admin, body="Note to self", visibility=Visibility.PRIVATE)
+
+        self.pin(private, self.admin)
+
+        private.refresh_from_db()
+        self.assertFalse(private.is_pinned)
+
+    def test_narrowing_a_pinned_notice_lets_go_of_the_pin(self):
+        self.old.pin()
+        self.old.visibility = Visibility.FRIENDS
+        self.old.save()
+
+        self.old.refresh_from_db()
+        self.assertFalse(self.old.is_pinned)
+
+    def test_pinning_does_not_make_it_look_edited(self):
+        """
+        Pinning writes the one column rather than saving the notice: a save
+        would move updated_at, and the card would start saying "edited" about
+        something nobody changed a word of.
+        """
+        # The fresh notice, not self.old: that one's date was moved back in
+        # setUp without its updated_at, so it reads as edited already.
+        before = Notice.objects.get(pk=self.new.pk).updated_at
+
+        self.new.pin()
+
+        after = Notice.objects.get(pk=self.new.pk)
+        self.assertEqual(after.updated_at, before)
+        self.assertFalse(after.was_edited)
+
+    # ---- where it lands ------------------------------------------------------
+
+    def test_a_pinned_notice_leads_the_board_and_the_hub(self):
+        self.old.pin()
+        self.client.force_login(self.kiran)
+
+        for page in [reverse("notices:board"), reverse("home")]:
+            with self.subTest(page=page):
+                html = self.client.get(page).content.decode()
+                self.assertLess(html.index("Fridge rules"), html.index("Swapping Friday"))
+
+    def test_among_the_pinned_the_latest_pin_leads(self):
+        self.new.pin()
+        Notice.objects.filter(pk=self.new.pk).update(pinned_at=timezone.now() - timedelta(hours=1))
+        self.old.pin()
+
+        order = list(Notice.visible(self.kiran).values_list("pk", flat=True))
+
+        self.assertEqual(order[:2], [self.old.pk, self.new.pk])
+
+    def test_unpinned_it_sinks_back_to_where_its_date_puts_it(self):
+        self.old.pin()
+        self.old.unpin()
+
+        order = list(Notice.visible(self.kiran).values_list("pk", flat=True))
+
+        self.assertEqual(order, [self.new.pk, self.old.pk])
+
+    def test_a_notification_link_finds_a_pinned_notice_on_page_one(self):
+        """
+        The page a `?notice=` link lands on is counted in the board's own
+        order — so a pin weeks old is still on the first page, and an
+        ordinary notice is pushed down by every pin above it.
+        """
+        from .views import PER_PAGE, _page_holding
+
+        for i in range(PER_PAGE):
+            Notice.objects.create(author=self.kiran, body=f"filler {i}")
+        self.assertEqual(_page_holding(self.old.pk, self.kiran), 2)
+
+        self.old.pin()
+
+        self.assertEqual(_page_holding(self.old.pk, self.kiran), 1)
+        # The oldest filler was the last on page one; the pin pushed it over.
+        last_filler = Notice.objects.get(body="filler 0")
+        self.assertEqual(_page_holding(last_filler.pk, self.kiran), 2)
+
+    # ---- what it looks like --------------------------------------------------
+
+    def test_everyone_is_told_it_is_pinned(self):
+        self.old.pin()
+        self.client.force_login(self.kiran)
+
+        self.assertContains(self.client.get(reverse("notices:board")), "notice--pinned")
+
+    def test_only_admins_are_offered_the_button(self):
+        pin_url = reverse("notices:pin", args=[self.old.pk])
+
+        self.client.force_login(self.kiran)
+        self.assertNotContains(self.client.get(reverse("notices:board")), pin_url)
+
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("notices:board")), pin_url)

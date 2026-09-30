@@ -92,7 +92,7 @@ function Job({ w }: { w: Workplace }) {
       <View style={styles.facts}>
         <Fact tint={w.hourly_rate ? t.brandStrong : undefined}>{w.hourly_rate ? `$${w.hourly_rate.toFixed(2)}/hr` : "No rate set"}</Fact>
         <Fact>{w.pay_cycle_label}</Fact>
-        {w.in_cash ? <Fact tint={t.warn}>Cash</Fact> : w.tax_rate ? <Fact>{`${w.tax_rate}% tax`}</Fact> : null}
+        {w.in_cash ? <Fact tint={t.warn}>Cash</Fact> : w.tax_label ? <Fact>{w.tax_label}</Fact> : w.tax_rate ? <Fact>{`${w.tax_rate}% tax`}</Fact> : null}
         {w.limit_label ? <Fact tint={t.violet}>{w.limit_label}</Fact> : null}
       </View>
 

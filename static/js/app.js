@@ -1527,6 +1527,40 @@
     catch (e) { /* private mode — the count-up just plays each time */ }
   }
 
+  /* ----------------------------------------------------------------------
+     Folds that remember
+
+     A <details data-remember="name"> keeps its open or shut state for the
+     rest of the visit. The Friends lists are the reason: adding or removing
+     somebody is a form post and a redirect, and a fresh page would otherwise
+     fold the list shut under the finger that was working in it.
+
+     Per tab, like the tally above, and a browser with storage off just gets
+     the page's own defaults every time. The listener is on the element, which
+     a soft navigation throws away with the page, so there is nothing to tear
+     down.
+     ---------------------------------------------------------------------- */
+  var FOLD_KEY = "mywork-fold:";
+
+  function initFolds() {
+    var folds = document.querySelectorAll("details[data-remember]");
+    for (var i = 0; i < folds.length; i++) {
+      (function (fold) {
+        var key = FOLD_KEY + fold.getAttribute("data-remember");
+        var saved = null;
+        try { saved = sessionStorage.getItem(key); }
+        catch (e) { /* storage off — the page's default stands */ }
+        if (saved === "1") fold.open = true;
+        else if (saved === "0") fold.open = false;
+
+        fold.addEventListener("toggle", function () {
+          try { sessionStorage.setItem(key, fold.open ? "1" : "0"); }
+          catch (e) { /* nothing to remember it in */ }
+        });
+      })(folds[i]);
+    }
+  }
+
   function initTally(forceInstant) {
     var els = document.querySelectorAll("[data-tally]");
     if (!els.length) return;
@@ -3427,28 +3461,52 @@
   }
 
   /* ----------------------------------------------------------------------
-     Cash in hand — hide the tax question it cannot answer
+     The tax questions — only the ones that have an answer
 
-     Paid cash there is no withholding to state, so a percentage box sitting
-     open underneath is a question with no right answer. It goes the moment
-     cash is chosen and comes back if the job changes, and the server clears
-     the value either way so nothing lingers on the row.
+     Paid cash there is no withholding to state, so every tax question goes
+     the moment cash is chosen and comes back if the job changes. Otherwise
+     the situation (the TFN declaration's answer) decides the rest: the
+     percentage box is only for "my own percentage", and the study-loan
+     switch only for the scales Schedule 8 adds a repayment to. The server
+     clears whatever is hidden either way, so nothing lingers on the row.
+
+     A payslip read fills the percentage; if no situation was chosen yet,
+     that makes it the percentage way (see initPayslipFill).
      ---------------------------------------------------------------------- */
+  var LOAN_SCALES = ["TFT", "NO_TFT", "FOREIGN"];
+
   function initCashFields() {
     var paidIn = document.getElementById("id_paid_in");
+    var scale = document.getElementById("id_tax_scale");
     var tax = document.getElementById("id_tax_rate");
+    var loan = document.getElementById("id_study_loan");
     if (!paidIn || !tax) return;
 
-    var row = tax.closest(".field");
-    if (!row) return;
+    function rowOf(input) {
+      return input ? (input.closest(".field") || input.closest(".switch")) : null;
+    }
+    var taxRow = rowOf(tax);
+    var scaleRow = rowOf(scale);
+    var loanRow = rowOf(loan);
 
     function sync() {
       var cash = paidIn.value === "CASH";
-      row.hidden = cash;
-      if (cash) tax.value = "";
+      var chosen = scale ? scale.value : "CUSTOM";
+      if (scaleRow) scaleRow.hidden = cash;
+      if (taxRow) taxRow.hidden = cash || chosen !== "CUSTOM";
+      if (loanRow) loanRow.hidden = cash || LOAN_SCALES.indexOf(chosen) < 0;
+      if (taxRow && taxRow.hidden) tax.value = "";
     }
 
     paidIn.addEventListener("change", sync);
+    if (scale) scale.addEventListener("change", sync);
+    // The payslip reader types a percentage in: with no situation chosen,
+    // that is the percentage way.
+    function typed() {
+      if (scale && !scale.value && tax.value) { scale.value = "CUSTOM"; sync(); }
+    }
+    tax.addEventListener("input", typed);
+    tax.addEventListener("change", typed);
     sync();
   }
 
@@ -5107,6 +5165,7 @@
     initModals();
     initComposeModal();
     initTally();
+    initFolds();
     initPeriodFields();
     initPayslipFill();
     initStories();

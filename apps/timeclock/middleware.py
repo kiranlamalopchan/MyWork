@@ -113,12 +113,25 @@ class ReminderSweepMiddleware:
         cannot be worked out, or a push service that is down, must not turn
         somebody's timesheet into an error page.
         """
-        from apps.notifications.models import Sweep
+        from apps.notifications.models import Notification, Sweep
 
         try:
-            if Sweep.claim("timesheet-reminders", self.EVERY):
-                from .notify import run_all
-
-                run_all()
+            if not Sweep.claim("timesheet-reminders", self.EVERY):
+                return
         except Exception:
             log.exception("the timesheet reminder sweep failed")
+            return
+
+        try:
+            from .notify import run_all
+
+            run_all()
+        except Exception:
+            log.exception("the timesheet reminder sweep failed")
+
+        # The inbox's month-old rows, on the same ride. Its own try: a
+        # reminder that failed is no reason to keep last month's mail.
+        try:
+            Notification.prune_if_due()
+        except Exception:
+            log.exception("pruning old notifications failed")

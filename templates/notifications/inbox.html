@@ -130,6 +130,11 @@
   {% endfor %}
 
   {% include "_pager.html" with page_obj=page_obj prev="Newer" next="Older" %}
+
+  {# At the end of the list, why last month's are not in it: see Notification.prune. #}
+  {% if not page_obj.has_next %}
+    <p class="inbox__kept">Notifications are cleared after 30 days.</p>
+  {% endif %}
 {% else %}
   {% comment %}
     The page most people see first, and for a while the only one they see.

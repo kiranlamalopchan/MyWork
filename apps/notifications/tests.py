@@ -460,6 +460,63 @@ class SweepTests(TestCase):
         self.assertTrue(self.Sweep.claim("two", timedelta(minutes=15)))
 
 
+class PruneTests(TestCase):
+    """
+    The month the inbox keeps. Past it a notification is deleted, read or
+    not, so the table weighs what is recent rather than everything ever said.
+    """
+
+    def setUp(self):
+        self.kiran = User.objects.create_user("kiran", password="pw")
+        self.client.force_login(self.kiran)
+
+    def _aged(self, days, **extra):
+        note = Notification.objects.create(
+            recipient=self.kiran, kind=Kind.NOTICE, title=f"{days} days old", url="/", **extra
+        )
+        # auto_now_add has had its say; back-date it past it.
+        Notification.objects.filter(pk=note.pk).update(created_at=timezone.now() - timedelta(days=days))
+        return note
+
+    def test_a_month_old_one_goes_and_a_newer_one_stays(self):
+        old = self._aged(31)
+        read_old = self._aged(45, read_at=timezone.now())
+        recent = self._aged(29)
+
+        self.assertEqual(Notification.prune(), 2)
+
+        left = set(Notification.objects.values_list("pk", flat=True))
+        self.assertEqual(left, {recent.pk})
+        self.assertNotIn(old.pk, left)
+        self.assertNotIn(read_old.pk, left)
+
+    def test_it_runs_once_a_day_however_often_it_is_asked(self):
+        self._aged(40)
+        self.assertEqual(Notification.prune_if_due(), 1)
+
+        self._aged(40)
+        self.assertEqual(Notification.prune_if_due(), 0)
+        self.assertEqual(Notification.objects.count(), 1)
+
+    def test_a_page_load_prunes(self):
+        self._aged(40)
+        keep = self._aged(2)
+
+        self.client.get(reverse("home"))
+
+        self.assertEqual(list(Notification.objects.values_list("pk", flat=True)), [keep.pk])
+
+    def test_a_broken_reminder_sweep_still_prunes(self):
+        self._aged(40)
+
+        with mock.patch("apps.timeclock.notify.run_all", side_effect=RuntimeError("boom")):
+            with self.assertLogs("apps.timeclock.middleware", level="ERROR"):
+                resp = self.client.get(reverse("home"))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Notification.objects.exists())
+
+
 class InboxLookTests(TestCase):
     """
     The inbox's rendering: one row per kind, grouped by the reader's day.

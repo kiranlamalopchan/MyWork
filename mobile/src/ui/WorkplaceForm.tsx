@@ -9,7 +9,7 @@ import React, { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { ApiError, timesheet, type Workplace, type WorkplaceInput, type WorkplacesPage } from "@/api";
+import { ApiError, timesheet, type TaxScale, type Workplace, type WorkplaceInput, type WorkplacesPage } from "@/api";
 import { unreachable, type FilePart } from "@/api/client";
 
 import { Button, Card, Field, Input, SectionLabel } from "./index";
@@ -35,8 +35,8 @@ const PAYSLIP_TYPES = Platform.OS === "android"
   ? ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
   : ["application/pdf", "image/*"];
 
-export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: {
-  choices: Choices; workplace?: Workplace; cycles: WorkplacesPage["cycles"];
+export function WorkplaceForm({ choices, workplace, cycles, newTaxScale, onSave, onCancel }: {
+  choices: Choices; workplace?: Workplace; cycles: WorkplacesPage["cycles"]; newTaxScale?: TaxScale;
   onSave: (input: WorkplaceInput) => Promise<void>; onCancel: () => void;
 }) {
   const t = useTheme();
@@ -48,6 +48,15 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
   const [paidIn, setPaidIn] = useState(w?.paid_in || "BANK");
   const [rate, setRate] = useState(w?.hourly_rate != null ? String(w.hourly_rate) : "");
   const [tax, setTax] = useState(w?.tax_rate != null ? String(w.tax_rate) : "");
+  // The ATO's way when the server offers it (see apps/timeclock/paygw.py);
+  // an older server offers no scales, and the form is the percentage alone.
+  const scales = choices.tax_scales;
+  const [scale, setScale] = useState<string>(
+    w ? (w.tax_scale ?? (w.tax_rate != null ? "CUSTOM" : "")) : (newTaxScale ?? ""),
+  );
+  const [loan, setLoan] = useState(!!w?.study_loan);
+  const loanApplies = (choices.loan_scales || []).includes(scale);
+  const byPercentage = !scales || scale === "CUSTOM";
   const [limit, setLimit] = useState(w?.hours_limit != null ? String(w.hours_limit) : "");
   const [limitPeriod, setLimitPeriod] = useState(w?.limit_period || "FORTNIGHT");
   const [week, setWeek] = useState(w?.week_starts_on ?? cycles.week_starts_on);
@@ -86,7 +95,11 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
       const got: Record<string, boolean> = {};
       if (f.name && !name) { setName(String(f.name)); got.name = true; }
       if (f.hourly_rate != null) { setRate(String(f.hourly_rate)); got.hourly_rate = true; }
-      if (f.tax_rate != null) { setTax(String(f.tax_rate)); got.tax_rate = true; }
+      if (f.tax_rate != null) {
+        setTax(String(f.tax_rate)); got.tax_rate = true;
+        // A slip's percentage with no situation chosen yet is the percentage way.
+        if (scales && !scale) setScale("CUSTOM");
+      }
       if (f.pay_cycle) { setPayCycle(String(f.pay_cycle) as Workplace["pay_cycle"]); got.pay_cycle = true; }
       if (f.limit_period) { setLimitPeriod(String(f.limit_period) as Workplace["limit_period"]); got.limit_period = true; }
       if (f.week_starts_on != null) { setWeek(Number(f.week_starts_on)); got.week_starts_on = true; }
@@ -115,7 +128,9 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
     setErrors({}); setDetail(""); setBusy(true);
     try {
       await onSave({
-        name, address, color, pay_cycle: payCycle, paid_in: paidIn, hourly_rate: rate, tax_rate: paidIn === "CASH" ? "" : tax,
+        name, address, color, pay_cycle: payCycle, paid_in: paidIn, hourly_rate: rate,
+        tax_rate: paidIn === "CASH" || !byPercentage ? "" : tax,
+        ...(scales ? { tax_scale: scale, study_loan: loanApplies && loan } : {}),
         hours_limit: limit, limit_period: limitPeriod, week_starts_on: week, fortnight_starts_on: fortnight, fortnight_phase: phase,
         month_starts_on: month, is_default: isDefault,
       });
@@ -208,8 +223,22 @@ export function WorkplaceForm({ choices, workplace, cycles, onSave, onCancel }: 
         <Field label="Hourly rate (optional)" help="Optional. Used to estimate pay alongside your hours." error={errors.hourly_rate} filled={filled.hourly_rate}>
           <Input value={rate} onChangeText={(v) => { setRate(v); mine("hourly_rate"); }} keyboardType="decimal-pad" placeholder="e.g. 28.50" style={{ maxWidth: 160 }} />
         </Field>
-        {paidIn !== "CASH" ? (
-          <Field label="Tax withheld % (optional)" help="From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax." error={errors.tax_rate} filled={filled.tax_rate}>
+        {paidIn !== "CASH" && scales ? (
+          <Field label="Your tax situation here" help="What you ticked on this job's TFN declaration. Tax is then worked out the ATO's way, on each pay. Claim the tax-free threshold from one job only." error={errors.tax_scale}>
+            <Select
+              label="Your tax situation here"
+              value={scale}
+              onChange={setScale}
+              options={[{ value: "", label: "Not set — show pay before tax" }, ...scales.map((c) => ({ value: String(c.value), label: c.label }))]}
+              testID="tax-scale"
+            />
+          </Field>
+        ) : null}
+        {paidIn !== "CASH" && scales && loanApplies ? (
+          <Switch value={loan} onChange={setLoan} label="I have a HELP or other study loan" />
+        ) : null}
+        {paidIn !== "CASH" && byPercentage ? (
+          <Field label={scales ? "Tax withheld %" : "Tax withheld % (optional)"} help={scales ? "From a payslip: tax withheld ÷ gross × 100." : "From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax."} error={errors.tax_rate} filled={filled.tax_rate}>
             <Input value={tax} onChangeText={(v) => { setTax(v); mine("tax_rate"); }} keyboardType="decimal-pad" placeholder="e.g. 10.8" style={{ maxWidth: 160 }} />
           </Field>
         ) : null}

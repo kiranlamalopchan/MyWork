@@ -1,6 +1,7 @@
 /**
  * The hub, in one order everywhere: a greeting, the row of stories first
- * — looked at rather than read — then the next public holiday, then the
+ * — looked at rather than read — with a thought for the day and a little
+ * laugh side by side under them, then the next public holiday, then the
  * notice board with its newest few and the way to the rest. PLU and
  * TimeSheet are tabs of the bar below, so no tiles for them here.
  *
@@ -21,7 +22,7 @@ import { useHome, type HolidayCard } from "@/api";
 import { useSession } from "@/auth/session";
 import { Card, ErrorBanner, Page, Screen, usePullRefresh } from "@/ui";
 import { HUB_SIDE, useLayout } from "@/ui/layout";
-import { JokeCard, QuoteCard } from "@/ui/DailyCard";
+import { DailyPair, JokeCard, QuoteCard } from "@/ui/DailyCard";
 import { SkeletonHome } from "@/ui/Skeleton";
 import { HolidayArt } from "@/ui/HolidayArt";
 import { NoticeCard } from "@/ui/NoticeCard";
@@ -70,6 +71,10 @@ export default function Home() {
             ) : null}
             <View style={desk ? styles.hubMain : styles.stack}>
               <StoriesTray rows={data.stories} boxed={desk} />
+              {/* Beside the stories on a phone: the thought and the laugh as
+                  one pair, a glance each. A wide screen keeps them in its side
+                  column instead, so only one of the two places ever shows. */}
+              {!desk && data.daily ? <DailyPair daily={data.daily} /> : null}
               {!desk && data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} /> : null}
               <View style={styles.board}>
                 <View style={styles.boardHead}>

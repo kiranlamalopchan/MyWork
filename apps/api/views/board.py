@@ -72,6 +72,34 @@ class NoticeDetail(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class NoticePin(APIView):
+    """
+    Hold a notice at the top of the board (POST) or let it go (DELETE) —
+    admins only. Everyone else gets a 404, as on the site: an action only
+    admins may take is one only admins need to know exists. POST and DELETE
+    rather than a toggle, so a double tap lands where it was meant to.
+    """
+
+    def _notice(self, request, pk):
+        if not Notice.may_pin(request.user):
+            raise Http404
+        return get_object_or_404(Notice.objects.filter(Notice.visibility_q(request.user)), pk=pk)
+
+    def post(self, request, pk):
+        notice = self._notice(request, pk)
+        if not notice.can_be_pinned:
+            return Response(
+                {"detail": "Only a public notice can be pinned — it is a message to everyone."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        notice.pin()
+        return Response(_fresh(request, pk))
+
+    def delete(self, request, pk):
+        self._notice(request, pk).unpin()
+        return Response(_fresh(request, pk))
+
+
 class NoticeReact(APIView):
     def post(self, request, pk):
         # Reacting is the whole board you're allowed to read, same as the

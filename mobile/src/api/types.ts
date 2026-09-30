@@ -59,6 +59,10 @@ export type Notice = ReactionTally & {
   edited: boolean;
   is_new: boolean;
   mine: boolean;
+  /** Held at the top of the board by an admin. Absent from an older server. */
+  pinned?: boolean;
+  /** Whether this viewer is offered Pin / Unpin — the server decides who. */
+  can_pin?: boolean;
   comment_total: number;
   comments: Comment[];
   older_comments: number;
@@ -185,6 +189,8 @@ export type Money = { gross: number; tax: number; net: number };
 export type WorkplaceBrief = { id: number; name: string; hue: number; css: string; is_default: boolean };
 export type Workplace = WorkplaceBrief & {
   address: string; hourly_rate: number | null; tax_rate: number | null; in_cash: boolean; withholds: boolean;
+  // Optional: a server from before the ATO scales sends neither.
+  tax_scale?: TaxScale; study_loan?: boolean; tax_label?: string;
   paid_in: "BANK" | "CASH"; pay_cycle: "IRREGULAR" | "WEEK" | "FORTNIGHT" | "MONTH"; pay_cycle_label: string;
   hours_limit: number | null; limit_period: "WEEK" | "FORTNIGHT" | "MONTH"; limit_label: string | null;
   week_starts_on: number; fortnight_starts_on: number; fortnight_phase: "this" | "last"; fortnight_hint: string; month_starts_on: number;
@@ -239,12 +245,18 @@ export type NewShift = { workplaces: WorkplaceBrief[]; workplace: number | null;
 export type ShiftInput = { workplace: number | ""; clock_in: string; clock_out: string; note: string; breaks: { id?: number; break_start: string; break_end: string; delete?: boolean }[] };
 export type Choice<T = string | number> = { value: T; label: string; css?: string };
 export type Cycles = { week_starts_on: number; week_label: string; fortnight_starts_on: number; fortnight_phase: "this" | "last"; fortnight_hint: string; month_starts_on: number };
+export type TaxScale = "" | "TFT" | "NO_TFT" | "FOREIGN" | "WHM" | "NO_TFN" | "CUSTOM";
 export type WorkplacesPage = {
   workplaces: Workplace[]; cycles: Cycles;
-  choices: { weekdays: Choice<number>[]; phases: Choice[]; colors: Choice<number>[]; pay_cycles: Choice[]; paid_in: Choice[]; limit_periods: Choice[]; max_month_start: number };
+  choices: {
+    weekdays: Choice<number>[]; phases: Choice[]; colors: Choice<number>[]; pay_cycles: Choice[]; paid_in: Choice[]; limit_periods: Choice[]; max_month_start: number;
+    tax_scales?: Choice[]; loan_scales?: string[];
+  };
+  new_tax_scale?: TaxScale;
 };
 export type WorkplaceInput = {
   name: string; address: string; color: number | ""; pay_cycle: string; paid_in: string; hourly_rate: string; tax_rate: string;
+  tax_scale?: string; study_loan?: boolean;
   hours_limit: string; limit_period: string; week_starts_on: number; fortnight_starts_on: number; fortnight_phase: string; month_starts_on: number | string; is_default: boolean;
 };
 export type PayRun = { start: string | null; end: string | null; dates: string | null; payday: string | null; hours: number; worked: Duration; shifts: number; pay: Money | null; closed: boolean; payable: boolean };

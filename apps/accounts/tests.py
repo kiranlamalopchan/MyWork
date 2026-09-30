@@ -192,6 +192,27 @@ class FriendshipTests(TestCase):
         self.assertIn("stranger", html)
         self.assertIn("fourth", html)
 
+    def test_the_lists_fold_behind_their_counts_but_requests_do_not(self):
+        import re
+
+        Friendship.befriend(self.me, self.them)
+        FriendRequest.objects.create(from_user=self.stranger, to_user=self.me)
+
+        html = self.client.get(reverse("accounts:profile")).content.decode()
+
+        folds = re.findall(r'<details class="subfold" data-remember="([\w-]+)"( open)?>', html)
+        self.assertEqual(folds, [("friends-list", ""), ("friends-others", "")])
+        # A request waiting on you is the one thing asking for an answer.
+        received = html.index("Waiting on you")
+        self.assertLess(received, html.index('data-remember="friends-list"'))
+        self.assertNotIn("subfold", html[html.index('id="friends"'):received])
+
+    def test_a_search_opens_everyone_else_to_show_the_answer(self):
+        html = self.client.get(reverse("accounts:profile") + "?friends_q=str").content.decode()
+
+        self.assertIn('data-remember="friends-others" open>', html)
+        self.assertIn('data-remember="friends-list">', html)
+
     def test_the_old_friends_address_still_gets_you_there(self):
         resp = self.client.get(reverse("accounts:friends"))
         self.assertRedirects(resp, reverse("accounts:profile") + "#friends", fetch_redirect_response=False)

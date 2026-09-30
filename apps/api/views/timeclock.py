@@ -27,7 +27,7 @@ from apps.timeclock import payslip as payslip_reader
 from apps.timeclock import views as site
 from apps.timeclock.forms import BreakFormSet, ShiftForm, TimePreferenceForm, WorkplaceForm
 from apps.timeclock.models import (
-    MAX_MONTH_START_DAY, WORKPLACE_COLORS, LimitPeriod, PaidIn, PayCycle, Payment, Shift,
+    MAX_MONTH_START_DAY, WORKPLACE_COLORS, LimitPeriod, PaidIn, PayCycle, Payment, Shift, TaxScale,
     TimePreference, Weekday, Workplace, color_css, fortnight_runs, fortnight_start, fortnight_started_last_week,
 )
 from apps.timeclock.templatetags.timeclock_extras import decimal_hours, hm, hms, minutes
@@ -81,6 +81,9 @@ def workplace_full(w):
         "address": w.address,
         "hourly_rate": float(w.hourly_rate) if w.hourly_rate is not None else None,
         "tax_rate": float(w.tax_rate) if w.tax_rate is not None else None,
+        "tax_scale": w.tax_scale,
+        "study_loan": w.study_loan,
+        "tax_label": w.tax_label,
         "in_cash": w.in_cash,
         "withholds": w.withholds,
         "paid_in": w.paid_in,
@@ -98,7 +101,7 @@ def workplace_full(w):
         "sub": " · ".join(filter(None, [
             w.address or "No address",
             f"${float(w.hourly_rate):.2f}/hr" if w.hourly_rate else "",
-            "cash" if w.in_cash else (f"{float(w.tax_rate):g}% tax" if w.tax_rate else ""),
+            w.tax_label,
             limit or "",
         ])),
     })
@@ -619,6 +622,8 @@ def _choices():
         "colors": [{"value": hue, "label": label, "css": color_css(hue)} for hue, label in WORKPLACE_COLORS],
         "pay_cycles": [{"value": v, "label": l} for v, l in PayCycle.choices],
         "paid_in": [{"value": v, "label": l} for v, l in PaidIn.choices],
+        "tax_scales": [{"value": v, "label": l} for v, l in TaxScale.choices],
+        "loan_scales": [TaxScale.TFT, TaxScale.NO_TFT, TaxScale.FOREIGN],
         "limit_periods": [{"value": v, "label": l} for v, l in LimitPeriod.choices],
         "max_month_start": MAX_MONTH_START_DAY,
     }
@@ -630,6 +635,9 @@ class Workplaces(APIView):
             "workplaces": [workplace_full(w) for w in Workplace.objects.filter(user=request.user)],
             "cycles": cycles_json(TimePreference.for_user(request.user)),
             "choices": _choices(),
+            # What a new job's tax situation starts on — the same starting
+            # point the site's form offers (see WorkplaceForm._set_up_tax).
+            "new_tax_scale": WorkplaceForm(user=request.user).initial.get("tax_scale", ""),
         })
 
     def post(self, request):

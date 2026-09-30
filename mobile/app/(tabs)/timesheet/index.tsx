@@ -110,8 +110,8 @@ export function SummaryBlock({ summary }: { summary: Summary }) {
             {pay.cash
               ? "Cash in hand — no tax comes out, so this is what you earned."
               : !pay.withheld
-                ? "This is before tax. Add the percentage withheld on a payslip to your workplace and every figure here becomes take-home."
-                : "Estimated from your hourly rate and withholding — check it against your payslip."}
+                ? "This is before tax. Choose your tax situation on your workplace — the tax-free threshold or not, as on your TFN declaration — and every figure here becomes take-home."
+                : "Tax worked out on each pay with the ATO’s 2026–27 withholding formulas — check it against your payslip."}
           </Text>
           </View>
         </Card>

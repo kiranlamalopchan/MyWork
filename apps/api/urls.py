@@ -29,6 +29,7 @@ urlpatterns = [
     path("notices/", board.Notices.as_view(), name="notices"),
     path("notices/<int:pk>/", board.NoticeDetail.as_view(), name="notice"),
     path("notices/<int:pk>/react/", board.NoticeReact.as_view(), name="notice_react"),
+    path("notices/<int:pk>/pin/", board.NoticePin.as_view(), name="notice_pin"),
     path("notices/<int:pk>/reactions/", board.NoticeReactors.as_view(), name="notice_reactors"),
     path("notices/<int:pk>/comments/", board.Comments.as_view(), name="comments"),
     path("comments/<int:pk>/", board.CommentDetail.as_view(), name="comment"),

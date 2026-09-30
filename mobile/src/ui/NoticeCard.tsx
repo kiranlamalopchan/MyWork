@@ -18,12 +18,12 @@ import { useSession } from "@/auth/session";
 
 import { Avatar } from "./Avatar";
 import { AdminBadge } from "./AdminBadge";
-import { confirm } from "./confirm";
+import { confirm, notify } from "./confirm";
 import { Card, reactionInk, Tally } from "./index";
 import { useReveal } from "./keyboard";
 import { ReactionSheet, type Anchor } from "./ReactionPicker";
 import { ReportSheet, type ReportTarget } from "./ReportSheet";
-import { hsl, radius, sp, useTheme } from "./theme";
+import { alpha, hsl, radius, sp, useTheme } from "./theme";
 import { success, tap, tick } from "./haptics";
 import { VisibilityBadge, VisibilityToggle } from "./VisibilityPicker";
 
@@ -79,6 +79,22 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
     try { await board.edit(notice.id, draft.trim(), draftVis); success(); setEditing(false); changed(notice.id); } finally { setBusy(false); }
   };
   const remove = () => confirm("Remove this notice?", "Everyone loses sight of it.", "Remove", async () => { await board.remove(notice.id); changed(notice.id); });
+  // Admins: hold it at the top of the board, or let it go. Kept here as well
+  // as on the notice so the card says so at once, before the board has been
+  // asked again and moved it.
+  const [pinnedNow, setPinnedNow] = useState<boolean | null>(null);
+  const pinned = pinnedNow ?? !!notice.pinned;
+  const togglePin = async () => {
+    const next = !pinned;
+    try {
+      await (next ? board.pin(notice.id) : board.unpin(notice.id));
+      setPinnedNow(next);
+      success();
+      changed(notice.id);
+    } catch (e: any) {
+      notify(next ? "Couldn't pin it" : "Couldn't unpin it", e?.message || "");
+    }
+  };
   // Somebody else's: flag it, or stop hearing from them altogether.
   const report = () => setReporting({ kind: "notice", id: notice.id, username: notice.author.username, excerpt: notice.body });
   const block = () => confirm(`Block ${notice.author.username}?`, "Neither of you will see the other's posts, comments or stories, and any friendship ends.", "Block", async () => {
@@ -102,7 +118,15 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
   const comment = full ? () => sayRef.current?.focus() : open;
 
   return (
-    <Card pad={false} testID={`notice-${notice.id}`} style={styles.notice}>
+    <Card pad={false} testID={`notice-${notice.id}`} style={[styles.notice, pinned && { borderWidth: 1.5, borderColor: alpha(t.brand, 0.55) }]}>
+      {/* Held at the top by an admin: said in words, so nobody wonders why
+          last week's notice is first. */}
+      {pinned ? (
+        <View style={styles.pinnedRow} testID={`notice-pinned-${notice.id}`}>
+          <Ionicons name="pin" size={13} color={t.brand} />
+          <Text style={[styles.pinnedText, { color: t.brand }]}>Pinned</Text>
+        </View>
+      ) : null}
       {/* The author line: face, name and when, and the ⋯ (yours) or the new dot (theirs). */}
       <View style={styles.head}>
         <Pressable onPress={() => router.push(`/people/${notice.author.username}`)} style={styles.author}>
@@ -133,6 +157,16 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
             <Modal transparent visible={menuOpen} animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={closeMenu}>
               <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} accessibilityLabel="Close menu" />
               <View style={[styles.menu, menuAt, { backgroundColor: t.surface, borderColor: t.dark ? t.lineStrong : "transparent" }, menuShadow(t.dark)]}>
+                {/* Admins only, first in the menu: the server says who may. */}
+                {notice.can_pin ? (
+                  <>
+                    <Pressable onPress={() => { closeMenu(); togglePin(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-pin-${notice.id}`}>
+                      <Ionicons name={pinned ? "pin-outline" : "pin"} size={18} color={t.brand} />
+                      <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>{pinned ? "Unpin" : "Pin to the top"}</Text>
+                    </Pressable>
+                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
+                  </>
+                ) : null}
                 {mine ? (
                   <>
                     <Pressable onPress={() => { closeMenu(); setEditing(true); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-edit-${notice.id}`}>
@@ -423,6 +457,8 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
 const styles = StyleSheet.create({
   notice: { borderRadius: radius.xl, paddingHorizontal: sp[4], paddingVertical: sp[4], gap: sp[3] },
   head: { flexDirection: "row", alignItems: "center", gap: sp[2] },
+  pinnedRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: -sp[1] },
+  pinnedText: { fontSize: 12, fontWeight: "700", letterSpacing: 0.3 },
   author: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: sp[3] },
   nameRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   who: { fontSize: 15.5, fontWeight: "700", letterSpacing: -0.2, flexShrink: 1 },

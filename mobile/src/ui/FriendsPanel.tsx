@@ -3,6 +3,10 @@
  * "Friends only" posts and comments reach, right on the profile rather than
  * behind a screen of its own — search, requests and your list, all part of
  * the one page that already answers everything else about you.
+ *
+ * Only the requests waiting on you are always open, being the one thing
+ * here that asks for an answer; the other lists fold behind their counts
+ * (SubFold), so a long list of everyone is not the price of opening it.
  */
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -17,7 +21,7 @@ import { Button, Empty, ErrorBanner, Input, SectionLabel } from "./index";
 import { SkeletonFriends } from "./Skeleton";
 import type { PanelProps } from "./ProfilePanels";
 import { notify } from "./confirm";
-import { success } from "./haptics";
+import { success, tick } from "./haptics";
 import { radius, sp, useTheme } from "./theme";
 
 export function FriendsPanel({ open, onToggle, last }: PanelProps) {
@@ -33,6 +37,8 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
   const changed = useFriendsChanged();
   const data = query.data;
   const [busy, setBusy] = useState<string | null>(null);
+  const [shown, setShown] = useState({ sent: false, friends: false, others: false });
+  const flip = (k: keyof typeof shown) => setShown((v) => ({ ...v, [k]: !v[k] }));
 
   const guard = async (key: string, run: () => Promise<unknown>) => {
     setBusy(key);
@@ -86,8 +92,7 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
       ) : null}
 
       {data?.sent.length ? (
-        <View style={{ gap: sp[2] }}>
-          <SectionLabel>Waiting on them</SectionLabel>
+        <SubFold title="Waiting on them" count={data.sent.length} open={shown.sent} onToggle={() => flip("sent")} testID="friends-sent">
           <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
             {data.sent.map((r, i) => (
               <Row key={r.id} person={r.person} sub="Request sent" last={i === data.sent.length - 1}
@@ -95,12 +100,11 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
               />
             ))}
           </View>
-        </View>
+        </SubFold>
       ) : null}
 
       {data ? (
-        <View style={{ gap: sp[2] }}>
-          <SectionLabel>Your friends</SectionLabel>
+        <SubFold title="Your friends" count={data.friends.length} open={shown.friends} onToggle={() => flip("friends")} testID="friends-list">
           {data.friends.length ? (
             <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
               {data.friends.map((p, i) => (
@@ -115,13 +119,12 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
               ))}
             </View>
           ) : (
-            <Empty icon="people-outline" title="No friends yet" sub="Add people below — once you're friends, Friends only posts reach them." card={false} />
+            <Empty icon="people-outline" title="No friends yet" sub="Add people from Everyone else — once you're friends, Friends only posts reach them." card={false} />
           )}
-        </View>
+        </SubFold>
       ) : null}
 
-      <View style={{ gap: sp[2] }}>
-        <SectionLabel>Everyone else</SectionLabel>
+      <SubFold title="Everyone else" count={q ? undefined : data?.others.length} open={shown.others} onToggle={() => flip("others")} testID="friends-others">
         <Input placeholder="Search by username" value={typed} onChangeText={setTyped} autoCapitalize="none" testID="friends-search" />
         {data && data.others.length ? (
           <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
@@ -135,8 +138,40 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
         ) : data ? (
           <Empty icon="search-outline" title={q ? `No one matches "${q}"` : "That's everyone"} card={false} />
         ) : null}
-      </View>
+      </SubFold>
     </Disclosure>
+  );
+}
+
+/**
+ * One list inside the panel, folded behind its label and a count. The
+ * panel's own fold measures what it holds, so opening one of these grows
+ * the panel with it.
+ */
+function SubFold({ title, count, open, onToggle, children, testID }: {
+  title: string; count?: number; open: boolean; onToggle: () => void; children: React.ReactNode; testID?: string;
+}) {
+  const t = useTheme();
+  return (
+    <View style={{ gap: sp[2] }} testID={testID}>
+      <Pressable
+        onPress={() => { tick(); onToggle(); }}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={count === undefined ? title : `${title}, ${count}`}
+        hitSlop={4}
+        style={({ pressed }) => [styles.foldHead, { opacity: pressed ? 0.6 : 1 }]}
+      >
+        <SectionLabel>{title}</SectionLabel>
+        {count !== undefined ? (
+          <View style={[styles.count, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
+            <Text style={{ color: t.text2, fontSize: 12, fontWeight: "600" }}>{count}</Text>
+          </View>
+        ) : null}
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={t.muted} style={{ marginLeft: "auto" }} />
+      </Pressable>
+      {open ? children : null}
+    </View>
   );
 }
 
@@ -160,5 +195,7 @@ function Row({ person, sub, right, last, onPress }: { person: Person; sub?: stri
 
 const styles = StyleSheet.create({
   list: { borderRadius: radius.md, overflow: "hidden" },
+  foldHead: { flexDirection: "row", alignItems: "center", gap: sp[2], minHeight: 36 },
+  count: { minWidth: 22, height: 20, paddingHorizontal: 7, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingHorizontal: sp[3], paddingVertical: sp[3] },
 });

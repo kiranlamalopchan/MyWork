@@ -152,6 +152,12 @@
   you. `#friends` is what the tally above jumps to, and what a friend
   request notification now opens straight onto — landOnHash (app.js) opens
   this fold for either, the same way it opens Statement and Activity.
+
+  Inside it, only the requests waiting on you are always open: they are the
+  one thing here asking for an answer. The rest fold behind their counts, so
+  a long list of everyone on KaamKoRecord is not the price of opening your
+  friends — and app.js (initFolds) remembers which were open, so adding or
+  removing somebody lands back on the list it was done in.
 {% endcomment %}
 <details class="panel" id="friends">
   <summary class="panel__head">
@@ -195,8 +201,13 @@
     {% endif %}
 
     {% if friends_sent %}
-      <p class="section-label" style="margin-bottom: var(--sp-2)">Waiting on them</p>
-      <ul class="result-list" style="margin-bottom: var(--sp-4)">
+      <details class="subfold" data-remember="friends-sent">
+      <summary class="subfold__head">
+        <span class="section-label">Waiting on them</span>
+        <span class="subfold__count">{{ friends_sent|length }}</span>
+        {% icon "chev-down" class="subfold__chev" width="2.2" %}
+      </summary>
+      <ul class="result-list subfold__body">
         {% for req in friends_sent %}
           <li>
             <div class="friend-row">
@@ -216,11 +227,17 @@
           </li>
         {% endfor %}
       </ul>
+      </details>
     {% endif %}
 
-    <p class="section-label" style="margin-bottom: var(--sp-2)">Your friends</p>
+    <details class="subfold" data-remember="friends-list">
+    <summary class="subfold__head">
+      <span class="section-label">Your friends</span>
+      <span class="subfold__count">{{ friend_list|length }}</span>
+      {% icon "chev-down" class="subfold__chev" width="2.2" %}
+    </summary>
     {% if friend_list %}
-      <ul class="result-list" style="margin-bottom: var(--sp-4)">
+      <ul class="result-list subfold__body">
         {% for person in friend_list %}
           <li>
             <div class="friend-row">
@@ -244,14 +261,22 @@
         {% endfor %}
       </ul>
     {% else %}
-      <div class="empty" style="margin-bottom: var(--sp-4)">
+      <div class="empty subfold__body">
         <div class="empty__icon">{% icon "people" width="1.8" %}</div>
         <div class="empty__title">No friends yet</div>
-        <div class="empty__sub">Add people below — once you're friends, "Friends only" posts reach them.</div>
+        <div class="empty__sub">Add people from Everyone else — once you're friends, "Friends only" posts reach them.</div>
       </div>
     {% endif %}
+    </details>
 
-    <p class="section-label" style="margin-bottom: var(--sp-2)">Everyone else</p>
+    {# Open by itself when there is a search to show the answer to. #}
+    <details class="subfold" data-remember="friends-others"{% if friends_query %} open{% endif %}>
+    <summary class="subfold__head">
+      <span class="section-label">Everyone else</span>
+      {% if not friends_query %}<span class="subfold__count">{{ friends_others|length }}</span>{% endif %}
+      {% icon "chev-down" class="subfold__chev" width="2.2" %}
+    </summary>
+    <div class="subfold__body">
 
     {% if friends_show_search %}
       <form method="get" action="{% url 'accounts:profile' %}#friends" style="margin-bottom: var(--sp-3)">
@@ -291,6 +316,8 @@
         </div>
       </div>
     {% endif %}
+    </div>
+    </details>
   </div>
 </details>
 

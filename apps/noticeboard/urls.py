@@ -24,6 +24,8 @@ urlpatterns = [
     path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
     path("<int:pk>/edit/", views.notice_edit, name="edit"),
     path("<int:pk>/delete/", views.notice_delete, name="delete"),
+    # Held at the top of the board — admins only.
+    path("<int:pk>/pin/", views.notice_pin, name="pin"),
     # Who wrote it. Every name on the board leads here.
     path("people/<str:username>/", views.person, name="person"),
 ]

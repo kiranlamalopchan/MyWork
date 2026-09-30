@@ -46,6 +46,8 @@ from .models import (
     fortnight_start,
     month_start,
     next_month_start,
+    pay_total,
+    price_shifts,
     week_start,
 )
 
@@ -190,9 +192,13 @@ def _period_figures(user, start_date, end_date_exclusive, workplace=None):
     withheld = False
     all_cash = True
 
-    for shift in qs:
+    shifts = list(qs)
+    # Each taxed inside its own pay period, which may run past either end of
+    # this range — see price_shifts.
+    prices = price_shifts(shifts)
+    for shift in shifts:
         worked += shift.worked_duration
-        pay = shift.pay
+        pay = prices.get(shift.pk)
         if pay is None:
             continue
         priced = True
@@ -268,7 +274,7 @@ def _run(workplace, shifts, start=None, end=None, closed=False):
         "worked": worked,
         "hours": hours,
         "shifts": len(shifts),
-        "pay": workplace.pay_for(hours) if hours else None,
+        "pay": pay_total(shifts) if hours else None,
         "closed": closed,
         "payable": closed or (payday is not None and payday <= timezone.localdate()),
     }
@@ -298,7 +304,7 @@ def _pay_state(workplace):
         "since": workplace.paid_through,
         "worked": worked,
         "shifts": len(shifts),
-        "owed_pay": workplace.pay_for(hours) if hours else None,
+        "owed_pay": pay_total(shifts) if hours else None,
         # The oldest unpaid day: the date box accepts nothing before it,
         # since there is nothing before it left to settle.
         "earliest": min(
@@ -1847,6 +1853,8 @@ def statement(request):
     worked = timedelta()
     totals = {}
     estimated = False
+    shifts = list(shifts)
+    prices = price_shifts(shifts)
 
     for shift in shifts:
         worked += shift.worked_duration
@@ -1879,7 +1887,7 @@ def statement(request):
             "priced": False, "withholds": False,
         })
         bucket["worked"] += shift.worked_duration
-        if (pay := shift.pay) is not None:
+        if (pay := prices.get(shift.pk)) is not None:
             estimated = True
             bucket["priced"] = True
             # $0.00 withheld and "nobody has told us what is withheld" are

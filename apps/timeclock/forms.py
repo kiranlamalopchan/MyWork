@@ -10,7 +10,7 @@ from django.utils.safestring import mark_safe
 
 from .models import (
     DEFAULT_FORTNIGHT_START, MAX_MONTH_START_DAY, Break, PaidIn, Shift,
-    TimePreference, Weekday, Workplace, fortnight_anchor_for, fortnight_runs,
+    TaxScale, TimePreference, Weekday, Workplace, fortnight_anchor_for, fortnight_runs,
     fortnight_start, fortnight_started_last_week,
 )
 
@@ -101,7 +101,8 @@ class WorkplaceForm(FortnightFields, forms.ModelForm):
         # The fortnight is asked for as a weekday and a this-week-or-last
         # (FortnightFields), not as the date the model keeps.
         fields = [
-            "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate", "tax_rate",
+            "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate",
+            "tax_scale", "study_loan", "tax_rate",
             "hours_limit", "limit_period",
             "week_starts_on", "month_starts_on",
             "is_default",
@@ -113,7 +114,9 @@ class WorkplaceForm(FortnightFields, forms.ModelForm):
             "pay_cycle": "How this job pays",
             "paid_in": "How you're paid",
             "hourly_rate": "Hourly rate (optional)",
-            "tax_rate": "Tax withheld % (optional)",
+            "tax_scale": "Your tax situation here",
+            "study_loan": "I have a HELP or other study loan",
+            "tax_rate": "Tax withheld %",
             "hours_limit": "Hours limit here (optional)",
             "limit_period": "Applies",
             "week_starts_on": "Week starts on",
@@ -149,7 +152,12 @@ class WorkplaceForm(FortnightFields, forms.ModelForm):
                 "Cash in hand has no tax to take off, so the withholding "
                 "below drops away and every figure is simply what you earned."
             ),
-            "tax_rate": "From a payslip: tax withheld ÷ gross × 100. Leave blank to show pay before tax.",
+            "tax_scale": (
+                "What you ticked on this job's TFN declaration. Tax is then "
+                "worked out the ATO's way, on each pay. Claim the tax-free "
+                "threshold from one job only."
+            ),
+            "tax_rate": "From a payslip: tax withheld ÷ gross × 100.",
             "hours_limit": "Counted against this workplace only. Leave blank for no limit.",
             "week_starts_on": "Used for a weekly limit, and for this job's week totals.",
             "month_starts_on": f"1–{MAX_MONTH_START_DAY}. Use the day your pay month opens.",
@@ -174,11 +182,32 @@ class WorkplaceForm(FortnightFields, forms.ModelForm):
         # Asked for in the order the cap is: which period, then where each
         # period starts — the fortnight's two answers beside the week's one.
         self.order_fields([
-            "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate", "tax_rate",
+            "name", "address", "color", "pay_cycle", "paid_in", "hourly_rate",
+            "tax_scale", "study_loan", "tax_rate",
             "hours_limit", "limit_period",
             "week_starts_on", "fortnight_starts_on", "fortnight_phase", "month_starts_on",
             "is_default",
         ])
+        self._set_up_tax()
+
+    def _set_up_tax(self):
+        """
+        The tax question, asked the way the TFN declaration asks it.
+
+        A new job starts on the answer most people give: the tax-free
+        threshold, claimed here — unless another job of theirs already
+        claims it, in which case this one is the second job the ATO says
+        takes every dollar. It is a starting point on screen, not a guess
+        kept quietly: the form shows it, and they change it.
+        """
+        field = self.fields["tax_scale"]
+        field.required = False
+        field.choices = [("", "Not set — show pay before tax")] + list(TaxScale.choices)
+        if not self.instance.pk and not self.is_bound and self.user is not None:
+            claimed = Workplace.objects.filter(
+                user=self.user, tax_scale=TaxScale.TFT
+            ).exclude(paid_in=PaidIn.CASH).exists()
+            self.initial.setdefault("tax_scale", TaxScale.NO_TFT if claimed else TaxScale.TFT)
 
     def clean_pay_cycle(self):
         return self.cleaned_data.get("pay_cycle") or self.instance.pay_cycle
@@ -195,10 +224,46 @@ class WorkplaceForm(FortnightFields, forms.ModelForm):
         left on the row to reappear if the job is switched back.
         """
         cleaned = super().clean()
+        self._clean_tax(cleaned)
         if cleaned.get("paid_in") == PaidIn.CASH:
             cleaned["tax_rate"] = None
         self._resolve_fortnight(cleaned)
         return cleaned
+
+    def _clean_tax(self, cleaned):
+        """
+        Keep the scale, the loan and the percentage agreeing with each other.
+
+        An app from before scales sends only a percentage: that is the
+        percentage way, and a form that never mentioned the scale or the
+        loan leaves both as they were rather than wiping them. A percentage
+        is only kept when it is the chosen way, so switching to a scale
+        cannot leave an old number behind to come back later.
+        """
+        if self.is_bound and "tax_scale" not in self.data:
+            # An older app: a percentage typed into it means that
+            # percentage; left empty, the job keeps whatever it was set to
+            # elsewhere, loan and all. (A web form always sends the scale —
+            # it is an unticked checkbox that goes missing, not a select.)
+            if cleaned.get("tax_rate") is not None:
+                cleaned["tax_scale"] = TaxScale.CUSTOM
+            elif self.instance.by_percentage:
+                # Its percentage emptied: back to not set, as it always was.
+                cleaned["tax_scale"] = ""
+            else:
+                cleaned["tax_scale"] = self.instance.tax_scale
+                cleaned["study_loan"] = self.instance.study_loan
+
+        scale = cleaned.get("tax_scale")
+        if scale == TaxScale.CUSTOM:
+            if cleaned.get("tax_rate") is None and cleaned.get("paid_in") != PaidIn.CASH:
+                self.add_error("tax_rate", "Enter the percentage off a payslip, or choose your tax situation instead.")
+        else:
+            cleaned["tax_rate"] = None
+        if scale not in (TaxScale.TFT, TaxScale.NO_TFT, TaxScale.FOREIGN):
+            # Schedule 8 leaves the loan out for a working holiday maker and
+            # for no TFN; for a percentage it is already in the number.
+            cleaned["study_loan"] = False
 
     def clean_color(self):
         """Blank keeps what this workplace already has; a new one is dealt a

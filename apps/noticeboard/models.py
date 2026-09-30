@@ -263,6 +263,9 @@ class Notice(Social, models.Model):
     # Off the board pending review — set by enough reports (apps.moderation)
     # or by hand in the admin. The author still sees their own.
     hidden = models.BooleanField(default=False)
+    # Held at the top of the board by an admin — when, so that among the
+    # pinned the most recently pinned leads. Empty for everything else.
+    pinned_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -272,6 +275,59 @@ class Notice(Social, models.Model):
 
     def __str__(self):
         return f"{self.author}: {self.body[:40]}"
+
+    def save(self, *args, **kwargs):
+        # Pinned means "everyone, read this". A notice its author has since
+        # narrowed to friends or to themselves no longer says that to anyone
+        # an admin meant it for, so narrowing it lets go of the pin.
+        if self.visibility != Visibility.PUBLIC:
+            self.pinned_at = None
+        super().save(*args, **kwargs)
+
+    # ---- pinned to the top ---------------------------------------------------
+    #
+    # An admin's way of keeping one notice where everybody sees it first — a
+    # roster change, the fridge rules — however much is posted after it.
+    # Only a public notice can be pinned: it is a message to the whole room,
+    # and pinning something only its author's friends can read would hold a
+    # space at the top that most people could not see into.
+
+    @property
+    def is_pinned(self):
+        return self.pinned_at is not None
+
+    @property
+    def can_be_pinned(self):
+        return self.visibility == Visibility.PUBLIC and not self.hidden
+
+    @staticmethod
+    def may_pin(user):
+        """Whether `user` may pin and unpin — admins only."""
+        return bool(user and getattr(user, "is_authenticated", False) and user.is_staff)
+
+    def pin(self):
+        """
+        Hold it at the top. An update rather than a save, on purpose: saving
+        would move `updated_at`, and the card would start saying "edited" about
+        a notice nobody changed a word of.
+        """
+        self.pinned_at = timezone.now()
+        type(self).objects.filter(pk=self.pk).update(pinned_at=self.pinned_at)
+
+    def unpin(self):
+        self.pinned_at = None
+        type(self).objects.filter(pk=self.pk).update(pinned_at=None)
+
+    @classmethod
+    def board_order(cls, queryset):
+        """
+        The board's order: pinned first, the most recently pinned leading,
+        then everything else newest first. Applied wherever the board is read
+        — the hub, the full board, the app — so a pin is a pin everywhere.
+        """
+        return queryset.order_by(
+            models.F("pinned_at").desc(nulls_last=True), "-created_at"
+        )
 
     @classmethod
     def visible(cls, viewer=None, friend_ids=None):
@@ -293,7 +349,7 @@ class Notice(Social, models.Model):
         the same `friend_ids` — filtering the prefetch itself would need a
         second query per notice instead of the one this already shares.
         """
-        return cls.objects.filter(cls.visibility_q(viewer, friend_ids)).select_related(
+        return cls.board_order(cls.objects.filter(cls.visibility_q(viewer, friend_ids))).select_related(
             "author", "author__profile"
         ).prefetch_related(
             "reactions__user",

@@ -56,7 +56,7 @@ export default function DeleteAccount() {
             </View>
           ))}
           <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>
-            Where you commented on someone else's notice, they keep the notification they were sent at the time — with no name on it. Nothing else of yours remains.
+            Where you commented on someone else's notice, they keep the notification they were sent at the time — with no name on it — until it's cleared after 30 days. Nothing else of yours remains.
           </Text>
         </Card>
         <Card style={{ gap: sp[4] }}>

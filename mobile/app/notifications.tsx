@@ -73,6 +73,9 @@ export default function Inbox() {
             {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
           </>
         }
+        ListFooterComponent={rows.length && !q.hasNextPage ? (
+          <Text style={[styles.kept, { color: t.muted }]}>Notifications are cleared after 30 days.</Text>
+        ) : null}
         ListEmptyComponent={q.isLoading ? <SkeletonNotifications /> : (
           <View style={{ marginTop: sp[3] }}>
             <Empty
@@ -139,6 +142,7 @@ export default function Inbox() {
 
 const styles = StyleSheet.create({
   day: { marginBottom: sp[3], paddingHorizontal: 2 },
+  kept: { marginTop: sp[4], textAlign: "center", fontSize: 13 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: sp[3], padding: sp[4] },
   mark: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   kind: { position: "absolute", right: -3, bottom: -3, width: 19, height: 19, borderRadius: 10, alignItems: "center", justifyContent: "center" },

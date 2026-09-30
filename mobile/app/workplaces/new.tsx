@@ -21,6 +21,7 @@ export default function NewWorkplace() {
           <WorkplaceForm
             choices={q.data.choices}
             cycles={q.data.cycles}
+            newTaxScale={q.data.new_tax_scale}
             onSave={async (input) => { await timesheet.addWorkplace(input); changed(); router.canGoBack() ? router.back() : router.replace("/workplaces"); }}
             onCancel={goBack}
           />

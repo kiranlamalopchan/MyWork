@@ -11,4 +11,4 @@ and a number that changed on every deploy would say nothing a date does
 not. The app's build number comes from the binary, where EAS put it.
 """
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"

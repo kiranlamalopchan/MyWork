@@ -8,7 +8,7 @@ total that was built from it — there are no stale cached numbers to go stale.
 """
 
 import uuid
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import NamedTuple
 
@@ -18,6 +18,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+
+from . import paygw
 
 
 class Weekday(models.IntegerChoices):
@@ -131,6 +133,26 @@ class PaidIn(models.TextChoices):
 
     BANK = "BANK", "Into my account, with tax taken out"
     CASH = "CASH", "Cash in hand"
+
+
+class TaxScale(models.TextChoices):
+    """
+    What you told this employer on your TFN declaration — which is what
+    decides, under the ATO's schedules, how much they take out.
+
+    Per employer, because it is per employer: the tax-free threshold is
+    claimed from one payer only, and a second job taxes every dollar. The
+    first five are worked out from the ATO's own formulas (see paygw.py);
+    the last is the old way, a percentage read off a payslip, for anyone
+    whose case the formulas here leave out.
+    """
+
+    TFT = paygw.TFT, "Tax-free threshold claimed"
+    NO_TFT = paygw.NO_TFT, "No tax-free threshold (2nd job)"
+    FOREIGN = paygw.FOREIGN, "Foreign resident"
+    WHM = paygw.WHM, "Working holiday maker (417/462)"
+    NO_TFN = paygw.NO_TFN, "No TFN given"
+    CUSTOM = "CUSTOM", "My own % from a payslip"
 
 
 class PayCycle(models.TextChoices):
@@ -277,11 +299,21 @@ class Workplace(models.Model):
     # tax-free threshold at one job and not at the other is withheld at two
     # different rates, and averaging them would be wrong at both.
     #
-    # A percentage rather than a tax table: the real PAYG scales are
-    # progressive, change every year and differ by what you claimed on your
-    # TFN declaration, so a figure read straight off your own payslip is both
-    # simpler and closer to the truth than a table this app tried to keep up
-    # to date. It is an estimate either way, and it is labelled as one.
+    # How much is withheld follows the ATO's PAYG schedules, which turn on
+    # what you declared to this employer — see TaxScale. Blank is "not told
+    # us yet": pay is then shown before tax, and the screens ask.
+    tax_scale = models.CharField(
+        max_length=8, choices=TaxScale.choices, blank=True, default="",
+        verbose_name="Your tax situation here",
+    )
+    # A HELP, VET, SSL or apprenticeship loan: Schedule 8 adds a repayment
+    # on top once the pay is high enough. Declared per employer, like the
+    # threshold.
+    study_loan = models.BooleanField(
+        default=False, verbose_name="I have a HELP or other study loan",
+    )
+    # Only read for TaxScale.CUSTOM — or for a job saved before there were
+    # scales, which is what a percentage with no scale beside it means.
     tax_rate = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -457,6 +489,11 @@ class Workplace(models.Model):
         return self.paid_in == PaidIn.CASH
 
     @property
+    def by_percentage(self):
+        """Tax as a flat share of pay, rather than by the ATO's scales."""
+        return self.tax_scale == TaxScale.CUSTOM or (not self.tax_scale and self.tax_rate is not None)
+
+    @property
     def withholds(self):
         """
         Whether this job's tax is known, as opposed to simply not set.
@@ -465,21 +502,98 @@ class Workplace(models.Model):
         has told us yet", and the screens say so differently — one is a fact
         about the job, the other is a setting still to fill in.
         """
-        return not self.in_cash and self.tax_rate is not None
+        if self.in_cash:
+            return False
+        if self.by_percentage:
+            return self.tax_rate is not None
+        return bool(self.tax_scale)
 
-    def pay_for(self, hours):
+    @property
+    def tax_label(self):
+        """A few words for the line under the job's name: how it is taxed."""
+        if self.in_cash:
+            return "cash"
+        if self.by_percentage:
+            return f"{float(self.tax_rate):g}% tax" if self.tax_rate else ""
+        short = {
+            TaxScale.TFT: "tax-free threshold",
+            TaxScale.NO_TFT: "no tax-free threshold",
+            TaxScale.FOREIGN: "foreign resident",
+            TaxScale.WHM: "working holiday",
+            TaxScale.NO_TFN: "no TFN",
+        }.get(self.tax_scale, "")
+        if short and self.study_loan and self.tax_scale in (TaxScale.TFT, TaxScale.NO_TFT, TaxScale.FOREIGN):
+            short += " + HELP"
+        return short
+
+    def tax_period(self, day):
         """
-        What `hours` here comes to. None when there is no rate to price it
-        with — a job with no rate has no pay to show, which is not the same
-        as a job that paid nothing.
+        The pay period `day`'s work is taxed in, and its length in the
+        schedule's terms: ((start, end), WEEK | FORTNIGHT | MONTH).
+
+        On a cycle it is the pay run itself — withholding is worked out on
+        each pay, and a fortnight's pay is taxed as a fortnight. A job that
+        pays whenever it likes is taxed a week at a time, from the day its
+        week starts: the schedules have no "whenever", and a payment covering
+        three weeks is withheld as three weeks' pay, not one huge week.
+        """
+        if self.pays_on_a_cycle:
+            return self.pay_window(day), self.pay_cycle
+        start = week_start(day, self.week_starts_on)
+        return (start, start + timedelta(days=7)), PayCycle.WEEK
+
+    def shifts_between(self, start, end):
+        """This job's shifts that clocked in on local dates [start, end)."""
+        tz = timezone.get_current_timezone()
+        return self.shifts.filter(
+            clock_in__gte=timezone.make_aware(datetime.combine(start, time.min), tz),
+            clock_in__lt=timezone.make_aware(datetime.combine(end, time.min), tz),
+        ).prefetch_related("breaks").order_by("clock_in", "pk")
+
+    def gross_for(self, hours):
+        return round(float(self.hourly_rate) * hours, 2)
+
+    def withholding(self, gross, period, start):
+        """
+        What comes out of one pay of `gross` for the period opening `start`.
+
+        By the ATO's formulas for the scale this job was declared under; by
+        the job's own percentage for CUSTOM; nothing for cash or while the
+        scale is still unset (and `withholds` says which of those it is).
+        """
+        if self.in_cash or gross <= 0:
+            return 0.0
+        if self.by_percentage:
+            return round(gross * float(self.tax_rate or 0) / 100, 2)
+        if not self.tax_scale:
+            return 0.0
+        paid = 0
+        if self.tax_scale == TaxScale.WHM:
+            # Schedule 15's rate steps up with what this employer has already
+            # paid since 1 July.
+            year_start = paygw.financial_year_start(start)
+            paid = sum(
+                self.gross_for(s.worked_duration.total_seconds() / 3600)
+                for s in self.shifts_between(year_start, start)
+            )
+        return float(paygw.withhold(
+            gross, period, self.tax_scale, study_loan=self.study_loan,
+            paid_this_year=paid, on=start,
+        ))
+
+    def pay_for(self, hours, period=PayCycle.WEEK, start=None):
+        """
+        What `hours` here comes to, taken as one whole pay for `period`.
+        None when there is no rate to price it with — a job with no rate has
+        no pay to show, which is not the same as a job that paid nothing.
+
+        For shifts already on the books, `price_shifts` is the one to use: it
+        finds each shift's real pay period and taxes that.
         """
         if self.hourly_rate is None:
             return None
-        gross = round(float(self.hourly_rate) * hours, 2)
-        # Cash in hand: what you are handed is what you earned. No rate is
-        # applied even if one was saved before the job was marked cash.
-        rate = 0 if self.in_cash else float(self.tax_rate or 0)
-        tax = round(gross * rate / 100, 2)
+        gross = self.gross_for(hours)
+        tax = self.withholding(gross, period, start or timezone.localdate())
         return Pay(gross, tax, round(gross - tax, 2))
 
     def limit_window(self, day=None):
@@ -668,7 +782,7 @@ class Shift(models.Model):
         """This shift's gross, tax and take-home, or None if it has no rate."""
         if not self.workplace:
             return None
-        return self.workplace.pay_for(self.worked_duration.total_seconds() / 3600)
+        return price_shifts([self]).get(self.pk)
 
     @property
     def estimated_pay(self):
@@ -751,6 +865,65 @@ class Shift(models.Model):
         # own validation leaves it off the instance, and this runs anyway.
         if self.clock_in and self.clock_out and self.clock_out <= self.clock_in:
             raise ValidationError({"clock_out": "Clock-out has to be after clock-in."})
+
+
+def price_shifts(shifts):
+    """
+    {shift.pk: Pay} for each of `shifts` whose job has a rate.
+
+    PAYG is withheld from a pay, not from a shift: a fortnight's $1,400 is
+    taxed as $1,400, and ten shifts of $140 taxed one by one would each fall
+    under the tax-free threshold and come to nothing. So each shift is
+    priced inside the whole pay period it belongs to (Workplace.tax_period),
+    every shift in that period counted, and handed its share of the
+    period's tax in proportion to what it earned.
+
+    The shares are cut on a running total, so the shifts of one period add
+    up to the period's tax to the cent — a pay run shows exactly what the
+    payslip withholds — and any part of it, a week of a fortnight, gets its
+    fair part. One query per job per period, not per shift.
+    """
+    groups = {}
+    for shift in shifts:
+        place = shift.workplace
+        if place is None or place.hourly_rate is None:
+            continue
+        window, period = place.tax_period(timezone.localtime(shift.clock_in).date())
+        groups.setdefault((place.pk, window), (place, period, []))[2].append(shift)
+
+    priced = {}
+    for (_, window), (place, period, mine) in groups.items():
+        everyone = list(place.shifts_between(*window))
+        # A shift asked about that the period query did not return (clocked
+        # in on the edge of a day in another zone) still counts.
+        known = {s.pk for s in everyone}
+        everyone += [s for s in mine if s.pk not in known]
+
+        earned = [(s.pk, place.gross_for(s.worked_duration.total_seconds() / 3600)) for s in everyone]
+        total = round(sum(g for _, g in earned), 2)
+        tax = place.withholding(total, period, window[0])
+
+        running = cut = 0.0
+        shares = {}
+        for pk, gross in earned:
+            running += gross
+            upto = round(tax * running / total, 2) if total else 0.0
+            shares[pk] = (gross, round(upto - cut, 2))
+            cut = upto
+        for shift in mine:
+            gross, share = shares[shift.pk]
+            priced[shift.pk] = Pay(gross, share, round(gross - share, 2))
+    return priced
+
+
+def pay_total(shifts):
+    """What `shifts` come to together — Pay, or None if none has a rate."""
+    priced = price_shifts(shifts)
+    if not priced:
+        return None
+    gross = round(sum(p.gross for p in priced.values()), 2)
+    tax = round(sum(p.tax for p in priced.values()), 2)
+    return Pay(gross, tax, round(gross - tax, 2))
 
 
 class Payment(models.Model):

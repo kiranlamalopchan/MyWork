@@ -21,6 +21,8 @@ and hands this one a line of text and a URL, so a fifth app can start
 notifying without this file learning anything about it.
 """
 
+from datetime import timedelta
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -29,6 +31,14 @@ from django.utils import timezone
 # short life, not an archive: past this the oldest are dropped as new ones
 # arrive, which keeps one busy board from growing the table without end.
 KEEP_PER_PERSON = 100
+
+# And how long any of them is kept at all. The cap above only bites on a busy
+# inbox; a quiet one would otherwise hold last year's reactions for ever, and
+# across everyone that is most of what this table weighs. A month covers every
+# reason to look back — a missed reply, last fortnight's pay reminder — and
+# `prune` drops the rest, read or not, once a day (see `prune_if_due`).
+KEEP_FOR = timedelta(days=30)
+PRUNE_EVERY = timedelta(days=1)
 
 # What the bell shows before it gives up counting. Past this the number stops
 # being information and starts being wallpaper.
@@ -258,6 +268,34 @@ class Notification(models.Model):
         )
         if ids:
             cls.objects.filter(pk__in=ids).delete()
+
+    @classmethod
+    def prune(cls, older_than=KEEP_FOR):
+        """
+        Delete everything older than `older_than`, for everyone. Returns how
+        many went.
+
+        By `created_at`, which a repeat moves forward (see `raise_for`): a
+        reminder still being restated today is today's, however long ago the
+        first one was.
+        """
+        cutoff = timezone.now() - older_than
+        deleted, _ = cls.objects.filter(created_at__lt=cutoff).delete()
+        return deleted
+
+    @classmethod
+    def prune_if_due(cls):
+        """
+        `prune`, at most once a day, on whichever request finds it due.
+
+        There is no nightly job to hang it on, so it rides on the timesheet
+        reminder sweep (apps/timeclock/middleware.py) — asked only by the one
+        request in fifteen minutes that already won that, which keeps the
+        daily question off every other page load.
+        """
+        if Sweep.claim("notification-prune", PRUNE_EVERY):
+            return cls.prune()
+        return 0
 
 
 class Sweep(models.Model):

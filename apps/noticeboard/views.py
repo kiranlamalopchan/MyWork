@@ -183,11 +183,21 @@ def _page_holding(pk, user):
     # rows, and doesn't need the reactions and comments that fetches.
     visible = Notice.objects.filter(Notice.visibility_q(user))
     try:
-        notice = visible.only("created_at").get(pk=pk)
+        notice = visible.only("created_at", "pinned_at").get(pk=pk)
     except (Notice.DoesNotExist, ValueError, TypeError):
         return None
-    newer = visible.filter(created_at__gt=notice.created_at).count()
-    return newer // PER_PAGE + 1
+    # Everything the board puts above it, in the board's own order
+    # (Notice.board_order): pinned notices lead, so a pinned one is only
+    # behind those pinned after it, and an ordinary one is behind every pin
+    # as well as everything newer.
+    if notice.pinned_at:
+        ahead = visible.filter(pinned_at__gt=notice.pinned_at).count()
+    else:
+        ahead = (
+            visible.filter(pinned_at__isnull=False).count()
+            + visible.filter(pinned_at__isnull=True, created_at__gt=notice.created_at).count()
+        )
+    return ahead // PER_PAGE + 1
 
 
 @login_required
@@ -298,6 +308,34 @@ def _notice_body(request, notice):
         "notice": notice,
         "next_url": _safe_next(request, reverse("notices:board")),
     }, request)
+
+
+@require_POST
+@login_required
+def notice_pin(request, pk):
+    """
+    Pin a notice to the top of the board, or let it go — admins only.
+
+    Everyone else gets a 404, the same as for the reset-links page: an action
+    only admins may take is one only admins need to know exists. `pin` says
+    which way ("1" to pin, anything else to unpin) rather than toggling, so a
+    double tap or a resent form lands where it was meant to, not back where
+    it started.
+    """
+    if not Notice.may_pin(request.user):
+        raise Http404
+    notice = get_object_or_404(Notice.objects.filter(Notice.visibility_q(request.user)), pk=pk)
+
+    if request.POST.get("pin") == "1":
+        if not notice.can_be_pinned:
+            messages.error(request, "Only a public notice can be pinned — it is a message to everyone.")
+        else:
+            notice.pin()
+            messages.success(request, "Pinned to the top of the board.")
+    else:
+        notice.unpin()
+        messages.success(request, "Unpinned.")
+    return redirect(_back_to(request, notice))
 
 
 @require_POST

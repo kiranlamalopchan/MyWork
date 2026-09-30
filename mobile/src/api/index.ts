@@ -75,6 +75,9 @@ export const board = {
   edit: (id: number, body: string, visibility: Visibility = "public") =>
     api<Notice>(`notices/${id}/`, { method: "PATCH", body: { body, visibility } }),
   remove: (id: number) => api(`notices/${id}/`, { method: "DELETE" }),
+  /** Admins only: hold a notice at the top of the board, or let it go. */
+  pin: (id: number) => api<Notice>(`notices/${id}/pin/`, { method: "POST" }),
+  unpin: (id: number) => api<Notice>(`notices/${id}/pin/`, { method: "DELETE" }),
   react: (id: number, emoji: string) => api<ReactionTally>(`notices/${id}/react/`, { method: "POST", body: { emoji } }),
   reactors: (id: number) => api<Reactors>(`notices/${id}/reactions/`),
   comment: (id: number, body: string, parent?: number | null, visibility: Visibility = "public") =>
