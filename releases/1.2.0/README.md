@@ -1,5 +1,12 @@
 # KaamKoRecord 1.2.0 — store upload package
 
+- [App Store metadata and marketing plan](APP-STORE-MARKETING.md): copy for
+  the product-page fields, reviewer notes, cover artwork placement and campaign guidance.
+- [Concise App Store release notes](app-store-whats-new-short.txt): a shorter
+  alternative to the existing What's New text.
+- Cover artwork and upload exports are in `marketing/`; generation prompts
+  and asset verification are recorded there.
+
 - [Google Play release notes](google-play-release-notes.txt): paste into the
   English release-notes field.
 - [App Store What's New](app-store-whats-new.txt): paste into What's New in

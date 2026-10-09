@@ -1,0 +1,10 @@
+Make your working day easier to manage with KaamKoRecord 1.2.0.
+
+• Create private, named item catalogues for lists such as Meat or Groceries.
+• Import your own CSV files and choose the columns for titles, descriptions, codes and search.
+• Switch between catalogues and update one list without replacing your others.
+• Find your tools faster with refreshed Home, Items, Work, Alerts and Profile navigation.
+• See unread alerts at a glance and open relevant app screens from push notifications.
+• Choose light or dark mode in Profile, with your preference saved on your device.
+
+Your clock, breaks, timesheets, pay tools and workplaces are still close at hand.

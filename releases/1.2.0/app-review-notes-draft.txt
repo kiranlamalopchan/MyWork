@@ -1,0 +1,13 @@
+KaamKoRecord helps signed-in users track shifts and breaks, review timesheets and pay information, and manage their own private item catalogues.
+
+Please use the reviewer username and password supplied in the Sign-In Information fields.
+
+Version 1.2.0 review paths:
+1. Sign in and open Work to access Clock, Timesheets, Pay and work settings.
+2. Open Items to choose and search an item catalogue.
+3. In the item import flow, choose a CSV file, preview it, map the title, optional description and code columns, and select searchable columns. Save it as a named catalogue.
+4. Save a second catalogue and switch between the lists. Replacing a selected catalogue keeps the other catalogues intact.
+5. Open Alerts to view notifications and the unread badge.
+6. Open Profile to switch between light and dark appearance.
+
+CSV sample for the import flow is provided in the attached reviewer-catalogue.csv file.
