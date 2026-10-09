@@ -1,0 +1,2 @@
+88282cd9bd6e01ea25d532e7cc0aa5162b40392d07af0b5aaf93e6bca69974ed  artifacts/KaamKoRecord-1.2.0-ios-10.ipa
+5ccd72c791c9450716a5c0590e1c954e26d4b6c562946c0ca5364ebd7b755475  artifacts/KaamKoRecord-1.2.0-android-9.aab

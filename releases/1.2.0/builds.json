@@ -1,0 +1,35 @@
+{
+  "version": "1.2.0",
+  "builds": [
+    {
+      "id": "3fa95efa-9ce0-4ffd-9ec5-14b2856192e2",
+      "platform": "ANDROID",
+      "status": "FINISHED",
+      "appVersion": "1.2.0",
+      "appBuildVersion": "9",
+      "distribution": "STORE",
+      "buildProfile": "production",
+      "appIdentifier": "com.kiranlama.merokaam",
+      "sdkVersion": "57.0.0",
+      "createdAt": "2026-10-09T01:51:04.798Z",
+      "completedAt": "2026-10-09T02:05:46.582Z",
+      "buildPage": "https://expo.dev/accounts/lopchan/projects/mywork/builds/3fa95efa-9ce0-4ffd-9ec5-14b2856192e2",
+      "artifactUrl": "https://expo.dev/artifacts/eas/16yWDrY2Eg4DrNX_5XLPkSorU2GWfX1t6kfQFxH8KBI.aab"
+    },
+    {
+      "id": "0eb002b2-897a-48b6-a4d8-4e4a7e71329d",
+      "platform": "IOS",
+      "status": "FINISHED",
+      "appVersion": "1.2.0",
+      "appBuildVersion": "10",
+      "distribution": "STORE",
+      "buildProfile": "production",
+      "appIdentifier": "com.kiranlama.mywork",
+      "sdkVersion": "57.0.0",
+      "createdAt": "2026-10-09T01:51:24.834Z",
+      "completedAt": "2026-10-09T01:58:03.265Z",
+      "buildPage": "https://expo.dev/accounts/lopchan/projects/mywork/builds/0eb002b2-897a-48b6-a4d8-4e4a7e71329d",
+      "artifactUrl": "https://expo.dev/artifacts/eas/1aRuIHX4E50JT7M8UbpYUCQRNxspPxgaB9s4U5Yi34c.ipa"
+    }
+  ]
+}

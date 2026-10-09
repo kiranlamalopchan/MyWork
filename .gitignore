@@ -24,3 +24,6 @@ media/
 # The server's secret key and hostnames. Read by mywork/settings/production.py
 # and by manage.py alike, so one file serves the web app and the console.
 .env
+
+# Store binaries are delivered locally, with release metadata kept in git.
+/releases/*/artifacts/

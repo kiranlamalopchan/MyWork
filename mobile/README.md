@@ -50,9 +50,9 @@ need it explain themselves rather than blanking (`src/ui/native.ts`).
 The look is flat and modern — no gradients: a calm grey (or near-black)
 ground (`src/ui/Backdrop.tsx`), solid cards with soft shadows, filled
 fields, pill buttons, colour-coded icon tiles, a deep-green hero for the
-next holiday and the week's pay, the app bar with the logo, the bell, your
-face and the day/night switch (`src/ui/AppBar.tsx`, `DayNight.tsx`,
-`AppMenu.tsx`), and the tokens in `src/ui/theme.ts`. It fits the screen it
+next holiday and the week's pay, the app bar with the logo and
+page-specific actions (`src/ui/AppBar.tsx`), a saved appearance setting in
+Profile (`src/ui/AppearanceSetting.tsx`), and the tokens in `src/ui/theme.ts`. It fits the screen it
 is on: `useLayout()` (`src/ui/layout.ts`) gives every screen its gutter,
 safe-area insets and screen class — tighter on a narrow Android phone
 (tiles become rows, the dial shrinks, the clock buttons stack), a centred
@@ -86,7 +86,7 @@ has forgotten drops the lock and asks for the password once more.
 A screen that throws shows the
 error and a way back (`ErrorBoundary` in `app/_layout.tsx`). The tab bar is the phone's own
 (`expo-router/unstable-native-tabs`: the system bar on iOS, Material's on
-Android) with the site's five tabs — Home, PLU, Clock, Timesheet, More —
+Android) with the site's five tabs — Home, Items, Work, Alerts, Profile —
 each tab a stack of its own under `app/(tabs)/<tab>/`. Every screen draws
 the app bar itself (`<Screen>`), so the stacks draw no headers. The web
 build keeps the JavaScript tab bar (the native one has no icons there).
@@ -107,6 +107,13 @@ site's own colours) and the shared pieces.
 
 ## Publishing
 
-`npx eas build --profile production --platform all`, then
-`npx eas submit`. Needs an Apple Developer account and a Google Play
-developer account; bundle ids are `com.mywork.app` on both.
+`eas build --profile production --platform all` creates store-signed builds.
+Production uses the live API and increments the remote build numbers.
+The iOS bundle ID is `com.kiranlama.mywork`; the Android package is
+`com.kiranlama.merokaam`. Deploy the matching backend and migrations before
+testing or releasing a new catalogue API version.
+
+Upload the Android `.aab` in Play Console and the iOS `.ipa` with Apple's
+Transporter, or use `eas submit` when ready. Uploading a build and publishing
+the release are separate actions. Release notes and upload instructions for
+1.2.0 are in [`../releases/1.2.0/`](../releases/1.2.0/README.md).

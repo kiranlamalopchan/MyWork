@@ -1,0 +1,7 @@
+New in KaamKoRecord:
+- Upload your own CSV files and choose title, description, code and searchable columns.
+- Save separate, private catalogues such as Meat or Groceries, and choose which one to search.
+- Refreshed design with a realistic clock and native mobile navigation.
+- Notifications now have an Alerts tab and open relevant screens in the app.
+- Find dark/light mode in Profile settings.
+- Your existing timesheets, pay tools and hour limits remain available.

@@ -1,0 +1,23 @@
+{
+  "IOS": {
+    "file": "artifacts/KaamKoRecord-1.2.0-ios-10.ipa",
+    "bytes": 24757977,
+    "sha256": "88282cd9bd6e01ea25d532e7cc0aa5162b40392d07af0b5aaf93e6bca69974ed",
+    "validation": {
+      "zipIntegrity": "passed",
+      "version": "1.2.0",
+      "buildNumber": "10",
+      "bundleIdentifier": "com.kiranlama.mywork",
+      "signingFilesPresent": true
+    }
+  },
+  "ANDROID": {
+    "file": "artifacts/KaamKoRecord-1.2.0-android-9.aab",
+    "bytes": 79401813,
+    "sha256": "5ccd72c791c9450716a5c0590e1c954e26d4b6c562946c0ca5364ebd7b755475",
+    "validation": {
+      "zipIntegrity": "passed",
+      "bundleAndSigningFilesPresent": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+KaamKoRecord 1.2.0 makes your item search more flexible and your everyday tools easier to reach.
+
+YOUR OWN ITEM CATALOGUES
+Upload a CSV and choose which headings to use for the item title, description, code and search. Use PLU codes for butcher items, or your own headings for groceries and other lists.
+
+KEEP YOUR LISTS SEPARATE
+Give each upload a name, such as Meat or Groceries. Your catalogues are private to your account. Choose a catalogue when searching, and update one list without replacing your others.
+
+A REFRESHED DESIGN
+Enjoy a clearer layout, a realistic analog clock and native mobile navigation. Home, Items, Work, Alerts and Profile put your main tools within reach. Clock, timesheets, pay and work settings are grouped under Work.
+
+NOTIFICATIONS IN THE APP
+Find notifications in the Alerts tab with an unread badge. Tapping a notification sent to the mobile app opens the relevant app screen, with Alerts as a fallback when needed.
+
+APPEARANCE IN PROFILE
+Choose dark or light mode from Profile settings. Your appearance preference is saved on your device.
+
+Your existing timesheets, breaks, pay tools, workplaces, statements and hour restrictions remain available.
