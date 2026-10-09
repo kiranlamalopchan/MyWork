@@ -1,12 +1,8 @@
 /**
- * More (templates/timeclock/more.html): the TimeSheet's back rooms — a past
- * shift the clock missed, what you are owed, and the places you work.
- *
- * Three ways in, each with the figure that answers it without being opened.
- * On a phone they are one list; from a tablet's width up they become tiles
- * across the page, because three rows down the left of a wide screen is
- * mostly empty screen.
+ * Work settings preserves past-shift entry, pay and workplace management.
+ * Rates, hours restrictions and pay cycles remain in Workplaces.
  */
+import { WorkNavigation } from "@/ui/WorkNavigation";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -59,11 +55,12 @@ export default function More() {
   ];
 
   return (
-    <Screen>
+    <Screen section="Work">
       <Page refreshControl={refresh}>
-        <PageTitle sub={`TimeSheet settings for ${me?.username ?? "you"}`}>More</PageTitle>
+        <WorkNavigation active="settings" />
+        <PageTitle sub={`Rates, hours restrictions and workplaces for ${me?.username ?? "you"}`}>Work settings</PageTitle>
         {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
-        <SectionLabel>TimeSheet</SectionLabel>
+        <SectionLabel>Manage your work</SectionLabel>
         {wide ? (
           <View style={styles.grid}>
             {ways.map((w) => (

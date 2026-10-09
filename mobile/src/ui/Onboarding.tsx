@@ -65,8 +65,8 @@ const SLIDES: Slide[] = [
     key: "plu",
     icon: "pricetag",
     tint: (t) => t.violet,
-    title: "Any PLU, in seconds",
-    body: "Search the whole list by number or by name. Or photograph a picking list and get every line on it named at once, then send it out as a PDF.",
+    title: "Your items, in seconds",
+    body: "Upload your own CSV, choose its title, code and searchable columns, and find what you need. Your catalogue belongs only to your account.",
   },
   {
     key: "push",

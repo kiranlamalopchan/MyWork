@@ -6,6 +6,7 @@
  * says how many shifts and how long. The caps are the clock's, not this
  * page's.
  */
+import { WorkNavigation } from "@/ui/WorkNavigation";
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -36,9 +37,11 @@ export default function Timesheet() {
   const weeks = joinWeeks(q.data?.pages.flatMap((p) => p.weeks ?? []) ?? []);
 
   return (
-    <Screen>
+    <Screen section="Work">
       <Page refreshControl={view === "list" ? refresh : undefined}>
-        <PageTitle>Timesheet</PageTitle>
+        <WorkNavigation active="timesheet" />
+        <PageTitle>Timesheets</PageTitle>
+        <Button title="Add a past shift" kind="plain" icon="add" onPress={() => router.push("/shifts/new")} />
         <Segments value={view} onChange={(v) => setView(v as "list" | "calendar")} options={[{ value: "list", label: "List" }, { value: "calendar", label: "Calendar" }]} />
         {view === "calendar" ? <CalendarView /> : (
           <>

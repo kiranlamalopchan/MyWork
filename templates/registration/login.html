@@ -6,7 +6,7 @@
 <div class="auth">
   <div class="auth__logo" aria-hidden="true">{% include "_mark.html" with uid="auth" %}</div>
   <h1 class="auth__title">Welcome back</h1>
-  <p class="auth__sub">Sign in to KaamKoRecord — PLU lookup and timesheets.</p>
+  <p class="auth__sub">Sign in to KaamKoRecord — your items and timesheets.</p>
 
   <div class="card card__pad">
     {% if form.errors %}
@@ -22,21 +22,9 @@
     <form method="post" novalidate>
       {% csrf_token %}
 
-      <div class="field">
-        <label class="label" for="{{ form.username.id_for_label }}">Username</label>
-        <input class="input" type="text" name="{{ form.username.html_name }}"
-               id="{{ form.username.id_for_label }}"
-               value="{{ form.username.value|default:'' }}"
-               autocomplete="username" autocapitalize="none" autocorrect="off"
-               enterkeyhint="next" required>
-      </div>
+      {% include "registration/_credential_field.html" with field=form.username label="Username" kind="text" autocomplete="username" enterkeyhint="next" show_errors=False password_help=False %}
 
-      <div class="field">
-        <label class="label" for="{{ form.password.id_for_label }}">Password</label>
-        <input class="input" type="password" name="{{ form.password.html_name }}"
-               id="{{ form.password.id_for_label }}"
-               autocomplete="current-password" enterkeyhint="go" required>
-      </div>
+      {% include "registration/_credential_field.html" with field=form.password label="Password" kind="password" autocomplete="current-password" enterkeyhint="go" show_errors=False password_help=False %}
 
       <button class="btn btn--primary btn--block" type="submit"
               style="margin-top:var(--sp-5);">Sign in</button>

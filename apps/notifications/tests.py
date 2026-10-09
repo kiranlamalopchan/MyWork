@@ -193,14 +193,20 @@ class InboxTests(TestCase):
         self.sam = User.objects.create_user("sam", password="pw")
         self.client.force_login(self.kiran)
 
-    def test_the_bell_in_the_app_bar_shows_a_count_on_every_page(self):
+    def test_the_alerts_tab_shows_a_count_on_every_page(self):
         notify(self.kiran, Kind.NOTICE, "sam posted a notice", url="/notices/",
                actor=self.sam)
 
         resp = self.client.get(reverse("home"))
-        self.assertContains(resp, 'class="appbar__bell"')
+        self.assertContains(resp, 'class="tab__label">Alerts</span>')
+        self.assertNotContains(resp, 'class="appbar__bell"')
         self.assertContains(resp, 'class="tab__badge"')
         self.assertEqual(resp.context["unread_notifications"], 1)
+
+    def test_notifications_is_the_active_primary_tab(self):
+        response = self.client.get(reverse("notifications:inbox"))
+        self.assertEqual([nav["label"] for nav in response.context["primary_nav"] if nav["active"]], ["Alerts"])
+        self.assertNotContains(response, 'id="theme-toggle"')
 
     def test_opening_the_inbox_shows_what_was_unread_and_then_clears_it(self):
         notify(self.kiran, Kind.NOTICE, "sam posted a notice", url="/notices/",

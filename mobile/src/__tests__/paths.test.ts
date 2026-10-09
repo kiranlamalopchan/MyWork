@@ -28,11 +28,16 @@ describe("the site's paths map to screens", () => {
   });
   it("keeps every PLU and timesheet path in the app, which draws them all", () => {
     expect(targetFor("/plu/photo-search/")).toEqual({ screen: "/plu" });
-    expect(targetFor("/plu/import/")).toEqual({ screen: "/plu" });
+    expect(targetFor("/plu/import/")).toEqual({ screen: "/items/import" });
     expect(targetFor("/timesheet/statement/")).toEqual({ screen: "/clock" });
     expect(targetFor("/timesheet/preferences/")).toEqual({ screen: "/clock" });
   });
-  it("sends what the app doesn't draw to the site", () => {
-    expect(targetFor("/admin/")).toEqual({ web: "/admin/" });
+  it("recognises the go-link actually sent in push notifications", () => {
+    expect(targetFor("/notifications/123/go/")).toEqual({ notification: 123 });
+    expect(targetFor("https://example.com/notifications/123/go/")).toEqual({ notification: 123 });
+  });
+  it("keeps unsupported or malformed notification links in the app", () => {
+    expect(targetFor("/admin/")).toEqual({ screen: "/notifications" });
+    expect(targetFor("http://[")).toEqual({ screen: "/notifications" });
   });
 });

@@ -2,6 +2,7 @@
  * Every call the app makes, typed, in one place — and the react-query
  * hooks and invalidations that keep screens in step after a change.
  */
+import { useCallback } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, apiUrl, FilePart, formWith } from "./client";
@@ -244,11 +245,11 @@ export function useUnread() {
 
 export function useInboxChanged() {
   const client = useQueryClient();
-  return () => {
+  return useCallback(() => {
     client.invalidateQueries({ queryKey: ["inbox"] });
     client.invalidateQueries({ queryKey: ["unread"] });
     client.invalidateQueries({ queryKey: ["home"] });
-  };
+  }, [client]);
 }
 
 // ---- PLU -----------------------------------------------------------------------------
@@ -257,10 +258,10 @@ export const plu = {
   search: (q: string, page: number) => api<Page<PluItem> & { q: string; total?: number }>("plu/search/", { query: { q, page } }),
   /** What the box shows before anything is typed: how many codes, and a few of them. */
   idle: () => api<{ total: number; samples: PluItem[] }>("plu/search/", { query: { q: "" } }),
-  one: (plu_no: number) => api<PluItem>(`plu/${plu_no}/`),
+  one: (plu_no: number, catalogue?: number) => api<PluItem>(`plu/${plu_no}/`, { query: { catalogue } }),
   /** A photographed picking list: every line named as a PLU. */
-  photo: (photo: FilePart) => api<PhotoRead>("plu/photo/", { method: "POST", form: formWith({ photo }) }),
-  photoPdfUrl: () => apiUrl("plu/photo/pdf/"),
+  photo: (photo: FilePart, catalogue?: number) => api<PhotoRead>("plu/photo/", { method: "POST", form: formWith({ photo, catalogue }) }),
+  photoPdfUrl: (catalogue?: number) => apiUrl("plu/photo/pdf/") + (catalogue ? `?catalogue=${catalogue}` : ""),
   /** Whether this account may import the list, and what the file needs. */
   importable: () => api<PluImportable>("plu/import/"),
   /** The whole list, replaced from a CSV. Managers only; the server says so too. */

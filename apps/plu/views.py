@@ -18,7 +18,8 @@ from django.views.decorators.http import require_POST
 
 from . import picking
 from .forms import CsvImportForm, PhotoSearchForm
-from .models import PluItem
+from .models import PluItem, Catalogue
+from .catalogue import items_for, selected_items, for_request, select_catalogue
 
 
 def is_staff_user(user):
@@ -46,7 +47,7 @@ def _priority():
     )
 
 
-def search_plu_items(q: str):
+def search_plu_items(q: str, user, catalogue_id=None):
     """
     Ranked PLU search, shared by the search page and the live-search endpoint.
 
@@ -65,7 +66,8 @@ def search_plu_items(q: str):
          then description anywhere;
       4. and lowest PLU number within all of that.
     """
-    qs = PluItem.objects.annotate(priority=_priority())
+    selected = select_catalogue(user, catalogue_id)
+    qs = (items_for(user, selected.pk) if selected else items_for(user).none()).filter(plu_no__isnull=False).annotate(priority=_priority())
 
     if not q:
         return qs.order_by("priority", "plu_no")
@@ -122,14 +124,14 @@ def plu_list(request):
 
     page_obj = None
     if q:
-        paginator = Paginator(search_plu_items(q), PER_PAGE)
+        paginator = Paginator(search_plu_items(q, request.user), PER_PAGE)
         page_obj = paginator.get_page(request.GET.get("page"))
 
     # Real descriptions for the animated placeholder, so the examples always
     # match this shop's list instead of a hardcoded guess. Short ones only:
     # a long cut name types out for too long to read as a hint.
     examples = [
-        d for d in PluItem.objects.order_by("?").values_list("description", flat=True)[:40]
+        d for d in selected_items(request).order_by("?").values_list("description", flat=True)[:40]
         if len(d) <= 26
     ][:6]
 
@@ -139,7 +141,7 @@ def plu_list(request):
         {
             "page_obj": page_obj,
             "q": q,
-            "total_count": PluItem.objects.count(),
+            "total_count": selected_items(request).count(),
             "placeholder_examples": examples,
         },
     )
@@ -161,7 +163,7 @@ def search_api(request):
         return JsonResponse({"q": "", "total": 0, "page": 1, "pages": 1, "results": []})
 
     page_obj = Paginator(
-        search_plu_items(q).values("plu_no", "description"), PER_PAGE
+        search_plu_items(q, request.user).values("plu_no", "description"), PER_PAGE
     ).get_page(request.GET.get("page"))
 
     return JsonResponse(
@@ -180,7 +182,7 @@ def plu_detail(request, plu_no: int):
     """
     PLU detail page.
     """
-    item = PluItem.objects.filter(plu_no=plu_no).first()
+    item = selected_items(request).filter(plu_no=plu_no).first()
     if not item:
         messages.error(request, f"PLU {plu_no} not found.")
         return redirect("plu:list")
@@ -215,6 +217,7 @@ def _remember(request, matched):
     ]
     # A line nothing matched is left out — a name, a date, a note — and
     # only counted, so the page can say how many it passed over.
+    request.session["photo_search_catalogue"] = next((match.item.catalogue_id for _, match in matched if match.item is not None), None)
     request.session[SKIPPED_KEY] = sum(1 for _, match in matched if match.item is None)
 
 
@@ -230,7 +233,14 @@ def _recall(request):
         if row.get("plu_no") is not None:
             wanted.add(row["plu_no"])
         wanted.update(row.get("alternatives") or [])
-    items = {item.plu_no: item for item in PluItem.objects.filter(plu_no__in=wanted)}
+    selected = for_request(request)
+    original = request.session.get("photo_search_catalogue")
+    if original is None:
+        first = select_catalogue(request.user)
+        original = first.pk if first else None
+    if selected is None or original != selected.pk:
+        return None
+    items = {item.plu_no: item for item in selected_items(request).filter(plu_no__in=wanted)}
     out = []
     for i, row in enumerate(rows):
         item = items.get(row.get("plu_no"))
@@ -288,7 +298,7 @@ def photo_search(request):
             except picking.Unreadable as why:
                 error = str(why)
             else:
-                matched = picking.match_lines(lines, PluItem.objects.all())
+                matched = picking.match_lines(lines, selected_items(request).filter(plu_no__isnull=False))
                 _remember(request, matched)
                 if not request.session[SESSION_KEY]:
                     error = "Words were read, but none of them matched an item. Try the page filling the frame."
@@ -310,6 +320,8 @@ def photo_search_pick(request):
     Put a line right: this row of the last read now means this PLU, or no
     PLU at all. The change is kept on the session, so the PDF follows it.
     """
+    if _recall(request) is None:
+        return JsonResponse({"error": "Read a photo in this catalogue first."}, status=400)
     rows = request.session.get(SESSION_KEY) or []
     try:
         index = int(request.POST.get("index", ""))
@@ -319,7 +331,7 @@ def photo_search_pick(request):
     row.setdefault("alternatives", [])
     raw = (request.POST.get("plu_no") or "").strip()
     if raw:
-        item = PluItem.objects.filter(plu_no=raw).first() if raw.isdigit() else None
+        item = selected_items(request).filter(plu_no=raw).first() if raw.isdigit() else None
         if item is None:
             return JsonResponse({"error": "No PLU with that number."}, status=400)
         row["plu_no"], row["sureness"], row["score"], row["by_code"] = item.plu_no, "picked", 1.0, False
@@ -341,6 +353,7 @@ def photo_search_clear(request):
     """The last read forgotten — the PDF is made, the list is done with."""
     request.session.pop(SESSION_KEY, None)
     request.session.pop(SKIPPED_KEY, None)
+    request.session.pop("photo_search_catalogue", None)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return HttpResponse(status=204)
     return redirect("plu:photo_search")
@@ -352,18 +365,23 @@ def photo_search_pdf(request):
     Render the last photo-search result (from session) as a downloadable PDF:
     one row per picking-list line that was matched to a PLU.
     """
-    lines = [row for row in request.session.get(SESSION_KEY) or [] if row.get("plu_no") is not None]
-    return picking_list_pdf(lines)
+    lines = [{"plu_no": row["item"].plu_no, "line": row["line"]} for row in _recall(request) or []]
+    selected = for_request(request)
+    return picking_list_pdf(lines, request.user, selected.pk if selected else None)
 
 
-def picking_list_pdf(lines):
+def picking_list_pdf(lines, user, catalogue_id=None):
     """
     The picking list as a PDF: one row per line that was matched to a PLU.
     `lines` are {"plu_no", "line"} dicts — the page's session rows, or the
     rows the phone app sends back (apps.api.views.plu.PhotoPdf).
     """
     plu_nos = {row["plu_no"] for row in lines}
-    items_by_plu = {item.plu_no: item for item in PluItem.objects.filter(plu_no__in=plu_nos)}
+    selected = select_catalogue(user, catalogue_id)
+    owned = items_for(user, selected.pk) if selected else items_for(user).none()
+    items_by_plu = {item.plu_no: item for item in owned.filter(plu_no__in=plu_nos)}
+
+    lines = [row for row in lines if row["plu_no"] in items_by_plu]
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -418,7 +436,7 @@ class CsvProblem(Exception):
     """The file can't be imported — the message is meant for whoever sent it."""
 
 
-def import_rows(upload):
+def import_rows(upload, user, catalogue_id=None):
     """
     Write a CSV of PLUs in, and say what it did: `(created, updated, skipped)`.
 
@@ -442,6 +460,12 @@ def import_rows(upload):
     if missing:
         raise CsvProblem(f"CSV is missing headers: {', '.join(missing)}")
 
+    catalogue = select_catalogue(user, catalogue_id)
+    if catalogue and catalogue.code_column.lower() not in ("plu", "plu_no"):
+        raise CsvProblem("Choose a PLU catalogue before using this importer.")
+    if catalogue is None:
+        catalogue = Catalogue.objects.create(owner=user, name="My PLUs", headers=list(REQUIRED_CSV_HEADERS),
+            title_column="description", code_column="plu_no", search_columns=list(REQUIRED_CSV_HEADERS))
     created = updated = skipped = 0
     with transaction.atomic():
         for row in reader:
@@ -459,7 +483,10 @@ def import_rows(upload):
                 continue
 
             _, was_created = PluItem.objects.update_or_create(
-                plu_no=plu_no, defaults={"description": description[:255]},
+                catalogue=catalogue, plu_no=plu_no, defaults={"description": description[:255],
+                    "title": description[:255], "code": str(plu_no),
+                    "fields": {"plu_no": str(plu_no), "description": description[:255]},
+                    "search_text": f"{plu_no}\n{description[:255]}"},
             )
             if was_created:
                 created += 1
@@ -482,7 +509,7 @@ def import_csv(request):
         form = CsvImportForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                created, updated, skipped = import_rows(form.cleaned_data["csv_file"])
+                created, updated, skipped = import_rows(form.cleaned_data["csv_file"], request.user)
             except CsvProblem as problem:
                 messages.error(request, str(problem))
                 return redirect("plu:import")

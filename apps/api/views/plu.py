@@ -9,11 +9,11 @@ from django.db.models.functions import Length
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from .catalogue import PrivateCatalogueView
 
 from apps.plu import picking
 from apps.plu.forms import PhotoSearchForm
-from apps.plu.models import PluItem
+from apps.plu.catalogue import items_for, selected_items, for_request, select_catalogue
 from apps.plu.views import (
     PER_PAGE,
     REQUIRED_CSV_HEADERS,
@@ -37,7 +37,7 @@ SAMPLE_LIMIT = 6
 SAMPLE_MAX_LEN = 24
 
 
-def _samples():
+def _samples(user, catalogue_id=None):
     """
     A few real rows for the search box to show before anything is typed.
 
@@ -49,12 +49,14 @@ def _samples():
     a thirty-letter description is four seconds of watching rather than a
     hint — but if every name is long, any name beats none.
     """
-    short = PluItem.objects.annotate(length=Length("description")).filter(length__lte=SAMPLE_MAX_LEN)
+    chosen = select_catalogue(user, catalogue_id)
+    owned = items_for(user, chosen.pk) if chosen else items_for(user).none()
+    short = owned.filter(plu_no__isnull=False).annotate(length=Length("description")).filter(length__lte=SAMPLE_MAX_LEN)
     rows = list(short.order_by("?")[:SAMPLE_LIMIT])
-    return [_item(i) for i in rows or PluItem.objects.order_by("?")[:SAMPLE_LIMIT]]
+    return [_item(i) for i in rows or owned.filter(plu_no__isnull=False).order_by("?")[:SAMPLE_LIMIT]]
 
 
-class Search(APIView):
+class Search(PrivateCatalogueView):
     def get(self, request):
         q = (request.GET.get("q") or "").strip()
         if not q:
@@ -62,21 +64,21 @@ class Search(APIView):
             # words under the box, and a few of them for the box itself.
             return Response({
                 "q": q, "results": [], "page": 1, "pages": 1, "count": 0, "next": None,
-                "total": PluItem.objects.count(),
-                "samples": _samples(),
+                "total": selected_items(request).filter(plu_no__isnull=False).count(),
+                "samples": _samples(request.user, for_request(request).pk if for_request(request) else None),
             })
-        page, meta = serialize.page_of(request, search_plu_items(q), PER_PAGE)
+        page, meta = serialize.page_of(request, search_plu_items(q, request.user, for_request(request).pk if for_request(request) else None), PER_PAGE)
         meta["q"] = q
         meta["results"] = [_item(i) for i in page.object_list]
         return Response(meta)
 
 
-class Detail(APIView):
+class Detail(PrivateCatalogueView):
     def get(self, request, plu_no):
-        return Response(_item(get_object_or_404(PluItem, plu_no=plu_no)))
+        return Response(_item(get_object_or_404(selected_items(request), plu_no=plu_no)))
 
 
-class Import(APIView):
+class Import(PrivateCatalogueView):
     """
     The site's staff-only CSV import (`plu:import`), for the app.
 
@@ -89,7 +91,7 @@ class Import(APIView):
         return Response({
             "allowed": is_staff_user(request.user),
             "headers": list(REQUIRED_CSV_HEADERS),
-            "total": PluItem.objects.count(),
+            "total": selected_items(request).filter(plu_no__isnull=False).count(),
         })
 
     def post(self, request):
@@ -100,19 +102,21 @@ class Import(APIView):
         if upload is None:
             raise ValidationError({"detail": "Choose a CSV file to import."})
         try:
-            created, updated, skipped = import_rows(upload)
+            created, updated, skipped = import_rows(upload, request.user, for_request(request).pk if for_request(request) else None)
         except CsvProblem as problem:
             raise ValidationError({"detail": str(problem)})
+        # A first import creates the default catalogue after selection was cached.
+        delattr(request, "_item_catalogue")
         return Response({
             "created": created,
             "updated": updated,
             "skipped": skipped,
-            "total": PluItem.objects.count(),
+            "total": selected_items(request).filter(plu_no__isnull=False).count(),
             "message": f"Import complete. Created: {created}, updated: {updated}, skipped: {skipped}.",
         })
 
 
-class Photo(APIView):
+class Photo(PrivateCatalogueView):
     """
     POST photo=<image>: the lines read off it, each with the item it most
     likely means, how sure that is, and what else it might have meant —
@@ -127,7 +131,7 @@ class Photo(APIView):
             lines = picking.read_lines(form.cleaned_data["photo"])
         except picking.Unreadable as why:
             raise ValidationError({"detail": str(why)})
-        matched = picking.match_lines(lines, PluItem.objects.all())
+        matched = picking.match_lines(lines, selected_items(request).filter(plu_no__isnull=False))
         rows = [
             {
                 "line": line.text,
@@ -146,7 +150,7 @@ class Photo(APIView):
         return Response({"rows": rows, "skipped": skipped})
 
 
-class PhotoPdf(APIView):
+class PhotoPdf(PrivateCatalogueView):
     """POST {"rows": [{"plu_no", "line"}]}: the read, as the picking-list PDF."""
 
     def post(self, request):
@@ -159,4 +163,4 @@ class PhotoPdf(APIView):
                 lines.append({"plu_no": int(row["plu_no"]), "line": str(row.get("line", ""))})
             except (KeyError, TypeError, ValueError):
                 raise ValidationError({"detail": "Each row needs a PLU number."})
-        return picking_list_pdf(lines)
+        return picking_list_pdf(lines, request.user, for_request(request).pk if for_request(request) else None)

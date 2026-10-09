@@ -1,7 +1,7 @@
 {
   "name": "KaamKoRecord",
   "short_name": "KaamKoRecord",
-  "description": "PLU lookup and timesheets in one place.",
+  "description": "Your private item catalogue and timesheets in one place.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,10 +1,4 @@
-/**
- * The app bar: the logo mark and the word on the left — or, on a page with
- * somewhere to go back to, the back button and the page's title in the
- * middle — and on the right the bell with its unread count, your own face,
- * and the day/night switch. No rule under it: it frosts over whatever
- * scrolls beneath and otherwise sits on the page's own wash.
- */
+/** Shared brand/back header. Main destinations live in the native tab bar. */
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,12 +6,8 @@ import { useRouter } from "expo-router";
 import Svg, { Circle, Defs, LinearGradient, Mask, Path, Rect, Stop } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 
-import { useUnread } from "@/api";
-import { useSession } from "@/auth/session";
 import { goBack } from "@/nav/paths";
 
-import { AppMenu } from "./AppMenu";
-import { DayNight } from "./DayNight";
 import { useLayout } from "./layout";
 import { nativeOrNull } from "./native";
 import { alpha, APPBAR_H, useTheme } from "./theme";
@@ -63,7 +53,7 @@ export function BrandMark({ size = 32 }: { size?: number }) {
   );
 }
 
-export function AppBar({ title, back, backLabel, section, right, tools = true }: {
+export function AppBar({ title, back, backLabel, section, right }: {
   title?: string; back?: boolean; backLabel?: string; section?: string; right?: React.ReactNode; tools?: boolean;
 }) {
   const t = useTheme();
@@ -71,10 +61,6 @@ export function AppBar({ title, back, backLabel, section, right, tools = true }:
   const layout = useLayout();
   const { width } = useWindowDimensions();
   const router = useRouter();
-  const { me } = useSession();
-  const unread = useUnread().data?.unread ?? 0;
-  const badge = unread > 99 ? "99+" : String(unread);
-
   const frost = alpha(t.bg, 0.92);
   const body = (
     // On an iPad or a desktop window the bar spans the hub's width, the way
@@ -95,25 +81,12 @@ export function AppBar({ title, back, backLabel, section, right, tools = true }:
       {back && title ? (
         // Centred on the screen where there is room; on a narrow phone the
         // tools reach past the middle, so the title sits in the row between
-        // them instead of under the bell.
+        // the page actions.
         <Text style={[width >= 400 ? styles.title : styles.titleFlow, { color: t.text }]} numberOfLines={1} pointerEvents="none">{title}</Text>
       ) : null}
       <View style={styles.tools}>
         {right}
-        {tools && me ? (
-          <>
-            <Pressable onPress={() => router.push("/notifications")} hitSlop={4} accessibilityLabel={unread ? `Alerts, ${unread} unread` : "Alerts"} testID="header-bell" style={({ pressed }) => [styles.bell, { backgroundColor: pressed ? t.surface3 : t.dark ? t.surface2 : t.surface }, tool(t.dark)]}>
-              <Ionicons name="notifications-outline" size={21} color={t.text} />
-              {unread ? (
-                <View style={[styles.badge, { backgroundColor: t.danger, borderColor: t.dark ? t.surface2 : t.surface }]}>
-                  <Text style={styles.badgeText}>{badge}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-            <AppMenu />
-          </>
-        ) : null}
-        <DayNight />
+
       </View>
     </View>
   );
@@ -144,7 +117,4 @@ const styles = StyleSheet.create({
   title: { position: "absolute", left: "26%", right: "26%", textAlign: "center", fontSize: 17, fontWeight: "700", letterSpacing: -0.3 },
   titleFlow: { flex: 1, minWidth: 0, textAlign: "center", fontSize: 17, fontWeight: "700", letterSpacing: -0.3 },
   tools: { flexDirection: "row", alignItems: "center", gap: 8 },
-  bell: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  badge: { position: "absolute", top: -3, right: -3, minWidth: 19, height: 19, paddingHorizontal: 4, borderRadius: 10, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  badgeText: { fontSize: 10, fontWeight: "800", lineHeight: 12, color: "#fff" },
 });

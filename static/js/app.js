@@ -83,35 +83,15 @@
     var btn = document.getElementById("theme-toggle");
     if (!btn) return;
 
-    var root = document.documentElement;
-    var system = window.matchMedia("(prefers-color-scheme: dark)");
-
-    function isDark() {
-      var chosen = root.getAttribute("data-theme");
-      return chosen ? chosen === "dark" : system.matches;
-    }
-
-    // The switch says which way it is set. The stylesheet draws it from the
-    // theme rules on its own; this is for a screen reader, which cannot see
-    // where the knob is.
+    var theme = window.MyWorkTheme;
+    if (!theme) return;
     function announce() {
-      btn.setAttribute("aria-checked", isDark() ? "true" : "false");
+      btn.setAttribute("aria-checked", theme.isDark() ? "true" : "false");
     }
     announce();
-    // The system can change underneath a page that has not chosen.
-    if (system.addEventListener) listen(system, "change", announce);
-
+    listen(window, "mywork:theme", announce);
     btn.addEventListener("click", function () {
-      var next = isDark() ? "light" : "dark";
-
-      function apply() {
-        root.setAttribute("data-theme", next);
-        try { localStorage.setItem("mywork-theme", next); } catch (e) { /* private mode */ }
-        announce();
-
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute("content", next === "dark" ? "#0b1120" : "#f4f5f7");
-      }
+      function apply() { theme.toggle(); }
 
       // One palette dissolves into the other rather than cutting to it: the
       // browser snapshots the page, swaps the theme underneath, and fades
@@ -588,6 +568,24 @@
     if (!input || !resultsEl || !form) return;
 
     var endpoint = form.getAttribute("data-search-url");
+    var catalogueId = form.getAttribute("data-catalogue") || "";
+    var catalogueSelect = document.getElementById("catalogue-select");
+    function searchParams(query, page) {
+      var params = new URLSearchParams();
+      if (catalogueId) params.set("catalogue", catalogueId);
+      if (query) params.set("q", query);
+      if (page > 1) params.set("page", page);
+      return params.toString();
+    }
+    if (catalogueSelect) {
+      catalogueSelect.addEventListener("change", function () {
+        var params = new URLSearchParams();
+        params.set("catalogue", catalogueSelect.value);
+        if (input.value.trim()) params.set("q", input.value.trim());
+        // Refresh counts, examples and the specialist photo navigation together.
+        window.location.href = location.pathname + "?" + params.toString();
+      });
+    }
     // A detail URL built with a sentinel PLU, e.g. "/987654321/". Swapping the
     // sentinel for a real number keeps URL building in Django's hands.
     var detailTemplate = form.getAttribute("data-detail-url-template") || "";
@@ -638,10 +636,10 @@
       for (var i = 0; i < data.results.length; i++) {
         var row = data.results[i];
         html +=
-          "<li><a class=\"result\" href=\"" + detailUrl(row.plu_no) + "\">" +
-          '<span class="plu-badge">' + highlight(escapeHtml(row.plu_no), query) + "</span>" +
+          "<li><a class=\"result\" href=\"" + detailUrl(row.id) + "\">" +
+          (row.code ? '<span class="plu-badge catalogue-code">' + highlight(escapeHtml(row.code), query) + '</span>' : '') +
           '<span class="result__body"><span class="result__title">' +
-          highlight(escapeHtml(row.description), query) +
+          highlight(escapeHtml(row.title), query) +
           "</span></span>" + ICON_CHEVRON + "</a></li>";
       }
       html += "</ul>";
@@ -662,7 +660,7 @@
       if (pages <= 1) return "";
       var ICON_BACK = ICON_CHEVRON.replace("m9 18 6-6-6-6", "m15 18-6-6 6-6");
       function link(n, cls, inner) {
-        var href = location.pathname + "?q=" + encodeURIComponent(query) + (n > 1 ? "&page=" + n : "");
+        var href = location.pathname + "?" + searchParams(query, n);
         return '<a class="btn pager__btn ' + cls + '" href="' + href + '" data-page="' + n + '">' + inner + "</a>";
       }
       function dead(cls, inner) {
@@ -691,14 +689,14 @@
     // Back to the "type something" state the page opens in.
     function showIdle() {
       resultsEl.innerHTML = idleHtml ||
-        emptyCard("Search a PLU", "Type a PLU number or part of a description to see matches.");
+        emptyCard("Search your items", "Search the columns you selected when uploading your file.");
 
       if (idleMeta) {
         setMeta(idleMeta);
       } else {
         var total = parseInt(form.getAttribute("data-total-count"), 10);
         setMeta(isNaN(total) ? "" :
-          "Search " + total + " PLU" + (total === 1 ? "" : "s") + " by number or description");
+          "Search " + total + " private item" + (total === 1 ? "" : "s"));
       }
       setIdle(true);
       lastRendered = ""; lastPage = 1;
@@ -738,7 +736,7 @@
         resultsEl.innerHTML = skeletonRows(5);
       }
 
-      fetch(endpoint + "?q=" + encodeURIComponent(query) + (page > 1 ? "&page=" + page : ""), {
+      fetch(endpoint + "?" + searchParams(query, page), {
         signal: controller.signal,
         headers: { "X-Requested-With": "XMLHttpRequest" },
       })
@@ -768,8 +766,8 @@
     // Keep the address bar in step so refresh/share/back give the same view.
     function syncUrl(query, page) {
       if (!window.history || !window.history.replaceState) return;
-      var url = window.location.pathname + (query ? "?q=" + encodeURIComponent(query) : "");
-      if (query && page > 1) url += "&page=" + page;
+      var params = searchParams(query, page);
+      var url = window.location.pathname + (params ? "?" + params : "");
       window.history.replaceState(null, "", url);
       noteAddress();
     }
@@ -1222,10 +1220,11 @@
     var timeEl = document.getElementById("clock-elapsed");
     var breakEl = document.getElementById("clock-break");
     var wallEl = document.getElementById("wall-clock");
-    var ring = document.getElementById("dial-progress");
+    var hourHand = document.getElementById("analog-hour");
+    var minuteHand = document.getElementById("analog-minute");
+    var secondHand = document.getElementById("analog-second");
+    var progressFill = document.getElementById("shift-progress-fill");
 
-    // 2πr for the r=52 circle in the markup.
-    var CIRCUMFERENCE = 326.73;
     var targetSeconds = (parseFloat(root.getAttribute("data-target-hours")) || 8) * 3600;
 
     function ms(attr) {
@@ -1248,6 +1247,13 @@
     var lastText = "";
 
     function paint() {
+      var local = new Date(now());
+      var seconds = local.getSeconds();
+      var minutes = local.getMinutes() + seconds / 60;
+      if (hourHand) hourHand.setAttribute("transform", "rotate(" + ((local.getHours() % 12 + minutes / 60) * 30) + " 120 120)");
+      if (minuteHand) minuteHand.setAttribute("transform", "rotate(" + (minutes * 6) + " 120 120)");
+      if (secondHand) secondHand.setAttribute("transform", "rotate(" + (seconds * 6) + " 120 120)");
+
       if (status === "IDLE") {
         if (wallEl) {
           var d = new Date(now());
@@ -1272,9 +1278,10 @@
 
       if (breakEl) breakEl.textContent = formatMinutes(breakMs / 1000);
 
-      if (ring) {
+      if (progressFill) {
         var progress = Math.min(workedMs / 1000 / targetSeconds, 1);
-        ring.style.strokeDashoffset = String(CIRCUMFERENCE * (1 - progress));
+        progressFill.style.width = String(progress * 100) + "%";
+        progressFill.parentNode.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
       }
     }
 
@@ -1459,7 +1466,7 @@
      The menus are looked up when something happens rather than when the page
      loads, so they are always the ones on screen: bound once, for every page
      this document will show. */
-  function initAppMenu() {
+  function initDismissMenus() {
     function menus() {
       return document.querySelectorAll("details[data-dismiss]");
     }
@@ -5153,9 +5160,44 @@
     initArrival();
     initReactions();
     initCommentBoxes();
-    initAppMenu();
+    initDismissMenus();
     initRipple();
     initNavSkeleton();
+  }
+
+  function initCatalogueReview() {
+    var form = document.getElementById("catalogue-upload-form");
+    if (!form) return;
+    var edit = document.getElementById("catalogue-edit");
+    var review = document.getElementById("catalogue-review");
+    var save = document.getElementById("catalogue-save");
+    var headingsStep = document.getElementById("upload-heading-step");
+    var reviewStep = document.getElementById("upload-review-step");
+    var next = document.createElement("button");
+    next.type = "button";
+    next.className = "btn btn--primary btn--block";
+    next.textContent = "Review catalogue";
+    save.before(next);
+    save.hidden = true;
+    function toggle(show) {
+      edit.hidden = show;
+      review.hidden = !show;
+      next.hidden = show;
+      save.hidden = !show;
+      (show ? reviewStep : headingsStep).setAttribute("aria-current", "step");
+      (show ? headingsStep : reviewStep).removeAttribute("aria-current");
+    }
+    next.addEventListener("click", function () {
+      var checked = Array.from(form.querySelectorAll('input[name="search_columns"]:checked'));
+      if (!form.reportValidity()) return;
+      if (!checked.length) { window.alert("Choose at least one column to search."); return; }
+      var target = form.elements.catalogue_id;
+      document.getElementById("catalogue-review-summary").textContent = form.elements.name.value.trim() + "\n" + form.getAttribute("data-count") + " items · " + (target.value ? target.options[target.selectedIndex].textContent : "New private catalogue") + "\nTitle: " + form.elements.title_column.value + "\nDescription: " + (form.elements.description_column.value || "None") + "\nCode: " + (form.elements.code_column.value || "None") + "\nSearch: " + checked.map(function (field) { return field.value; }).join(", ");
+      save.textContent = target.value ? "Replace selected catalogue" : "Save new catalogue";
+      toggle(true);
+      save.focus();
+    });
+    document.getElementById("catalogue-review-edit").addEventListener("click", function () { toggle(false); form.elements.name.focus(); });
   }
 
   function initPage() {
@@ -5182,6 +5224,7 @@
     initPhotoPicker();
     initAvatarPicker();
     initCsvPicker();
+    initCatalogueReview();
     initSubmitState();
     initLiveFilter();
     initTabSlider();

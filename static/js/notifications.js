@@ -257,7 +257,7 @@
     try {
       if (count > 0) navigator.setAppBadge(count).catch(function () {});
       else navigator.clearAppBadge().catch(function () {});
-    } catch (e) { /* not permitted here — the bell still says it */ }
+    } catch (e) { /* not permitted here — the Alerts tab still says it */ }
   }
 
   function init() {

@@ -29,7 +29,6 @@
   {% csrf_token %}
 </form>
 
-<a class="backlink" href="{% url 'home' %}">{% icon "back" %} Home</a>
 
 {# ---- Who you are ------------------------------------------------------ #}
 <div class="card card__pad profile-id">
@@ -430,6 +429,9 @@
   </div>
 </details>
 
+<h2 class="section-label" id="settings">Settings</h2>
+{% include "accounts/_appearance_setting.html" %}
+
 <div class="card card__pad" style="margin-top: var(--sp-4)">
   <a class="btn btn--block" href="{% url 'accounts:password' %}">Change password</a>
   {% if request.user.is_staff %}
@@ -437,6 +439,10 @@
     <a class="btn btn--block" href="{% url 'accounts:reset_links' %}" style="margin-top: var(--sp-2)">Password reset links</a>
   {% endif %}
 </div>
+
+<form method="post" action="{% url 'logout' %}" class="profile-signout">
+  {% csrf_token %}<button type="submit" class="btn btn--danger btn--block">Sign out</button>
+</form>
 
 <p class="muted text-sm" style="text-align: center; margin-top: var(--sp-4)">
   <a href="{% url 'moderation:blocked' %}">Blocked people</a> · <a href="{% url 'moderation:rules' %}">Rules</a> · <a href="{% url 'privacy' %}">Privacy</a> · <a href="{% url 'accounts:delete' %}" style="color: var(--danger)">Delete account</a>

@@ -867,7 +867,7 @@ class NavigationTests(TestCase):
             clock_out=start + timedelta(hours=8), status=Shift.Status.COMPLETED,
         )
 
-    def test_every_page_renders_with_the_tab_bar_and_the_profile_menu(self):
+    def test_every_page_renders_with_the_shared_navigation(self):
         pages = [
             ("home", []),
             ("timeclock:dashboard", []),
@@ -891,21 +891,30 @@ class NavigationTests(TestCase):
                 # One tab bar for the whole app, the hub included.
                 self.assertIn('class="tabbar__inner"', html)
                 self.assertIn('class="tab__label">Home</span>', html)
-                self.assertIn('class="tab__label">More</span>', html)
-                # Alerts is the bell in the app bar, not a tab.
-                self.assertNotIn('class="tab__label">Alerts</span>', html)
-                self.assertIn('class="appbar__bell"', html)
-                # The menu in the corner is yours alone; apps are not in it.
-                self.assertIn('id="profile-menu"', html)
+                self.assertIn('class="tab__label">Work</span>', html)
+                self.assertIn('class="tab__label">Profile</span>', html)
+                self.assertIn('class="tab__label">Alerts</span>', html)
+                self.assertNotIn('class="appbar__bell"', html)
+                self.assertNotIn('id="profile-menu"', html)
+                self.assertNotIn('id="theme-toggle"', html)
                 self.assertNotIn('id="app-switcher"', html)
                 self.assertNotIn(">Apps</div>", html)
                 # PLU's own places are a segmented control on its pages.
                 # The hub has no app and so no segments, and TimeSheet has
                 # none either: its places are tabs of the dock.
-                if name.startswith("plu:"):
+                if name.startswith(("plu:", "timeclock:")):
                     self.assertIn('class="segments segments--places"', html)
                 else:
                     self.assertNotIn('class="segments segments--places"', html)
+
+    def test_home_uses_navigation_and_profile_owns_appearance_and_sign_out(self):
+        home = self.client.get(reverse("home"))
+        for duplicate in ["home-actions", "Ready for work?", "Find an item", "My timesheets", 'id="theme-toggle"']:
+            self.assertNotContains(home, duplicate)
+        profile = self.client.get(reverse("accounts:profile"))
+        self.assertContains(profile, 'id="theme-toggle"', count=1)
+        self.assertContains(profile, 'action="' + reverse("logout") + '"', count=1)
+        self.assertContains(profile, 'id="settings"')
 
     def test_the_timesheet_is_only_shifts(self):
         resp = self.client.get(reverse("timeclock:timesheet"))
@@ -2209,6 +2218,19 @@ class ClockScreenIsForClockingTests(TestCase):
         self._clocked_in()
         self.assertNotIn("metric-row", self._page())
 
+    def test_analog_clock_and_elapsed_timer_preserve_shift_controls(self):
+        idle = self._page()
+        self.assertIn('id="analog-hour"', idle)
+        self.assertIn('id="analog-minute"', idle)
+        self.assertIn('id="analog-second"', idle)
+        self.assertIn('id="wall-clock"', idle)
+        self._clocked_in()
+        working = self._page()
+        self.assertIn('id="clock-elapsed"', working)
+        self.assertIn('id="shift-progress-fill"', working)
+        self.assertIn(reverse("timeclock:workplaces"), working)
+        self.assertIn("hours restrictions", working)
+
     def test_the_cap_stays(self):
         self._clocked_in()
         page = self._page()
@@ -2396,14 +2418,13 @@ class OneWayInTests(TestCase):
         self.assertEqual(sheet.count(f'href="{calendar}"'), 1)
         self.assertNotIn(f'href="{calendar}"', clock)
 
-    def test_timesheet_is_three_tabs_of_the_dock_and_no_segments(self):
+    def test_work_groups_clock_timesheets_pay_and_settings(self):
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
-        # Each tab appears twice — the app bar on wide screens and the dock
-        # on phones, both from one template — and nowhere else: there is no
-        # segmented control on a TimeSheet page any more.
-        for label in ["Clock", "Timesheet", "More"]:
+        for label in ["Home", "Items", "Work", "Alerts", "Profile"]:
             self.assertEqual(html.count('class="tab__label">' + label + "</span>"), 2, label)
-        self.assertNotIn('class="segments segments--places"', html)
+        self.assertIn('class="segments segments--places"', html)
+        for route in ["dashboard", "timesheet", "payments", "more"]:
+            self.assertIn(reverse("timeclock:" + route), html)
         self.assertNotIn('class="tab__label">Board</span>', html)
 
     def lit(self, name, args=()):
@@ -2422,9 +2443,9 @@ class OneWayInTests(TestCase):
             ("timeclock:timesheet", []), ("timeclock:calendar", []),
             ("timeclock:shift_create", []), ("timeclock:shift_detail", [self.shift.pk]),
         ]:
-            self.assertEqual(self.lit(name, args), "/timesheet/shifts/", name)
+            self.assertEqual(self.lit(name, args), "/timesheet/", name)
         for name in ["timeclock:more", "timeclock:workplaces", "timeclock:payments"]:
-            self.assertEqual(self.lit(name), "/timesheet/more/", name)
+            self.assertEqual(self.lit(name), "/timesheet/", name)
 
     def test_the_board_lights_home(self):
         self.assertEqual(self.lit("notices:board"), "/")

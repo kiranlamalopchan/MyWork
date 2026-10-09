@@ -1,20 +1,22 @@
 /**
  * The site's paths, which is what a notification carries, mapped to the
- * app's screens — and, for anything the app doesn't draw, the site itself
- * in the browser.
+ * app's screens. Notification go-links are resolved through the authenticated
+ * API; destinations without a screen stay in the app's inbox.
  */
 import { router } from "expo-router";
-import { openBrowserAsync } from "expo-web-browser";
+import { api } from "@/api/client";
 
-import { siteUrl } from "@/api/client";
-
-export type Target = { screen: string; params?: Record<string, string> } | { web: string };
+export type Target = { screen: string } | { notification: number };
 
 export function targetFor(path: string): Target {
-  const url = new URL(path, "http://x");
+  let url: URL;
+  try { url = new URL(path, "http://x"); }
+  catch { return { screen: "/notifications" }; }
   const p = url.pathname.replace(/\/+$/, "") || "/";
   const q = url.searchParams;
   let m: RegExpMatchArray | null;
+
+  if ((m = p.match(/^\/notifications\/(\d+)\/go$/))) return { notification: Number(m[1]) };
 
   if (p === "/" ) return { screen: "/(tabs)" };
   if (p === "/notices") {
@@ -36,6 +38,7 @@ export function targetFor(path: string): Target {
   if ((m = p.match(/^\/notices\/(\d+)/))) return { screen: `/notices/${m[1]}` };
   if ((m = p.match(/^\/stories\/([^/]+)$/))) return { screen: `/stories/${m[1]}` };
   if (p === "/notifications") return { screen: "/notifications" };
+  if (p === "/plu/import") return { screen: "/items/import" };
   if (p === "/plu" || p === "/plu/photo-search") return { screen: "/plu" };
   if ((m = p.match(/^\/plu\/item\/(\d+)$/))) return { screen: `/plu/${m[1]}` };
   // Anything else under PLU or the timesheet lands on its tab here.
@@ -45,16 +48,25 @@ export function targetFor(path: string): Target {
   if (p === "/profile") return { screen: "/profile" };
   // Friends lives on the profile screen itself now, not a screen of its own.
   if (p === "/profile/friends") return { screen: "/profile" };
-  return { web: path };
+  return { screen: "/notifications" };
 }
 
-export async function navigateTo(path: string): Promise<void> {
-  const target = targetFor(path);
-  if ("web" in target) {
-    await openBrowserAsync(siteUrl(target.web));
-    return;
+/** The guard can revoke a pending tap when signing out or choosing a newer notification. */
+export async function navigateTo(path: string, isCurrent: () => boolean = () => true): Promise<number | null> {
+  let target = targetFor(path);
+  let unread: number | null = null;
+  if ("notification" in target) {
+    try {
+      const result = await api<{ url: string; unread: number }>(`notifications/${target.notification}/read/`, { method: "POST" });
+      unread = result.unread;
+      target = targetFor(result.url);
+    } catch {
+      // Offline, expired or owned by another account: keep the person in the app.
+      target = { screen: "/notifications" };
+    }
   }
-  router.push(target.screen as any);
+  if (isCurrent()) router.push(("screen" in target ? target.screen : "/notifications") as any);
+  return unread;
 }
 
 /** Back, or — opened cold from a link or a notification — home. */

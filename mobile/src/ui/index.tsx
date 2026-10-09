@@ -318,7 +318,7 @@ export function Segments<T extends string>({ value, onChange, options, style }: 
             style={[styles.segment, on && { backgroundColor: t.dark ? t.surface3 : t.knob, shadowColor: "#0f1420", shadowOpacity: t.dark ? 0 : 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
           >
             {o.icon ? <Ionicons name={o.icon} size={17} color={on ? t.text : t.muted} /> : null}
-            <Text style={{ color: on ? t.text : t.muted, fontWeight: "700", fontSize: 15 }}>{o.label}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: on ? t.text : t.muted, fontWeight: "700", fontSize: options.length > 3 ? 13 : 15 }}>{o.label}</Text>
           </Pressable>
         );
       })}

@@ -6,16 +6,44 @@ entirely to that app. The same two, and the shared half — board, stories,
 alerts, holidays, profiles — are also the native phone app (`mobile/`, over
 the API in `apps/api`).
 
-**PLU Management** (`apps.plu`, mounted at `/plu/`)
-- Search PLUs by number or description (live, as you type)
-- View PLU details and copy the code for the scale
-- Read a picking-list photo and name each line as a PLU (`apps/plu/picking.py`):
-  a confidence-checked OCR pass with a thresholded retry, words weighted by
-  how rare they are on the list, misread letters tolerated, PLU codes on the
-  sheet honoured; every line says how sure it was, and a wrong one is put
-  right with a tap — the PDF follows what you picked
-- Import PLUs from a CSV file (staff only)
-- Manage PLUs in Django Admin
+**My items** (`apps.plu`, mounted at `/plu/`)
+- Every signed-in user can upload their own CSV; no staff permission is needed.
+- Preview five rows and map any heading to the title, optional description,
+  and optional code. Choose the columns that should be searched. All original
+  columns are retained on item details, including codes with letters or leading zeroes.
+- Multiple private, named catalogues per account, such as Groceries and Meat.
+  Each upload creates a separate catalogue by default; the filename suggests its
+  name. Choose an existing catalogue explicitly to replace only its items.
+  Invalid files or mappings leave existing items intact.
+- Use **Search in** to choose the catalogue to search. Each catalogue keeps its
+  own heading choices, searchable columns, item count and examples.
+- Search words can match across selected columns in any order; exact codes
+  and titles lead the results. Counts, samples, item URLs and photo/PDF exports
+  are scoped to the signed-in owner, including for staff using the app.
+- UTF-8 CSV, comma/semicolon/tab delimiters, up to 10 MB, 20,000 rows and
+  50 unique headings. Preview tokens are private, single-use and expire in an hour.
+- For butcher data, choose `description` as the title and `plu_no` as the code.
+  Numeric PLU catalogues keep picking-list photo matching and PDF export.
+- The native app uses `/api/v1/items/search/`, `items/<id>/`, `items/preview/`
+  (multipart `file`) and `items/import/` (JSON `upload_id` and mapping).
+  Search accepts `catalogue=<id>` and returns the owner's catalogue choices.
+  Import accepts an optional `catalogue_id` to replace that owned catalogue;
+  omitting it creates a new one. Catalogue names are unique per owner, ignoring case.
+  Older `plu/…` API clients default to the owner's first catalogue and can
+  select another with `catalogue=<id>`.
+
+After upgrading, run `manage.py migrate`, collect static files and reload the
+server as usual, then build/update the native app. The old shared PLU list is
+preserved **unassigned and hidden**. To explicitly give it to its owner as a
+separate **My PLUs** catalogue, run:
+
+```bash
+python manage.py claim_legacy_catalogue <username>
+```
+
+The command refuses to overwrite an existing My PLUs catalogue. It never assigns the
+old list to new accounts automatically. A general example is in
+`sample_data/catalogue_sample.csv`.
 
 **TimeSheet Management** (`apps.timeclock`, mounted at `/timesheet/`)
 - Clock in and out, with breaks
@@ -58,7 +86,7 @@ the API in `apps/api`).
   quietly whenever the row is built, so a day of videos never fills the disk
 
 **Notifications** (`apps.notifications`, mounted at `/notifications/`)
-- A bell in the app bar with a count on it, and the inbox behind it
+- An Alerts tab with an unread count and the inbox behind it
 - Web Push, so a notification arrives with the app closed
 - Raised by the board (new notice, comment, reply, reaction) and by
   TimeSheet (a forgotten clock-out, an hours cap coming up)
@@ -161,10 +189,17 @@ is for a laptop, not for a site with an address.
 
 ## Notifications
 
-The bell, the inbox and the count on them are plain Django and need no setup:
+The Alerts tab, the inbox and the count on them are plain Django and need no setup:
 every event is recorded whether or not anything can be delivered. What needs
 setting up is the *push* half — the part that reaches a phone with the app
 closed.
+
+The native app resolves notification `/notifications/<id>/go/` links through
+the authenticated API, marks them read, and opens the matching app screen.
+It waits for sign-in and navigation on a cold start and consumes each tap once.
+Unavailable or unsupported destinations open the app's inbox. Web Push links
+continue to open the website. Updating this behavior requires updating the
+mobile app's JavaScript bundle or installing a new build.
 
 ### Keys
 
@@ -272,7 +307,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://fcm.googleapis.com/fcm/send/te
 
 Any status code back — 400 and 404 included — means outbound works.
 
-Notifications are recorded either way, so the bell is always right even when
+Notifications are recorded either way, so the Alerts tab is always right even when
 the push is not arriving. That is the point of keeping the two apart.
 
 ## Layout
@@ -307,11 +342,11 @@ with a few `min-width` queries for tablets and desktops. The pieces of chrome
 worth knowing: the **app bar** behaves like a navigation bar — a page's
 `.backlink` is lifted into its left corner on phones and the page's `h1`
 appears in its middle once it has scrolled away; the **dock** at the foot of
-a phone is one bar for the whole app — Home, PLU, Clock, Timesheet, More,
-with the bell for Alerts up in the app bar — and its solid green pill is a
+a phone is one bar for the whole app — Home, Items, Work, Alerts, Profile,
+with unread badges on Alerts — and its solid green pill is a
 knob that slides between the tabs (tapping the tab you are on scrolls to the
-top); the **segmented controls** (`.segments`: Search / Photo on PLU, and
-List / Calendar on the timesheet) are the same track-and-knob; and every yes-or-no is a **switch**
+top); the **segmented controls** (`.segments`: Search / My catalogues / Photo / Upload in Items; Clock /
+Timesheets / Pay / Settings in Work; and List / Calendar on the timesheet) are the same track-and-knob; and every yes-or-no is a **switch**
 (`.switch` — the markup is in `timeclock/_form_fields.html`) modelled on the
 day-and-night switch in the app bar. Pages come in the way screens do — a
 push from the right, a pop back to the left, a cross-fade between tabs —
@@ -319,6 +354,20 @@ from a `data-arrive` attribute `app.js` writes on `<body>`. A new component
 must be able to shrink: grids use `minmax(0, 1fr)`, flex and grid items get
 `min-width: 0`, and nothing is allowed to widen a 320px screen (§23 of the
 stylesheet lists the rules).
+
+Home keeps stories, holidays, daily extras and the notice board; main tools
+are reached through navigation. Android and iOS use Expo's native tabs and
+native stacks, including Alerts with its unread badge. Profile settings owns
+appearance and sign out. Website navigation data lives in the shared context
+processor, `_nav_link.html` renders each entry, and `static/js/theme.js` owns
+saved/system appearance and browser chrome across every page.
+
+Clock shows a realistic analog face with moving hour, minute and second hands,
+with worked or break duration underneath. Hours restrictions remain on Clock
+and under Work → Settings → Workplaces. The mobile app groups the same tools
+inside its Work tab; the old `/clock`, `/timesheet`, `/pay` and `/more` routes
+redirect to their new screens, including calendar links. CSV imports include
+File, Headings and Review steps, and each owner's named catalogues stay private.
 
 Every page is rendered by Django, but tapping
 a link does not reload the site: `static/js/app.js` fetches the next page —
@@ -400,23 +449,26 @@ Then on a phone on the same Wi-Fi, open `http://<your-computer-ip>:8000/`
 
 ## 4) CSV format
 
-The header row must include `plu_no` and `description`. Any other columns
-(`sales_mode`, `price`, `tare`, ...) are ignored, so a raw export from the
-till system can be uploaded unedited.
+The first row contains your own unique headings. On **Items → Upload**, name
+the catalogue (for example Groceries or Meat), preview and choose which headings
+provide the title, description and code, then select
+the searchable columns. No fixed header names are required. A title column is
+required; descriptions and codes are optional. Nonempty codes must be unique
+within the file. Rows with a blank title are skipped and counted; a file with
+no usable titles cannot replace an existing catalogue. New uploads keep previous
+catalogues; use **Save to → Replace …** to replace a chosen catalogue. On the
+search screen, choose **Search in** to search that catalogue's items.
 
+```csv
+Code,Title,Description,Category
+001,Blue apron,Wash cold,Clothing
+A-9,Steel knife,Stainless steel,Tools
 ```
-plu_no,description
-5000,BEEF PORTERHOUSE STEAK
-5001,BEEF RUMP STEAK
-```
 
-Rows are matched on `plu_no`: an existing PLU is updated, a new one created.
+For PLU data, `plu_no,description` still works: map `description` to title and
+`plu_no` to code. Sample butcher files remain in `sample_data/plu_sample.csv`
+and `sample_data/plu_items.csv`, and the general example is
+`sample_data/catalogue_sample.csv`.
 
-Two CSVs are included:
-- `sample_data/plu_sample.csv` — a small example
-- `sample_data/plu_items.csv` — a full export of all PLUs, kept in version
-  control as the backup of the list
-
-The SQLite database is deliberately **not** committed (it holds password hashes
-and session keys). After a fresh clone, run the migrations and then import
-`sample_data/plu_items.csv` from the Import CSV page to restore the PLU list.
+The SQLite database is not committed. After a fresh clone, run migrations and
+upload your CSV from your own account to create a private catalogue.

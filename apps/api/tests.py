@@ -22,7 +22,7 @@ from apps.accounts.models import Profile
 from apps.holidays.models import HolidayPreference, PublicHoliday
 from apps.noticeboard.models import Comment, Notice, Reaction
 from apps.notifications.models import Device, Notification
-from apps.plu.models import PluItem
+from apps.plu.models import PluItem, Catalogue
 from apps.stories.models import Story
 
 
@@ -481,8 +481,9 @@ class NotificationTests(ApiTestCase):
 class PluTests(ApiTestCase):
     def setUp(self):
         super().setUp()
+        self.catalogue = Catalogue.objects.create(owner=self.kiran, title_column="description", code_column="plu_no", search_columns=["plu_no", "description"])
         for no, desc in ((7012, "LAMB LEG CHOPS"), (1319, "LAMB LOIN CHOPS"), (900, "BEEF MINCE")):
-            PluItem.objects.create(plu_no=no, description=desc)
+            PluItem.objects.create(catalogue=self.catalogue, plu_no=no, description=desc)
 
     def test_search_ranks_as_the_page_does(self):
         resp = self.api("get", "plu_search", {"q": "lamb chops"})
@@ -502,14 +503,14 @@ class PluTests(ApiTestCase):
 
     def test_a_name_too_long_to_watch_being_typed_is_passed_over(self):
         PluItem.objects.all().delete()
-        PluItem.objects.create(plu_no=1, description="BEEF MINCE")
-        PluItem.objects.create(plu_no=2, description="LAMB FOREQUARTER CHOPS FAMILY VALUE PACK")
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=1, description="BEEF MINCE")
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=2, description="LAMB FOREQUARTER CHOPS FAMILY VALUE PACK")
         samples = self.api("get", "plu_search", {"q": ""}).json()["samples"]
         self.assertEqual([i["plu_no"] for i in samples], [1])
 
     def test_when_every_name_is_long_it_shows_one_anyway(self):
         PluItem.objects.all().delete()
-        PluItem.objects.create(plu_no=2, description="LAMB FOREQUARTER CHOPS FAMILY VALUE PACK")
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=2, description="LAMB FOREQUARTER CHOPS FAMILY VALUE PACK")
         samples = self.api("get", "plu_search", {"q": ""}).json()["samples"]
         self.assertEqual([i["plu_no"] for i in samples], [2])
 
@@ -552,7 +553,11 @@ class PluTests(ApiTestCase):
 
 
 class PluImportTests(ApiTestCase):
-    """The site's staff-only CSV import, reached with a token."""
+    """The legacy staff-only importer writes to the manager's private catalogue."""
+
+    def setUp(self):
+        super().setUp()
+        self.catalogue = Catalogue.objects.create(owner=self.kiran, title_column="description", code_column="plu_no", search_columns=["plu_no", "description"])
 
     def csv(self, text, name="plu.csv"):
         return SimpleUploadedFile(name, text.encode("utf-8"), content_type="text/csv")
@@ -575,7 +580,7 @@ class PluImportTests(ApiTestCase):
     def test_a_manager_may_and_the_rows_go_in(self):
         token = self.staff_token()
         self.assertTrue(self.api("get", "plu_import", token=token).json()["allowed"])
-        PluItem.objects.create(plu_no=900, description="OLD NAME")
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=900, description="OLD NAME")
 
         resp = self.api(
             "post", "plu_import",

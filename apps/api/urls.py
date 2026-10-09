@@ -8,7 +8,7 @@ an `Authorization: Token …` header on everything else.
 
 from django.urls import path
 
-from .views import auth, board, friends, holidays, home, me, moderation, notifications, plu, stories, timeclock, uploads
+from .views import catalogue, auth, board, friends, holidays, home, me, moderation, notifications, plu, stories, timeclock, uploads
 
 app_name = "api"
 
@@ -57,6 +57,11 @@ urlpatterns = [
     path("notifications/unread/", notifications.Unread.as_view(), name="notifications_unread"),
     path("notifications/read/", notifications.ReadAll.as_view(), name="notifications_read"),
     path("notifications/<int:pk>/read/", notifications.Read.as_view(), name="notification_read"),
+
+    path("items/search/", catalogue.Search.as_view(), name="item_search"),
+    path("items/preview/", catalogue.Preview.as_view(), name="item_preview"),
+    path("items/import/", catalogue.Import.as_view(), name="item_import"),
+    path("items/<int:pk>/", catalogue.Detail.as_view(), name="item_detail"),
 
     path("plu/search/", plu.Search.as_view(), name="plu_search"),
     path("plu/import/", plu.Import.as_view(), name="plu_import"),

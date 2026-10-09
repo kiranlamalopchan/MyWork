@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import PluItem
+from .models import PluItem, Catalogue
 from .views import PRIORITY_FIRST, PRIORITY_LAST, search_plu_items
 
 
@@ -17,18 +17,22 @@ class PrioritySearchTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("kiran", password="pw")
         self.client.force_login(self.user)
+        self.catalogue = Catalogue.objects.create(owner=self.user, title_column="description", code_column="plu_no", search_columns=["plu_no", "description"])
 
         # The same word in and out of the priority band, so ordering is the
         # only thing that can put one before the other.
-        self.band_middle = PluItem.objects.create(plu_no=7050, description="BEEF MINCE")
-        self.band_first = PluItem.objects.create(plu_no=PRIORITY_FIRST, description="BEEF BLADE")
-        self.band_last = PluItem.objects.create(plu_no=PRIORITY_LAST, description="BEEF SHIN")
-        self.below = PluItem.objects.create(plu_no=6999, description="BEEF RIBS")
-        self.above = PluItem.objects.create(plu_no=7101, description="BEEF CHEEK")
-        self.far = PluItem.objects.create(plu_no=1234, description="BEEF OSSO BUCCO")
+        self.band_middle = self.make_item(plu_no=7050, description="BEEF MINCE")
+        self.band_first = self.make_item(plu_no=PRIORITY_FIRST, description="BEEF BLADE")
+        self.band_last = self.make_item(plu_no=PRIORITY_LAST, description="BEEF SHIN")
+        self.below = self.make_item(plu_no=6999, description="BEEF RIBS")
+        self.above = self.make_item(plu_no=7101, description="BEEF CHEEK")
+        self.far = self.make_item(plu_no=1234, description="BEEF OSSO BUCCO")
+
+    def make_item(self, plu_no, description):
+        return PluItem.objects.create(catalogue=self.catalogue, plu_no=plu_no, code=str(plu_no), title=description, description=description, search_text=f"{plu_no}\n{description}")
 
     def codes(self, q):
-        return [item.plu_no for item in search_plu_items(q)]
+        return [item.plu_no for item in search_plu_items(q, self.user)]
 
     # ---- the band comes first -------------------------------------------
 
@@ -46,7 +50,7 @@ class PrioritySearchTests(TestCase):
     def test_the_band_beats_a_better_description_match(self):
         # "MINCE" starts this one, which used to be enough to lead. The band
         # is now the stronger signal.
-        PluItem.objects.create(plu_no=200, description="MINCE BEEF PREMIUM")
+        self.make_item(plu_no=200, description="MINCE BEEF PREMIUM")
         self.assertEqual(self.codes("mince")[0], 7050)
 
     def test_the_band_leads_the_unfiltered_list(self):
@@ -54,7 +58,7 @@ class PrioritySearchTests(TestCase):
         self.assertEqual(codes[:3], [PRIORITY_FIRST, 7050, PRIORITY_LAST])
 
     def test_within_the_band_it_is_still_lowest_number_first(self):
-        PluItem.objects.create(plu_no=7002, description="BEEF BRISKET")
+        self.make_item(plu_no=7002, description="BEEF BRISKET")
         codes = self.codes("beef")
         self.assertEqual(codes[:4], [PRIORITY_FIRST, 7002, 7050, PRIORITY_LAST])
 
@@ -69,14 +73,14 @@ class PrioritySearchTests(TestCase):
         self.assertEqual(self.codes("6999")[0], 6999)
 
     def test_a_partial_code_still_prefers_the_band(self):
-        PluItem.objects.create(plu_no=7005, description="BEEF CUBE ROLL")
+        self.make_item(plu_no=7005, description="BEEF CUBE ROLL")
         # "700" matches 7000 and 7005 by prefix, both in the band.
         self.assertEqual(self.codes("700")[:2], [PRIORITY_FIRST, 7005])
 
     # ---- the rest of search is unchanged --------------------------------
 
     def test_words_still_match_in_any_order(self):
-        PluItem.objects.create(plu_no=8000, description="LAMB BONE-IN BBQ CHOPS")
+        self.make_item(plu_no=8000, description="LAMB BONE-IN BBQ CHOPS")
         self.assertEqual(self.codes("chops lamb"), [8000])
 
     def test_a_word_that_matches_nothing_returns_nothing(self):
@@ -84,15 +88,15 @@ class PrioritySearchTests(TestCase):
 
     # ---- and it reaches both front doors --------------------------------
 
-    def test_the_search_page_lists_the_band_first(self):
+    def test_the_generic_search_page_lists_private_items(self):
         resp = self.client.get(reverse("plu:list"), {"q": "beef"})
         codes = [item.plu_no for item in resp.context["page_obj"]]
-        self.assertEqual(codes[:3], [PRIORITY_FIRST, 7050, PRIORITY_LAST])
+        self.assertEqual(set(codes), {7000, 7050, 7100, 6999, 7101, 1234})
 
-    def test_the_live_search_endpoint_lists_the_band_first(self):
+    def test_the_generic_live_search_endpoint_lists_private_items(self):
         resp = self.client.get(reverse("plu:search_api"), {"q": "beef"})
-        codes = [row["plu_no"] for row in resp.json()["results"]]
-        self.assertEqual(codes[:3], [PRIORITY_FIRST, 7050, PRIORITY_LAST])
+        ids = [row["id"] for row in resp.json()["results"]]
+        self.assertEqual(set(ids), set(self.catalogue.items.values_list("pk", flat=True)))
 
 
 class PickingListMatchTests(TestCase):
@@ -183,8 +187,9 @@ class PhotoSearchPickTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("kiran", password="pw")
         self.client.force_login(self.user)
-        self.mince = PluItem.objects.create(plu_no=900, description="BEEF MINCE")
-        self.chops = PluItem.objects.create(plu_no=1319, description="LAMB LEG CHOPS")
+        self.catalogue = Catalogue.objects.create(owner=self.user, title_column="description", code_column="plu_no", search_columns=["plu_no", "description"])
+        self.mince = PluItem.objects.create(catalogue=self.catalogue, plu_no=900, description="BEEF MINCE")
+        self.chops = PluItem.objects.create(catalogue=self.catalogue, plu_no=1319, description="LAMB LEG CHOPS")
         session = self.client.session
         session["photo_search_lines"] = [
             {"line": "lamb chops", "plu_no": 900, "score": 0.5, "sureness": "likely",
@@ -231,7 +236,7 @@ class PhotoSearchPickTests(TestCase):
         from . import picking
         from .views import _remember
 
-        PluItem.objects.create(plu_no=1, description="BEEF SCOTCH FILLET")
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=1, description="BEEF SCOTCH FILLET")
         lines = [picking.Line(t, 90) for t in ["Customer: J. Smith", "beef scotch", "Thanks!"]]
         matched = picking.match_lines(lines, PluItem.objects.all())
 

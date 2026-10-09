@@ -1,0 +1,5 @@
+{% load ui %}
+<a class="tab{% if nav.active %} is-active{% endif %}" href="{{ nav.href }}"{% if nav.active %} aria-current="page"{% endif %}{% if nav.notifications %} data-no-cache aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}"{% endif %}>
+  {% if nav.icon %}<span class="tab__icon">{% icon nav.icon %}{% if nav.notifications and unread_notifications %}<span class="tab__badge" aria-hidden="true">{{ unread_badge }}</span>{% endif %}</span>{% endif %}
+  <span class="tab__label">{{ nav.label }}</span>
+</a>

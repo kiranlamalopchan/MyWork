@@ -8,14 +8,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppState, Platform } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
 import { SessionProvider, useSession } from "@/auth/session";
 import { OnboardingProvider, useOnboarding } from "@/onboarding/seen";
 import { Crashed } from "@/ui/Crashed";
 import { Splash } from "@/ui/Splash";
-import { navigateTo } from "@/nav/paths";
+import { useNotificationNavigation } from "@/push/useNotificationNavigation";
 import { nativeOrNull } from "@/ui/native";
 import { notifications } from "@/push/register";
 import { loadThemeMode, saveThemeMode, ThemeContext, type ThemeMode, useTheme } from "@/ui/theme";
@@ -50,19 +50,8 @@ function Guard() {
   const { ready, me } = useSession();
   const { checked, seen } = useOnboarding();
   const t = useTheme();
-
-  // A notification tapped: cold start or while running, the same path.
-  useEffect(() => {
-    const Notifications = notifications();
-    if (!Notifications || !me) return;
-    const follow = (response: { notification: { request: { content: { data?: Record<string, unknown> } } } } | null) => {
-      const url = response?.notification.request.content.data?.url;
-      if (typeof url === "string") navigateTo(url).catch(() => {});
-    };
-    Notifications.getLastNotificationResponseAsync().then(follow).catch(() => {});
-    const sub = Notifications.addNotificationResponseReceivedListener(follow);
-    return () => sub.remove();
-  }, [me]);
+  const navigation = useRootNavigationState();
+  useNotificationNavigation(ready && checked && !!navigation?.key, me?.username);
 
   // Nothing until the keychain has been asked: the splash stays up that long.
   if (!ready || !checked) return null;
@@ -107,6 +96,10 @@ function Guard() {
         <Stack.Screen name="workplaces/[id]/edit" />
         <Stack.Screen name="workplaces/[id]/remove" />
         <Stack.Screen name="pay" />
+        <Stack.Screen name="clock" />
+        <Stack.Screen name="timesheet" />
+        <Stack.Screen name="more" />
+        <Stack.Screen name="items/import" />
       </Stack.Protected>
     </Stack>
   );

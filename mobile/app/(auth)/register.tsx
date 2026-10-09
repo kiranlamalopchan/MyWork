@@ -39,7 +39,7 @@ export default function Register() {
   };
 
   return (
-    <AuthFrame title="Create account" sub="One account for PLU lookup and timesheets." foot="Already have an account?" link="Sign in" linkHref="/(auth)/login" agree>
+    <AuthFrame title="Create account" sub="One account for your items and timesheets." foot="Already have an account?" link="Sign in" linkHref="/(auth)/login" agree>
       <Field label="Username" error={errors.username}>
         <Input autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} textContentType="username" testID="username" />
       </Field>

@@ -22,7 +22,7 @@
     </div>
     <div class="results-head__actions">
       {% if results %}
-        <a class="btn btn--sm" href="{% url 'plu:photo_search_pdf' %}" data-full-load>
+        <a class="btn btn--sm" href="{% url 'plu:photo_search_pdf' %}?catalogue={{ active_catalogue.pk }}" data-full-load>
           {% icon "download" %}
           Download PDF
         </a>

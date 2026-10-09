@@ -9,7 +9,7 @@
 {% endcomment %}
 <li class="pick" data-pick data-index="{{ row.index }}" data-sureness="{{ row.sureness }}">
   <div class="result pick__main">
-    <a class="plu-badge" href="{% url 'plu:detail' row.item.plu_no %}">{{ row.item.plu_no }}</a>
+    <a class="plu-badge" href="{% url 'plu:detail' row.item.pk %}">{{ row.item.plu_no }}</a>
     <span class="result__body">
       <span class="result__title">{{ row.item.description }}</span>
       <span class="result__sub">Read: &ldquo;{{ row.line }}&rdquo;</span>
@@ -26,6 +26,7 @@
     <summary class="pick__change">{% icon "pencil" %}<span>Change</span></summary>
     <form method="post" action="{% url 'plu:photo_search_pick' %}" class="pick__alts" data-pick-form>
       {% csrf_token %}
+      <input type="hidden" name="catalogue" value="{{ row.item.catalogue_id }}">
       <input type="hidden" name="index" value="{{ row.index }}">
       {% if row.alternatives %}
         <div class="pick__label">Did it mean one of these?</div>

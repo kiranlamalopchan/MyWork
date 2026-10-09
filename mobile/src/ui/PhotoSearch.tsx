@@ -23,7 +23,7 @@ import { alpha, radius, sp, useTheme } from "./theme";
 
 type Row = PhotoRow & { key: number };
 
-export function PhotoSearch() {
+export function PhotoSearch({ catalogueId }: { catalogueId?: number }) {
   const t = useTheme();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [skipped, setSkipped] = useState(0);
@@ -55,7 +55,7 @@ export function PhotoSearch() {
       const file: FilePart = Platform.OS === "web"
         ? (new File([await (await fetch(asset.uri)).blob()], name, { type }) as unknown as FilePart)
         : { uri: asset.uri, name, type };
-      const read: PhotoRead = await plu.photo(file);
+      const read: PhotoRead = await plu.photo(file, catalogueId);
       setRows(read.rows.map((r, i) => ({ ...r, key: i })));
       setSkipped(read.skipped);
       setOpen(null);
@@ -77,7 +77,7 @@ export function PhotoSearch() {
     if (!rows?.length) return;
     setSaving(true);
     try {
-      await openPdf(plu.photoPdfUrl(), "picking-list.pdf", { rows: rows.map((r) => ({ plu_no: r.item.plu_no, line: r.line })) });
+      await openPdf(plu.photoPdfUrl(catalogueId), "picking-list.pdf", { rows: rows.map((r) => ({ plu_no: r.item.plu_no, line: r.line })) });
       success();
     } catch (e: any) {
       notify("No PDF", e?.message || "");
@@ -133,7 +133,7 @@ export function PhotoSearch() {
       {error ? <Text style={{ color: t.danger, fontSize: 14 }}>{error}</Text> : null}
       <Card pad={false}>
         {rows.map((row, i) => (
-          <RowView key={row.key} row={row} last={i === rows.length - 1} open={open === row.key} onOpen={() => { tick(); setOpen(open === row.key ? null : row.key); }} onPut={(item) => put(row.key, item)} />
+          <RowView catalogueId={catalogueId} key={row.key} row={row} last={i === rows.length - 1} open={open === row.key} onOpen={() => { tick(); setOpen(open === row.key ? null : row.key); }} onPut={(item) => put(row.key, item)} />
         ))}
         {!rows.length ? <Text style={{ color: t.muted, fontSize: 14.5, padding: sp[4], textAlign: "center" }}>Nothing left on the list.</Text> : null}
       </Card>
@@ -150,7 +150,7 @@ const SURE: Record<PhotoRow["sureness"], { word: string; key: "brand" | "blue" |
   sure: { word: "Sure", key: "brand" }, likely: { word: "Likely", key: "blue" }, unsure: { word: "Unsure", key: "warn" }, picked: { word: "Picked", key: "violet" },
 };
 
-function RowView({ row, last, open, onOpen, onPut }: { row: Row; last: boolean; open: boolean; onOpen: () => void; onPut: (item: PluItem | null) => void }) {
+function RowView({ catalogueId, row, last, open, onOpen, onPut }: { catalogueId?: number; row: Row; last: boolean; open: boolean; onOpen: () => void; onPut: (item: PluItem | null) => void }) {
   const t = useTheme();
   const [typed, setTyped] = useState("");
   const [looking, setLooking] = useState(false);
@@ -161,7 +161,7 @@ function RowView({ row, last, open, onOpen, onPut }: { row: Row; last: boolean; 
     const n = Number(typed.trim());
     if (!n) return;
     setLooking(true);
-    try { onPut(await plu.one(n)); setTyped(""); } catch { notify("No PLU with that number"); } finally { setLooking(false); }
+    try { onPut(await plu.one(n, catalogueId)); setTyped(""); } catch { notify("No PLU with that number"); } finally { setLooking(false); }
   };
 
   return (

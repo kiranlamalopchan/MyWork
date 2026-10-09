@@ -1,17 +1,6 @@
 /**
- * The hub, in one order everywhere: a greeting, the row of stories first
- * — looked at rather than read — with a thought for the day and a little
- * laugh side by side under them, then the next public holiday, then the
- * notice board with its newest few and the way to the rest. PLU and
- * TimeSheet are tabs of the bar below, so no tiles for them here.
- *
- * On an iPad or a desktop window (useLayout().desk) it is laid out the
- * way the site's home is from 1024px: two columns start together at the
- * top — on the left the greeting (with today's date) and the small cards
- * (the holiday, stacked with its drawing above the words; a thought for
- * the day; a little laugh), on the right the stories with the board
- * beneath them at a width a line of text is still comfortable at.
- * The extras are the hub's own: nothing is borrowed from another tab.
+ * Home brings together stories, notices, daily extras and holidays.
+ * Item search and work tools are reached through the native tab bar.
  */
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";

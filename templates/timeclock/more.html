@@ -1,25 +1,19 @@
 {% extends "base.html" %}
 {% load timeclock_extras ui %}
-{% block title %}More · KaamKoRecord{% endblock %}
+{% block title %}Work settings · KaamKoRecord{% endblock %}
 
 {% block content %}
 
 <div class="page-head">
-  <h1 class="page-title">More</h1>
-  <p class="page-sub">TimeSheet settings for {{ request.user.username }}</p>
+  <h1 class="page-title">Work settings</h1>
+  <p class="page-sub">Rates, hours restrictions and workplaces for {{ request.user.username }}</p>
 </div>
 
 {% comment %}
-  Everything TimeSheet's two segments (Clock, Timesheet) don't carry, so
-  the Timesheet page stays a list of shifts and nothing else. This page is
-  the dock's More tab. PLU's own features are not here — they belong to the
-  other app, one tab over.
-
-  Each row carries the figure behind it as well as the way to it: what you
-  are owed, how many places you work. Half the reason to open Pay is to read
-  one number, and a row that already says it has saved the trip.
+  Work Settings keeps the existing past-shift, pay and workplace tools.
+  Workplaces retains rates, hours restrictions, and reset/pay cycles.
 {% endcomment %}
-<h2 class="section-label more__label">TimeSheet</h2>
+<h2 class="section-label more__label">Manage your work</h2>
 
 <ul class="more">
   <li class="more__item">
@@ -63,7 +57,7 @@
       <span class="more__body">
         <span class="more__title">Workplaces</span>
         <span class="more__sub">
-          {% if workplace_count %}Rates, caps and cycles{% else %}Add the places you work{% endif %}
+          {% if workplace_count %}Rates, hours restrictions and pay cycles{% else %}Add the places you work{% endif %}
         </span>
       </span>
       {% if workplace_count %}

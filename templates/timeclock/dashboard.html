@@ -5,10 +5,9 @@
 {% block content %}
 
 {% comment %}
-  Three states share one screen: ready to clock in, working, and on a break.
-  The dial in the middle is the same element throughout — only its colour,
-  label and what the ticker counts change — so moving between states reads as
-  one object changing rather than three pages swapping.
+  The analog face always shows local time. The digital timer below switches
+  between current time, worked duration and break duration. Existing shift
+  actions and the selected workplace's hours restriction remain unchanged.
 {% endcomment %}
 
 <div class="clock"
@@ -56,12 +55,8 @@
     {% endif %}
 
     {# ---- The dial ------------------------------------------------------ #}
-    <div class="dial dial--{{ shift.status|default:'IDLE'|lower }}">
-      <svg class="dial__ring" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="dial__track" cx="60" cy="60" r="52"/>
-        <circle class="dial__progress" id="dial-progress" cx="60" cy="60" r="52"/>
-      </svg>
-
+    <div class="clock-face dial--{{ shift.status|default:'IDLE'|lower }}">
+      {% include "timeclock/_analog_clock.html" %}
       <div class="dial__face">
         {% if shift and shift.status == 'ON_BREAK' %}
           <div class="dial__label">On break</div>
@@ -88,6 +83,7 @@
       </div>
     </div>
 
+    {% if shift %}<div class="shift-progress" role="progressbar" aria-label="Shift progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="shift-progress__fill" id="shift-progress-fill"></span></div>{% endif %}
     {# ---- Actions ------------------------------------------------------- #}
     {% if not shift %}
 
@@ -182,6 +178,7 @@
     {% endif %}
 
     </div>
+    <a class="clock-settings" href="{% url 'timeclock:workplaces' %}">{% icon "settings" %} Workplaces &amp; hours restrictions</a>
 
   {% endif %}
 </div>

@@ -66,6 +66,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [load, client]);
 
   const signedIn = useCallback(async (result: { token: string; me: Me }) => {
+    client.clear();
     await setToken(result.token);
     setMe(result.me);
     // A phone that already said yes is told to the server; one that has
@@ -81,7 +82,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* the lock just won't be armed for this sign-in */
     }
-  }, []);
+  }, [client]);
 
   // Whoever we are now is who the next cold start draws while it asks —
   // once the keychain has been read, so a start doesn't wipe it first.
@@ -93,6 +94,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       me,
       signIn: async (username, password) => signedIn(await auth.login(username, password)),
       signInWithToken: async (token) => {
+        client.clear();
         await setToken(token);
         try {
           const who = await meApi.get();

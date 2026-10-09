@@ -1,13 +1,12 @@
 /**
- * The clock (templates/timeclock/dashboard.html): one of three states — ready
- * to clock in, working, or on a break — the dial counting, and the buttons
- * that move between them. That, where you are, and the hours cap you are
- * working against. Nothing else: the timesheet is one tap away for figures.
+ * The Work clock: current time on an analog face, shift duration below it,
+ * with the original shift controls, workplace choice and hours restrictions.
  */
+import { WorkNavigation } from "@/ui/WorkNavigation";
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import Svg, { Circle } from "react-native-svg";
+import { AnalogClock } from "@/ui/AnalogClock";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, useClock, useTimesheetChanged, type ClockState } from "@/api";
@@ -18,7 +17,6 @@ import { success, tap } from "@/ui/haptics";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
 import { CashTallyCard, LimitBar, StatusPill } from "@/ui/timesheet";
 
-const R = 52, C = 2 * Math.PI * R;
 
 export default function Clock() {
   const t = useTheme();
@@ -41,14 +39,14 @@ export default function Clock() {
 
   // The phone's clock may be off; count from the server's, as app.js does.
   const [skew, setSkew] = useState(0);
-  useEffect(() => { if (shown) setSkew(Date.now() - Date.parse(shown.server_now)); }, [shown?.server_now]);
+  const serverNow = shown?.server_now;
+  useEffect(() => { if (serverNow) setSkew(Date.now() - Date.parse(serverNow)); }, [serverNow]);
   // Nothing reads the number; setting it is what redraws the dial each second.
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (!shown?.shift) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
-  }, [shown?.shift?.id, shown?.shift?.status]);
+  }, []);
 
   const act = async (what: () => Promise<ClockState>) => {
     setBusy(true);
@@ -66,8 +64,8 @@ export default function Clock() {
     }
   };
 
-  if (q.isLoading && !shown) return <Screen><Page><SkeletonClock /></Page></Screen>;
-  if (!shown) return <Screen><Page>{q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}</Page></Screen>;
+  if (q.isLoading && !shown) return <Screen section="Work"><Page><WorkNavigation active="clock" /><SkeletonClock /></Page></Screen>;
+  if (!shown) return <Screen section="Work"><Page><WorkNavigation active="clock" />{q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}</Page></Screen>;
 
   const shift = shown.shift;
   const status = shift?.status ?? "IDLE";
@@ -92,8 +90,9 @@ export default function Clock() {
   const where = shift ? shift.workplace?.name : shown.workplaces.find((w) => w.id === selected)?.name;
 
   return (
-    <Screen>
+    <Screen section="Work">
       <Page refreshControl={refresh}>
+        <WorkNavigation active="clock" />
         {shown.workplaces.length === 0 ? (
           <Empty
             icon="home-outline"
@@ -114,20 +113,12 @@ export default function Clock() {
               </View>
             ) : null}
 
-            <View style={[styles.dial, { width: DIAL, height: DIAL }]}>
-              <View style={[styles.disc, { width: DIAL * 0.87, height: DIAL * 0.87, borderRadius: DIAL * 0.435, backgroundColor: t.surface, borderColor: t.dark ? t.line : "transparent" }, !t.dark && { shadowColor: t.shadow, shadowOpacity: 0.09, shadowRadius: 28, shadowOffset: { width: 0, height: 14 } }]} />
-              <Svg width={DIAL} height={DIAL} viewBox="0 0 120 120">
-                <Circle cx="60" cy="60" r={R} stroke={t.dark ? t.surface3 : t.surface2} strokeWidth={8} fill="none" />
-                <Circle
-                  cx="60" cy="60" r={R} stroke={ring} strokeWidth={8} fill="none" strokeLinecap="round"
-                  strokeDasharray={`${C}`} strokeDashoffset={C * (1 - progress)} transform="rotate(-90 60 60)"
-                />
-              </Svg>
-              <View style={styles.face}>
-                <Text style={[styles.dialLabel, { color: t.muted }]}>{label}</Text>
-                <Text style={[styles.dialTime, { color: t.text, fontSize: Math.round((shift ? 40 : 50) * (DIAL / 280)) }]} testID="dial-time">{timeText}</Text>
-                <Text style={{ color: t.muted, fontSize: 13, marginTop: sp[2] }}>{sub}</Text>
-              </View>
+            <AnalogClock timestamp={now} size={DIAL} />
+            <View style={{ alignItems: "center", gap: sp[2] }}>
+              <Text style={[styles.dialLabel, { color: t.muted }]}>{label}</Text>
+              <Text style={{ color: t.text, fontSize: shift ? 34 : 28, fontWeight: "700", fontVariant: ["tabular-nums"] }} testID="dial-time">{timeText}</Text>
+              <Text style={{ color: t.muted, fontSize: 13 }}>{sub}</Text>
+              {shift ? <View accessibilityLabel="Shift progress" style={{ width: "100%", height: 4, backgroundColor: t.surface3, borderRadius: 2, overflow: "hidden", marginTop: sp[2] }}><View style={{ width: `${progress * 100}%`, height: 4, backgroundColor: ring }} /></View> : null}
             </View>
 
             {!shift ? (
@@ -161,6 +152,7 @@ export default function Clock() {
               </>
             )}
             {shown.limit ? <LimitBar limit={shown.limit} /> : shown.tally ? <CashTallyCard tally={shown.tally} /> : null}
+            <Button title="Workplaces & hours restrictions" kind="plain" icon="settings-outline" onPress={() => router.push("/workplaces")} />
           </>
         )}
       </Page>

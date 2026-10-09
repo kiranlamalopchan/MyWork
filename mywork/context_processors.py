@@ -8,10 +8,7 @@ declares — means no view has to remember to pass it, and a page added to
 either app is navigated correctly for free.
 """
 
-# TimeSheet is three tabs of the dock, and these say which of its pages
-# belong to which: the timesheet and its calendar, the shifts on it and the
-# forms for them; More and everything it leads to. What is in neither is the
-# Clock's. The dock (_tabs.html) reads both to light one tab and no other.
+# Work groups these existing URLs into Clock, Timesheets, Pay and Settings.
 TIMESHEET_PAGES = frozenset({
     "timesheet", "calendar", "shift_detail", "shift_edit", "shift_create",
 })
@@ -23,38 +20,82 @@ MORE_PAGES = frozenset({
 
 SECTIONS = {
     "plu": {
-        "name": "PLU",
-        "title": "PLU Management",
-        "nav": "plu/_nav_links.html",
+        "name": "Items",
+        "title": "My items",
+        "nav": "_section_nav.html",
     },
-    # No segments: its places are tabs of the dock (see TIMESHEET_PAGES).
+    # Clock, timesheets, pay and settings share the Work section.
     "timeclock": {
-        "name": "TimeSheet",
-        "title": "TimeSheet Management",
-        "nav": None,
+        "name": "Work",
+        "title": "My work",
+        "nav": "_section_nav.html",
     },
 }
 
 
+PRIMARY_NAV = (
+    ("home", "Home", "home", "home"),
+    ("items", "Items", "search", "plu:list"),
+    ("work", "Work", "clock", "timeclock:dashboard"),
+    ("alerts", "Alerts", "bell", "notifications:inbox"),
+    ("profile", "Profile", "person", "accounts:profile"),
+)
+
+
+def _link(label, route, *, icon=None, active=False, params=None, notifications=False):
+    from urllib.parse import urlencode
+    from django.urls import reverse
+
+    href = reverse(route)
+    if params:
+        href += "?" + urlencode(params)
+    return {"label": label, "href": href, "icon": icon, "active": active, "notifications": notifications}
+
+
 def section(request):
     match = getattr(request, "resolver_match", None)
-    current = SECTIONS.get(match.namespace) if match else None
-    tabs = {"timesheet_pages": TIMESHEET_PAGES, "more_pages": MORE_PAGES}
+    namespace = match.namespace if match else ""
+    page = match.url_name if match else ""
+    selected = {"plu": "items", "timeclock": "work", "notifications": "alerts", "accounts": "profile"}.get(namespace, "home")
+    if page == "privacy" or namespace == "moderation" and page in {"blocked", "rules"}:
+        selected = "profile"
+    context = {
+        "timesheet_pages": TIMESHEET_PAGES, "more_pages": MORE_PAGES,
+        "primary_nav": [_link(label, route, icon=icon, active=key == selected, notifications=key == "alerts") for key, label, icon, route in PRIMARY_NAV],
+        "section_nav": None, "section_links": [], "section_name": None, "section_title": None,
+    }
+    current = SECTIONS.get(namespace)
     if not current:
-        # The hub, the account pages, the admin — no app section, so nothing
-        # to segment. The tab bar is base.html's and is there regardless.
-        return dict(tabs, section_nav=None, section_name=None, section_title=None)
-    return dict(
-        tabs,
-        section_nav=current["nav"],
-        section_name=current["name"],
-        section_title=current["title"],
-    )
+        return context
+    context.update(section_nav=current["nav"], section_name=current["name"], section_title=current["title"])
+    if namespace == "timeclock":
+        context["section_links"] = [
+            _link("Clock", "timeclock:dashboard", active=page == "dashboard"),
+            _link("Timesheets", "timeclock:timesheet", active=page in TIMESHEET_PAGES or page == "statement"),
+            _link("Pay", "timeclock:payments", active=page == "payments"),
+            _link("Settings", "timeclock:more", active=page in MORE_PAGES - {"payments", "statement"} or page == "workplace_payslip"),
+        ]
+    else:
+        from apps.plu.catalogue import for_request
+
+        catalogue = for_request(request)
+        params = {"catalogue": catalogue.pk} if catalogue else None
+        browsing = request.GET.get("view") == "catalogues"
+        context["active_catalogue"] = catalogue
+        links = [
+            _link("Search", "plu:list", icon="search", active=page == "list" and not browsing or page == "detail", params=params),
+            _link("My catalogues", "plu:list", active=page == "list" and browsing, params={"view": "catalogues"}),
+        ]
+        if catalogue and catalogue.code_column.lower() in {"plu", "plu_no"}:
+            links.append(_link("Photo", "plu:photo_search", icon="camera", active=page == "photo_search", params=params))
+        links.append(_link("Upload", "plu:import", icon="download", active=page == "import"))
+        context["section_links"] = links
+    return context
 
 
 def me(request):
     """
-    The signed-in user's own profile, for the avatar button in the app bar.
+    The signed-in user's own profile, for account pages and the current user.
 
     Fetched here rather than reached through `request.user.profile` in the
     template, so a page still renders for an account whose profile row is

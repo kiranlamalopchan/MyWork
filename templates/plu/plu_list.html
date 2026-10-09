@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% load ui %}
-{% block title %}Search PLUs · KaamKoRecord{% endblock %}
+{% block title %}Search your items · KaamKoRecord{% endblock %}
 
 {% block content %}
 
-{% comment %}
-  `is-idle` centres the box in the viewport until something is searched for;
-  app.js drops the class the moment a query runs.
-{% endcomment %}
+<div class="items-heading"><div><h1 class="page-title">My items</h1><p class="page-sub">Search your private catalogues</p></div><a class="btn btn--primary" href="{% url 'plu:import' %}">+ Upload</a></div>
+{% if show_catalogues %}
+<div class="catalogue-grid">
+  {% for saved in catalogues %}<a class="card catalogue-tile" href="{% url 'plu:list' %}?catalogue={{ saved.id }}"><strong>{{ saved.name }}</strong><span>{{ saved.count }} private item{{ saved.count|pluralize }}</span><b>Search catalogue →</b></a>{% empty %}<div class="card card__pad"><h2>Your first catalogue</h2><p>Upload groceries, meat, or any CSV and give it a name.</p></div>{% endfor %}
+</div>
+{% else %}
 <div class="search-page{% if not q %} is-idle{% endif %}" id="search-page">
 
 {{ placeholder_examples|json_script:"search-examples" }}
@@ -16,17 +18,26 @@
 <form class="searchbar" method="get" role="search" id="plu-search-form"
       data-search-url="{% url 'plu:search_api' %}"
       data-detail-url-template="{% url 'plu:detail' 987654321 %}"
+      data-catalogue="{{ catalogue.pk|default:'' }}"
       data-total-count="{{ total_count }}">
+  {% if catalogues %}
+  <label class="catalogue-picker" for="catalogue-select">Search in
+    <select class="input" name="catalogue" id="catalogue-select">
+      {% for saved in catalogues %}<option value="{{ saved.id }}"{% if saved.id == catalogue.pk %} selected{% endif %}>{{ saved.name }} ({{ saved.count }})</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><button class="btn" type="submit">Choose catalogue</button></noscript>
+  {% endif %}
   <div class="searchbar__field">
     {% icon "search" class="searchbar__icon" %}
 
-    <label class="sr-only" for="plu-search-input">Search PLUs</label>
+    <label class="sr-only" for="plu-search-input">Search your items</label>
     <input class="input searchbar__input"
            id="plu-search-input"
            type="search"
            name="q"
            value="{{ q|default:'' }}"
-           placeholder="PLU number or description"
+           placeholder="Search your selected columns"
            autocomplete="off"
            autocorrect="off"
            autocapitalize="off"
@@ -44,7 +55,7 @@
     {% if q %}
       {{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }} for &ldquo;{{ q }}&rdquo;
     {% else %}
-      Search {{ total_count }} PLU{{ total_count|pluralize }} by number or description
+      {{ catalogue.name|default:"My items" }} · {{ total_count }} private item{{ total_count|pluralize }}
     {% endif %}
   </div>
 
@@ -57,10 +68,10 @@
     <ul class="result-list">
       {% for item in page_obj %}
         <li>
-          <a class="result" href="{% url 'plu:detail' item.plu_no %}">
-            <span class="plu-badge">{{ item.plu_no }}</span>
+          <a class="result" href="{% url 'plu:detail' item.pk %}">
+            {% if item.code %}<span class="plu-badge catalogue-code">{{ item.code }}</span>{% endif %}
             <span class="result__body">
-              <span class="result__title">{{ item.description }}</span>
+              <span class="result__title">{{ item.title }}</span>
             </span>
             {% icon "chev" class="result__chev" %}
           </a>
@@ -81,16 +92,12 @@
           <div class="empty__sub">Nothing found for &ldquo;{{ q }}&rdquo;. Try fewer words.</div>
         {% elif total_count %}
           {# Nothing searched for yet — the list stays out of the way until asked for. #}
-          <div class="empty__title">Search a PLU</div>
-          <div class="empty__sub">Type a PLU number or part of a description to see matches.</div>
+          <div class="empty__title">Search your items</div>
+          <div class="empty__sub">Search the columns you selected when uploading your file.</div>
         {% else %}
-          <div class="empty__title">No PLUs yet</div>
+          <div class="empty__title">Your catalogue is empty</div>
           <div class="empty__sub">
-            {% if request.user.is_staff %}
-              Import a CSV to get started.
-            {% else %}
-              Ask a manager to import the PLU list.
-            {% endif %}
+            <a href="{% url 'plu:import' %}">Upload a CSV and choose your headings to get started.</a>
           </div>
         {% endif %}
       </div>
@@ -100,4 +107,5 @@
 
 </div>
 
+{% endif %}
 {% endblock %}

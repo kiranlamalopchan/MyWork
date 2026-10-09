@@ -2,7 +2,7 @@
 What every page needs to know about notifications: how many are waiting, and
 the key a browser needs in order to subscribe.
 
-Both are read here rather than by each view, because the bell lives in
+Both are read here rather than by each view, because the shared navigation lives in
 base.html and base.html renders on every page in KaamKoRecord.
 """
 

@@ -43,18 +43,18 @@
      Three steps, close together. With the shadows gone the separation between
      a card and the page behind it is this half-tone and one hairline, which
      is all it needs to be. */
-  --bg:        #f2f3f6;
+  --bg:        #f3f6f2;
   --surface:   #ffffff;
-  --surface-2: #f3f4f7;
-  --surface-3: #e8eaef;
+  --surface-2: #eef3ed;
+  --surface-3: #e3eae2;
 
   /* Text */
-  --text:   #0f1420;
-  --text-2: #3f4756;
-  --muted:  #6b7385;
+  --text:   #17271c;
+  --text-2: #415546;
+  --muted:  #687b6c;
 
-  --line:        #e6e8ee;
-  --line-strong: #d3d7e0;
+  --line:        #dfe7dd;
+  --line-strong: #c7d4c7;
 
   /* The floating tab bar: a slab of clear glass the way an iPhone's own is,
      the page blurred and brightened through it, in the theme's own light
@@ -190,20 +190,20 @@
     --rx-face:  #f2c14e;
     --rx-angry: #f2795c;
 
-    --bg:        #0a0c12;
-    --surface:   #161a24;
-    --surface-2: #1e2330;
-    --surface-3: #28303f;
+    --bg:        #101b14;
+    --surface:   #19271e;
+    --surface-2: #223329;
+    --surface-3: #2d4133;
 
-    --text:   #f1f3f8;
-    --text-2: #c3cad8;
-    --muted:  #8d97ab;
+    --text:   #eef4ee;
+    --text-2: #c1d0c3;
+    --muted:  #93a998;
 
-    --line:        #252b39;
-    --line-strong: #343c4d;
+    --line:        #2c4031;
+    --line-strong: #415b46;
 
     /* Lifted off the dark background rather than sunk into it. */
-    --pill:        #1e2330;
+    --pill:        #223329;
     --pill-glass:  rgba(36, 48, 74, .58);
     --pill-ink:    rgba(232, 237, 245, .62);
     --pill-line:   rgba(255, 255, 255, .16);
@@ -225,7 +225,7 @@
     --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
 
     /* Solid here too: a dark card is told apart by its own lighter surface. */
-    --glass:        #161a24;
+    --glass:        #19271e;
     --glass-line:   rgba(255, 255, 255, .07);
     --glass-hi:     transparent;
     --glass-glow:   transparent;
@@ -263,19 +263,19 @@
   --rx-face:  #f2c14e;
   --rx-angry: #f2795c;
 
-  --bg:        #0a0c12;
-  --surface:   #161a24;
-  --surface-2: #1e2330;
-  --surface-3: #28303f;
+  --bg:        #101b14;
+  --surface:   #19271e;
+  --surface-2: #223329;
+  --surface-3: #2d4133;
 
-  --text:   #f1f3f8;
-  --text-2: #c3cad8;
-  --muted:  #8d97ab;
+  --text:   #eef4ee;
+  --text-2: #c1d0c3;
+  --muted:  #93a998;
 
-  --line:        #252b39;
-  --line-strong: #343c4d;
+  --line:        #2c4031;
+  --line-strong: #415b46;
 
-  --pill:        #1e2330;
+  --pill:        #223329;
   --pill-glass:  rgba(36, 48, 74, .58);
   --pill-ink:    rgba(232, 237, 245, .62);
   --pill-line:   rgba(255, 255, 255, .16);
@@ -295,7 +295,7 @@
   --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
 
   /* Solid here too: a dark card is told apart by its own lighter surface. */
-  --glass:        #161a24;
+  --glass:        #19271e;
   --glass-line:   rgba(255, 255, 255, .07);
   --glass-hi:     transparent;
   --glass-glow:   transparent;
@@ -519,26 +519,6 @@ img { max-width: 100%; height: auto; display: block; }
    Alerts, in the corner where a phone keeps it: a round button the size of
    the face beside it, with the unread count on the bell's shoulder. It is
    the one place in the app that goes to the inbox, on every page. */
-.appbar__bell {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  color: var(--text-2);
-  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
-              transform var(--dur-1) var(--ease-snap);
-}
-.appbar__bell svg { width: 22px; height: 22px; }
-.appbar__bell:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
-.appbar__bell:active { transform: scale(.92); }
-.appbar__bell .tab__badge { top: -6px; right: -9px; box-shadow: 0 0 0 2px var(--surface); }
-/* Once you are in the inbox the bell says so, the way a lit tab does. */
-.appbar__bell[aria-current="page"] { color: var(--brand); background: var(--brand-soft); }
-/* A new arrival rings it: the count pops in, and the bell gives a nod. */
-.appbar__bell .tab__badge { animation: mw-pop var(--dur-3) var(--ease-snap) both; }
-
 /* Desktop nav lives in the appbar; on phones the tab bar replaces it */
 .appbar__nav { display: none; }
 
@@ -1049,7 +1029,7 @@ img { max-width: 100%; height: auto; display: block; }
    JavaScript the chosen segment draws the knob itself and the slide is all
    that goes.
 
-   The same .tab markup as the bar, restyled — the per-app _nav_links.html
+   The same .tab markup as the bar, restyled — the shared _section_nav.html
    files render here and nowhere else. */
 .segments {
   position: relative;
@@ -3110,132 +3090,6 @@ body[data-arrive="tab"]     > .container { animation: mw-page-tab  .24s var(--ea
 
 .icon-btn { transition: background var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-snap); }
 .icon-btn:active { transform: scale(.9); }
-
-
-/* --------------------------------------------------------------------------
-   21. Profile menu — you, in the corner of the app bar
-
-   Your face, and behind it your profile and the way out. It used to be the
-   app switcher as well; the tab bar took that over when it became the same
-   bar on every screen, and the class names stayed. A <details> is the whole
-   mechanism: it opens and closes with no script, and app.js only adds the
-   conveniences (outside click, Escape).
-   -------------------------------------------------------------------------- */
-.appmenu { position: relative; flex: none; }
-
-/* The button is the user's own face rather than a glyph, so it is sized and
-   ringed here instead of borrowing .icon-btn's box — a photo in a bordered
-   square reads as an image on a page, not as a control. */
-.appmenu__btn {
-  list-style: none;
-  flex: none;
-  display: grid;
-  place-items: center;
-  padding: 2px;
-  border-radius: 50%;
-  cursor: pointer;
-  /* Held open by a transparent ring so the avatar doesn't shift by 2px when
-     the menu opens and the ring appears. */
-  box-shadow: 0 0 0 2px transparent;
-  transition: box-shadow var(--dur-2) var(--ease), transform var(--dur-1) var(--ease-snap);
-}
-.appmenu__btn::-webkit-details-marker { display: none; }
-.appmenu__btn:hover { box-shadow: 0 0 0 2px var(--line-strong); }
-.appmenu__btn:active { transform: scale(.94); }
-.appmenu[open] > .appmenu__btn { box-shadow: 0 0 0 2px var(--brand); }
-
-.appmenu__panel {
-  position: absolute;
-  top: calc(100% + var(--sp-2));
-  right: 0;
-  z-index: 60;
-  /* Never wider than the screen it drops onto. */
-  width: min(268px, calc(100vw - var(--sp-6)));
-  padding: var(--sp-2);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-3);
-  transform-origin: top right;
-  animation: mw-menu var(--dur-2) var(--ease-out) both;
-}
-.appmenu__panel form { margin: 0; }
-
-@keyframes mw-menu {
-  from { opacity: 0; transform: translateY(-6px) scale(.96); }
-  to   { opacity: 1; transform: none; }
-}
-
-.appmenu__label {
-  padding: var(--sp-2) var(--sp-2) var(--sp-1);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.appmenu__item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2);
-  border-radius: var(--r-md);
-  color: var(--text);
-  transition: background var(--dur-1) var(--ease);
-}
-.appmenu__item:hover { background: var(--surface-2); text-decoration: none; }
-.appmenu__item.is-on { background: var(--brand-soft); }
-
-.appmenu__icon {
-  flex: none;
-  width: 36px; height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-sm);
-  background: var(--surface-3);
-  color: var(--text-2);
-}
-.appmenu__item.is-on .appmenu__icon { background: var(--brand); color: var(--brand-ink); }
-.appmenu__icon svg { width: 18px; height: 18px; }
-
-.appmenu__body { min-width: 0; }
-.appmenu__name { display: block; font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
-.appmenu__sub  { display: block; font-size: 12px; color: var(--muted); }
-
-/* Your own row. Wears the face rather than a square app icon, because it is
-   the one row in here that is a person and not a place. */
-.appmenu__me .appmenu__name { font-size: 15px; }
-.appmenu__me .appmenu__body { flex: 1; }
-.appmenu__chev {
-  flex: none;
-  width: 16px; height: 16px;
-  color: var(--muted);
-}
-
-.appmenu__rule { height: 1px; margin: var(--sp-2) var(--sp-1); background: var(--line); }
-
-.appmenu__link {
-  display: block;
-  width: 100%;
-  padding: 10px var(--sp-2);
-  border: 0;
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--text-2);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 550;
-  text-align: left;
-  cursor: pointer;
-}
-.appmenu__link:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
-.appmenu__link--danger { color: var(--danger); }
-
-/* On a short screen the open panel could reach the bottom bar (z 45), so the
-   app bar is lifted above it for as long as the menu is open. */
-.appbar:has(.appmenu[open]) { z-index: 50; }
-
 
 
 /* --------------------------------------------------------------------------
@@ -5990,7 +5844,6 @@ body::before {
 
      The dialog above is not affected — it renders in the top layer, where its
      own blurred ::backdrop is what sits behind it. */
-  .appmenu__panel,
   .photo-menu__panel {
     background: var(--surface);
     border-color: var(--line);
@@ -6069,7 +5922,6 @@ body::before {
   .shift:hover,
   .day__head:hover,
   .panel__head:hover,
-  .appmenu__item:hover,
   .photo-menu__item:hover {
     background: var(--glass-hover);
   }
@@ -6078,7 +5930,6 @@ body::before {
      each mean something — which app you are in, the item that deletes
      things, and a row with a finger down on it — so they are said again
      here rather than quietly lost to a hover. */
-  .appmenu__item.is-on:hover      { background: var(--brand-soft); }
   .photo-menu__item--danger:hover { background: var(--danger-soft); }
   .result:active,
   .shift:active {
@@ -6348,8 +6199,7 @@ body::before {
    35. Notifications — the bell, and the list behind it
    -------------------------------------------------------------------------- */
 
-/* The bell is a button of the app bar (.appbar__bell, §3), and the unread
-   count rides on its icon — the same .tab__badge the dock's tabs use. */
+/* The unread count rides on the Alerts tab in the shared navigation. */
 
 /* ---- The switch at the top of the inbox --------------------------------- */
 
@@ -7851,3 +7701,61 @@ body::before {
   font-weight: 600;
   text-decoration: none;
 }
+
+/* Private item catalogue: arbitrary headings and codes fit phone screens. */
+.catalogue-preview { overflow-x: auto; max-width: 100%; margin: 1rem 0; }
+.catalogue-preview table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.catalogue-preview th, .catalogue-preview td { padding: .65rem; text-align: left; border-bottom: 1px solid var(--line); min-width: 110px; max-width: 250px; overflow-wrap: anywhere; }
+.catalogue-mapping { display: grid; gap: 1rem; margin: 1rem 0; }
+.catalogue-mapping > label { display: grid; gap: .4rem; }
+.catalogue-mapping fieldset { border: 0; padding: 0; min-width: 0; }
+.catalogue-check { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem; }
+.catalogue-fields dt { font-weight: 700; margin-top: 1rem; }
+.catalogue-fields dd { margin: .3rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.catalogue-code { overflow-wrap: anywhere; max-width: 100%; }
+.result .catalogue-code { max-width: 35%; white-space: normal; }
+.detail-hero .catalogue-code { font-size: clamp(24px, 8vw, 64px); }
+
+.catalogue-picker { display: grid; gap: .4rem; margin-bottom: 1rem; font-weight: 600; min-width: 0; }
+
+/* Five primary destinations share readable labels and an unread badge. */
+:root { --clock-metal-hi: #edf2ed; --clock-metal: #becdc2; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --clock-metal-hi: #66786e; --clock-metal: #273e32; }
+}
+:root[data-theme="dark"] { --clock-metal-hi: #66786e; --clock-metal: #273e32; }
+.tabbar__inner { width: min(440px, calc(100vw - 2 * var(--gutter))); }
+.tabbar .tab { flex: 1; min-width: 0; flex-direction: column; gap: 4px; height: 58px; padding: 5px 8px; }
+.tabbar .tab__label, .tabbar .tab.is-active .tab__label { display: block; font-size: 11px; }
+.tabbar .tab.is-arriving .tab__label { animation: none; }
+.clock-face { display: grid; justify-items: center; gap: var(--sp-4); margin: var(--sp-2) auto var(--sp-3); }
+.analog-clock { display: block; width: min(280px, 72vw); height: auto; filter: drop-shadow(0 8px 12px rgba(25, 46, 31, .16)); }
+.clock-face .dial__time { font-size: 34px; }
+.clock-face .dial__time--clock { font-size: 28px; }
+.shift-progress { height: 4px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.shift-progress__fill { display: block; height: 100%; width: 0; background: var(--brand); transition: width 1s linear; }
+.clock-settings { display: flex; justify-content: center; align-items: center; gap: var(--sp-2); color: var(--brand-strong); font-size: 14px; padding: var(--sp-3); }
+.clock-settings svg { width: 18px; height: 18px; }
+.search-page.is-idle { min-height: 0; display: block; padding-top: 0; }
+.search-page.is-idle .searchbar { position: relative; padding-top: 0; }
+.items-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.catalogue-grid { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.catalogue-tile { padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-3); color: var(--text); }
+.catalogue-tile strong { font-size: 20px; }
+.catalogue-tile span { color: var(--muted); font-size: 14px; }
+.upload-steps { display: flex; gap: var(--sp-3); list-style: none; padding: 0; margin: 0 0 var(--sp-5); }
+.upload-steps li { flex: 1; color: var(--muted); font-size: 13px; font-weight: 650; border-bottom: 3px solid var(--line); padding-bottom: var(--sp-3); }
+.upload-steps li[aria-current="step"] { color: var(--brand-strong); border-color: var(--brand); }
+.catalogue-review { display: grid; gap: var(--sp-4); }
+.catalogue-review p { white-space: pre-line; }
+.catalogue-review[hidden], .catalogue-edit[hidden] { display: none; }
+
+.appearance-setting { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
+.appearance-setting__title { font-size: 16px; margin: 0 0 var(--sp-1); }
+.appearance-setting .help { margin: 0; }
+.profile-signout { margin-top: var(--sp-4); }
+.tabbar .tab { padding-inline: 4px; }
+.tabbar .tab__label { font-size: 10.5px; }
+
+/* The photo menu retains the shared menu entrance animation. */
+@keyframes mw-menu { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
