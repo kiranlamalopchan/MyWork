@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load ui l10n %}
+{% block title %}Add warehouse product · KaamKoRecord{% endblock %}
+{% block content %}
+<div class="warehouse" data-warehouse-picking data-warehouse-product>
+  <header class="warehouse-heading"><div><a class="backlink" href="{% url 'store_map:index' %}">{% icon "back" %} Warehouse map</a><p class="locator-eyebrow">PRODUCT SETUP</p><h1>Add a product</h1><p>Scan the barcode, name the product, and choose where it is stored.</p></div></header>
+  {% if warehouse %}
+  <section class="warehouse-panel warehouse-choose"><form method="get" class="warehouse-form"><p><label for="product-warehouse">Warehouse</label><select id="product-warehouse" name="store">{% for item in warehouses %}<option value="{{ item.pk }}"{% if item.pk == warehouse.pk %} selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></p><button class="warehouse-camera-button" type="submit">Use warehouse</button></form><p class="warehouse-muted">Changing the warehouse clears unsaved product details.</p></section>
+  <form method="post" class="warehouse-form" data-pick-scan data-scan-success="Code captured. Complete the product details and save.">{% csrf_token %}{{ form.store }}{{ form.store.errors }}{{ form.non_field_errors }}
+    <div class="warehouse-columns">
+      <section class="warehouse-panel"><h2>{% icon "store" %} Product details</h2>
+        <div class="warehouse-form">
+          <p>{{ form.barcode.label_tag }}{{ form.barcode }}{{ form.barcode.errors }}<button type="button" class="warehouse-camera-button" data-camera-target="product" hidden>{% icon "camera" %} Scan product barcode</button><span class="helptext">Use your camera, a scanner keyboard, or enter the code. Leading zeros are kept.</span></p>
+          <div data-camera-panel hidden><video class="warehouse-camera-preview" playsinline muted></video><button type="button" class="warehouse-camera-button" data-camera-stop>Stop camera</button></div><p class="warehouse-muted" data-scan-status role="status"></p>
+          <p>{{ form.title.label_tag }}{{ form.title }}{{ form.title.errors }}</p>
+          <h2>Storage location</h2>
+          <div class="warehouse-location-fields"><p>{{ form.zone.label_tag }}{{ form.zone }}{{ form.zone.errors }}</p><p>{{ form.rack.label_tag }}{{ form.rack }}{{ form.rack.errors }}</p><p>{{ form.shelf.label_tag }}{{ form.shelf }}{{ form.shelf.errors }}</p><p>{{ form.bin.label_tag }}{{ form.bin }}{{ form.bin.errors }}</p></div>
+        </div>
+      </section>
+      <section class="warehouse-panel"><h2>{% icon "map" %} Place it on the map</h2><p class="warehouse-muted">Choose an existing walking point beside the rack. The route will end here; the shelf and bin details identify the exact storage spot.</p>
+        <p>{{ form.map_node.label_tag }}{{ form.map_node }}{{ form.map_node.errors }}</p>
+        {% if nodes and warehouse.floorplan_svg %}{% localize off %}<svg class="warehouse-route-map warehouse-placement-map" viewBox="0 0 {{ warehouse.viewbox_width }} {{ warehouse.viewbox_height }}" role="group" aria-label="Choose the product's walking destination"><image href="{{ warehouse.floorplan_svg.url }}" width="{{ warehouse.viewbox_width }}" height="{{ warehouse.viewbox_height }}" preserveAspectRatio="none"/>{% for node in nodes %}<a href="#id_map_node" data-select-node="{{ node.pk }}" aria-label="Choose {{ node.node_id }}"><circle cx="{{ node.pos_x }}" cy="{{ node.pos_y }}" r="10" fill="#1763cc" fill-opacity="0.65" stroke="white" stroke-width="2"><title>{{ node.node_id }}</title></circle></a>{% endfor %}</svg>{% endlocalize %}<p class="warehouse-muted">Tap a blue point or use the destination selector.</p>{% elif not nodes %}<p class="locator-error" role="alert">This warehouse needs map points before products can be added. Ask an administrator to configure the map.</p>{% endif %}
+        <p class="warehouse-muted" data-map-choice role="status"></p>
+      </section>
+    </div>
+    <div class="warehouse-save"><a class="warehouse-map-link" href="{% url 'store_map:index' %}">Cancel</a><button class="locator-primary" type="submit"{% if not nodes %} disabled{% endif %}>{% icon "plus" %} Save product &amp; location</button></div>
+  </form>
+  {% else %}<section class="warehouse-panel"><h2>No warehouses configured</h2><p>Add a warehouse and its map points before adding products.</p>{% if perms.store_navigation.add_store %}<a class="locator-primary" href="{% url 'admin:store_navigation_store_add' %}" data-full-load>Add warehouse</a>{% endif %}</section>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% load l10n %}
+  {% localize off %}
+  <svg class="store-map-floorplan" viewBox="0 0 {{ store.viewbox_width }} {{ store.viewbox_height }}" role="group" aria-label="{{ store.name }} floorplan{% if route %} with route to {{ location.product.title }}{% endif %}">
+    <image href="{{ store.floorplan_svg.url }}" width="{{ store.viewbox_width }}" height="{{ store.viewbox_height }}" preserveAspectRatio="none" />
+    {% if route %}
+    <polyline points="{{ polyline }}" fill="none" stroke="white" stroke-width="8" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+    <polyline class="locator-route-line" points="{{ polyline }}" fill="none" stroke="#1763cc" stroke-width="4" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+    <circle class="locator-marker-halo locator-marker-halo--start" cx="{{ start.pos_x }}" cy="{{ start.pos_y }}" r="{{ marker_radius }}" fill="none" stroke="#1763cc" stroke-width="2" vector-effect="non-scaling-stroke" aria-hidden="true" />
+    <circle class="locator-marker-halo locator-marker-halo--target" cx="{{ target.pos_x }}" cy="{{ target.pos_y }}" r="{{ marker_radius }}" fill="none" stroke="#e96916" stroke-width="2" vector-effect="non-scaling-stroke" aria-hidden="true" />
+    <circle class="locator-start-marker" cx="{{ start.pos_x }}" cy="{{ start.pos_y }}" r="{{ marker_radius }}" fill="#1763cc" stroke="white" stroke-width="2" vector-effect="non-scaling-stroke"><title>Start: {{ start.node_id }}</title></circle>
+    <circle class="locator-target-marker" cx="{{ target.pos_x }}" cy="{{ target.pos_y }}" r="{{ marker_radius }}" fill="#e96916" stroke="white" stroke-width="2" vector-effect="non-scaling-stroke"><title>Product: {{ location.product.title }}</title></circle>
+    {% endif %}
+    {% if choosing_position %}
+    {% for point in position_nodes %}
+    <a href="{{ point.href }}" aria-label="Set my position at {{ point.label }}" class="store-map-point">
+      <circle cx="{{ point.node.pos_x }}" cy="{{ point.node.pos_y }}" r="{{ marker_radius }}" fill="#1763cc" fill-opacity="0.55" stroke="white" stroke-width="2" vector-effect="non-scaling-stroke"><title>{{ point.label }}</title></circle>
+    </a>
+    {% endfor %}
+    {% endif %}
+  </svg>
+  {% endlocalize %}

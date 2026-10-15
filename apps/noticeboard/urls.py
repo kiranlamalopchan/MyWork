@@ -15,6 +15,7 @@ urlpatterns = [
     # the same form in a dialog instead — but it is where the button points.
     path("new/", views.notice_compose, name="compose"),
     path("post/", views.notice_create, name="create"),
+    path("<int:pk>/", views.notice_detail, name="detail"),
     path("<int:pk>/react/", views.notice_react, name="react"),
     # Behind the tally: the count in names, for a notice and for a comment.
     path("<int:pk>/reactions/", views.notice_reactors, name="reactors"),

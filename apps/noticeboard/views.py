@@ -226,6 +226,20 @@ def board(request, form=None):
 
 
 @login_required
+def notice_detail(request, pk):
+    """One visible post and its interactions, reached from a Home preview."""
+    notice = get_object_or_404(Notice.visible(request.user), pk=pk)
+    decorate([notice], request.user)
+    return render(request, "noticeboard/detail.html", board_context(
+        request,
+        notice=notice,
+        notices=[notice],
+        next_url=reverse("notices:detail", args=[notice.pk]),
+        delete_next_url=reverse("home"),
+    ))
+
+
+@login_required
 def notice_compose(request):
     """
     The full-page version of the composer.

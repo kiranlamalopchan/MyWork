@@ -1,0 +1,5 @@
+{% load ui %}
+<header class="search-heading">
+  <div class="search-heading__copy"><p class="search-heading__eyebrow">YOUR PRIVATE CATALOGUES</p><h1 class="page-title">{{ heading }}</h1><p class="page-sub">{{ subtitle }}</p></div>
+  {% if search_actions %}<div class="search-heading__actions" role="group" aria-label="Catalogue actions">{% for action in search_actions %}<a class="btn{% if action.label == 'Upload catalogue' %} btn--primary{% endif %}" href="{{ action.href }}">{% if action.icon %}{% icon action.icon %}{% endif %}{{ action.label }}</a>{% endfor %}</div>{% endif %}
+</header>

@@ -1353,3 +1353,59 @@ class PinTests(TestCase):
 
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("notices:board")), pin_url)
+
+
+class HomeNoticePreviewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.reader = User.objects.create_user("preview-reader")
+        cls.author = User.objects.create_user("preview-author")
+        cls.notice = Notice.objects.create(author=cls.author, body="Read this post on Home.")
+        cls.comment = Comment.objects.create(notice=cls.notice, author=cls.reader, body="A conversation on the post page.")
+
+    def setUp(self):
+        self.client.force_login(self.reader)
+        self.detail = reverse("notices:detail", args=[self.notice.pk])
+
+    def test_home_shows_only_post_preview(self):
+        response = self.client.get(reverse("home"))
+        self.assertContains(response, self.notice.body)
+        self.assertContains(response, f'href="{self.detail}"')
+        self.assertNotContains(response, self.comment.body)
+        self.assertNotContains(response, 'class="thread"')
+        self.assertNotContains(response, 'class="acts')
+        self.assertNotContains(response, 'aria-label="Write a comment"')
+        self.assertNotContains(response, reverse("notices:react", args=[self.notice.pk]))
+
+    def test_detail_shows_one_post_and_interactions(self):
+        other = Notice.objects.create(author=self.author, body="Another notice")
+        response = self.client.get(self.detail)
+        self.assertContains(response, self.notice.body)
+        self.assertContains(response, self.comment.body)
+        self.assertContains(response, 'aria-label="Write a comment"')
+        self.assertContains(response, reverse("notices:react", args=[self.notice.pk]))
+        self.assertNotContains(response, other.body)
+        self.assertContains(response, f'name="next" value="{self.detail}"')
+
+    def test_comment_returns_to_detail(self):
+        response = self.client.post(reverse("notices:comment", args=[self.notice.pk]), {"body": "From the detail page", "next": self.detail})
+        comment = Comment.objects.get(body="From the detail page")
+        self.assertRedirects(response, f"{self.detail}#comment-{comment.pk}")
+
+    def test_delete_own_post_returns_home(self):
+        self.client.force_login(self.author)
+        response = self.client.get(self.detail)
+        self.assertContains(response, 'name="next" value="/"')
+        self.assertRedirects(self.client.post(reverse("notices:delete", args=[self.notice.pk]), {"next": "/"}), "/")
+
+    def test_inaccessible_detail_is_not_disclosed(self):
+        private = Notice.objects.create(author=self.author, body="Private", visibility=Visibility.PRIVATE)
+        friends = Notice.objects.create(author=self.author, body="Friends", visibility=Visibility.FRIENDS)
+        hidden = Notice.objects.create(author=self.author, body="Hidden", hidden=True)
+        for notice in (private, friends, hidden):
+            self.assertEqual(self.client.get(reverse("notices:detail", args=[notice.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("notices:detail", args=[999999])).status_code, 404)
+
+    def test_detail_requires_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(self.detail).status_code, 302)

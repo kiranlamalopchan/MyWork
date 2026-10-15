@@ -6,7 +6,7 @@ entirely to that app. The same two, and the shared half — board, stories,
 alerts, holidays, profiles — are also the native phone app (`mobile/`, over
 the API in `apps/api`).
 
-**My items** (`apps.plu`, mounted at `/plu/`)
+**Search** (`apps.plu`, mounted at `/plu/`; existing URLs and route names are preserved)
 - Every signed-in user can upload their own CSV; no staff permission is needed.
 - Preview five rows and map any heading to the title, optional description,
   and optional code. Choose the columns that should be searched. All original
@@ -96,6 +96,15 @@ own prefix in `mywork/urls.py`, and giving it an entry in
 `mywork/context_processors.py` plus a card on the hub. To have it notify
 people, give it a `notify.py` and call `apps.notifications.notify.notify()` —
 see [Notifications](#notifications).
+
+## Indoor store navigation API
+
+`apps.store_navigation` provides product locations on SVG floorplans and A*
+walking routes at `/api/stores/<store_id>/products/search/` and
+`/api/stores/<store_id>/navigate/`. Run migrations, then configure stores,
+products, nodes, directed edges and locations in Django Admin. The endpoints
+require the project's API authentication. See
+[store navigation setup and API details](apps/store_navigation/README.md).
 
 ## The native app and its API
 
@@ -342,10 +351,10 @@ with a few `min-width` queries for tablets and desktops. The pieces of chrome
 worth knowing: the **app bar** behaves like a navigation bar — a page's
 `.backlink` is lifted into its left corner on phones and the page's `h1`
 appears in its middle once it has scrolled away; the **dock** at the foot of
-a phone is one bar for the whole app — Home, Items, Work, Alerts, Profile,
+a phone is one bar for the whole app — Home, Search, Work, Alerts, Profile,
 with unread badges on Alerts — and its solid green pill is a
 knob that slides between the tabs (tapping the tab you are on scrolls to the
-top); the **segmented controls** (`.segments`: Search / My catalogues / Photo / Upload in Items; Clock /
+top). Photo search and Upload catalogue are page actions rather than destination tabs; the **segmented controls** (`.segments`: Search / Catalogues / Warehouse / Pick lists in Search; Clock /
 Timesheets / Pay / Settings in Work; and List / Calendar on the timesheet) are the same track-and-knob; and every yes-or-no is a **switch**
 (`.switch` — the markup is in `timeclock/_form_fields.html`) modelled on the
 day-and-night switch in the app bar. Pages come in the way screens do — a
@@ -449,7 +458,7 @@ Then on a phone on the same Wi-Fi, open `http://<your-computer-ip>:8000/`
 
 ## 4) CSV format
 
-The first row contains your own unique headings. On **Items → Upload**, name
+The first row contains your own unique headings. On **Search → Upload catalogue**, name
 the catalogue (for example Groceries or Meat), preview and choose which headings
 provide the title, description and code, then select
 the searchable columns. No fixed header names are required. A title column is

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Post by {{ notice.author.username }} · KaamKoRecord{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'home' %}">{% icon "back" %} Home</a>
+<div class="page-head"><h1 class="page-title">Notice post</h1><p class="page-sub">Read the conversation, leave a reaction or add a comment.</p></div>
+<div class="board notice-detail">{% include "noticeboard/_board.html" %}</div>
+{% endblock %}

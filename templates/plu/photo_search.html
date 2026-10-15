@@ -4,12 +4,7 @@
 
 {% block content %}
 
-<div class="page-head">
-  <h1 class="page-title">Photo search</h1>
-  <p class="page-sub">
-    Photograph a picking list &mdash; one item per line &mdash; and every line is named as a PLU, with how sure the read was.
-  </p>
-</div>
+{% include "plu/_heading.html" with heading="Photo search" subtitle="Photograph a picking list to find matching item codes in your selected catalogue." %}
 
 <div class="card card__pad">
   <form method="post" enctype="multipart/form-data" id="photo-form">

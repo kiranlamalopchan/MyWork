@@ -19,9 +19,10 @@ MORE_PAGES = frozenset({
 })
 
 SECTIONS = {
+    "store_map": {"name": "Search", "title": "Warehouse Navigation", "nav": "_section_nav.html"},
     "plu": {
-        "name": "Items",
-        "title": "My items",
+        "name": "Search",
+        "title": "Search",
         "nav": "_section_nav.html",
     },
     # Clock, timesheets, pay and settings share the Work section.
@@ -35,7 +36,7 @@ SECTIONS = {
 
 PRIMARY_NAV = (
     ("home", "Home", "home", "home"),
-    ("items", "Items", "search", "plu:list"),
+    ("items", "Search", "search", "plu:list"),
     ("work", "Work", "clock", "timeclock:dashboard"),
     ("alerts", "Alerts", "bell", "notifications:inbox"),
     ("profile", "Profile", "person", "accounts:profile"),
@@ -56,13 +57,14 @@ def section(request):
     match = getattr(request, "resolver_match", None)
     namespace = match.namespace if match else ""
     page = match.url_name if match else ""
-    selected = {"plu": "items", "timeclock": "work", "notifications": "alerts", "accounts": "profile"}.get(namespace, "home")
+    selected = {"store_map": "items", "plu": "items", "timeclock": "work", "notifications": "alerts", "accounts": "profile"}.get(namespace, "home")
     if page == "privacy" or namespace == "moderation" and page in {"blocked", "rules"}:
         selected = "profile"
     context = {
         "timesheet_pages": TIMESHEET_PAGES, "more_pages": MORE_PAGES,
         "primary_nav": [_link(label, route, icon=icon, active=key == selected, notifications=key == "alerts") for key, label, icon, route in PRIMARY_NAV],
         "section_nav": None, "section_links": [], "section_name": None, "section_title": None,
+        "search_workspace": namespace in {"plu", "store_map"}, "search_actions": [],
     }
     current = SECTIONS.get(namespace)
     if not current:
@@ -76,20 +78,25 @@ def section(request):
             _link("Settings", "timeclock:more", active=page in MORE_PAGES - {"payments", "statement"} or page == "workplace_payslip"),
         ]
     else:
+        # Keep the same destinations and order throughout the Search workspace.
+        # Display labels change; URL namespaces and /plu/ bookmarks stay intact.
         from apps.plu.catalogue import for_request
 
-        catalogue = for_request(request)
+        catalogue = for_request(request) if namespace == "plu" else None
         params = {"catalogue": catalogue.pk} if catalogue else None
-        browsing = request.GET.get("view") == "catalogues"
+        browsing = namespace == "plu" and request.GET.get("view") == "catalogues"
         context["active_catalogue"] = catalogue
-        links = [
-            _link("Search", "plu:list", icon="search", active=page == "list" and not browsing or page == "detail", params=params),
-            _link("My catalogues", "plu:list", active=page == "list" and browsing, params={"view": "catalogues"}),
+        context["section_links"] = [
+            _link("Search", "plu:list", icon="search", active=namespace == "plu" and page in {"list", "detail", "photo_search"} and not browsing, params=params),
+            _link("Catalogues", "plu:list", active=namespace == "plu" and (browsing or page == "import"), params={"view": "catalogues"}),
+            _link("Warehouse", "store_map:index", active=namespace == "store_map" and page in {"index", "edit_location", "add_product"}),
+            _link("Pick lists", "store_map:orders", active=namespace == "store_map" and page in {"orders", "pick_order"}),
         ]
-        if catalogue and catalogue.code_column.lower() in {"plu", "plu_no"}:
-            links.append(_link("Photo", "plu:photo_search", icon="camera", active=page == "photo_search", params=params))
-        links.append(_link("Upload", "plu:import", icon="download", active=page == "import"))
-        context["section_links"] = links
+        if namespace == "plu":
+            if catalogue and catalogue.code_column.lower() in {"plu", "plu_no"} and page != "photo_search":
+                context["search_actions"].append(_link("Photo search", "plu:photo_search", icon="camera", params=params))
+            if page != "import":
+                context["search_actions"].append(_link("Upload catalogue", "plu:import", icon="plus"))
     return context
 
 

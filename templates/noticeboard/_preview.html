@@ -1,0 +1,20 @@
+{% load humanize avatars ui %}
+<li class="notice notice-preview{% if notice.is_mine %} notice--mine{% else %} notice--from{% endif %}{% if notice.is_pinned %} notice--pinned{% endif %}"
+    style="--hue: {{ notice.hue }}; --i: {{ forloop.counter0 }}" id="notice-{{ notice.pk }}">
+  <a class="notice-preview__link" href="{% url 'notices:detail' notice.pk %}">
+    {% if notice.is_pinned %}<div class="notice__pinned">{% icon "pin" %} Pinned</div>{% endif %}
+    <div class="notice__main">
+      {% avatar notice.author %}
+      <div class="notice__body">
+        <div class="notice__head">
+          <span class="notice__who">{% if notice.is_mine %}You{% else %}{{ notice.author.username }}{% endif %}</span>
+          {% include "accounts/_admin_badge.html" with user=notice.author %}
+          <span class="notice__when" title="{{ notice.created_at }}">{{ notice.created_at|naturaltime }}{% if notice.was_edited %} · edited{% endif %}</span>
+          {% include "noticeboard/_visibility_badge.html" with item=notice %}
+        </div>
+        <p class="notice__text">{{ notice.body|linebreaksbr }}</p>
+      </div>
+    </div>
+    <span class="notice-preview__open">Open post {% icon "chev" %}</span>
+  </a>
+</li>

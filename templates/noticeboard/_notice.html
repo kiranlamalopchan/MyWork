@@ -79,7 +79,7 @@
         <form class="acts__form" method="post" action="{% url 'notices:delete' notice.pk %}"
               onsubmit="return confirm('Remove this notice? Everyone loses sight of it.');">
           {% csrf_token %}
-          <input type="hidden" name="next" value="{{ next_url }}">
+          <input type="hidden" name="next" value="{{ delete_next_url|default:next_url }}">
           <button type="submit" class="act act--quiet act--danger" title="Remove" aria-label="Remove">
             {% icon "trash" class="act__icon" %}
             <span class="act__label">Remove</span>

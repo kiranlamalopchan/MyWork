@@ -903,9 +903,9 @@ class NavigationTests(TestCase):
                 # The hub has no app and so no segments, and TimeSheet has
                 # none either: its places are tabs of the dock.
                 if name.startswith(("plu:", "timeclock:")):
-                    self.assertIn('class="segments segments--places"', html)
+                    self.assertIn('class="segments segments--places', html)
                 else:
-                    self.assertNotIn('class="segments segments--places"', html)
+                    self.assertNotIn('class="segments segments--places', html)
 
     def test_home_uses_navigation_and_profile_owns_appearance_and_sign_out(self):
         home = self.client.get(reverse("home"))
@@ -2420,9 +2420,9 @@ class OneWayInTests(TestCase):
 
     def test_work_groups_clock_timesheets_pay_and_settings(self):
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
-        for label in ["Home", "Items", "Work", "Alerts", "Profile"]:
+        for label in ["Home", "Search", "Work", "Alerts", "Profile"]:
             self.assertEqual(html.count('class="tab__label">' + label + "</span>"), 2, label)
-        self.assertIn('class="segments segments--places"', html)
+        self.assertIn('class="segments segments--places', html)
         for route in ["dashboard", "timesheet", "payments", "more"]:
             self.assertIn(reverse("timeclock:" + route), html)
         self.assertNotIn('class="tab__label">Board</span>', html)

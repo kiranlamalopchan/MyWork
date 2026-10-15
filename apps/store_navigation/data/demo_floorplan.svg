@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <rect width="1000" height="1000" fill="#f5f8f5"/>
+  <rect x="40" y="70" width="920" height="850" rx="24" fill="white" stroke="#b8cbbd" stroke-width="4"/>
+  <g font-family="Arial, sans-serif" text-anchor="middle" fill="#213d2d">
+    <text x="500" y="45" font-size="26" font-weight="bold">DEMO SUPERMARKET</text>
+    <text x="500" y="115" font-size="18">Sample layout · not a real store</text>
+    <g fill="#e3f2dd" stroke="#a2c18e" stroke-width="2">
+      <rect x="185" y="220" width="130" height="480" rx="12"/>
+      <rect x="405" y="220" width="130" height="480" rx="12"/>
+      <rect x="625" y="220" width="130" height="480" rx="12"/>
+      <rect x="845" y="220" width="80" height="480" rx="12"/>
+    </g>
+    <g stroke="white" stroke-width="5">
+      <path d="M185 410h130M185 570h130M405 410h130M405 570h130M625 410h130M625 570h130M845 410h80M845 570h80"/>
+    </g>
+    <g font-size="19" font-weight="bold">
+      <text x="250" y="270">Aisle 1</text><text x="470" y="270">Aisle 2</text>
+      <text x="690" y="270">Aisle 3</text><text x="885" y="270" font-size="15">Aisle 4</text>
+    </g>
+    <g font-size="16">
+      <text x="250" y="310">Produce</text><text x="470" y="310">Pantry</text>
+      <text x="690" y="310">Snacks</text><text x="885" y="310">Dairy</text>
+      <text x="250" y="475">Fruit</text><text x="470" y="475">Oil &amp; rice</text>
+      <text x="690" y="475">Biscuits</text><text x="885" y="475">Milk</text>
+      <text x="250" y="635">Vegetables</text><text x="470" y="635">Pasta</text>
+      <text x="690" y="635">Tea</text><text x="885" y="635">Cheese</text>
+    </g>
+    <rect x="100" y="850" width="230" height="45" rx="8" fill="#e8edf3"/>
+    <rect x="670" y="850" width="230" height="45" rx="8" fill="#e8edf3"/>
+    <text x="215" y="879" font-size="17">Checkouts</text><text x="785" y="879" font-size="17">Customer service</text>
+    <path d="M450 920h100" stroke="white" stroke-width="8"/>
+    <text x="500" y="965" font-size="22" font-weight="bold">ENTRANCE</text>
+  </g>
+</svg>

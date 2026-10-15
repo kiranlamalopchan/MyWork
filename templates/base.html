@@ -122,7 +122,7 @@
       segmented control at the top of the page, which is where a native app
       keeps the views under one tab.
     {% endcomment %}
-    <nav class="segments segments--places" aria-label="{{ section_name }}">
+    <nav class="segments segments--places{% if search_workspace %} segments--search{% endif %}" aria-label="{{ section_name }}">
       {% include section_nav %}
     </nav>
   {% endif %}

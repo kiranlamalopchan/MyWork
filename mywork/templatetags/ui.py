@@ -26,6 +26,11 @@ register = template.Library()
 # `back` rather than `chevron-left` — because the meaning is what a template
 # is choosing when it asks for one.
 ICONS = {
+    "map": '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>',
+    "navigation": '<path d="m21 3-6.5 18-3.3-8.2L3 9.5 21 3Z"/>',
+    "location": '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    "store": '<path d="M4 10v10h16V10M3 6l2-3h14l2 3v4a3 3 0 0 1-4 0 3 3 0 0 1-5 0 3 3 0 0 1-5 0 3 3 0 0 1-4 0V6ZM3 6h18M10 20v-6h4v6"/>',
+
     "settings": '<circle cx="12" cy="12" r="3"/><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 3-1 2 2 3-2-1-3 2-2-2-3-3-1-1-3Z"/>',
     "back":       '<path d="m15 18-6-6 6-6"/>',
     "chev":       '<path d="m9 18 6-6-6-6"/>',

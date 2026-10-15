@@ -5200,6 +5200,256 @@
     document.getElementById("catalogue-review-edit").addEventListener("click", function () { toggle(false); form.elements.name.focus(); });
   }
 
+  var barcodeFallbackReady = null;
+  function barcodeDetectorFallback(url) {
+    if (!barcodeFallbackReady) {
+      barcodeFallbackReady = new Promise(function (resolve, reject) {
+        if (window.ZXingBrowser) { resolve(window.ZXingBrowser); return; }
+        var script = document.createElement("script");
+        script.src = url;
+        script.onload = function () { resolve(window.ZXingBrowser); };
+        script.onerror = function () { barcodeFallbackReady = null; script.remove(); reject(new Error("Scanner could not load")); };
+        document.head.appendChild(script);
+      });
+    }
+    return barcodeFallbackReady.then(function (library) {
+      var reader = new library.BrowserMultiFormatReader();
+      var canvas = document.createElement("canvas");
+      var context = canvas.getContext("2d", { willReadFrequently: true });
+      return { detect: async function (video) {
+        if (!video.videoWidth || !video.videoHeight) return [];
+        canvas.width = Math.min(video.videoWidth, 960);
+        canvas.height = Math.round(video.videoHeight * canvas.width / video.videoWidth);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try { return [{ rawValue: reader.decodeFromCanvas(canvas).getText() }]; }
+        catch (error) { return []; } // Most frames do not contain a readable barcode.
+      } };
+    });
+  }
+
+  function initWarehousePicking() {
+    var root = document.querySelector("[data-warehouse-picking]");
+    if (!root) return;
+    var stream = null, timer = null, session = 0, activePanel = null;
+    function stopCamera() {
+      session++;
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+      if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+      stream = null;
+      if (activePanel) {
+        activePanel.querySelector("video").srcObject = null;
+        activePanel.hidden = true;
+      }
+      activePanel = null;
+    }
+    onLeave(stopCamera);
+    listen(document, "visibilitychange", function () { if (document.hidden) stopCamera(); });
+    root.querySelectorAll("[data-pick-scan]").forEach(function (form) {
+      var fields = Array.from(form.querySelectorAll("[data-scan-field]"));
+      function submitLookup() {
+        form.elements.lookup.value = "barcode";
+        form.action = form.dataset.scanAction;
+        form.requestSubmit();
+      }
+      function focusAfter(field) {
+        var next = field.dataset && field.dataset.scanNext
+          ? form.querySelector(field.dataset.scanNext)
+          : fields[fields.indexOf(field) + 1] || form.elements.quantity;
+        if (next) next.focus();
+      }
+      fields.forEach(function (field) {
+        field.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            // Search still accepts ordinary names when Enter is pressed.
+            if (form.dataset && form.dataset.scanSubmit) return;
+            event.preventDefault();
+            focusAfter(field);
+          }
+        });
+      });
+      var panel = form.querySelector("[data-camera-panel]");
+      var status = form.querySelector("[data-scan-status]");
+      form.querySelector("[data-camera-stop]").addEventListener("click", stopCamera);
+      var disclosure = form.closest("details");
+      if (disclosure) disclosure.addEventListener("toggle", function (event) {
+        if (!event.target.open && activePanel === panel) stopCamera();
+      });
+      form.querySelectorAll("[data-camera-target]").forEach(function (button) {
+        button.hidden = false;
+        button.addEventListener("click", async function () {
+          stopCamera();
+          var target = form.querySelector('[data-scan-field="' + button.dataset.cameraTarget + '"]');
+          if (!window.isSecureContext || !navigator.mediaDevices || (!window.BarcodeDetector && !(form.dataset && form.dataset.scanFallback))) {
+            status.textContent = "Camera scanning is unavailable in this browser. Use a scanner keyboard or enter the code.";
+            target.focus();
+            return;
+          }
+          var token = session;
+          status.textContent = "Opening camera…";
+          try {
+            var detector = null;
+            var formats = window.BarcodeDetector ? await window.BarcodeDetector.getSupportedFormats() : [];
+            if (token !== session) return;
+            var wanted = ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "qr_code", "data_matrix"];
+            var supported = wanted.filter(function (format) { return formats.indexOf(format) !== -1; });
+            if (supported.length) detector = new window.BarcodeDetector({ formats: supported });
+            else if (form.dataset && form.dataset.scanFallback) detector = await barcodeDetectorFallback(form.dataset.scanFallback);
+            else throw new Error("No supported barcode formats");
+            if (token !== session) return;
+            var camera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+            if (token !== session) { camera.getTracks().forEach(function (track) { track.stop(); }); return; }
+            stream = camera;
+            activePanel = panel;
+            panel.hidden = false;
+            var video = panel.querySelector("video");
+            video.srcObject = camera;
+            await video.play();
+            if (token !== session) return;
+            status.textContent = "Point the camera at the " + (button.dataset.cameraTarget === "bin" ? "bin" : "product") + " label.";
+            async function detect() {
+              if (token !== session) return;
+              try {
+                var codes = await detector.detect(video);
+                if (token !== session) return;
+                var code = codes.find(function (entry) { return entry.rawValue; });
+                if (code) {
+                  target.value = code.rawValue;
+                  target.dispatchEvent(new Event("input", { bubbles: true }));
+                  stopCamera();
+                  status.textContent = (form.dataset && form.dataset.scanSuccess) || "Product barcode captured. Enter the quantity and confirm.";
+                  if (form.dataset && form.dataset.scanSubmit) submitLookup();
+                  else focusAfter(target);
+                  return;
+                }
+              } catch (error) {
+                if (token !== session) return;
+                stopCamera();
+                status.textContent = "Could not read the camera. Use a scanner keyboard or enter the code.";
+                return;
+              }
+              timer = window.setTimeout(detect, 180);
+            }
+            detect();
+          } catch (error) {
+            if (token !== session) return;
+            stopCamera();
+            status.textContent = "Camera could not start. Check camera access or enter the code manually.";
+          }
+        });
+      });
+    });
+  }
+
+  function initStoreNavigation() {
+    var locator = document.querySelector(".locator");
+    if (!locator) return;
+    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (locator.querySelector(".locator-3d-guide")) {
+      var guideLeft = false;
+      var stopGuide = null;
+      import(locator.dataset.walkerModule).then(function (module) {
+        if (guideLeft) return;
+        stopGuide = module.mountWalkingGuide(locator);
+      }).catch(function () {
+        var status = locator.querySelector(".locator-guide-status");
+        if (!guideLeft && status) status.textContent = "3D guide unavailable. Follow the blue route.";
+      });
+      onLeave(function () { guideLeft = true; if (stopGuide) stopGuide(); });
+    }
+    var motionToggle = locator.querySelector(".locator-motion-toggle");
+    if (motionToggle) {
+      motionToggle.hidden = reduced.matches;
+      motionToggle.addEventListener("click", function () {
+        var paused = locator.classList.toggle("locator-motion-paused");
+        motionToggle.setAttribute("aria-pressed", String(paused));
+        motionToggle.textContent = paused ? "Resume animation" : "Pause animation";
+        var svg = locator.querySelector(".store-map-floorplan");
+        if (svg && svg.pauseAnimations) {
+          if (paused || reduced.matches) svg.pauseAnimations();
+          else svg.unpauseAnimations();
+        }
+      });
+      function updateMotionPreference() {
+        motionToggle.hidden = reduced.matches;
+        var svg = locator.querySelector(".store-map-floorplan");
+        if (svg && svg.pauseAnimations) {
+          if (reduced.matches || locator.classList.contains("locator-motion-paused")) svg.pauseAnimations();
+          else svg.unpauseAnimations();
+        }
+      }
+      updateMotionPreference();
+      listen(reduced, "change", updateMotionPreference);
+    }
+    var nav = locator.querySelector(".locator-jumps");
+    if (nav) {
+      var panels = Array.from(locator.querySelectorAll("[data-locator-panel]"));
+      function updateViews() {
+        var active = panels.find(function (panel) { return panel.open; });
+        nav.dataset.active = active ? active.dataset.locatorPanel : "none";
+        nav.querySelectorAll("a").forEach(function (link) {
+          var selected = !!active && link.hash === "#" + active.id;
+          link.setAttribute("aria-expanded", String(selected));
+          if (selected) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
+      }
+      function selectView(hash) {
+        var target = panels.find(function (panel) { return "#" + panel.id === hash; });
+        if (target) panels.forEach(function (panel) { panel.open = panel === target; });
+        updateViews();
+      }
+      panels.forEach(function (panel) {
+        panel.addEventListener("toggle", function () {
+          if (panel.open) panels.forEach(function (other) { if (other !== panel) other.open = false; });
+          updateViews();
+        });
+      });
+      selectView(window.location.hash);
+      nav.addEventListener("click", function (event) {
+        var link = event.target.closest("a");
+        if (link && !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) selectView(link.hash);
+      });
+      listen(window, "hashchange", function () { selectView(window.location.hash); });
+    }
+  }
+
+  function initWarehouseProductMap() {
+    var root = document.querySelector("[data-warehouse-product]");
+    if (!root) return;
+    var select = root.querySelector("#id_map_node");
+    if (!select) return;
+    var status = root.querySelector("[data-map-choice]");
+    function showChoice() {
+      root.querySelectorAll("[data-select-node]").forEach(function (point) {
+        var chosen = point.dataset.selectNode === select.value;
+        point.classList.toggle("is-selected", chosen);
+        if (chosen) point.setAttribute("aria-current", "true");
+        else point.removeAttribute("aria-current");
+      });
+      status.textContent = select.value ? "Map destination: " + select.options[select.selectedIndex].text : "";
+    }
+    root.querySelectorAll("[data-select-node]").forEach(function (point) {
+      point.addEventListener("click", function (event) {
+        event.preventDefault();
+        select.value = point.dataset.selectNode;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    select.addEventListener("change", showChoice);
+    showChoice();
+  }
+
+  function initPickWorkspace() {
+    var root = document.querySelector("[data-pick-workspace]");
+    if (!root) return;
+    var disposed = false, cleanup = null;
+    import(root.dataset.pickModule).then(function (module) {
+      if (!disposed) cleanup = module.mountPickWorkspace(root);
+    }).catch(function () { /* Native forms, links and disclosure controls still work. */ });
+    onLeave(function () { disposed = true; if (cleanup) cleanup(); });
+  }
+
   function initPage() {
     initTheme();
     initAppBar();
@@ -5225,6 +5475,10 @@
     initAvatarPicker();
     initCsvPicker();
     initCatalogueReview();
+    initStoreNavigation();
+    initWarehousePicking();
+    initWarehouseProductMap();
+    initPickWorkspace();
     initSubmitState();
     initLiveFilter();
     initTabSlider();

@@ -1,0 +1,4 @@
+GSAP 3.15.0 — official gsap npm package.
+Copyright 2026 GreenSock. All rights reserved.
+Subject to the standard license: https://gsap.com/standard-license
+Original copyright/license header is retained in gsap.min.js.

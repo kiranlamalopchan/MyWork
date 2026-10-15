@@ -19,7 +19,7 @@
   {% endcomment %}
   <ul class="notices">
     {% for notice in notices|slice:":2" %}
-      {% include "noticeboard/_notice.html" %}
+      {% if preview %}{% include "noticeboard/_preview.html" %}{% else %}{% include "noticeboard/_notice.html" %}{% endif %}
     {% endfor %}
   </ul>
 
@@ -32,7 +32,7 @@
         </summary>
         <ul class="notices fold__body">
           {% for notice in rest %}
-            {% include "noticeboard/_notice.html" %}
+            {% if preview %}{% include "noticeboard/_preview.html" %}{% else %}{% include "noticeboard/_notice.html" %}{% endif %}
           {% endfor %}
         </ul>
       </details>

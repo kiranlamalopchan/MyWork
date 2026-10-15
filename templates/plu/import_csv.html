@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Upload items · KaamKoRecord{% endblock %}
+{% block title %}Upload catalogue · KaamKoRecord{% endblock %}
 {% block content %}
-<div class="page-head"><h1 class="page-title">Upload your items</h1></div>
+{% include "plu/_heading.html" with heading="Upload catalogue" subtitle="Add a CSV file, choose your columns, and review before saving." %}
 <ol class="upload-steps" aria-label="Upload progress"><li{% if not preview %} aria-current="step"{% endif %}>1. File</li><li id="upload-heading-step"{% if preview %} aria-current="step"{% endif %}>2. Headings</li><li id="upload-review-step">3. Review</li></ol>
 <div class="card card__pad">
   <p class="help">Your catalogue is private to your account. Upload a CSV with your own headings, then choose how to display and search it.</p>
