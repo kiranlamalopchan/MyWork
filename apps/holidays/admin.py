@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import HolidayPreference, PublicHoliday
+from .models import FestivalThemeSettings, HolidayPreference, PublicHoliday
 
 
 @admin.register(PublicHoliday)
@@ -22,3 +22,15 @@ class HolidayPreferenceAdmin(admin.ModelAdmin):
     list_display = ("user", "state")
     list_filter = ("state",)
     raw_id_fields = ("user",)
+
+
+@admin.register(FestivalThemeSettings)
+class FestivalThemeSettingsAdmin(admin.ModelAdmin):
+    fields = ('theme', 'greeting', 'description', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return super().has_add_permission(request) and not FestivalThemeSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

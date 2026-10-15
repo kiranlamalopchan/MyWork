@@ -481,3 +481,43 @@ and `sample_data/plu_items.csv`, and the general example is
 
 The SQLite database is not committed. After a fresh clone, run migrations and
 upload your CSV from your own account to create a private catalogue.
+
+
+## Festival banner (Home only)
+
+Administrators choose one shared festival under **Admin → Public holidays →
+Home festival banner**. An administrator with change permission also gets a
+**Manage festival banner** link on their profile. Ordinary users have no theme
+selector, and previous device preferences are ignored. The saved choice applies
+to everyone. Light/dark appearance remains an individual setting.
+
+The banner appears only at the top of Home. It contains a landscape illustration,
+a festival greeting and a short explanation. The original application palette
+and all other cards/pages stay unchanged. Every festival in the admin selector has its own illustration and live motion.
+Dashain has flying kites and a swinging seat, Tihar has glowing diyas, Christmas
+has falling snow, New Year has fireworks, Eid has a swaying lantern, and the
+remaining festivals have matching flags, petals, colour, bells or reflections.
+Reduced-motion preferences show a still illustration, and movement pauses
+while the banner is off-screen or the browser tab is hidden.
+
+Choose a festival manually, **Off** to hide the banner, or **Automatic** to
+follow festival dates using the site's `TIME_ZONE` for every user. Administrators
+can optionally replace the greeting and explanation for a manual selection.
+Automatic uses standard descriptions to avoid carrying one festival's copy into
+another. The calendar uses the `holidays` package and is independent of payroll
+and the Australian public-holiday records. Calendar dates can be revised; keep
+the dependency current. Exact-date overrides can be supplied in Django settings
+as `SEASONAL_THEME_DATES = {"YYYY-MM-DD": {"id": "dashain"}}`.
+
+After pulling/uploading the updated code on PythonAnywhere, activate the web
+app's virtualenv and run:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate --settings=mywork.settings.production
+python manage.py collectstatic --settings=mywork.settings.production --noinput
+```
+
+Then Reload in the Web tab. The migration creates the single shared banner
+settings row with Automatic selected. Admin changes are reflected on the next
+Home page load.

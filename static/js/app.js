@@ -79,6 +79,29 @@
      The initial value is applied by an inline script in <head> so there's no
      flash of the wrong palette; this only handles the button.
      ---------------------------------------------------------------------- */
+  function initFestivalMotion() {
+    var root = document.querySelector("[data-festival-motion]");
+    if (!root) return;
+    var preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var visible = true;
+    function update() {
+      root.setAttribute("data-motion-paused", preference.matches || document.hidden || !visible ? "true" : "false");
+    }
+    listen(document, "visibilitychange", update);
+    listen(preference, "change", update);
+    if (window.IntersectionObserver) {
+      var observer = new window.IntersectionObserver(function (entries) {
+        visible = entries[0].isIntersecting;
+        update();
+      });
+      observer.observe(root);
+      onLeave(function () { observer.disconnect(); });
+    }
+    update();
+    root.setAttribute("data-motion-ready", "true");
+    onLeave(function () { root.setAttribute("data-motion-paused", "true"); });
+  }
+
   function initTheme() {
     var btn = document.getElementById("theme-toggle");
     if (!btn) return;
@@ -5452,6 +5475,7 @@
 
   function initPage() {
     initTheme();
+    initFestivalMotion();
     initAppBar();
     initCompose();
     initModals();

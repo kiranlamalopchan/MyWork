@@ -1,0 +1,60 @@
+{# Decorative live layers; the greeting and description remain ordinary text. #}
+<svg class="festival-live" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+{% if festival_banner.id == 'dashain' %}
+  <g transform="translate(630 90)"><g class="festival-kite festival-kite--red">
+    <path d="M0 -31 26 0 0 34 -26 0Z" fill="#e9392b" stroke="#742718" stroke-width="1.6"/>
+    <path d="M0 -31V34M-26 0H26" stroke="#f8c772" stroke-width="1"/>
+    <path d="M0 34Q-24 56 0 69T-3 99" fill="none" stroke="#e9392b" stroke-width="3"/>
+    <path d="M0 34Q35 108 -5 162" fill="none" stroke="#241a15" stroke-width="1"/>
+  </g></g>
+  <g transform="translate(740 54)"><g class="festival-kite festival-kite--gold">
+    <path d="M0 -24 21 0 0 28 -21 0Z" fill="#ffda45" stroke="#ae5619" stroke-width="1.4"/>
+    <path d="M0 -24V28M-21 0H21" stroke="#c87328"/>
+    <path d="M0 28Q-16 49 0 61T2 83" fill="none" stroke="#f5ba28" stroke-width="2.5"/>
+    <path d="M0 28Q25 100 4 165" fill="none" stroke="#241a15" stroke-width=".8"/>
+  </g></g>
+  <g stroke="#211911" stroke-linecap="round">
+    <path d="M865 66 817 282M865 66 925 282M854 60 885 61" stroke-width="7"/>
+    <path d="M849 79 881 79" stroke-width="4"/>
+  </g>
+  <g class="festival-swing-seat" fill="#211911" stroke="#211911">
+    <path d="M860 72 848 223M870 72 884 223" fill="none" stroke-width="2"/>
+    <path d="M846 224H886" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="868" cy="185" r="7"/>
+    <path d="M867 194 867 215 881 221 894 216M867 205 854 197 850 181" fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+{% elif festival_banner.motion == 'lights' %}
+  <g fill="#ed9b35"><path d="M690 254Q720 280 750 254Z"/><path d="M800 264Q830 290 860 264Z"/><path d="M900 248Q925 273 950 248Z"/></g>
+  <g class="festival-flame"><ellipse cx="720" cy="243" rx="9" ry="22" fill="#ffbd3f"/><ellipse cx="720" cy="247" rx="4" ry="12" fill="#fff4ad"/></g>
+  <g class="festival-flame festival-delay"><ellipse cx="830" cy="253" rx="8" ry="21" fill="#ffbd3f"/><ellipse cx="830" cy="257" rx="3" ry="11" fill="#fff4ad"/></g>
+  <g class="festival-flame"><ellipse cx="925" cy="237" rx="8" ry="20" fill="#ffd568"/></g>
+{% elif festival_banner.motion == 'snow' %}
+  <g fill="#fff" class="festival-snow"><circle cx="580" cy="24" r="2"/><circle cx="630" cy="105" r="3"/><circle cx="710" cy="36" r="2"/><circle cx="770" cy="152" r="2.5"/><circle cx="850" cy="60" r="3"/><circle cx="930" cy="119" r="2"/></g>
+  <g fill="#fff" class="festival-snow festival-delay"><circle cx="670" cy="60" r="2"/><circle cx="820" cy="100" r="2"/><circle cx="910" cy="31" r="2.5"/></g>
+{% elif festival_banner.motion == 'fireworks' %}
+  <g transform="translate(760 96)"><g class="festival-firework" stroke="#f7cf6a" stroke-width="3" stroke-linecap="round"><path d="M0 -12V-50M0 12V50M12 0H50M-12 0H-50M9 -9 35 -35M-9 9 -35 35M9 9 35 35M-9 -9 -35 -35"/></g></g>
+  <g transform="translate(900 58)"><g class="festival-firework festival-delay" stroke="#b5ddd6" stroke-width="2"><path d="M0 -10V-35M0 10V35M10 0H35M-10 0H-35M7 -7 25 -25M-7 7 -25 25M7 7 25 25M-7 -7 -25 -25"/></g></g>
+{% elif festival_banner.motion == 'flags' %}
+  <path d="M600 30Q780 80 985 26" fill="none" stroke="#f6ddaa" stroke-width="1.5"/>
+  <g class="festival-flags"><path d="M625 37 643 72 654 44Z" fill="#f2b83b"/><path d="M685 49 702 86 715 53Z" fill="#d3463b"/><path d="M749 55 766 91 779 55Z" fill="#42a5af"/><path d="M814 53 832 85 845 47Z" fill="#f1dda5"/><path d="M878 42 899 74 909 34Z" fill="#47965a"/></g>
+{% elif festival_banner.motion == 'bell' %}
+  <g transform="translate(865 25)"><g class="festival-bell"><path d="M0 0V16M-23 69H23M-17 61Q-18 22 0 22T17 61Z" fill="#dca74b" stroke="#88501e" stroke-width="2"/><circle cy="71" r="5" fill="#c9842f"/></g></g>
+{% elif festival_banner.motion == 'feather' %}
+  <g transform="translate(850 103)"><g class="festival-feather"><path d="M-30 45Q-50 -45 4 -67 63 -50 26 25Z" fill="#309f88"/><path d="M-30 45 4 -67" stroke="#e6ca63" stroke-width="2"/><ellipse cy="-28" rx="18" ry="23" fill="#ddb947"/><ellipse cy="-28" rx="12" ry="17" fill="#2d6987"/><ellipse cy="-28" rx="6" ry="9" fill="#182b61"/></g></g>
+{% elif festival_banner.motion == 'lantern' %}
+  <g transform="translate(850 8)"><g class="festival-bell"><path d="M0 0V35M-17 43 0 32 17 43V85L0 96 -17 85Z" fill="#e5af48" stroke="#fff0b2" stroke-width="1.5"/><path d="M-10 48H10V81H-10Z" fill="#fff0b2"/></g></g>
+{% elif festival_banner.motion == 'colour' %}
+  <g class="festival-powder" opacity=".55"><circle cx="820" cy="150" r="39" fill="#ed5d9a"/><circle cx="878" cy="130" r="29" fill="#58c9e4"/><circle cx="916" cy="175" r="42" fill="#ffbd45"/></g>
+{% elif festival_banner.motion == 'petals' %}
+  <g class="festival-petals" fill="#f2adbc"><ellipse cx="700" cy="90" rx="4" ry="10" transform="rotate(30 700 90)"/><ellipse cx="820" cy="145" rx="5" ry="11" transform="rotate(-30 820 145)"/><ellipse cx="910" cy="50" rx="4" ry="9" transform="rotate(45 910 50)"/></g>
+{% elif festival_banner.motion == 'sun' or festival_banner.motion == 'water' %}
+  <g class="festival-reflection" stroke="#ffecb8" stroke-linecap="round" fill="none"><path d="M741 248H830M728 258H846M751 268H824" stroke-width="2"/><path d="M742 279H839" stroke-width="1"/></g>
+{% elif festival_banner.motion == 'butterflies' %}
+  <g transform="translate(800 100)"><g class="festival-butterfly" fill="#e9a6ca"><path d="M0 0Q-35 -35 -28 0T0 4Q35 -35 28 0T0 4"/><path d="M0 -5V13" stroke="#81523a" stroke-width="2"/></g></g>
+{% else %}
+  <g class="festival-confetti"><path d="m680 70 5 12m70-30-5 13m65 40 8-8m66-40 4 12m55 40-7 10" stroke="#ffd56f" stroke-width="5"/><path d="m710 140 8 8m80-105 3 12m70 82 8-5m48 45 4 13" stroke="#e8a6c7" stroke-width="4"/></g>
+{% endif %}
+{% if festival_banner.motion != 'snow' %}
+  <g class="festival-stars" fill="#ffe7a5"><circle cx="620" cy="30" r="1.5"/><circle cx="780" cy="25" r="2"/><circle cx="955" cy="90" r="1.5"/></g>
+{% endif %}
+</svg>

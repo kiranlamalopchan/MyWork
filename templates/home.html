@@ -1,9 +1,22 @@
 {% extends "base.html" %}
-{% load ui %}
+{% load ui static %}
 {% block title %}KaamKoRecord{% endblock %}
 {% block main_class %} container--hub{% endblock %}
 
 {% block content %}
+{% if festival_banner %}
+<section class="festival-hero" data-festival-motion aria-labelledby="festival-greeting">
+  <div class="festival-hero__scene festival-hero__scene--{{ festival_banner.id }}">
+    <img src="{% static festival_banner.art %}" alt="" class="festival-hero__art" fetchpriority="high">
+    {% include "holidays/_banner_motion.html" %}
+    <div class="festival-hero__wish">
+      <p>CELEBRATING TOGETHER</p>
+      <h2 id="festival-greeting">{{ festival_banner.greeting }}</h2>
+    </div>
+  </div>
+  <div class="festival-hero__story"><span>About {{ festival_banner.name }}</span><p>{{ festival_banner.description }}</p></div>
+</section>
+{% endif %}
 
 {% comment %}
   Stories, daily extras, holidays and the notice board share the responsive

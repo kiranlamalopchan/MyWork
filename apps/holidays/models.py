@@ -183,3 +183,22 @@ class HolidayPreference(models.Model):
         if pref:
             return pref.state
         return guess or State.NT
+
+
+class FestivalThemeSettings(models.Model):
+    """A single site-wide selection; visitors cannot override it."""
+    from .festivals import THEME_CHOICES
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    theme = models.CharField(max_length=32, choices=THEME_CHOICES, default='auto', help_text='Applies to every user, on Home only. Automatic uses the site timezone.')
+    greeting = models.CharField(max_length=120, blank=True, help_text='Optional greeting for a manually selected festival; leave blank for the standard wish.')
+    description = models.TextField(max_length=600, blank=True, help_text='Optional explanation for a manually selected festival; leave blank for the standard description.')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Home festival banner'
+        verbose_name_plural = 'Home festival banner'
+        constraints = [models.CheckConstraint(check=models.Q(id=1), name='single_home_festival_settings')]
+
+    def __str__(self):
+        return 'Home festival banner'

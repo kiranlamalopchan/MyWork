@@ -35,6 +35,7 @@ def home(request):
     for it being on the page you land on rather than a screen you navigate to.
     """
     from apps.stories.views import tray_for
+    from .seasons import home_festival_banner
 
     notices, total = recent_for_hub(request.user)
     holiday_state, holiday = card_for_user(request.user)
@@ -54,6 +55,7 @@ def home(request):
         stories=tray_for(request.user),
         today=today,
         daily=daily(today),
+        festival_banner=home_festival_banner(),
     ))
 
 

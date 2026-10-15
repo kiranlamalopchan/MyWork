@@ -32,9 +32,9 @@
   <title>{% block title %}KaamKoRecord{% endblock %}</title>
 
   {# Applied before first paint so the correct palette is up immediately. #}
-  <script src="{% static 'js/theme.js' %}"></script>
+  <script src="{% static 'js/theme.js' %}{% if asset_revision %}?v={{ asset_revision }}{% endif %}"></script>
 
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}{% if asset_revision %}?v={{ asset_revision }}{% endif %}">
   {% block head_extra %}{% endblock %}
 </head>
 
@@ -153,7 +153,7 @@
   </nav>
 {% endif %}
 
-<script src="{% static 'js/app.js' %}" defer></script>
+<script src="{% static 'js/app.js' %}{% if asset_revision %}?v={{ asset_revision }}{% endif %}" defer></script>
 {% if request.user.is_authenticated %}
   {# Permission, the subscription, and the number on the icon. Everything the #}
   {# Alerts tab shows is already rendered without it. #}

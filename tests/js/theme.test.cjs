@@ -4,20 +4,23 @@ const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
 const source = readFileSync(resolve(__dirname, '../../static/js/theme.js'), 'utf8');
-function load({ saved, dark = false, storageFails = false } = {}) {
-  let selected, stored = saved, color, changes = 0;
+function load({ saved, dark = false, storageFails = false, season, calendar = {}, today = "2026-10-16T12:00:00" } = {}) {
+  let stored = saved, color, changes = 0;
+  const attributes = {};
+  const storage = { "mywork-theme": saved, "mywork-season": season };
   const system = { matches: dark, addEventListener: (_, callback) => { system.change = callback; } };
   const window = { matchMedia: () => system, dispatchEvent: () => { changes++; } };
   const document = {
-    documentElement: { getAttribute: () => selected, setAttribute: (_, value) => { selected = value; } },
-    querySelector: () => ({ setAttribute: (_, value) => { color = value; } }),
+    documentElement: { getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; } },
+    getElementById: id => id === 'seasonal-calendar' ? { textContent: JSON.stringify(calendar) } : null,
+    querySelector: selector => selector.startsWith('meta') ? { setAttribute: (_, value) => { color = value; } } : null,
   };
   const localStorage = {
-    getItem: () => { if (storageFails) throw Error('storage disabled'); return stored; },
-    setItem: (_, value) => { if (storageFails) throw Error('storage disabled'); stored = value; },
+    getItem: key => { if (storageFails) throw Error('storage disabled'); return storage[key]; },
+    setItem: (key, value) => { if (storageFails) throw Error('storage disabled'); storage[key] = value; if (key === 'mywork-theme') stored = value; },
   };
-  runInNewContext(source, { window, document, localStorage, Event: class Event {} });
-  return { theme: window.MyWorkTheme, system, stored: () => stored, color: () => color, changes: () => changes };
+  runInNewContext(source, { window, document, localStorage, Date: class extends Date { constructor() { super(today); } }, Event: class Event {} });
+  return { attributes, storage, theme: window.MyWorkTheme, system, stored: () => stored, color: () => color, changes: () => changes };
 }
 test('saved theme overrides the system and survives another page load', () => {
   const page = load({ saved: 'light', dark: true });
@@ -44,4 +47,10 @@ test('appearance still changes when browser storage is unavailable', () => {
   assert.equal(page.theme.isDark(), true);
   assert.equal(page.color(), '#111318');
   assert.equal(page.changes(), 2);
+});
+
+test('old personal festival preferences cannot override the shared Home banner', () => {
+  const page = load({ season: 'tihar' });
+  assert.equal(page.attributes['data-season'], undefined);
+  assert.equal(page.theme.setSeason, undefined);
 });

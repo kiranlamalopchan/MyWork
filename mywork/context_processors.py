@@ -124,4 +124,12 @@ def version(request):
     """
     from .version import VERSION
 
-    return {"app_version": VERSION}
+    context = {"app_version": VERSION}
+    from django.conf import settings
+
+    if settings.DEBUG:
+        # Development uses plain filenames. Changing one must also invalidate
+        # cached documents during soft navigation, as production hashes do.
+        paths = ("static/css/app.css", "static/js/app.js", "static/js/theme.js")
+        context["asset_revision"] = max((settings.BASE_DIR / path).stat().st_mtime_ns for path in paths)
+    return context

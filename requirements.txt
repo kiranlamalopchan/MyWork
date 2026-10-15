@@ -7,7 +7,7 @@ pypdf>=4.0
 # Web Push, for notifications that arrive with the app closed.
 pywebpush>=2.0
 # Australian public holidays, national and per-state.
-holidays>=0.60
+holidays>=0.104,<1
 # Opens HEIC/HEIF, the format an iPhone photographs in, for stories.
 pillow-heif>=0.16
 # The JSON API the native app (mobile/) talks to.
