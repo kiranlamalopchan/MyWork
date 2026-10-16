@@ -17,8 +17,12 @@ backend before testing or releasing the builds:
 
 1. Back up the production database and media, then update the server checkout.
 2. Install requirements in the server's virtual environment.
-3. Run `python manage.py migrate` and `python manage.py collectstatic --noinput`.
+3. Run `python manage.py migrate --settings=mywork.settings.production` and
+   `python manage.py collectstatic --settings=mywork.settings.production --noinput`.
 4. Reload the PythonAnywhere web application.
+
+The live `/api/v1/mobile/release/` endpoint returned HTTP 404 during preparation
+on 17 October 2026 (Darwin time); the new production endpoints are not deployed yet.
 
 New migrations: `api/0001_initial`, `api/0002_mobilerelease`, and
 `holidays/0003_festivalthemesettings_banner`. Existing pending shift submissions
