@@ -165,7 +165,6 @@ export default function Plu() {
             <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
           </Pressable>
         ) : null}
-        {idle ? <SavedProducts history={history} catalogueId={idleData?.catalogue?.id} onOpen={openItem} onFavorite={favorite} /> : null}
         {idle ? <ImportRow /> : null}
         {idle ? null : (
           <View style={styles.metaRow}>
@@ -179,7 +178,7 @@ export default function Plu() {
         {idleQuery.error ? <ErrorBanner error={idleQuery.error} onRetry={idleQuery.refetch} /> : null}
         {search.error ? <ErrorBanner error={search.error} onRetry={search.refetch} /> : null}
       </View>
-      {idle ? <ScrollView contentContainerStyle={[layout.column, { paddingBottom: layout.bottom + sp[6], gap: sp[3] }]}><Text style={{ color: t.muted, fontSize: 13, marginTop: sp[4] }}>{total ? `${total.toLocaleString()} items in ${idleData?.catalogue?.name} · Only you can access this catalogue` : "Your uploads are private to your account"}</Text>{idleData?.samples.length ? <><Text style={{ color: t.text, fontWeight: "700" }}>Browse a few items</Text>{idleData.samples.map((item, index) => <Result key={item.id} item={item} first={index === 0} last={index === idleData.samples.length - 1} onPress={() => openItem(item)} favorite={history.favorites.some(row => row.id === item.id)} onFavorite={() => favorite(item)} />)}</> : null}</ScrollView> : (
+      {idle ? <ScrollView contentContainerStyle={[layout.column, { paddingBottom: layout.bottom + sp[6], gap: sp[3] }]}><SavedProducts history={history} catalogueId={idleData?.catalogue?.id} onOpen={openItem} onFavorite={favorite} /><Text style={{ color: t.muted, fontSize: 13, marginTop: sp[4] }}>{total ? `${total.toLocaleString()} items in ${idleData?.catalogue?.name} · Only you can access this catalogue` : "Your uploads are private to your account"}</Text>{idleData?.samples.length ? <><Text style={{ color: t.text, fontWeight: "700" }}>Browse a few items</Text>{idleData.samples.map((item, index) => <Result key={item.id} item={item} first={index === 0} last={index === idleData.samples.length - 1} onPress={() => openItem(item)} favorite={history.favorites.some(row => row.id === item.id)} onFavorite={() => favorite(item)} />)}</> : null}</ScrollView> : (
         <FlatList
           showsVerticalScrollIndicator={false}
           data={looking ? [] : rows}
