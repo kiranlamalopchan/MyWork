@@ -1,0 +1,21 @@
+{
+  "ios": {
+    "id": "72fe660b-988c-492c-bfbb-d502986afd27",
+    "status": "FINISHED",
+    "build_id": "f9cf814a-2f1e-40f0-a44f-5c38e066c483",
+    "version": "1.3.0",
+    "build": "13",
+    "completedAt": "2026-10-16T18:18:06.122Z",
+    "app_store_connect_url": "https://appstoreconnect.apple.com/apps/6813073450/testflight/ios",
+    "submission_url": "https://expo.dev/accounts/lopchan/projects/mywork/submissions/72fe660b-988c-492c-bfbb-d502986afd27"
+  },
+  "android": {
+    "status": "BLOCKED_BEFORE_UPLOAD",
+    "build_id": "1a939cdf-35e8-4016-9396-a6216ab558ab",
+    "version": "1.3.0",
+    "version_code": "14",
+    "track": "production",
+    "release_status": "draft",
+    "reason": "No Google Play service-account key configured in EAS; browser control unavailable."
+  }
+}

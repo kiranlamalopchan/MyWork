@@ -58,7 +58,7 @@ Apple app ID: 6813073450, bundle ID: com.kiranlama.mywork.
 
 Signed artifacts are delivered in the Desktop release folder. Build identifiers,
 versions and checksums are recorded with the delivery. Nothing is submitted to
-Google Play or Apple automatically.
+Google Play or Apple automatically during the build step. See the upload status below.
 
 ## Validation
 
@@ -82,3 +82,15 @@ Both builds completed on 17 October 2026 (Darwin time) from source commit
 `ARTIFACTS.json`, `SHA256SUMS.txt` and `VALIDATION.txt` record archive and signature
 checks. Production backend deployment remains required before releasing the new
 server-dependent features.
+
+## Store upload status
+
+The iOS 1.3.0 build 13 was successfully uploaded to App Store Connect on
+17 October 2026 (Darwin time). Apple processing follows the upload; this does
+not submit the app for review or publish it. See `submissions.json`.
+
+Google Play upload was attempted for Android 1.3.0, version code 14, targeting
+a new production release draft. EAS has no Google Play submission service-account
+key configured, so the upload stopped before creating a release. A signed-in Play
+Console browser window is needed to continue the manual upload. The AAB remains
+available in the Desktop folder.
