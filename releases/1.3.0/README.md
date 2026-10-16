@@ -52,8 +52,7 @@ forced update or an automatic download.
 ## Build files
 
 Android AAB: upload to the existing Google Play application
-`com.kiranlama.merokaam`. Android APK: install directly for testing (allow installation
-from the chosen source). The production iOS IPA is for Transporter/App Store Connect
+`com.kiranlama.merokaam`. The production iOS IPA is for Transporter/App Store Connect
 and TestFlight after processing; it cannot be installed by opening it on an iPhone.
 Apple app ID: 6813073450, bundle ID: com.kiranlama.mywork.
 
@@ -69,3 +68,17 @@ report ownership, festival Off, and update-announcement routing. Both native
 JavaScript bundles are exported before the signed cloud build. Physical-device
 checks of camera, biometric prompts, offline toggling and push delivery still
 need to be performed with installed builds and the deployed backend.
+
+## Completed store builds
+
+- Android 1.3.0, version code 14: `KaamKoRecord-1.3.0-aab-14.aab`.
+  [EAS build](https://expo.dev/accounts/lopchan/projects/mywork/builds/1a939cdf-35e8-4016-9396-a6216ab558ab).
+- iOS 1.3.0, build 13: `KaamKoRecord-1.3.0-ipa-13.ipa`.
+  [EAS build](https://expo.dev/accounts/lopchan/projects/mywork/builds/f9cf814a-2f1e-40f0-a44f-5c38e066c483).
+
+Both builds completed on 17 October 2026 (Darwin time) from source commit
+`3434f58f5957002686df9806862f902679c054bd`. The files are in
+`~/Desktop/KaamKoRecord-1.3.0/`. The APK build was cancelled at the user's request.
+`ARTIFACTS.json`, `SHA256SUMS.txt` and `VALIDATION.txt` record archive and signature
+checks. Production backend deployment remains required before releasing the new
+server-dependent features.

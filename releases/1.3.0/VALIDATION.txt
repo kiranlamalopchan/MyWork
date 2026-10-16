@@ -1,0 +1,15 @@
+KaamKoRecord 1.3.0
+Source commit: 3434f58f5957002686df9806862f902679c054bd
+
+Django: 818 tests passed; system check passed; migrations current.
+Mobile: 102 tests passed; TypeScript passed; lint has zero errors (24 existing warnings).
+Android and iOS JavaScript exports passed.
+Local database migrations applied successfully.
+
+Production /api/v1/mobile/release/ returned HTTP 404. Backend deployment is still required. See README.md.
+Physical-device camera, biometric and push delivery checks require installed builds and the deployed backend.
+
+
+iOS IPA build 13: archive integrity, embedded version/build/bundle ID and codesign --verify --deep --strict all passed.
+Android AAB build 14: ZIP integrity, signing files, manifest package com.kiranlama.merokaam and version 1.3.0 passed.
+Android APK build cancelled at user request; delivery contains AAB and IPA only.
