@@ -73,13 +73,11 @@ urlpatterns = [
     ),
 
     # The two apps
-    path("store-navigation/", include("apps.store_navigation.web_urls")),
     path("plu/", include("apps.plu.urls")),
     path("timesheet/", include("apps.timeclock.urls")),
 
     # The JSON API for the native app (mobile/): the same things, as data.
     path("api/v1/", include("apps.api.urls")),
-    path("api/stores/", include("apps.store_navigation.urls")),
 ]
 
 # Uploaded profile photos and story videos. In production the web server

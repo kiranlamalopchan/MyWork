@@ -1,3 +1,0 @@
-{% extends "base.html" %}{% load ui %}
-{% block title %}Edit warehouse location{% endblock %}
-{% block content %}<div class="warehouse"><a class="backlink" href="{% url 'store_map:index' %}">{% icon "back" %} Warehouse map</a><section class="warehouse-panel"><p class="locator-eyebrow">{{ location.store.name }}</p><h1>{{ location.product.title }}</h1><p>Set the exact storage position. Map nodes should be on an accessible walkway beside the rack.</p><form method="post" class="warehouse-form">{% csrf_token %}{{ form.as_p }}<button class="locator-primary" type="submit">Save location</button></form></section></div>{% endblock %}

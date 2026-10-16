@@ -24,6 +24,11 @@ the API in `apps/api`).
   50 unique headings. Preview tokens are private, single-use and expire in an hour.
 - For butcher data, choose `description` as the title and `plu_no` as the code.
   Numeric PLU catalogues keep picking-list photo matching and PDF export.
+  Photo search compares block and automatic OCR layouts, retries faint reads
+  with local thresholding, and matches both product titles and descriptions.
+  Similar cuts and doubtful OCR stay marked for review; printed quantities
+  cannot override a conflicting product name. Under **Change**, search a
+  product name or PLU and choose the exact item before exporting the PDF.
 - The native app uses `/api/v1/items/search/`, `items/<id>/`, `items/preview/`
   (multipart `file`) and `items/import/` (JSON `upload_id` and mapping).
   Search accepts `catalogue=<id>` and returns the owner's catalogue choices.
@@ -96,15 +101,6 @@ own prefix in `mywork/urls.py`, and giving it an entry in
 `mywork/context_processors.py` plus a card on the hub. To have it notify
 people, give it a `notify.py` and call `apps.notifications.notify.notify()` —
 see [Notifications](#notifications).
-
-## Indoor store navigation API
-
-`apps.store_navigation` provides product locations on SVG floorplans and A*
-walking routes at `/api/stores/<store_id>/products/search/` and
-`/api/stores/<store_id>/navigate/`. Run migrations, then configure stores,
-products, nodes, directed edges and locations in Django Admin. The endpoints
-require the project's API authentication. See
-[store navigation setup and API details](apps/store_navigation/README.md).
 
 ## The native app and its API
 
@@ -354,7 +350,7 @@ appears in its middle once it has scrolled away; the **dock** at the foot of
 a phone is one bar for the whole app — Home, Search, Work, Alerts, Profile,
 with unread badges on Alerts — and its solid green pill is a
 knob that slides between the tabs (tapping the tab you are on scrolls to the
-top). Photo search and Upload catalogue are page actions rather than destination tabs; the **segmented controls** (`.segments`: Search / Catalogues / Warehouse / Pick lists in Search; Clock /
+top). Photo search and Upload catalogue are page actions rather than destination tabs; the **segmented controls** (`.segments`: Search / Catalogues in Search; Clock /
 Timesheets / Pay / Settings in Work; and List / Calendar on the timesheet) are the same track-and-knob; and every yes-or-no is a **switch**
 (`.switch` — the markup is in `timeclock/_form_fields.html`) modelled on the
 day-and-night switch in the app bar. Pages come in the way screens do — a

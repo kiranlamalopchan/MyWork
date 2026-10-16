@@ -45,7 +45,7 @@ class SharedFestivalBannerTests(TestCase):
         self.assertContains(self.client.get('/'), 'Happy Dashain')
 
     def test_banner_only_exists_on_home(self):
-        for url in ('/profile/', '/store-navigation/', '/holidays/'):
+        for url in ('/profile/', '/plu/', '/holidays/'):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertNotContains(response, 'class="festival-hero"')

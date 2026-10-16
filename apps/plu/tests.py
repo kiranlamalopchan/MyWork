@@ -269,6 +269,40 @@ class PhotoSearchPickTests(TestCase):
         self.assertEqual(resp["Content-Type"], "application/pdf")
         self.assertTrue(resp.content.startswith(b"%PDF"))
 
+    def test_find_exact_product_by_name_without_changing_the_choice(self):
+        response = self.client.post(
+            reverse("plu:photo_search_pick"),
+            {"index": 0, "action": "search", "query": "lamb leg chops"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "LAMB LEG CHOPS")
+        self.assertContains(response, 'value="1319"')
+        row = self.client.session["photo_search_lines"][0]
+        self.assertEqual(row["plu_no"], 900)
+        self.assertEqual(row["alternatives"], [1319])
+        self.assertTrue(row["expanded"])
+
+    def test_name_lookup_stays_inside_the_selected_private_catalogue(self):
+        another = User.objects.create_user("another-shop")
+        private = Catalogue.objects.create(owner=another, name="Private", title_column="Name")
+        PluItem.objects.create(catalogue=private, plu_no=55, description="HALIBUT")
+        response = self.client.post(reverse("plu:photo_search_pick"),
+            {"index": 0, "action": "search", "query": "halibut"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 900)
+
+    def test_name_lookup_requires_words_and_rejects_negative_row_indexes(self):
+        url = reverse("plu:photo_search_pick")
+        self.assertEqual(self.client.post(url, {"index": 0, "action": "search", "query": " "}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"index": -1, "plu_no": 1319}).status_code, 400)
+
+    def test_manual_code_correction_works_without_javascript(self):
+        response = self.client.post(reverse("plu:photo_search_pick"),
+            {"index": 0, "action": "set", "manual_plu_no": "1319"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 1319)
+
     def test_a_fetch_gets_the_results_alone(self):
         resp = self.client.get(reverse("plu:photo_search"), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertNotContains(resp, 'id="photo-form"')

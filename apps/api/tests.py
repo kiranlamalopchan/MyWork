@@ -543,6 +543,14 @@ class PluTests(ApiTestCase):
         self.assertTrue(resp.content.startswith(b"%PDF"))
         self.assertEqual(self.api("post", "plu_photo_pdf", {"rows": [{"line": "x"}]}).status_code, 400)
 
+    def test_photo_results_display_the_product_title_when_details_are_generic(self):
+        from apps.plu.picking import Line
+        self.catalogue.items.filter(plu_no=900).update(title="BEEF MINCE PREMIUM", description="Fresh chilled")
+        with patch("apps.plu.picking.read_lines", return_value=[Line("beef mince premium", 95)]):
+            response = self.api("post", "plu_photo", {"photo": picture()}, fmt="multipart")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["rows"][0]["item"], {"plu_no": 900, "description": "BEEF MINCE PREMIUM"})
+
     def test_an_unreadable_photo_is_refused_in_words(self):
         from apps.plu.picking import Unreadable
         with patch("apps.plu.picking.read_lines", side_effect=Unreadable("Nothing legible — try in better light.")):

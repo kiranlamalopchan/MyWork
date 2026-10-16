@@ -255,6 +255,8 @@ def _recall(request):
             "score": row.get("score", 0.0),
             "sureness": row.get("sureness", "likely"),
             "by_code": row.get("by_code", False),
+            "expanded": row.get("expanded", False),
+            "query": row.get("query", ""),
             "alternatives": [
                 items[n] for n in (row.get("alternatives") or []) if n in items and items[n] is not item
             ],
@@ -325,11 +327,28 @@ def photo_search_pick(request):
     rows = request.session.get(SESSION_KEY) or []
     try:
         index = int(request.POST.get("index", ""))
+        if index < 0:
+            raise IndexError
         row = rows[index]
     except (ValueError, IndexError):
         return JsonResponse({"error": "That line isn't on the last read."}, status=400)
     row.setdefault("alternatives", [])
-    raw = (request.POST.get("plu_no") or "").strip()
+    if request.POST.get("action") == "search":
+        query = (request.POST.get("query") or "").strip()[:200]
+        if not query:
+            return JsonResponse({"error": "Enter a product name or PLU to search."}, status=400)
+        match = picking.Catalogue(selected_items(request).filter(plu_no__isnull=False)).match(query, keep=8)
+        candidates = ([match.item] if match.item else []) + [item for item, _ in match.alternatives]
+        if not candidates:
+            return JsonResponse({"error": "No matching product in this catalogue. Try a shorter name or its PLU."}, status=400)
+        row["alternatives"] = [item.plu_no for item in candidates if item.plu_no != row.get("plu_no")]
+        row["expanded"], row["query"] = True, query
+        request.session[SESSION_KEY] = rows
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            fresh = next(r for r in _recall(request) if r["index"] == index)
+            return render(request, "plu/_photo_row.html", {"row": fresh})
+        return redirect("plu:photo_search")
+    raw = (request.POST.get("manual_plu_no" if request.POST.get("action") == "set" else "plu_no") or "").strip()
     if raw:
         item = selected_items(request).filter(plu_no=raw).first() if raw.isdigit() else None
         if item is None:
@@ -401,7 +420,7 @@ def picking_list_pdf(lines, user, catalogue_id=None):
         for row in lines:
             item = items_by_plu.get(row["plu_no"])
             plu_display = str(item.plu_no) if item else ""
-            desc_display = item.description if item else row["line"]
+            desc_display = (item.title or item.description) if item else row["line"]
             data.append([plu_display, desc_display])
 
         table = Table(data, colWidths=[1.0 * inch, 5.8 * inch], repeatRows=1)

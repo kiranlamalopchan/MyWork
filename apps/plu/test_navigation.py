@@ -35,14 +35,13 @@ class SearchNavigationTests(TestCase):
             ("/plu/", "Search"), ("/plu/?view=catalogues", "Catalogues"),
             ("/plu/import/", "Catalogues"), ("/plu/photo-search/", "Search"),
             (f"/plu/item/{self.item.pk}/", "Search"),
-            ("/store-navigation/", "Warehouse"), ("/store-navigation/picking/", "Pick lists"),
         ]
         for path, active in pages:
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
                 links = response.context["section_links"]
-                self.assertEqual([link["label"] for link in links], ["Search", "Catalogues", "Warehouse", "Pick lists"])
+                self.assertEqual([link["label"] for link in links], ["Search", "Catalogues"])
                 self.assertEqual([link["label"] for link in links if link["active"]], [active])
                 for link in links:
                     resolve(link["href"].split("?")[0])
@@ -65,7 +64,7 @@ class SearchNavigationTests(TestCase):
         self.assertEqual([action["label"] for action in page.context["search_actions"]], ["Upload catalogue"])
 
     def test_search_label_and_primary_links_work_across_the_website(self):
-        for path in ["/", "/plu/", "/store-navigation/", "/store-navigation/picking/", "/profile/", "/timesheet/", "/notifications/"]:
+        for path in ["/", "/plu/", "/profile/", "/timesheet/", "/notifications/"]:
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
@@ -74,3 +73,15 @@ class SearchNavigationTests(TestCase):
                 self.assertEqual(links[1]["href"], "/plu/")
                 for link in links:
                     resolve(link["href"])
+
+    def test_warehouse_feature_is_removed(self):
+        home = self.client.get("/")
+        self.assertNotContains(home, "Warehouse Navigation")
+        self.assertNotContains(home, "/store-navigation/")
+        for path in (
+            "/store-navigation/", "/store-navigation/picking/",
+            "/store-navigation/products/add/", "/store-navigation/face/",
+            "/api/stores/1/products/search/", "/api/stores/1/navigate/",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)

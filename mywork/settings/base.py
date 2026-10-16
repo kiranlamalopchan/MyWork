@@ -50,7 +50,6 @@ LOCAL_APPS = [
     # The JSON API the native app (mobile/) talks to: every screen above,
     # as data. Last because it only wraps what the others do.
     'apps.api',
-    'apps.store_navigation',
 ]
 
 THIRD_PARTY_APPS = [

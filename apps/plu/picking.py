@@ -5,15 +5,15 @@ Two jobs, kept apart so each can be tested on its own:
 
 * `read_lines` — the words on the photo, one entry per printed line, each
   with how sure Tesseract was of it. The photo is straightened, cleaned
-  and enlarged first; if the read still comes back doubtful, a second
-  pass over a locally thresholded copy is tried and the better kept, since
+  and enlarged first; block and automatic layouts are compared. If the
+  read is doubtful, a locally thresholded copy is tried too, since
   a phone photo under shop lights is rarely lit evenly.
 
 * `Catalogue.match` — the PLU a line means. Words are weighted by how
   rare they are across the list (SCOTCH tells you more than BEEF, which
   is on half the list), a misread word still counts when it is within a
   letter or two of a real one (CH0PS is CHOPS), and a PLU code printed on
-  the sheet is taken at its word. Every match carries a score from 0 to 1
+  the sheet is trusted only when the product words agree. Every match carries a score from 0 to 1
   and the runners-up, so the page can say how sure it is and offer the
   others rather than quietly writing down the wrong cut.
 """
@@ -22,6 +22,7 @@ import difflib
 import io
 import math
 import re
+import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -45,7 +46,18 @@ NOISE = {
     "THE", "AND", "FOR", "PLEASE", "TOTAL", "ORDER", "ORDERS", "DATE", "ITEM",
     "ITEMS", "LIST", "NAME", "PICK", "PICKING", "CUSTOMER", "PHONE", "NOTE",
     "NOTES", "THANKS", "THANK", "YOU", "PAGE", "SHOP", "DELIVERY", "PICKUP",
+    "PLU", "CODE", "GMS", "GM", "PACK", "UNIT", "UNITS",
 }
+
+# Keep these narrow: preparation and species are meaningful product differences.
+ALIASES = {
+    "CHKN": "CHICKEN", "CKN": "CHICKEN", "BNLS": "BONELESS",
+    "CHOPS": "CHOP", "STEAKS": "STEAK", "FILLETS": "FILLET",
+    "SAUSAGES": "SAUSAGE", "RIBS": "RIB", "THIGHS": "THIGH",
+    "BREASTS": "BREAST", "LEGS": "LEG", "WINGS": "WING",
+}
+SPECIES = frozenset({"BEEF", "LAMB", "PORK", "CHICKEN", "TURKEY", "VEAL", "GOAT", "FISH"})
+PREPARATIONS = (frozenset({"BONELESS", "BONEIN"}), frozenset({"SKINLESS", "SKINON"}))
 
 
 class Unreadable(Exception):
@@ -95,7 +107,7 @@ def prepare(image):
 
     image = ImageOps.exif_transpose(image).convert("L")
     try:
-        osd = pytesseract.image_to_osd(image)
+        osd = pytesseract.image_to_osd(image, timeout=10)
         angle = int(re.search(r"Rotate:\s*(\d+)", osd).group(1))
         conf = float(re.search(r"Orientation confidence:\s*([\d.]+)", osd).group(1))
         # A low-confidence reading is a coin flip that can turn a straight
@@ -105,8 +117,13 @@ def prepare(image):
     except Exception:
         pass
     image = ImageOps.autocontrast(image, cutoff=1)
+    # Bound OCR work on high-resolution camera images without shrinking fine
+    # print on ordinary uploads. Invert dark labels before reading them.
+    image.thumbnail((3200, 4200), Image.Resampling.LANCZOS)
+    if image.resize((1, 1)).getpixel((0, 0)) < 100:
+        image = ImageOps.invert(image)
     if image.width < OCR_WIDTH:
-        scale = OCR_WIDTH / image.width
+        scale = min(OCR_WIDTH / image.width, 4200 / image.height)
         image = image.resize((int(image.width * scale), int(image.height * scale)), Image.LANCZOS)
     return image.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=3))
 
@@ -143,10 +160,12 @@ def _lines_from_data(data):
     return lines
 
 
-def _ocr(image):
+def _ocr(image, psm=6):
     import pytesseract
 
-    data = pytesseract.image_to_data(image, config="--psm 6", output_type=pytesseract.Output.DICT)
+    data = pytesseract.image_to_data(
+        image, config=f"--psm {psm}", output_type=pytesseract.Output.DICT, timeout=15,
+    )
     return _lines_from_data(data)
 
 
@@ -154,9 +173,15 @@ def _quality(lines):
     """How good a read was: mean confidence, weighted by how much it read."""
     if not lines:
         return 0.0
-    letters = sum(len(re.sub(r"[^A-Za-z]", "", line.text)) for line in lines)
+    letters = sum(len(re.sub(r"[^A-Za-z0-9]", "", line.text)) for line in lines)
     conf = sum(line.confidence for line in lines) / len(lines)
     return conf * min(letters / 40, 1.0)
+
+
+def _read_quality(lines):
+    """Prefer a complete read over a confident read of only a heading."""
+    letters = sum(len(re.sub(r"[^A-Za-z0-9]", "", line.text)) for line in lines)
+    return _quality(lines) * math.log1p(letters)
 
 
 def read_lines(uploaded):
@@ -166,15 +191,22 @@ def read_lines(uploaded):
     Raises Unreadable when there is nothing to be had.
     """
     image = prepare(open_photo(uploaded))
-    try:
-        lines = _ocr(image)
-        if _quality(lines) < DOUBTFUL:
-            again = _ocr(threshold(image))
-            if _quality(again) > _quality(lines):
-                lines = again
-    except Unreadable:
-        raise
-    except Exception:
+    reads = []
+    # A list is not always one rectangular block: automatic layout recovers
+    # rows missed by the block reader. Never merge passes and duplicate orders.
+    for psm in (6, 3):
+        try:
+            reads.append(_ocr(image, psm=psm))
+        except Exception:
+            continue
+    lines = max(reads, key=_read_quality, default=[])
+    if _quality(lines) < DOUBTFUL:
+        try:
+            reads.append(_ocr(threshold(image), psm=6))
+            lines = max(reads, key=_read_quality)
+        except Exception:
+            pass
+    if not reads:
         raise Unreadable("That photo couldn't be read. Try a clearer, straighter one.")
     lines = [line for line in lines if len(line.text.strip()) >= 3]
     if not lines:
@@ -197,7 +229,12 @@ def tokens(text):
     back before the word is judged; a number on its own is left to codes().
     """
     out = []
-    for raw in text.upper().split():
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().upper()
+    text = re.sub(r"\bB\s*/\s*(?:LESS|L)\b", "BONELESS", text)
+    text = re.sub(r"\bB\s*/\s*IN\b|\bBONE[\s-]+IN\b", "BONEIN", text)
+    text = re.sub(r"\bSKIN[\s-]+ON\b", "SKINON", text)
+    # Punctuation separates words; BEEF-MINCE must not become BEEFMINCE.
+    for raw in re.findall(r"[A-Z0-9]+", text):
         letters = len(re.findall(r"[A-Z]", raw))
         # No letters, or more digits than letters: a number, or a quantity
         # with its unit stuck on ("500G", "2KG", "3X").
@@ -206,10 +243,11 @@ def tokens(text):
         if re.match(r"^\d+(KG|KGS|G|GM|GMS|X|EA|PC|PCS|PKT)$", raw):
             continue
         word = re.sub(r"[^A-Z]", "", raw.translate(LOOKALIKE))
+        word = ALIASES.get(word, word)
         if len(word) < 3 or word in NOISE or word in out:
             continue
         out.append(word)
-    return out[:10]
+    return out[:40]
 
 
 def codes(text):
@@ -224,9 +262,11 @@ def codes(text):
     """
     found = []
     for m in re.finditer(
-        r"(?:(?P<label>plu|code|#)\s*:?\s*)?(?<![\w./:-])(?P<n>\d{1,5})(?![\w./:-]|\s*(?:kg|kgs|g|gm|x|ea|pc|pcs)\b)",
+        r"(?<![\w./:-])(?:(?P<label>plu|code|#)\s*:?\s*)?(?P<n>\d{1,10})(?![\w./:-]|\s*(?:kg|kgs|g|gm|gms|x|ea|each|pc|pcs|pkt|pack|packs)\b)",
         text, re.I,
     ):
+        if not m.group("label") and re.search(r"\b(?:qty\s*:?|x)\s*$", text[:m.start()], re.I):
+            continue
         found.append((int(m.group("n")), bool(m.group("label"))))
     return found
 
@@ -237,7 +277,7 @@ class Catalogue:
     def __init__(self, items):
         self.items = list(items)
         self.by_code = {item.plu_no: item for item in self.items}
-        self.words = [set(tokens(item.description)) for item in self.items]
+        self.words = [set(tokens(f"{item.title} {item.description}")) for item in self.items]
         seen = defaultdict(int)
         for words in self.words:
             for word in words:
@@ -246,7 +286,7 @@ class Catalogue:
         # Rare words say more: log(N / df), floored so a word on every
         # row still counts for something.
         self.idf = {w: max(math.log(n / df), 0.15) for w, df in seen.items()}
-        self.vocab = list(self.idf)
+        self.vocab = sorted(self.idf)
         # What a word the list has never heard of weighs: as much as a
         # typical one, so a line half made of them can't score as sure.
         weights = sorted(self.idf.values())
@@ -260,7 +300,14 @@ class Catalogue:
         if word in self._fuzzy:
             return self._fuzzy[word]
         cutoff = 0.8 if len(word) >= 5 else 0.86
-        close = difflib.get_close_matches(word, self.vocab, n=1, cutoff=cutoff)
+        close = difflib.get_close_matches(word, self.vocab, n=2, cutoff=cutoff)
+        # Do not silently turn a short OCR word into either of two equally
+        # plausible catalogue words. The remaining words can resolve the item.
+        if len(close) == 2 and abs(
+            difflib.SequenceMatcher(None, word, close[0]).ratio()
+            - difflib.SequenceMatcher(None, word, close[1]).ratio()
+        ) < 0.04:
+            close = []
         self._fuzzy[word] = close[0] if close else None
         return self._fuzzy[word]
 
@@ -274,7 +321,13 @@ class Catalogue:
         the tighter description wins over one that merely contains it).
         """
         raw = tokens(text)
-        line_words = [w for w in (self.known(t) for t in raw) if w]
+        mapped = [(t, self.known(t)) for t in raw]
+        line_words = {w for _, w in mapped if w}
+        evidence = {}
+        for original, word in mapped:
+            if word:
+                similarity = 1.0 if original == word else difflib.SequenceMatcher(None, original, word).ratio() * 0.9
+                evidence[word] = max(evidence.get(word, 0), similarity)
         line_weight = (
             sum(self.idf[w] for w in line_words)
             + self.unknown_weight * (len(raw) - len(line_words))
@@ -286,13 +339,20 @@ class Catalogue:
                 shared = wanted & words
                 if not shared:
                     continue
-                hit = sum(self.idf[w] for w in shared)
+                hit = sum(self.idf[w] * evidence[w] for w in shared)
                 item_weight = sum(self.idf[w] for w in words) or 1
                 score = 0.65 * (hit / line_weight) + 0.35 * (hit / item_weight)
                 # One word can't be sure of a cut named by three: "lamb"
                 # alone is likely a lamb item, never surely this one.
                 if len(shared) == 1 and len(words) > 1:
                     score = min(score, LIKELY + 0.2)
+                # An exact meat/preparation contradiction outweighs shared
+                # words such as FILLET. Unknown words still lower coverage.
+                if wanted & SPECIES and words & SPECIES and not wanted & words & SPECIES:
+                    score *= 0.2
+                for group in PREPARATIONS:
+                    if wanted & group and words & group and not wanted & words & group:
+                        score *= 0.2
                 scored.append((score, item))
         scored.sort(key=lambda pair: (-pair[0], len(pair[1].description), pair[1].plu_no))
 
@@ -303,8 +363,10 @@ class Catalogue:
             item = self.by_code.get(code)
             if item is None:
                 continue
-            if line_words:
-                agree = any(i is item for _, i in scored[:5])
+            if raw:
+                candidate_score = next((score for score, candidate in scored if candidate is item), 0)
+                agree = bool(scored) and candidate_score >= LIKELY and candidate_score >= scored[0][0] - 0.08
+                agree = agree and (labelled or code >= 100)
             else:
                 # A number alone: a code if the sheet says so or it is long
                 # enough not to be a count of something.
@@ -319,6 +381,12 @@ class Catalogue:
             result.alternatives = self._others(scored, by_code, keep)
         elif scored and scored[0][0] >= FLOOR:
             result.item, result.score = scored[0][1], round(min(scored[0][0], 1.0), 3)
+            if any(word is None for _, word in mapped):
+                result.score = min(result.score, SURE - 0.01)
+                if len(line_words) == 1:
+                    result.score = min(result.score, LIKELY - 0.01)
+            if len(scored) > 1 and scored[0][0] - scored[1][0] < 0.08:
+                result.score = min(result.score, SURE - 0.01)
             result.alternatives = self._others(scored, result.item, keep)
         else:
             result.alternatives = self._others(scored, None, keep)
@@ -331,10 +399,12 @@ class Catalogue:
         with the answer's name — the list has three rows called PORK
         FILLET, and a second one is no alternative to the first.
         """
-        seen = {chosen.description.upper()} if chosen is not None else set()
+        seen = {(chosen.title or chosen.description).upper()} if chosen is not None else set()
         out = []
         for score, item in scored:
-            name = item.description.upper()
+            if score < FLOOR:
+                continue
+            name = (item.title or item.description).upper()
             if item is chosen or name in seen:
                 continue
             seen.add(name)
@@ -351,5 +421,10 @@ def match_lines(lines, items):
     for line in lines:
         if not tokens(line.text) and not codes(line.text):
             continue
-        out.append((line, catalogue.match(line.text)))
+        match = catalogue.match(line.text)
+        # A confident string match does not repair an uncertain OCR reading.
+        if line.confidence < 45 and match.item is not None:
+            match.score = min(match.score, LIKELY - 0.01)
+            match.by_code = False
+        out.append((line, match))
     return out

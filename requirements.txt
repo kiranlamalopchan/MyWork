@@ -12,6 +12,3 @@ holidays>=0.104,<1
 pillow-heif>=0.16
 # The JSON API the native app (mobile/) talks to.
 djangorestframework>=3.16
-
-# Local face-only texture extraction for the 3D store navigation guide.
-opencv-python-headless>=4.13,<5

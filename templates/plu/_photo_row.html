@@ -11,7 +11,7 @@
   <div class="result pick__main">
     <a class="plu-badge" href="{% url 'plu:detail' row.item.pk %}">{{ row.item.plu_no }}</a>
     <span class="result__body">
-      <span class="result__title">{{ row.item.description }}</span>
+      <span class="result__title">{{ row.item.title|default:row.item.description }}</span>
       <span class="result__sub">Read: &ldquo;{{ row.line }}&rdquo;</span>
     </span>
     <span class="sure sure--{{ row.sureness }}">
@@ -22,26 +22,32 @@
       {% else %}Unsure{% endif %}
     </span>
   </div>
-  <details class="pick__more">
+  <details class="pick__more"{% if row.sureness == "unsure" or row.expanded %} open{% endif %}>
     <summary class="pick__change">{% icon "pencil" %}<span>Change</span></summary>
     <form method="post" action="{% url 'plu:photo_search_pick' %}" class="pick__alts" data-pick-form>
       {% csrf_token %}
       <input type="hidden" name="catalogue" value="{{ row.item.catalogue_id }}">
       <input type="hidden" name="index" value="{{ row.index }}">
+      <label class="pick__label" for="pick-query-{{ row.index }}">Find the exact product by name or PLU</label>
+      <div class="pick__type" style="margin-bottom:var(--sp-3);">
+        <input class="input" id="pick-query-{{ row.index }}" name="query" type="text" maxlength="200"
+               value="{{ row.query }}" placeholder="e.g. beef mince premium" data-pick-query>
+        <button type="submit" class="btn btn--sm" name="action" value="search">Search</button>
+      </div>
       {% if row.alternatives %}
         <div class="pick__label">Did it mean one of these?</div>
         <div class="pick__chips">
           {% for alt in row.alternatives %}
             <button type="submit" name="plu_no" value="{{ alt.plu_no }}" class="pick__chip">
-              <b>{{ alt.plu_no }}</b> {{ alt.description }}
+              <b>{{ alt.plu_no }}</b> {{ alt.title|default:alt.description }}
             </button>
           {% endfor %}
         </div>
       {% endif %}
       <div class="pick__type">
         <label class="sr-only" for="pick-{{ row.index }}">PLU number</label>
-        <input class="input" id="pick-{{ row.index }}" type="number" inputmode="numeric" min="1" placeholder="Or type a PLU number" data-pick-number>
-        <button type="submit" class="btn btn--sm" data-pick-set>Set</button>
+        <input class="input" id="pick-{{ row.index }}" name="manual_plu_no" type="number" inputmode="numeric" min="1" placeholder="Or type a PLU number" data-pick-number>
+        <button type="submit" class="btn btn--sm" name="action" value="set" data-pick-set>Set</button>
       </div>
       <button type="submit" name="plu_no" value="" class="pick__none">Not on the list — take this line out</button>
     </form>

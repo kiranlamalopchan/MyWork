@@ -19,7 +19,6 @@ MORE_PAGES = frozenset({
 })
 
 SECTIONS = {
-    "store_map": {"name": "Search", "title": "Warehouse Navigation", "nav": "_section_nav.html"},
     "plu": {
         "name": "Search",
         "title": "Search",
@@ -57,14 +56,14 @@ def section(request):
     match = getattr(request, "resolver_match", None)
     namespace = match.namespace if match else ""
     page = match.url_name if match else ""
-    selected = {"store_map": "items", "plu": "items", "timeclock": "work", "notifications": "alerts", "accounts": "profile"}.get(namespace, "home")
+    selected = {"plu": "items", "timeclock": "work", "notifications": "alerts", "accounts": "profile"}.get(namespace, "home")
     if page == "privacy" or namespace == "moderation" and page in {"blocked", "rules"}:
         selected = "profile"
     context = {
         "timesheet_pages": TIMESHEET_PAGES, "more_pages": MORE_PAGES,
         "primary_nav": [_link(label, route, icon=icon, active=key == selected, notifications=key == "alerts") for key, label, icon, route in PRIMARY_NAV],
         "section_nav": None, "section_links": [], "section_name": None, "section_title": None,
-        "search_workspace": namespace in {"plu", "store_map"}, "search_actions": [],
+        "search_workspace": namespace == "plu", "search_actions": [],
     }
     current = SECTIONS.get(namespace)
     if not current:
@@ -89,8 +88,6 @@ def section(request):
         context["section_links"] = [
             _link("Search", "plu:list", icon="search", active=namespace == "plu" and page in {"list", "detail", "photo_search"} and not browsing, params=params),
             _link("Catalogues", "plu:list", active=namespace == "plu" and (browsing or page == "import"), params={"view": "catalogues"}),
-            _link("Warehouse", "store_map:index", active=namespace == "store_map" and page in {"index", "edit_location", "add_product"}),
-            _link("Pick lists", "store_map:orders", active=namespace == "store_map" and page in {"orders", "pick_order"}),
         ]
         if namespace == "plu":
             if catalogue and catalogue.code_column.lower() in {"plu", "plu_no"} and page != "photo_search":
