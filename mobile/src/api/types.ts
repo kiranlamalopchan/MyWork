@@ -161,7 +161,9 @@ export type HolidayCard = {
 
 /** The hub's small pleasures (mywork/daily.py): new at midnight, the same for everyone. */
 export type Daily = { quote: { text: string; who: string }; joke: { setup: string; punchline: string } };
+export type Festival = { id: string; name: string; greeting: string; description: string; motion: string; image_url: string };
 export type Home = {
+  festival?: Festival | null;
   holiday: { state: string; holiday: HolidayCard | null };
   stories: TrayRow[];
   notices: Notice[];
@@ -241,8 +243,8 @@ export type ClockState = {
   message?: string; finished?: number;
 };
 export type CashTally = { workplace: WorkplaceBrief; label: string; sub: string; total: Duration; pay: Money | null };
-export type NewShift = { workplaces: WorkplaceBrief[]; workplace: number | null; clock_in: string; clock_out: string };
-export type ShiftInput = { workplace: number | ""; clock_in: string; clock_out: string; note: string; breaks: { id?: number; break_start: string; break_end: string; delete?: boolean }[] };
+export type NewShift = { supports_offline_drafts?: boolean; workplaces: WorkplaceBrief[]; workplace: number | null; clock_in: string; clock_out: string };
+export type ShiftInput = { client_id?: string; workplace: number | ""; clock_in: string; clock_out: string; note: string; breaks: { id?: number; break_start: string; break_end: string; delete?: boolean }[] };
 export type Choice<T = string | number> = { value: T; label: string; css?: string };
 export type Cycles = { week_starts_on: number; week_label: string; fortnight_starts_on: number; fortnight_phase: "this" | "last"; fortnight_hint: string; month_starts_on: number };
 export type TaxScale = "" | "TFT" | "NO_TFT" | "FOREIGN" | "WHM" | "NO_TFN" | "CUSTOM";

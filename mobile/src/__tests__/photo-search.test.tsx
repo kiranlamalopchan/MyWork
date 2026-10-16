@@ -5,6 +5,18 @@ import { plu } from "@/api";
 import { openPdf } from "@/ui/pdf";
 import { notify } from "@/ui/confirm";
 
+jest.mock("@/storage/media", () => ({ keepDraftMedia: async (asset: unknown) => asset, removeDraftMedia: jest.fn() }));
+jest.mock("@/storage/private", () => ({
+  usePrivateState: (_key: string, initial: unknown) => {
+    const React = require("react");
+    const [value, set] = React.useState(initial);
+    return [value, set, true];
+  },
+}));
+jest.mock("@/ui/PhotoEditor", () => {
+  const { Pressable, Text } = require("react-native");
+  return { PhotoEditor: ({ asset, onDone }: any) => <Pressable testID="photo-read-selected" onPress={() => onDone(asset)}><Text>Read selected area</Text></Pressable> };
+});
 let mockSetHandler: () => Promise<void>;
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/api", () => ({
@@ -58,6 +70,7 @@ it.each(["success", "failure"])("ignores a late %s from a correction on the prev
   (plu.one as jest.Mock).mockImplementation(() => new Promise((resolve, fail) => { finish = resolve; reject = fail; }));
   const screen = await render(<PhotoSearch catalogueId={1} />);
   await fireEvent.press(screen.getByTestId("photo-camera"));
+  await fireEvent.press(screen.getByTestId("photo-read-selected"));
   await waitFor(() => expect(screen.getByText("First slip product")).toBeTruthy());
   await fireEvent.press(screen.getByTestId("photo-row-0"));
   await fireEvent.changeText(screen.getByPlaceholderText("Another PLU number"), "300");
@@ -65,6 +78,7 @@ it.each(["success", "failure"])("ignores a late %s from a correction on the prev
   await act(async () => { void mockSetHandler(); });
   await waitFor(() => expect(plu.one).toHaveBeenCalledWith(300, 1));
   await fireEvent.press(screen.getByText("New photo"));
+  await fireEvent.press(screen.getByTestId("photo-read-selected"));
   await waitFor(() => expect(screen.getByText("Second slip product")).toBeTruthy());
   await act(async () => {
     if (outcome === "success") finish({ plu_no: 300, description: "Late correction for FIRST slip" });
@@ -85,6 +99,7 @@ test("a correction for the current slip still updates the product and PDF", asyn
   (plu.one as jest.Mock).mockResolvedValueOnce({ plu_no: 300, description: "Correct product" });
   const screen = await render(<PhotoSearch catalogueId={1} />);
   await fireEvent.press(screen.getByTestId("photo-camera"));
+  await fireEvent.press(screen.getByTestId("photo-read-selected"));
   await fireEvent.press(screen.getByTestId("photo-row-0"));
   await fireEvent.changeText(screen.getByPlaceholderText("Another PLU number"), "300");
   await fireEvent.press(screen.getByText("Set"));

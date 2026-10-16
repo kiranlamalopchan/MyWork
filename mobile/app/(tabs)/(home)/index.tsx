@@ -15,6 +15,7 @@ import { DailyPair, JokeCard, QuoteCard } from "@/ui/DailyCard";
 import { SkeletonHome } from "@/ui/Skeleton";
 import { HolidayArt } from "@/ui/HolidayArt";
 import { NoticeCard } from "@/ui/NoticeCard";
+import { FestivalBanner } from "@/ui/FestivalBanner";
 import { StoriesTray } from "@/ui/StoriesTray";
 import { alpha, mix, radius, sp, useTheme } from "@/ui/theme";
 
@@ -59,6 +60,7 @@ export default function Home() {
               </View>
             ) : null}
             <View style={desk ? styles.hubMain : styles.stack}>
+              {data.festival ? <FestivalBanner festival={data.festival} /> : null}
               <StoriesTray rows={data.stories} boxed={desk} />
               {/* Beside the stories on a phone: the thought and the laugh as
                   one pair, a glance each. A wide screen keeps them in its side

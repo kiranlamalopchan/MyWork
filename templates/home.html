@@ -7,7 +7,7 @@
 {% if festival_banner %}
 <section class="festival-hero" data-festival-motion aria-labelledby="festival-greeting">
   <div class="festival-hero__scene festival-hero__scene--{{ festival_banner.id }}">
-    <img src="{% static festival_banner.art %}" alt="" class="festival-hero__art" fetchpriority="high">
+    <img src="{% if festival_banner.uploaded_art %}{{ festival_banner.uploaded_art }}{% else %}{% static festival_banner.art %}{% endif %}" alt="" class="festival-hero__art" fetchpriority="high">
     {% include "holidays/_banner_motion.html" %}
     <div class="festival-hero__wish">
       <p>CELEBRATING TOGETHER</p>

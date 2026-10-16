@@ -14,6 +14,8 @@ import { StatusBar } from "expo-status-bar";
 import { SessionProvider, useSession } from "@/auth/session";
 import { OnboardingProvider, useOnboarding } from "@/onboarding/seen";
 import { Crashed } from "@/ui/Crashed";
+import { AppLock } from "@/ui/AppLock";
+import { OfflineSync } from "@/offline/shifts";
 import { Splash } from "@/ui/Splash";
 import { useNotificationNavigation } from "@/push/useNotificationNavigation";
 import { nativeOrNull } from "@/ui/native";
@@ -83,6 +85,8 @@ function Guard() {
         <Stack.Screen name="stories/[username]" options={{ presentation: "fullScreenModal", animation: "fade" }} />
         <Stack.Screen name="stories/compose" options={{ presentation: "modal" }} />
         <Stack.Screen name="profile/index" />
+        <Stack.Screen name="profile/offline" />
+        <Stack.Screen name="profile/report" />
         <Stack.Screen name="profile/edit" />
         <Stack.Screen name="profile/delete" />
         <Stack.Screen name="profile/blocked" />
@@ -125,7 +129,8 @@ function Shell() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
       {/* The splash is navy whichever way the phone is set. */}
       <StatusBar style={wayIn || t.dark ? "light" : "dark"} />
-      <Guard />
+      <OfflineSync />
+      <AppLock><Guard /></AppLock>
       {wayIn ? <Splash ready={ready && checked} onDone={() => setWayIn(false)} /> : null}
     </GestureHandlerRootView>
   );

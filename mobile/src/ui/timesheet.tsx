@@ -289,11 +289,11 @@ export function Choices<T extends string | number>({ value, onChange, options, s
 }
 
 /** The site's switch: a track the knob slides along. */
-export function Switch({ value, onChange, label, danger }: { value: boolean; onChange: (v: boolean) => void; label: string; danger?: boolean }) {
+export function Switch({ value, onChange, label, danger, disabled }: { value: boolean; onChange: (v: boolean) => void; label: string; danger?: boolean; disabled?: boolean }) {
   const t = useTheme();
   const on = danger ? t.danger : t.brand;
   return (
-    <Pressable onPress={() => { tick(); onChange(!value); }} accessibilityRole="switch" accessibilityState={{ checked: value }} style={styles.switchRow}>
+    <Pressable disabled={disabled} onPress={() => { tick(); onChange(!value); }} accessibilityRole="switch" accessibilityState={{ checked: value }} style={styles.switchRow}>
       <Text style={{ color: t.text, fontSize: 15, flex: 1 }}>{label}</Text>
       <View style={[styles.switchTrack, { backgroundColor: value ? on : t.track }]}>
         <View style={[styles.switchKnob, { backgroundColor: value ? "#fff" : t.knob, transform: [{ translateX: value ? 20 : 0 }] }]} />

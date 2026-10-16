@@ -211,10 +211,10 @@ export function ErrorBanner({ error, message, onRetry }: { error?: unknown; mess
 // ---- controls --------------------------------------------------------------------
 
 export function Button({
-  title, onPress, kind = "primary", size = "md", disabled, busy, icon, style, testID,
+  title, onPress, kind = "primary", size = "md", disabled, busy, icon, style, testID, accessibilityLabel,
 }: {
   title: string; onPress?: () => void; kind?: "primary" | "plain" | "ghost" | "danger" | "pill"; size?: "md" | "sm"; disabled?: boolean; busy?: boolean;
-  icon?: keyof typeof Ionicons.glyphMap; style?: ViewStyle; testID?: string;
+  icon?: keyof typeof Ionicons.glyphMap; style?: ViewStyle; testID?: string; accessibilityLabel?: string;
 }) {
   const t = useTheme();
   const primary = kind === "primary" || kind === "pill";
@@ -226,6 +226,7 @@ export function Button({
       onPress={onPress ? () => { tap(primary || kind === "danger" ? "medium" : "light"); onPress(); } : undefined}
       disabled={disabled || busy}
       testID={testID}
+      accessibilityLabel={accessibilityLabel || title}
       style={({ pressed }) => [
         styles.button,
         small && styles.buttonSm,

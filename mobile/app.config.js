@@ -2,7 +2,7 @@
 // stores, on top of app.json. EAS names the profile in EAS_BUILD_PROFILE;
 // a local `expo run:ios` / `expo start` has none and counts as development.
 const profile = process.env.EAS_BUILD_PROFILE || "development";
-const forStore = profile === "production";
+const forStore = profile === "production" || profile === "production-apk";
 
 module.exports = ({ config }) => ({
   ...config,

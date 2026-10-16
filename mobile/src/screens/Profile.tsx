@@ -24,6 +24,7 @@ import { ActivityPanel, StatementPanel } from "@/ui/ProfilePanels";
 import { BiometricRow } from "@/ui/BiometricRow";
 import { PushRow } from "@/ui/PushRow";
 import { AppearanceSetting } from "@/ui/AppearanceSetting";
+import { AppLockSetting } from "@/ui/AppLock";
 import { Version } from "@/ui/Version";
 import { FriendsPanel } from "@/ui/FriendsPanel";
 import { siteUrl } from "@/api/client";
@@ -124,6 +125,11 @@ export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
         <AppearanceSetting />
         <PushRow />
         <BiometricRow username={me.username} />
+        <AppLockSetting />
+        <Card pad={false}>
+          <MenuRow icon="cloud-offline-outline" title="Offline shifts" sub="Review shifts waiting to sync" onPress={() => router.push("/profile/offline")} />
+          <MenuRow icon="bug-outline" title="Report a problem" sub="Send details and an optional screenshot" onPress={() => router.push("/profile/report")} last />
+        </Card>
         <Card pad={false}>
           <MenuRow icon="key-outline" title="Change password" sub="You'll need the one you use now" onPress={() => router.push("/profile/password")} testID="change-password" />
           <MenuRow icon="ban-outline" title="Blocked people" sub="Who you've chosen not to hear from" onPress={() => router.push("/profile/blocked")} tint={t.danger} last testID="blocked-people" />

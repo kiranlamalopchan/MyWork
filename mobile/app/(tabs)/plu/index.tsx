@@ -13,6 +13,8 @@ import { Button, Card, Empty, ErrorBanner, Page, PageTitle, Screen, Segments } f
 import { tick } from "@/ui/haptics";
 import { useLayout } from "@/ui/layout";
 import { Select } from "@/ui/Select";
+import { usePrivateState } from "@/storage/private";
+import { SavedProducts, type ProductHistory } from "@/ui/SavedProducts";
 import { PhotoSearch } from "@/ui/PhotoSearch";
 import { SkeletonRows } from "@/ui/Skeleton";
 import { TypedPlaceholder } from "@/ui/TypedPlaceholder";
@@ -35,8 +37,14 @@ export default function Plu() {
   const router = useRouter();
   const params = useLocalSearchParams<{ catalogue?: string; view?: string }>();
   const catalogueId = params.catalogue ? Number(params.catalogue) : undefined;
-  const [mode, setMode] = useState<"search" | "photo">("search");
-  const [typed, setTyped] = useState("");
+  const [mode, setMode] = usePrivateState<"search" | "photo">("items-mode", "search");
+  const [typed, setTyped] = usePrivateState(`items-query:${catalogueId || "default"}`, "");
+  const [history, setHistory] = usePrivateState<ProductHistory>("product-history", { favorites: [], recent: [] });
+  const openItem = (item: CatalogueItem) => {
+    setHistory(previous => ({ ...previous, recent: [item, ...previous.recent.filter(row => row.id !== item.id)].slice(0, 20) }));
+    router.push(`/plu/${item.id}`);
+  };
+  const favorite = (item: CatalogueItem) => setHistory(previous => ({ ...previous, favorites: previous.favorites.some(row => row.id === item.id) ? previous.favorites.filter(row => row.id !== item.id) : [...previous.favorites, item] }));
   const [q, setQ] = useState("");
   const box = useRef<TextInput>(null);
   const [on, setOn] = useState(false);
@@ -157,6 +165,7 @@ export default function Plu() {
             <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
           </Pressable>
         ) : null}
+        {idle ? <SavedProducts history={history} catalogueId={idleData?.catalogue?.id} onOpen={openItem} onFavorite={favorite} /> : null}
         {idle ? <ImportRow /> : null}
         {idle ? null : (
           <View style={styles.metaRow}>
@@ -170,7 +179,7 @@ export default function Plu() {
         {idleQuery.error ? <ErrorBanner error={idleQuery.error} onRetry={idleQuery.refetch} /> : null}
         {search.error ? <ErrorBanner error={search.error} onRetry={search.refetch} /> : null}
       </View>
-      {idle ? <ScrollView contentContainerStyle={[layout.column, { paddingBottom: layout.bottom + sp[6], gap: sp[3] }]}><Text style={{ color: t.muted, fontSize: 13, marginTop: sp[4] }}>{total ? `${total.toLocaleString()} items in ${idleData?.catalogue?.name} · Only you can access this catalogue` : "Your uploads are private to your account"}</Text>{idleData?.samples.length ? <><Text style={{ color: t.text, fontWeight: "700" }}>Browse a few items</Text>{idleData.samples.map((item, index) => <Result key={item.id} item={item} first={index === 0} last={index === idleData.samples.length - 1} onPress={() => router.push(`/plu/${item.id}`)} />)}</> : null}</ScrollView> : (
+      {idle ? <ScrollView contentContainerStyle={[layout.column, { paddingBottom: layout.bottom + sp[6], gap: sp[3] }]}><Text style={{ color: t.muted, fontSize: 13, marginTop: sp[4] }}>{total ? `${total.toLocaleString()} items in ${idleData?.catalogue?.name} · Only you can access this catalogue` : "Your uploads are private to your account"}</Text>{idleData?.samples.length ? <><Text style={{ color: t.text, fontWeight: "700" }}>Browse a few items</Text>{idleData.samples.map((item, index) => <Result key={item.id} item={item} first={index === 0} last={index === idleData.samples.length - 1} onPress={() => openItem(item)} favorite={history.favorites.some(row => row.id === item.id)} onFavorite={() => favorite(item)} />)}</> : null}</ScrollView> : (
         <FlatList
           showsVerticalScrollIndicator={false}
           data={looking ? [] : rows}
@@ -185,7 +194,7 @@ export default function Plu() {
             : <Empty icon="search-outline" title="No matches" sub={`Nothing found for “${q}”. Try fewer words, or a code.`} />
           }
           ListFooterComponent={search.isFetchingNextPage ? <SkeletonRows count={2} style={{ marginTop: sp[3] }} /> : null}
-          renderItem={({ item, index }) => <Result item={item} first={index === 0} last={index === rows.length - 1} onPress={() => router.push(`/plu/${item.id}`)} />}
+          renderItem={({ item, index }) => <Result item={item} first={index === 0} last={index === rows.length - 1} onPress={() => openItem(item)} favorite={history.favorites.some(row => row.id === item.id)} onFavorite={() => favorite(item)} />}
         />
       )}
     </Screen>
@@ -204,7 +213,7 @@ function ImportRow() {
 }
 
 /** One code: the number on a blue badge, the description, and the way in. Rows join into one panel. */
-function Result({ item, first, last, onPress }: { item: CatalogueItem; first: boolean; last: boolean; onPress: () => void }) {
+function Result({ item, first, last, onPress, favorite, onFavorite }: { item: CatalogueItem; first: boolean; last: boolean; onPress: () => void; favorite?: boolean; onFavorite?: () => void }) {
   const t = useTheme();
   return (
     <Card pad={false} style={[styles.result, !first && { borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0, marginTop: -1 }, !last && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
@@ -213,7 +222,8 @@ function Result({ item, first, last, onPress }: { item: CatalogueItem; first: bo
           <Text style={{ color: "#fff", fontWeight: "800", fontSize: 17, fontVariant: ["tabular-nums"] }} numberOfLines={2}>{item.code}</Text>
         </View> : null}
         <Text style={{ color: t.text, fontWeight: "600", fontSize: 16, flex: 1 }} numberOfLines={2}>{item.title}</Text>
-        <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
+        <Pressable accessibilityLabel={favorite ? "Remove favourite" : "Save favourite"} onPress={event => { event.stopPropagation(); onFavorite?.(); }} hitSlop={10}><Ionicons name={favorite ? "star" : "star-outline"} size={22} color={t.brand} /></Pressable>
+      <Ionicons name="chevron-forward" size={18} color={t.lineStrong} />
       </Pressable>
     </Card>
   );

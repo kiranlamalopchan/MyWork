@@ -18,6 +18,7 @@ import { notify } from "./confirm";
 import { alpha, mix, radius, sp, useTheme } from "./theme";
 import { cssColour, Switch } from "./timesheet";
 import { Select } from "./Select";
+import { usePrivateState } from "@/storage/private";
 import { fail, success } from "./haptics";
 
 type Choices = WorkplacesPage["choices"];
@@ -41,29 +42,38 @@ export function WorkplaceForm({ choices, workplace, cycles, newTaxScale, onSave,
 }) {
   const t = useTheme();
   const w = workplace;
-  const [name, setName] = useState(w?.name || "");
-  const [address, setAddress] = useState(w?.address || "");
-  const [color, setColor] = useState<number | "">(w?.hue ?? "");
-  const [payCycle, setPayCycle] = useState(w?.pay_cycle || "IRREGULAR");
-  const [paidIn, setPaidIn] = useState(w?.paid_in || "BANK");
-  const [rate, setRate] = useState(w?.hourly_rate != null ? String(w.hourly_rate) : "");
-  const [tax, setTax] = useState(w?.tax_rate != null ? String(w.tax_rate) : "");
-  // The ATO's way when the server offers it (see apps/timeclock/paygw.py);
-  // an older server offers no scales, and the form is the percentage alone.
+  const initialDraft = {
+    name: w?.name || "", address: w?.address || "", color: w?.hue ?? "" as number | "",
+    payCycle: w?.pay_cycle || "IRREGULAR", paidIn: w?.paid_in || "BANK",
+    rate: w?.hourly_rate != null ? String(w.hourly_rate) : "", tax: w?.tax_rate != null ? String(w.tax_rate) : "",
+    scale: (w ? (w.tax_scale ?? (w.tax_rate != null ? "CUSTOM" : "")) : (newTaxScale ?? "")) as string,
+    loan: !!w?.study_loan, limit: w?.hours_limit != null ? String(w.hours_limit) : "",
+    limitPeriod: w?.limit_period || "FORTNIGHT", week: w?.week_starts_on ?? cycles.week_starts_on,
+    fortnight: w?.fortnight_starts_on ?? cycles.fortnight_starts_on, phase: (w?.fortnight_phase || cycles.fortnight_phase) as string,
+    month: String(w?.month_starts_on ?? cycles.month_starts_on), isDefault: w?.is_default || false,
+  };
+  const [saved, setSaved, restored] = usePrivateState<typeof initialDraft | null>(`workplace-draft:${w?.id || "new"}`, null);
+  const draft = saved || initialDraft;
+  const { name, address, color, payCycle, paidIn, rate, tax, scale, loan, limit, limitPeriod, week, fortnight, phase, month, isDefault } = draft;
+  const setName = (value: typeof initialDraft.name) => setSaved(previous => ({ ...(previous || initialDraft), name: value }));
+  const setAddress = (value: typeof initialDraft.address) => setSaved(previous => ({ ...(previous || initialDraft), address: value }));
+  const setColor = (value: typeof initialDraft.color) => setSaved(previous => ({ ...(previous || initialDraft), color: value }));
+  const setPayCycle = (value: typeof initialDraft.payCycle) => setSaved(previous => ({ ...(previous || initialDraft), payCycle: value }));
+  const setPaidIn = (value: typeof initialDraft.paidIn) => setSaved(previous => ({ ...(previous || initialDraft), paidIn: value }));
+  const setRate = (value: typeof initialDraft.rate) => setSaved(previous => ({ ...(previous || initialDraft), rate: value }));
+  const setTax = (value: typeof initialDraft.tax) => setSaved(previous => ({ ...(previous || initialDraft), tax: value }));
+  const setScale = (value: typeof initialDraft.scale) => setSaved(previous => ({ ...(previous || initialDraft), scale: value }));
+  const setLoan = (value: typeof initialDraft.loan) => setSaved(previous => ({ ...(previous || initialDraft), loan: value }));
+  const setLimit = (value: typeof initialDraft.limit) => setSaved(previous => ({ ...(previous || initialDraft), limit: value }));
+  const setLimitPeriod = (value: typeof initialDraft.limitPeriod) => setSaved(previous => ({ ...(previous || initialDraft), limitPeriod: value }));
+  const setWeek = (value: typeof initialDraft.week) => setSaved(previous => ({ ...(previous || initialDraft), week: value }));
+  const setFortnight = (value: typeof initialDraft.fortnight) => setSaved(previous => ({ ...(previous || initialDraft), fortnight: value }));
+  const setPhase = (value: typeof initialDraft.phase) => setSaved(previous => ({ ...(previous || initialDraft), phase: value }));
+  const setMonth = (value: typeof initialDraft.month) => setSaved(previous => ({ ...(previous || initialDraft), month: value }));
+  const setIsDefault = (value: typeof initialDraft.isDefault) => setSaved(previous => ({ ...(previous || initialDraft), isDefault: value }));
   const scales = choices.tax_scales;
-  const [scale, setScale] = useState<string>(
-    w ? (w.tax_scale ?? (w.tax_rate != null ? "CUSTOM" : "")) : (newTaxScale ?? ""),
-  );
-  const [loan, setLoan] = useState(!!w?.study_loan);
   const loanApplies = (choices.loan_scales || []).includes(scale);
   const byPercentage = !scales || scale === "CUSTOM";
-  const [limit, setLimit] = useState(w?.hours_limit != null ? String(w.hours_limit) : "");
-  const [limitPeriod, setLimitPeriod] = useState(w?.limit_period || "FORTNIGHT");
-  const [week, setWeek] = useState(w?.week_starts_on ?? cycles.week_starts_on);
-  const [fortnight, setFortnight] = useState(w?.fortnight_starts_on ?? cycles.fortnight_starts_on);
-  const [phase, setPhase] = useState<string>(w?.fortnight_phase || cycles.fortnight_phase);
-  const [month, setMonth] = useState(String(w?.month_starts_on ?? cycles.month_starts_on));
-  const [isDefault, setIsDefault] = useState(w?.is_default || false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -134,6 +144,7 @@ export function WorkplaceForm({ choices, workplace, cycles, newTaxScale, onSave,
         hours_limit: limit, limit_period: limitPeriod, week_starts_on: week, fortnight_starts_on: fortnight, fortnight_phase: phase,
         month_starts_on: month, is_default: isDefault,
       });
+      setSaved(null);
       success();
     } catch (e: any) {
       fail();
@@ -273,7 +284,7 @@ export function WorkplaceForm({ choices, workplace, cycles, newTaxScale, onSave,
         </Field>
       </Card>
       <View style={{ gap: sp[3] }}>
-        <Button title={w ? "Save changes" : "Add workplace"} onPress={save} busy={busy} testID="save-workplace" />
+        <Button title={w ? "Save changes" : "Add workplace"} onPress={save} busy={busy} disabled={!restored} testID="save-workplace" />
         <Button title="Cancel" kind="plain" onPress={onCancel} />
       </View>
     </>

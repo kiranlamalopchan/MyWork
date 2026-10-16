@@ -14,6 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { plu, type PhotoRead, type PhotoRow, type PluItem } from "@/api";
 import type { FilePart } from "@/api/client";
 
+import { keepDraftMedia, removeDraftMedia } from "@/storage/media";
+import { usePrivateState } from "@/storage/private";
+import { PhotoEditor } from "./PhotoEditor";
 import { confirm, notify } from "./confirm";
 import { success, tick } from "./haptics";
 import { Button, Card, Chip, Empty, Input } from "./index";
@@ -25,8 +28,9 @@ type Row = PhotoRow & { key: number };
 
 export function PhotoSearch({ catalogueId }: { catalogueId?: number }) {
   const t = useTheme();
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [skipped, setSkipped] = useState(0);
+  const [rows, setRows, restored] = usePrivateState<Row[] | null>(`photo-rows:${catalogueId || "default"}`, null);
+  const [skipped, setSkipped] = usePrivateState(`photo-skipped:${catalogueId || "default"}`, 0);
+  const [selected, setSelected, selectedReady] = usePrivateState<ImagePicker.ImagePickerAsset | null>(`photo-selected:${catalogueId || "default"}`, null);
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +52,11 @@ export function PhotoSearch({ catalogueId }: { catalogueId?: number }) {
       return;
     }
     if (!result || result.canceled) return;
-    const asset = result.assets[0];
+    try { setSelected(await keepDraftMedia(result.assets[0])); }
+    catch { setError("Could not save the photo on this device. Please free some space and try again."); }
+  };
+
+  const readPhoto = async (asset: ImagePicker.ImagePickerAsset) => {
     const name = asset.fileName || "list.jpg", type = asset.mimeType || "image/jpeg";
     setReading(true);
     try {
@@ -59,6 +67,8 @@ export function PhotoSearch({ catalogueId }: { catalogueId?: number }) {
       setRows(read.rows.map((r, i) => ({ ...r, key: i })));
       setSkipped(read.skipped);
       setOpen(null);
+      setSelected(null);
+      void removeDraftMedia(selected);
       success();
     } catch (e: any) {
       setError(e?.message || "The photo couldn't be read.");
@@ -87,6 +97,9 @@ export function PhotoSearch({ catalogueId }: { catalogueId?: number }) {
   };
 
   const clear = () => confirm("Clear this read?", "The photo's lines go; take another whenever you like.", "Clear", () => { setRows(null); setSkipped(0); setOpen(null); });
+
+  if (selected && !reading) return <View style={{ gap: sp[3] }}>{error ? <Text style={{ color: t.danger }}>{error}</Text> : null}<PhotoEditor asset={selected} onDone={readPhoto} onCancel={() => { void removeDraftMedia(selected); setSelected(null); }} /></View>;
+  if (!restored || !selectedReady) return <SkeletonRows count={3} />;
 
   // While the server reads: the shape of the rows to come, breathing.
   if (reading) {

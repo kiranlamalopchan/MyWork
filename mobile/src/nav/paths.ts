@@ -3,10 +3,11 @@
  * app's screens. Notification go-links are resolved through the authenticated
  * API; destinations without a screen stay in the app's inbox.
  */
+import { openAppStore } from "./stores";
 import { router } from "expo-router";
 import { api } from "@/api/client";
 
-export type Target = { screen: string } | { notification: number };
+export type Target = { screen: string } | { notification: number } | { update: true };
 
 export function targetFor(path: string): Target {
   let url: URL;
@@ -18,6 +19,7 @@ export function targetFor(path: string): Target {
 
   if ((m = p.match(/^\/notifications\/(\d+)\/go$/))) return { notification: Number(m[1]) };
 
+  if (p === "/app-update") return { update: true };
   if (p === "/" ) return { screen: "/(tabs)" };
   if (p === "/notices") {
     const notice = q.get("notice");
@@ -65,6 +67,7 @@ export async function navigateTo(path: string, isCurrent: () => boolean = () => 
       target = { screen: "/notifications" };
     }
   }
+  if ("update" in target) { await openAppStore(isCurrent); return unread; }
   if (isCurrent()) router.push(("screen" in target ? target.screen : "/notifications") as any);
   return unread;
 }

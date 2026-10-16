@@ -36,6 +36,7 @@ urlpatterns = [
         ),
         name="password_reset_complete",
     ),
+    path("app-update/", TemplateView.as_view(template_name="app_update.html"), name="app_update"),
     path("privacy/", views.privacy, name="privacy"),
     # Blocking people and reporting posts, and the rules they enforce.
     path("safety/", include("apps.moderation.urls")),

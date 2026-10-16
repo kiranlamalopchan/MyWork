@@ -84,4 +84,5 @@ def home_festival_banner():
         'id': choice, 'name': name, 'motion': FESTIVAL_MOTION[choice], 'greeting': configuration.greeting if manual and configuration.greeting else greeting,
         'description': configuration.description if manual and configuration.description else description,
         'art': 'img/festivals/home-' + art + '.webp',
+        'uploaded_art': configuration.banner.url if manual and configuration.banner else None,
     }

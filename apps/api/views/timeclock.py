@@ -12,6 +12,12 @@ so the app draws and the server decides.
 """
 
 import calendar as pycalendar
+import hashlib
+import json
+import uuid
+from django.db import transaction
+from django.contrib.auth import get_user_model
+from ..models import ShiftReceipt
 from datetime import date, timedelta
 from types import SimpleNamespace
 
@@ -567,9 +573,29 @@ def _save_shift(request, shift, creating):
 
 
 class Shifts(APIView):
+    @transaction.atomic
     def post(self, request):
+        raw = request.data.get("client_id")
+        client_id = None
+        if raw:
+            try:
+                client_id = uuid.UUID(str(raw))
+            except ValueError:
+                return Response({"detail": "Invalid submission identifier."}, status=400)
+        payload_hash = hashlib.sha256(json.dumps(request.data, sort_keys=True).encode()).hexdigest()
+        if client_id:
+            get_user_model().objects.select_for_update().get(pk=request.user.pk)
+            receipt = ShiftReceipt.objects.filter(user=request.user, client_id=client_id).select_related('shift').first()
+            if receipt:
+                if receipt.payload_hash != payload_hash or receipt.shift is None:
+                    return Response({"detail": "This submission was already used. Review the saved shift before trying again."}, status=409)
+                return Response(shift_detail(_shift(request, receipt.shift_id)))
         shift, err = _save_shift(request, Shift(user=request.user), creating=True)
-        return err or Response(shift_detail(shift), status=201)
+        if err:
+            return err
+        if client_id:
+            ShiftReceipt.objects.create(user=request.user, client_id=client_id, shift=shift, payload_hash=payload_hash)
+        return Response(shift_detail(shift), status=201)
 
 
 class NewShift(APIView):
@@ -580,6 +606,7 @@ class NewShift(APIView):
         req = SimpleNamespace(GET=request.GET, session={}, user=request.user)
         initial = site._new_shift_initial(req, workplaces)
         return Response({
+            "supports_offline_drafts": True,
             "workplaces": [workplace_brief(w) for w in workplaces],
             "workplace": initial["workplace"].pk if initial["workplace"] else None,
             "clock_in": timezone.localtime(initial["clock_in"]).strftime("%Y-%m-%dT%H:%M"),

@@ -1,0 +1,40 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { timesheet, type ShiftInput } from "@/api";
+import { ApiError } from "@/api/client";
+import { queueShift, syncShifts, type PendingShift } from "@/offline/shifts";
+import { readPrivate } from "@/storage/private";
+jest.mock("@/api", () => ({ timesheet: { addShift: jest.fn() } }));
+jest.mock("@/auth/session", () => ({ useSession: jest.fn() }));
+jest.mock("@/api/server", () => ({ serverUrl: () => "https://test.example" }));
+const scope = "test|alice";
+const input: ShiftInput = { client_id: "a-test-submission", workplace: 1, clock_in: "2026-01-13T09:00", clock_out: "2026-01-13T17:00", note: "Draft", breaks: [] };
+const pending = () => readPrivate<PendingShift[]>(scope, "pending-shifts", []);
+beforeEach(async () => { jest.clearAllMocks(); await AsyncStorage.clear(); });
+test("a transport failure retains one durable draft and retry sends its original identifier", async () => {
+  await Promise.all([queueShift(scope, input), queueShift(scope, input)]);
+  expect(await pending()).toHaveLength(1);
+  jest.mocked(timesheet.addShift).mockRejectedValueOnce(new ApiError(0, "No connection"));
+  await syncShifts(scope, () => true);
+  expect(await pending()).toHaveLength(1);
+  jest.mocked(timesheet.addShift).mockResolvedValueOnce({ id: 7 } as any);
+  await syncShifts(scope, () => true);
+  expect(timesheet.addShift).toHaveBeenLastCalledWith(input);
+  expect(await pending()).toEqual([]);
+});
+test("a server conflict remains for review and is never repeatedly submitted", async () => {
+  await queueShift(scope, input);
+  jest.mocked(timesheet.addShift).mockRejectedValueOnce(new ApiError(409, "Review this shift"));
+  await syncShifts(scope, () => true);
+  expect((await pending())[0]).toMatchObject({ review: true, error: "Review this shift" });
+  await syncShifts(scope, () => true);
+  expect(timesheet.addShift).toHaveBeenCalledTimes(1);
+});
+test("leaving an account prevents the next queued submission", async () => {
+  await queueShift(scope, input);
+  await queueShift(scope, { ...input, client_id: "second" });
+  let active = true;
+  jest.mocked(timesheet.addShift).mockImplementationOnce(async () => { active = false; return { id: 1 } as any; });
+  await syncShifts(scope, () => active);
+  expect(timesheet.addShift).toHaveBeenCalledTimes(1);
+  expect((await pending()).map(row => row.id)).toEqual(["second"]);
+});

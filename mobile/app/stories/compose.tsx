@@ -22,6 +22,8 @@ import { Button, Field, Input, Page, PageTitle, Screen } from "@/ui";
 import { VisibilityPicker } from "@/ui/VisibilityPicker";
 import { useLayout } from "@/ui/layout";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
+import { keepDraftMedia, removeDraftMedia } from "@/storage/media";
+import { usePrivateState } from "@/storage/private";
 import { fail, success, tap, tick } from "@/ui/haptics";
 
 const MAX_SECONDS = 60;
@@ -31,13 +33,13 @@ export default function ComposeStory() {
   const t = useTheme();
   const layout = useLayout();
   const changed = useStoriesChanged();
-  const [picked, setPicked] = useState<Picked | null>(null);
-  const [caption, setCaption] = useState("");
-  const [visibility, setVisibility] = useState<Visibility>("public");
+  const [picked, setPicked] = usePrivateState<Picked | null>("story-asset", null);
+  const [caption, setCaption] = usePrivateState("story-caption", "");
+  const [visibility, setVisibility] = usePrivateState<Visibility>("story-visibility", "public");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(0);
-  const [start, setStart] = useState(0);
+  const [start, setStart] = usePrivateState("story-trim-start", 0);
   const [trackWidth, setTrackWidth] = useState(1);
 
   const isVideo = picked?.type === "video";
@@ -95,7 +97,9 @@ export default function ComposeStory() {
         result = await ImagePicker.launchImageLibraryAsync(options);
       }
       if (!result || result.canceled) return;
-      setPicked(result.assets[0]);
+      const saved = await keepDraftMedia(result.assets[0]);
+      void removeDraftMedia(picked);
+      setPicked(saved);
       setStart(0);
       setMeasured(0);
       // A different picture is a different story, and may be posted.
@@ -131,7 +135,7 @@ export default function ComposeStory() {
       const s = Math.min(Math.max((e.x / trackWidth) * seconds - span / 2, 0), room);
       setStart(Math.round(s * 10) / 10);
     }).runOnJS(true),
-    [seconds, span, trackWidth]
+    [seconds, span, trackWidth, setStart]
   );
 
 
@@ -153,6 +157,8 @@ export default function ComposeStory() {
       // Before anything else: this picture has been posted, and nothing
       // this screen does afterwards may post it a second time.
       posted.current = true;
+      void removeDraftMedia(picked);
+      setPicked(null); setCaption(""); setStart(0); setVisibility("public");
       success();
       changed();
       goBack();

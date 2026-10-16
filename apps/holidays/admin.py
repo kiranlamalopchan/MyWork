@@ -26,7 +26,7 @@ class HolidayPreferenceAdmin(admin.ModelAdmin):
 
 @admin.register(FestivalThemeSettings)
 class FestivalThemeSettingsAdmin(admin.ModelAdmin):
-    fields = ('theme', 'greeting', 'description', 'updated_at')
+    fields = ('theme', 'banner', 'greeting', 'description', 'updated_at')
     readonly_fields = ('updated_at',)
 
     def has_add_permission(self, request):

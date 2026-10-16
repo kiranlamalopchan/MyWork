@@ -191,6 +191,7 @@ class FestivalThemeSettings(models.Model):
 
     id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
     theme = models.CharField(max_length=32, choices=THEME_CHOICES, default='auto', help_text='Applies to every user, on Home only. Automatic uses the site timezone.')
+    banner = models.ImageField(upload_to='festivals/', blank=True, help_text='Optional image for the manually selected festival. Off hides both the image and its effect.')
     greeting = models.CharField(max_length=120, blank=True, help_text='Optional greeting for a manually selected festival; leave blank for the standard wish.')
     description = models.TextField(max_length=600, blank=True, help_text='Optional explanation for a manually selected festival; leave blank for the standard description.')
     updated_at = models.DateTimeField(auto_now=True)

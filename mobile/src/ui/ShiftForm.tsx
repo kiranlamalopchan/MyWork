@@ -13,23 +13,31 @@ import { ApiError, type ShiftInput, type WorkplaceBrief } from "@/api";
 import { Button, Card, Field, Input } from "./index";
 import { sp, useTheme } from "./theme";
 import { Choices, DateTimeField, Switch } from "./timesheet";
+import { usePrivateState } from "@/storage/private";
 import { fail, success } from "./haptics";
 
 type BreakDraft = { key: string; id?: number; break_start: string; break_end: string; delete?: boolean };
 
-export function ShiftForm({ workplaces, initial, editing, onSave, onCancel }: {
+export function ShiftForm({ workplaces, initial, editing, onSave, onCancel, draftKey }: {
   workplaces: WorkplaceBrief[];
   initial: { workplace: number | ""; clock_in: string; clock_out: string; note: string; breaks: Omit<BreakDraft, "key">[] };
   editing: boolean;
+  draftKey?: string;
   onSave: (input: ShiftInput) => Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTheme();
-  const [workplace, setWorkplace] = useState<number | "">(initial.workplace);
-  const [clockIn, setClockIn] = useState(initial.clock_in);
-  const [clockOut, setClockOut] = useState(initial.clock_out);
-  const [note, setNote] = useState(initial.note);
-  const [breaks, setBreaks] = useState<BreakDraft[]>(initial.breaks.map((b, i) => ({ ...b, key: `b${i}` })));
+  const initialDraft = { workplace: initial.workplace, clockIn: initial.clock_in, clockOut: initial.clock_out, note: initial.note,
+    breaks: initial.breaks.map((b, i) => ({ ...b, key: `b${i}` })) as BreakDraft[] };
+  const [saved, setSaved, ready] = usePrivateState<typeof initialDraft | null>(draftKey || `shift:${editing ? initial.clock_in : "new"}`, null);
+  const draft = saved || initialDraft;
+  const setDraft = (update: (value: typeof initialDraft) => typeof initialDraft) => setSaved(previous => update(previous || initialDraft));
+  const { workplace, clockIn, clockOut, note, breaks } = draft;
+  const setWorkplace = (value: number | "") => setDraft(previous => ({ ...previous, workplace: value }));
+  const setClockIn = (value: string) => setDraft(previous => ({ ...previous, clockIn: value }));
+  const setClockOut = (value: string) => setDraft(previous => ({ ...previous, clockOut: value }));
+  const setNote = (value: string) => setDraft(previous => ({ ...previous, note: value }));
+  const setBreaks = (update: (rows: BreakDraft[]) => BreakDraft[]) => setDraft(previous => ({ ...previous, breaks: update(previous.breaks) }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [breakErrors, setBreakErrors] = useState<Record<string, string>[]>([]);
   const [detail, setDetail] = useState("");
@@ -44,6 +52,7 @@ export function ShiftForm({ workplaces, initial, editing, onSave, onCancel }: {
         workplace, clock_in: clockIn.replace(" ", "T"), clock_out: clockOut.replace(" ", "T"), note,
         breaks: breaks.filter((b) => b.id || b.break_start || b.break_end).map(({ key, ...b }) => ({ ...b, break_start: b.break_start.replace(" ", "T"), break_end: b.break_end.replace(" ", "T") })),
       });
+      setSaved(null);
       success();
     } catch (e: any) {
       fail();
@@ -110,8 +119,9 @@ export function ShiftForm({ workplaces, initial, editing, onSave, onCancel }: {
         <Button title="Add a break" icon="add" kind="plain" onPress={() => setBreaks((rows) => [...rows, { key: `n${Date.now()}`, break_start: "", break_end: "" }])} />
       </Card>
       <View style={{ gap: sp[3] }}>
-        <Button title={editing ? "Save changes" : "Add shift"} onPress={save} busy={busy} testID="save-shift" />
+        <Button title={editing ? "Save changes" : "Add shift"} onPress={save} busy={busy} disabled={!ready} testID="save-shift" />
         <Button title="Cancel" kind="plain" onPress={onCancel} />
+        {saved ? <Button title="Discard saved draft" kind="ghost" onPress={() => setSaved(null)} /> : null}
       </View>
     </>
   );

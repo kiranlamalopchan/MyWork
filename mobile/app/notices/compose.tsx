@@ -8,6 +8,7 @@ import { goBack } from "@/nav/paths";
 import { Button, Card, Field, Input, Page, PageTitle, Screen } from "@/ui";
 import { VisibilityPicker } from "@/ui/VisibilityPicker";
 import { sp, useTheme } from "@/ui/theme";
+import { usePrivateState } from "@/storage/private";
 import { fail, success } from "@/ui/haptics";
 
 const MAX = 600;
@@ -17,8 +18,10 @@ export default function Compose() {
   const params = useLocalSearchParams<{ id?: string; body?: string; visibility?: Visibility }>();
   // A link can carry anything; only what makes sense is taken from it.
   const editing = /^\d+$/.test(params.id || "") ? Number(params.id) : null;
-  const [body, setBody] = useState(typeof params.body === "string" ? params.body : "");
-  const [visibility, setVisibility] = useState<Visibility>(params.visibility === "friends" || params.visibility === "private" ? params.visibility : "public");
+  const [savedBody, setBody, ready] = usePrivateState<string | null>(`notice:${editing || "new"}:body`, null);
+  const body = savedBody ?? (typeof params.body === "string" ? params.body : "");
+  const [savedVisibility, setVisibility] = usePrivateState<Visibility | null>(`notice:${editing || "new"}:visibility`, null);
+  const visibility = savedVisibility ?? (params.visibility === "friends" || params.visibility === "private" ? params.visibility : "public");
   const [error, setError] = useState("");
   const post = usePostNotice();
   const changed = useBoardChanged();
@@ -34,6 +37,7 @@ export default function Compose() {
       } else {
         await post.mutateAsync({ body, visibility });
       }
+      setBody(null); setVisibility(null);
       success();
       goBack();
     } catch (e: any) {
@@ -67,7 +71,7 @@ export default function Compose() {
           <VisibilityPicker value={visibility} onChange={setVisibility} />
         </Field>
         <View style={{ gap: sp[3] }}>
-          <Button title={editing ? "Save changes" : "Post notice"} onPress={go} busy={busy} disabled={!body.trim()} testID="post-notice" />
+          <Button title={editing ? "Save changes" : "Post notice"} onPress={go} busy={busy} disabled={!ready || !body.trim()} testID="post-notice" />
           <Button title="Cancel" kind="plain" onPress={goBack} />
         </View>
       </Page>
