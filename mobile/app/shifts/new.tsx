@@ -10,7 +10,7 @@ import { goBack } from "@/nav/paths";
 import { ErrorBanner, Page, PageTitle, Screen } from "@/ui";
 import { SkeletonForm } from "@/ui/Skeleton";
 import { ShiftForm } from "@/ui/ShiftForm";
-import { usePrivateScope, usePrivateState } from "@/storage/private";
+import { usePrivateScope, usePrivateState, writePrivate } from "@/storage/private";
 import { queueShift } from "@/offline/shifts";
 import { notify } from "@/ui/confirm";
 import { useTheme } from "@/ui/theme";
@@ -25,6 +25,8 @@ export default function NewShift() {
   const initialId = useMemo(() => randomUUID(), []);
   const [clientId, setClientId, idReady] = usePrivateState(`shift-submission:${draftKey}`, initialId);
   useEffect(() => { if (q.data) setCached(q.data); }, [q.data, setCached]);
+  // Persist the identifier before a request can outlive this screen or process.
+  useEffect(() => { if (idReady) setClientId(clientId); }, [idReady, clientId, setClientId]);
   const options = q.data || cached;
   const today = new Date();
   const localDay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -41,6 +43,8 @@ export default function NewShift() {
       initial={{ workplace: options.workplace ?? "", clock_in: day || !q.data ? `${fallbackDay}T09:00` : options.clock_in, clock_out: day || !q.data ? `${fallbackDay}T17:00` : options.clock_out, note: "", breaks: [] }}
       editing={false}
       onSave={async input => {
+        // Keep the same identifier if the process exits after the server saves.
+        if (scope) await writePrivate(scope, `shift-submission:${draftKey}`, clientId);
         const submission = { ...input, client_id: clientId };
         try {
           const shift = await timesheet.addShift(submission);
