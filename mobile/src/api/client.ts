@@ -133,12 +133,13 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
   const headers: Record<string, string> = { Accept: "application/json" };
   const tz = timezone();
   if (tz) headers["X-Timezone"] = tz;
+  let requestToken: string | null = null;
   if (!options.anonymous) {
-    const token = await getToken();
+    requestToken = await getToken();
     // Signed out: nothing to ask with. A screen that renders for a frame
     // before the sign-in guard has run shouldn't cost a request.
-    if (!token) throw new ApiError(401, "Sign in first.");
-    headers.Authorization = `Token ${token}`;
+    if (!requestToken) throw new ApiError(401, "Sign in first.");
+    headers.Authorization = `Token ${requestToken}`;
   }
   let body: BodyInit | undefined;
   if (options.form) {
@@ -181,7 +182,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
     throw new ApiError(response.status, `${serverUrl()} doesn't have the KaamKoRecord app API. Update the site there, or change the server address on the sign-in screen.`);
   }
   if (!response.ok) {
-    if (response.status === 401 && !options.anonymous) await signOutEverywhere();
+    if (response.status === 401 && requestToken) await signOutEverywhere(requestToken);
     const detail =
       (data && (data.detail || data.error)) ||
       (response.status >= 500

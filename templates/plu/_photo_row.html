@@ -11,7 +11,7 @@
   <div class="result pick__main">
     <a class="plu-badge" href="{% url 'plu:detail' row.item.pk %}">{{ row.item.plu_no }}</a>
     <span class="result__body">
-      <span class="result__title">{{ row.item.title|default:row.item.description }}</span>
+      <span class="result__title">{{ row.item.photo_name }}</span>
       <span class="result__sub">Read: &ldquo;{{ row.line }}&rdquo;</span>
     </span>
     <span class="sure sure--{{ row.sureness }}">
@@ -39,7 +39,7 @@
         <div class="pick__chips">
           {% for alt in row.alternatives %}
             <button type="submit" name="plu_no" value="{{ alt.plu_no }}" class="pick__chip">
-              <b>{{ alt.plu_no }}</b> {{ alt.title|default:alt.description }}
+              <b>{{ alt.plu_no }}</b> {{ alt.photo_name }}
             </button>
           {% endfor %}
         </div>

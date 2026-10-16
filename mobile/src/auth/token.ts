@@ -36,9 +36,9 @@ export async function setToken(token: string | null): Promise<void> {
   listeners.forEach((fn) => fn());
 }
 
-/** Called by the API client on a 401: the token is dead, everyone should know. */
-export async function signOutEverywhere(): Promise<void> {
-  if (cached) await setToken(null);
+/** A 401 may belong to a request sent before the person signed in again. */
+export async function signOutEverywhere(expectedToken?: string): Promise<void> {
+  if (cached && (expectedToken === undefined || cached === expectedToken)) await setToken(null);
 }
 
 export function onTokenChange(fn: () => void): () => void {

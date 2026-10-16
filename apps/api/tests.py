@@ -549,7 +549,7 @@ class PluTests(ApiTestCase):
         with patch("apps.plu.picking.read_lines", return_value=[Line("beef mince premium", 95)]):
             response = self.api("post", "plu_photo", {"photo": picture()}, fmt="multipart")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["rows"][0]["item"], {"plu_no": 900, "description": "BEEF MINCE PREMIUM"})
+        self.assertEqual(response.json()["rows"][0]["item"], {"plu_no": 900, "description": "BEEF MINCE PREMIUM — Fresh chilled"})
 
     def test_an_unreadable_photo_is_refused_in_words(self):
         from apps.plu.picking import Unreadable

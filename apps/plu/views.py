@@ -241,6 +241,8 @@ def _recall(request):
     if selected is None or original != selected.pk:
         return None
     items = {item.plu_no: item for item in selected_items(request).filter(plu_no__in=wanted)}
+    for item in items.values():
+        item.photo_name = picking.product_name(item)
     out = []
     for i, row in enumerate(rows):
         item = items.get(row.get("plu_no"))
@@ -337,8 +339,13 @@ def photo_search_pick(request):
         query = (request.POST.get("query") or "").strip()[:200]
         if not query:
             return JsonResponse({"error": "Enter a product name or PLU to search."}, status=400)
-        match = picking.Catalogue(selected_items(request).filter(plu_no__isnull=False)).match(query, keep=8)
-        candidates = ([match.item] if match.item else []) + [item for item, _ in match.alternatives]
+        items = selected_items(request).filter(plu_no__isnull=False)
+        exact = items.filter(plu_no=int(query)).first() if query.isascii() and query.isdigit() else None
+        if exact is not None:
+            candidates = [exact]
+        else:
+            match = picking.Catalogue(items).match(query, keep=8)
+            candidates = ([match.item] if match.item else []) + [item for item, _ in match.alternatives]
         if not candidates:
             return JsonResponse({"error": "No matching product in this catalogue. Try a shorter name or its PLU."}, status=400)
         row["alternatives"] = [item.plu_no for item in candidates if item.plu_no != row.get("plu_no")]
@@ -420,7 +427,7 @@ def picking_list_pdf(lines, user, catalogue_id=None):
         for row in lines:
             item = items_by_plu.get(row["plu_no"])
             plu_display = str(item.plu_no) if item else ""
-            desc_display = (item.title or item.description) if item else row["line"]
+            desc_display = picking.product_name(item) if item else row["line"]
             data.append([plu_display, desc_display])
 
         table = Table(data, colWidths=[1.0 * inch, 5.8 * inch], repeatRows=1)

@@ -64,6 +64,14 @@ class Unreadable(Exception):
     """The photo could not be read — the message is for the user."""
 
 
+def product_name(item):
+    """Keep variant details visible when several PLUs share a title."""
+    title, description = item.title.strip(), item.description.strip()
+    if title and description and title.casefold() != description.casefold():
+        return f"{title} — {description}"
+    return title or description
+
+
 @dataclass
 class Line:
     text: str
@@ -395,19 +403,17 @@ class Catalogue:
     @staticmethod
     def _others(scored, chosen, keep):
         """
-        The runners-up worth offering: not the answer, and not another row
-        with the answer's name — the list has three rows called PORK
-        FILLET, and a second one is no alternative to the first.
+        Different PLUs can share a name but differ in size or preparation.
+        Keep those choices and deduplicate only repeated product codes.
         """
-        seen = {(chosen.title or chosen.description).upper()} if chosen is not None else set()
+        seen = {chosen.plu_no} if chosen is not None else set()
         out = []
         for score, item in scored:
             if score < FLOOR:
                 continue
-            name = (item.title or item.description).upper()
-            if item is chosen or name in seen:
+            if item is chosen or item.plu_no in seen:
                 continue
-            seen.add(name)
+            seen.add(item.plu_no)
             out.append((item, round(score, 3)))
             if len(out) == keep:
                 break

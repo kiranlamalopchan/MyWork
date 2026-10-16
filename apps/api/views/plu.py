@@ -29,7 +29,7 @@ from .. import serialize
 
 def _item(item):
     # Native PLU screens use description as the display name as well.
-    return {"plu_no": item.plu_no, "description": item.title or item.description}
+    return {"plu_no": item.plu_no, "description": picking.product_name(item)}
 
 
 # How many real rows the idle box is given, and how long a name may be to be

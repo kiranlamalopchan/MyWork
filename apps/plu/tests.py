@@ -287,10 +287,36 @@ class PhotoSearchPickTests(TestCase):
         another = User.objects.create_user("another-shop")
         private = Catalogue.objects.create(owner=another, name="Private", title_column="Name")
         PluItem.objects.create(catalogue=private, plu_no=55, description="HALIBUT")
+        for query in ("halibut", "55"):
+            with self.subTest(query=query):
+                response = self.client.post(reverse("plu:photo_search_pick"),
+                    {"index": 0, "action": "search", "query": query})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 900)
+
+    def test_typed_short_plu_is_an_exact_lookup_without_changing_ocr_quantity_rules(self):
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=2, title="LAMB LEG", description="BONELESS")
+        for query in ("2", "002"):
+            with self.subTest(query=query):
+                response = self.client.post(reverse("plu:photo_search_pick"),
+                    {"index": 0, "action": "search", "query": query},
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'value="2"')
+                self.assertContains(response, "LAMB LEG — BONELESS")
+                self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 900)
+
+    def test_variants_with_the_same_title_are_shown_with_their_details(self):
+        self.mince.title = "BEEF MINCE"
+        self.mince.description = "REGULAR"
+        self.mince.save()
+        PluItem.objects.create(catalogue=self.catalogue, plu_no=901, title="BEEF MINCE", description="PREMIUM")
         response = self.client.post(reverse("plu:photo_search_pick"),
-            {"index": 0, "action": "search", "query": "halibut"})
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(self.client.session["photo_search_lines"][0]["plu_no"], 900)
+            {"index": 0, "action": "search", "query": "beef mince"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertContains(response, "BEEF MINCE — REGULAR")
+        self.assertContains(response, "BEEF MINCE — PREMIUM")
+        self.assertContains(response, 'value="901"')
 
     def test_name_lookup_requires_words_and_rejects_negative_row_indexes(self):
         url = reverse("plu:photo_search_pick")

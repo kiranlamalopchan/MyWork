@@ -48,6 +48,15 @@ class PhotoMatchAccuracyTests(SimpleTestCase):
         match = catalogue.match("chicken fillet")
         self.assertEqual(len(match.alternatives), 1)
 
+    def test_shared_titles_and_names_do_not_hide_distinct_plu_codes(self):
+        catalogue = picking.Catalogue([
+            item(1, "REGULAR", "BEEF MINCE"), item(2, "PREMIUM", "BEEF MINCE"),
+            item(3, "REGULAR", "BEEF MINCE"),
+        ])
+        match = catalogue.match("beef mince")
+        self.assertEqual({match.item.plu_no, *(other.plu_no for other, _ in match.alternatives)}, {1, 2, 3})
+        self.assertEqual(picking.product_name(catalogue.items[1]), "BEEF MINCE — PREMIUM")
+
     def test_quantity_and_conflicting_codes_do_not_override_the_name(self):
         for text in ("beef mince premium 900", "PLU 900 beef mince premium"):
             with self.subTest(text=text):

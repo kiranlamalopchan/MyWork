@@ -6,7 +6,7 @@
  * the list" — before the read is saved as a PDF. The read is kept here on
  * the phone; the server holds nothing between calls.
  */
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -154,14 +154,28 @@ function RowView({ catalogueId, row, last, open, onOpen, onPut }: { catalogueId?
   const t = useTheme();
   const [typed, setTyped] = useState("");
   const [looking, setLooking] = useState(false);
+  const lookup = useRef(0);
+  // Reading another slip or clearing the list unmounts these rows. A
+  // correction still in flight must not apply to the next slip's row 0.
+  useEffect(() => () => { lookup.current++; }, []);
   const sure = SURE[row.sureness];
   const ink = t[sure.key];
 
   const byNumber = async () => {
     const n = Number(typed.trim());
     if (!n) return;
+    const attempt = ++lookup.current;
     setLooking(true);
-    try { onPut(await plu.one(n, catalogueId)); setTyped(""); } catch { notify("No PLU with that number"); } finally { setLooking(false); }
+    try {
+      const item = await plu.one(n, catalogueId);
+      if (attempt !== lookup.current) return;
+      onPut(item);
+      setTyped("");
+    } catch {
+      if (attempt === lookup.current) notify("No PLU with that number");
+    } finally {
+      if (attempt === lookup.current) setLooking(false);
+    }
   };
 
   return (
