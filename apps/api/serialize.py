@@ -9,26 +9,18 @@ board's rules live in one place and the API can't drift from the site.
 """
 
 from django.core.paginator import Paginator
-from django.utils import timezone
-from django.utils.timesince import timesince
+from mywork.formatting import relative_time as ago
 
 from apps.accounts.models import Profile
 from apps.holidays.whereabouts import guess_state
 from apps.noticeboard.models import Emoji, Notice
-from apps.noticeboard.views import COMMENTS_SHOWN, REPLIES_SHOWN
+from apps.noticeboard.presentation import COMMENTS_SHOWN, REPLIES_SHOWN, fold_thread as _fold
 from mywork.version import VERSION
 
 
 def absolute(request, url):
     """A media path as a URL a phone can fetch, or None for nothing."""
     return request.build_absolute_uri(url) if url else None
-
-
-def ago(when):
-    """"just now", "3 minutes ago" — the words the site uses."""
-    if timezone.now() - when < timezone.timedelta(seconds=60):
-        return "just now"
-    return timesince(when, timezone.now()).split(",")[0] + " ago"
 
 
 def page_of(request, items, per_page, page=None):
@@ -120,12 +112,6 @@ def reactors(request, item, viewer):
             for emoji, users in item.reaction_people()
         ],
     }
-
-
-def _fold(items, keep):
-    """The older part of a thread that folds away, and the newest that stays."""
-    cut = max(len(items) - keep, 0)
-    return items[:cut], items[cut:]
 
 
 def comment(request, item, viewer, folded=True):

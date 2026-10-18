@@ -9,13 +9,10 @@ anyone, see `apps/noticeboard/notify.py`: an ordinary "no" is not news.
 
 from django.urls import reverse
 
+from apps.accounts.avatars import display_name
+
 from apps.notifications.models import Kind
 from apps.notifications.notify import notify
-
-
-def _name(user):
-    profile = getattr(user, "profile", None)
-    return getattr(profile, "name", None) or user.get_username()
 
 
 def friend_requested(request):
@@ -23,7 +20,7 @@ def friend_requested(request):
     notify(
         request.to_user,
         Kind.FRIEND_REQUEST,
-        f"{_name(request.from_user)} wants to be friends",
+        f"{display_name(request.from_user)} wants to be friends",
         url=reverse("accounts:friends"),
         actor=request.from_user,
         dedupe_key=f"friend-request:{request.from_user_id}:{request.to_user_id}",
@@ -35,7 +32,7 @@ def friend_accepted(accepter, other):
     notify(
         other,
         Kind.FRIEND_ACCEPTED,
-        f"{_name(accepter)} accepted your friend request",
+        f"{display_name(accepter)} accepted your friend request",
         url=reverse("accounts:friends"),
         actor=accepter,
     )

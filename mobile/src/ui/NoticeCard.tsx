@@ -1,10 +1,6 @@
 /**
- * One notice, laid out the way the social apps lay out a post: the author
- * line across the top (face, name, when, and the ⋯ for your own), the
- * words full width beneath, a quiet line of who reacted and how many
- * comments, a rule, then the two icons — like and comment — and the thread
- * with its reply box. The sender's colour is on their face and name only;
- * the card itself stays clean, and your own are marked with a small "You".
+ * The website's full notice as native controls: author-tinted surface,
+ * author and message, reaction tally, equal-width actions and the thread.
  * Everything acts in place — a face, a comment, an edit — the way the site
  * does, and a box that takes focus is scrolled clear of the keyboard.
  */
@@ -19,11 +15,12 @@ import { useSession } from "@/auth/session";
 import { Avatar } from "./Avatar";
 import { AdminBadge } from "./AdminBadge";
 import { confirm, notify } from "./confirm";
-import { Card, reactionInk, Tally } from "./index";
+import { reactionInk, Tally } from "./index";
+import { NoticeSurface } from "./NoticeSurface";
 import { useReveal } from "./keyboard";
 import { ReactionSheet, type Anchor } from "./ReactionPicker";
 import { ReportSheet, type ReportTarget } from "./ReportSheet";
-import { alpha, hsl, radius, sp, useTheme } from "./theme";
+import { hsl, radius, sp, useTheme } from "./theme";
 import { success, tap, tick } from "./haptics";
 import { VisibilityBadge, VisibilityToggle } from "./VisibilityPicker";
 
@@ -64,7 +61,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
   const shown = tally || notice;
   const mine = notice.mine;
   const hue = notice.author.hue;
-  const inkFor = `hsl(${hue}, 48%, ${t.dark ? 70 : 32}%)`;
+  const inkFor = t.dark ? hsl(hue, 72, 78) : hsl(hue, 48, 32);
   const comments = notice.comment_total;
 
   const react = async (emoji: string) => {
@@ -114,11 +111,11 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
   };
   const closeMenu = () => setMenuOpen(false);
   const open = full ? undefined : () => router.push(`/notices/${notice.id}`);
-  // The speech bubble: to the thread from the board; on the thread, straight into the box.
-  const comment = full ? () => sayRef.current?.focus() : open;
+  const comment = () => { reveal(replyRef.current); sayRef.current?.focus(); };
+  const quietLabels = width >= 360 && (!notice.can_pin || width >= 560);
 
   return (
-    <Card pad={false} testID={`notice-${notice.id}`} style={[styles.notice, pinned && { borderWidth: 1.5, borderColor: alpha(t.brand, 0.55) }]}>
+    <NoticeSurface notice={{ ...notice, pinned }} style={styles.notice}>
       {/* Held at the top by an admin: said in words, so nobody wonders why
           last week's notice is first. */}
       {pinned ? (
@@ -133,8 +130,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
           <Avatar person={notice.author} size={42} ring={mine ? t.brandSoft : `hsla(${hue}, 72%, 52%, 0.22)`} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.nameRow}>
-              <Text style={[styles.who, { color: mine ? t.text : inkFor }]} numberOfLines={1}>{notice.author.username}</Text>
-              {mine ? <Text style={[styles.you, { backgroundColor: t.brandSoft, color: t.brand }]}>You</Text> : null}
+              <Text style={[styles.who, { color: mine ? t.text : inkFor }]} numberOfLines={1}>{mine ? "You" : notice.author.username}</Text>
               <AdminBadge person={notice.author} />
             </View>
             <View style={styles.whenRow}>
@@ -199,9 +195,9 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
       </View>
       <ReportSheet target={reporting} onClose={() => setReporting(null)} />
 
-      {/* The words, the full width of the card. */}
+      {/* The message aligns with the author's name, as on the website. */}
       {editing ? (
-        <View ref={editorRef} style={{ gap: sp[3] }}>
+        <View ref={editorRef} style={{ gap: sp[3], marginLeft: 54 }}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -221,8 +217,8 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
           </View>
         </View>
       ) : (
-        <Pressable onPress={open} disabled={!open}>
-          <Text style={[styles.text, { color: t.text }]}>{notice.body}</Text>
+        <Pressable onPress={open} disabled={!open} style={{ marginLeft: 54 }}>
+          <Text style={[styles.text, { color: t.text2 }]}>{notice.body}</Text>
         </Pressable>
       )}
 
@@ -241,24 +237,26 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
 
       <View style={[styles.rule, { backgroundColor: t.line }]} />
 
-      {/* Two plain icons with their counts, no buttons: the thumb (your own
-          face, once you have left one) and the speech bubble. A tap on the
-          thumb likes; a long press floats the row of faces above it, and a
-          tap anywhere else puts the row away. */}
+      {/* The website's action row, with native touch targets and picker. */}
       <View style={styles.acts}>
         <ReactionSheet anchor={faces} mine={shown.my_emoji} onPick={react} onClose={() => setFaces(null)} />
-        <View ref={reactRef} collapsable={false}>
+        <View ref={reactRef} collapsable={false} style={{ flex: quietLabels ? 1 : 1.4 }}>
           <Act
-            onPress={() => react(shown.my_emoji || "👍")}
+            onPress={openFaces}
             onLongPress={openFaces}
             colour={shown.my_emoji ? reactionInk(shown.my_emoji, t) : t.text2}
             label={shown.my_emoji ? labelFor(shown.my_emoji) : "React"}
             emoji={shown.my_emoji || undefined}
-            icon="thumbs-up-outline"
-            count={shown.total_reactions}
+            icon="happy-outline"
+            showIcon={width >= 360 || !notice.can_pin}
           />
         </View>
-        <Act onPress={comment} colour={t.text2} label="Comment" icon="chatbubble-outline" count={comments} />
+        <Act onPress={comment} colour={t.muted} label="Comment" icon="chatbubble-outline" weight={quietLabels ? 1 : 1.4} showIcon={width >= 360 || !notice.can_pin} />
+        {mine ? <>
+          <Act onPress={() => setEditing(true)} colour={t.muted} label="Edit" icon="pencil-outline" showLabel={quietLabels} />
+          <Act onPress={remove} colour={t.danger} label="Remove" icon="trash-outline" showLabel={quietLabels} />
+        </> : <Act onPress={report} colour={t.muted} label="Report" icon="flag-outline" showLabel={quietLabels} />}
+        {notice.can_pin ? <Act onPress={togglePin} colour={pinned ? t.brand : t.muted} label={pinned ? "Unpin" : "Pin"} icon={pinned ? "pin-outline" : "pin"} showLabel={quietLabels} /> : null}
       </View>
 
       {notice.older_comments || notice.comments.length || me ? (
@@ -269,7 +267,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
             </Pressable>
           ) : null}
           {notice.comments.map((c) => (
-            <CommentRow key={c.id} comment={c} noticeId={notice.id} onChanged={(n) => setUnfolded(n)} />
+            <CommentRow key={c.id} comment={c} noticeId={notice.id} onChanged={(n) => setUnfolded(n)} bubbleBackground={mine ? t.surface2 : t.surface} />
           ))}
           {me ? (
             <View ref={replyRef} style={styles.reply}>
@@ -286,7 +284,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
                 onSubmitEditing={send}
                 blurOnSubmit={false}
                 testID={`say-${notice.id}`}
-                style={[styles.replyInput, { backgroundColor: t.dark ? t.surface3 : t.surface2, color: t.text }]}
+                style={[styles.replyInput, { backgroundColor: mine ? t.surface2 : t.surface, color: t.text }]}
               />
               <VisibilityToggle value={sayVis} onChange={setSayVis} />
               <Pressable onPress={send} disabled={busy || !say.trim()} accessibilityLabel="Send comment" style={[styles.send, { backgroundColor: say.trim() ? t.brand : t.brandSoft }]}>
@@ -296,21 +294,19 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
           ) : null}
         </View>
       ) : null}
-    </Card>
+    </NoticeSurface>
   );
 }
 
 /**
- * An icon-only button; its name is for the screen reader (and the drives).
- * React works the way the social apps do: a tap is a like (or takes your
- * own face back), a long press opens the whole row.
+ * Each native action fills an equal share of the row. Quiet labels give
+ * way to icons on narrow screens, while accessible names remain available.
  */
-function Act({ onPress, onLongPress, colour, label, icon, emoji, count }: { onPress?: () => void; onLongPress?: () => void; colour: string; label: string; icon: keyof typeof Ionicons.glyphMap; emoji?: string; count?: number }) {
-  const t = useTheme();
+function Act({ onPress, onLongPress, colour, label, icon, emoji, showLabel = true, showIcon = true, weight }: { onPress?: () => void; onLongPress?: () => void; colour: string; label: string; icon: keyof typeof Ionicons.glyphMap; emoji?: string; showLabel?: boolean; showIcon?: boolean; weight?: number }) {
   return (
-    <Pressable onPress={() => { tick(); onPress?.(); }} onLongPress={onLongPress} delayLongPress={350} accessibilityLabel={count ? `${label}, ${count}` : label} accessibilityRole="button" accessibilityHint={onLongPress ? "Hold for all the faces" : undefined} hitSlop={6} style={({ pressed }) => [styles.act, pressed && { transform: [{ scale: 0.9 }], opacity: 0.7 }]}>
-      {emoji ? <Text style={{ fontSize: 22, lineHeight: 26 }}>{emoji}</Text> : <Ionicons name={icon} size={23} color={colour} />}
-      {count ? <Text style={[styles.count, { color: t.text2 }]}>{count}</Text> : null}
+    <Pressable onPress={() => { tick(); onPress?.(); }} onLongPress={onLongPress} delayLongPress={350} accessibilityLabel={label} accessibilityRole="button" style={({ pressed }) => [styles.act, { flex: weight ?? (showLabel ? 1 : 0.7) }, pressed && { transform: [{ scale: 0.96 }], opacity: 0.7 }]}>
+      {showIcon ? emoji ? <Text style={{ fontSize: 18, lineHeight: 22 }}>{emoji}</Text> : <Ionicons name={icon} size={17} color={colour} /> : null}
+      {showLabel ? <Text style={{ color: colour, fontSize: 12, fontWeight: "600" }} numberOfLines={1}>{label}</Text> : null}
     </Pressable>
   );
 }
@@ -331,7 +327,7 @@ function SmallButton({ title, onPress, primary, icon, disabled }: { title: strin
  * indented beneath. React works like the notice's: tap to like, hold for
  * the row.
  */
-export function CommentRow({ comment, noticeId, onChanged, reply = false }: { comment: Comment; noticeId: number; onChanged: (notice: Notice) => void; reply?: boolean }) {
+export function CommentRow({ comment, noticeId, onChanged, reply = false, bubbleBackground }: { comment: Comment; noticeId: number; onChanged: (notice: Notice) => void; reply?: boolean; bubbleBackground?: string }) {
   const t = useTheme();
   const router = useRouter();
   const changed = useBoardChanged();
@@ -376,7 +372,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
       </Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: "row" }}>
-          <View style={[styles.bubble, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
+          <View style={[styles.bubble, { backgroundColor: bubbleBackground || t.surface2 }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
               <Text style={[styles.commentWho, { color: t.text }]} numberOfLines={1}>{comment.mine ? "You" : comment.author.username}</Text>
               <AdminBadge person={comment.author} size={10} />
@@ -397,7 +393,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
         <View style={styles.commentFoot}>
           <Text style={[styles.foot, { color: t.muted }]}>{comment.ago}</Text>
           <View ref={reactRef} collapsable={false}>
-            <Pressable onPress={() => { tick(); react(shown.my_emoji || "👍"); }} onLongPress={openFaces} delayLongPress={350} hitSlop={6} accessibilityLabel={shown.my_emoji ? labelFor(shown.my_emoji) : "React"} accessibilityHint="Hold for all the faces">
+            <Pressable onPress={openFaces} onLongPress={openFaces} delayLongPress={350} hitSlop={6} accessibilityLabel={shown.my_emoji ? labelFor(shown.my_emoji) : "React"}>
               <Text style={[styles.footAct, { color: shown.my_emoji ? reactionInk(shown.my_emoji, t) : t.text2 }]}>{shown.my_emoji ? `${shown.my_emoji} ${labelFor(shown.my_emoji)}` : "React"}</Text>
             </Pressable>
           </View>
@@ -446,7 +442,7 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
         ) : null}
         {comment.replies.length ? (
           <View style={styles.replies}>
-            {comment.replies.map((r) => <CommentRow key={r.id} comment={r} noticeId={noticeId} onChanged={onChanged} reply />)}
+            {comment.replies.map((r) => <CommentRow key={r.id} comment={r} noticeId={noticeId} onChanged={onChanged} reply bubbleBackground={bubbleBackground} />)}
           </View>
         ) : null}
       </View>
@@ -455,25 +451,23 @@ export function CommentRow({ comment, noticeId, onChanged, reply = false }: { co
 }
 
 const styles = StyleSheet.create({
-  notice: { borderRadius: radius.xl, paddingHorizontal: sp[4], paddingVertical: sp[4], gap: sp[3] },
+  notice: { paddingHorizontal: sp[4], paddingVertical: sp[4], gap: sp[2] },
   head: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   pinnedRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: -sp[1] },
   pinnedText: { fontSize: 12, fontWeight: "700", letterSpacing: 0.3 },
   author: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: sp[3] },
   nameRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
   who: { fontSize: 15.5, fontWeight: "700", letterSpacing: -0.2, flexShrink: 1 },
-  you: { fontSize: 11.5, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, overflow: "hidden" },
   whenRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 1 },
   when: { fontSize: 12.5 },
   dotRing: { width: 17, height: 17, borderRadius: 9, alignItems: "center", justifyContent: "center", marginRight: 4 },
   dot: { width: 9, height: 9, borderRadius: 5 },
-  text: { fontSize: 16, lineHeight: 24, letterSpacing: -0.1 },
+  text: { fontSize: 14.5, lineHeight: 22 },
   editor: { minHeight: 90, padding: 12, borderRadius: radius.md, fontSize: 16, lineHeight: 22, textAlignVertical: "top" },
   metaText: { fontSize: 13.5 },
   rule: { height: StyleSheet.hairlineWidth },
-  acts: { flexDirection: "row", alignItems: "center", gap: sp[8], paddingLeft: 2 },
-  act: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 32 },
-  count: { fontSize: 15, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  acts: { flexDirection: "row", alignItems: "center", gap: 2 },
+  act: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, minHeight: 44, minWidth: 40, borderRadius: radius.pill },
   menuWrap: { flexDirection: "row", alignItems: "center", marginRight: -6 },
   more: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   menu: { position: "absolute", minWidth: 160, borderRadius: radius.md, borderWidth: 1, overflow: "hidden" },

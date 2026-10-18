@@ -1,0 +1,962 @@
+[
+  {
+    "width": 390,
+    "path": "/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/plu/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/plu/?view=catalogues",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/plu/import/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/plu/photo-search/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/shifts/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/calendar/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/shifts/add/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/workplaces/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/workplaces/add/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 14,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/pay/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/more/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/profile/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/profile/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 5,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/profile/password/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/profile/friends/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/notices/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/notices/new/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 2,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/stories/new/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/notifications/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/holidays/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/safety/rules/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/safety/blocked/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/privacy/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/app-update/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/plu/item/1104/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/notices/87/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/notices/87/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 2,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/workplaces/3/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 14,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/shifts/531/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/timesheet/shifts/531/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/login/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/register/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/reset/done/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 390,
+    "path": "/reset/MQ/invalid/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/plu/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/plu/?view=catalogues",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/plu/import/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/plu/photo-search/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/shifts/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/calendar/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/shifts/add/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/workplaces/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/workplaces/add/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 14,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/pay/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/more/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/profile/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/profile/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 5,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/profile/password/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/profile/friends/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/notices/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/notices/new/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 2,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/stories/new/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/notifications/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/holidays/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/safety/rules/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/safety/blocked/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/privacy/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/app-update/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/plu/item/1104/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/notices/87/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/notices/87/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 2,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/workplaces/3/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 14,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/shifts/531/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/timesheet/shifts/531/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/login/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/register/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/reset/done/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 320,
+    "path": "/reset/MQ/invalid/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/plu/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/plu/?view=catalogues",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/plu/import/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/plu/photo-search/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/shifts/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/calendar/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/shifts/add/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/workplaces/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/workplaces/add/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 14,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/pay/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/more/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/profile/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/profile/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 5,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/profile/password/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/profile/friends/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 3,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/notices/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/notices/new/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 2,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/stories/new/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/notifications/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/holidays/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/safety/rules/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/safety/blocked/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/privacy/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/app-update/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/plu/item/1104/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/notices/87/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/notices/87/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 2,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/workplaces/3/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 14,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/shifts/531/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 0,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/timesheet/shifts/531/edit/",
+    "status": 200,
+    "duplicates": [],
+    "overflow": false,
+    "fields": 4,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/login/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/register/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/reset/done/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "path": "/reset/MQ/invalid/",
+    "status": 200,
+    "overflow": false,
+    "duplicates": [],
+    "errors": []
+  }
+]

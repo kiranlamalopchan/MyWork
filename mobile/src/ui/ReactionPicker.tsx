@@ -34,6 +34,8 @@ export function ReactionPicker({ mine, onPick, choices = EMOJI, align = "left", 
   mine: string; onPick: (emoji: string) => void; choices?: Emoji[]; align?: "left" | "right" | "center"; style?: Record<string, unknown>;
 }) {
   const t = useTheme();
+  const { width } = useWindowDimensions();
+  const faceSize = Math.min(FACE, (width - 26) / choices.length);
   const open = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.spring(open, { toValue: 1, useNativeDriver: true, damping: 14, stiffness: 220, mass: 0.7 }).start();
@@ -51,7 +53,7 @@ export function ReactionPicker({ mine, onPick, choices = EMOJI, align = "left", 
         style,
       ]}
     >
-      {choices.map((e, i) => <Face key={e.value} emoji={e} index={i} on={mine === e.value} onPick={onPick} />)}
+      {choices.map((e, i) => <Face key={e.value} emoji={e} index={i} on={mine === e.value} onPick={onPick} size={faceSize} />)}
     </Animated.View>
   );
 }
@@ -66,8 +68,8 @@ export type Anchor = { x: number; y: number; width: number; height: number };
 export function ReactionSheet({ anchor, mine, onPick, onClose, choices = EMOJI }: { anchor: Anchor | null; mine: string; onPick: (emoji: string) => void; onClose: () => void; choices?: Emoji[] }) {
   const { width } = useWindowDimensions();
   if (!anchor) return null;
-  const pillWidth = choices.length * FACE + 10;
-  const left = Math.min(anchor.x, Math.max(8, width - pillWidth - 8));
+  const pillWidth = Math.min(choices.length * FACE + 10, width - 16);
+  const left = Math.max(8, Math.min(anchor.x, width - pillWidth - 8));
   return (
     <Modal transparent visible animationType="none" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close faces" />
@@ -78,7 +80,7 @@ export function ReactionSheet({ anchor, mine, onPick, onClose, choices = EMOJI }
   );
 }
 
-function Face({ emoji, index, on, onPick }: { emoji: Emoji; index: number; on: boolean; onPick: (emoji: string) => void }) {
+function Face({ emoji, index, on, onPick, size }: { emoji: Emoji; index: number; on: boolean; onPick: (emoji: string) => void; size: number }) {
   const t = useTheme();
   const arrive = useRef(new Animated.Value(0)).current;
   const press = useRef(new Animated.Value(1)).current;
@@ -102,9 +104,10 @@ function Face({ emoji, index, on, onPick }: { emoji: Emoji; index: number; on: b
       onPressOut={() => grow(1)}
       onPress={() => { tap("medium"); onPick(emoji.value); }}
       accessibilityLabel={emoji.label}
+      accessibilityRole="button"
       accessibilityState={{ selected: on }}
       hitSlop={2}
-      style={styles.face}
+      style={[styles.face, { width: size, height: size }]}
     >
       {on ? <View style={[styles.ring, { backgroundColor: t.brandSoft, borderColor: t.brand }]} /> : null}
       <Animated.View style={{ opacity: arrive, transform: [{ translateY: arrive.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }, { scale: Animated.multiply(arrive.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }), press) }] }}>

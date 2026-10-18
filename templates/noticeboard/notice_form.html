@@ -17,16 +17,8 @@
 
   <div class="card">
     <div class="card__pad">
-      <div class="field">
-        <label class="label" for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
-        {{ form.body }}
-        {% if form.body.errors %}<div class="help help--error">{{ form.body.errors|striptags }}</div>{% endif %}
-      </div>
-      <div class="field">
-        <label class="label" for="{{ form.visibility.id_for_label }}">{{ form.visibility.label }}</label>
-        {{ form.visibility }}
-        {% if form.visibility.errors %}<div class="help help--error">{{ form.visibility.errors|striptags }}</div>{% endif %}
-      </div>
+      {% include "_form_field.html" with field=form.body show_help=False only %}
+      {% include "_form_field.html" with field=form.visibility show_help=False only %}
     </div>
   </div>
 

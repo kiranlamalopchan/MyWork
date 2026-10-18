@@ -280,10 +280,9 @@ class PerWorkplaceLimitTests(TestCase):
 
     def _worked(self, workplace, hours):
         """A finished shift of `hours` inside the current week."""
-        start = timezone.localtime(timezone.now()).replace(hour=9, minute=0, second=0, microsecond=0)
-        # Monday of this week at 09:00 keeps the shift inside the weekly window
-        # no matter which day the suite runs on.
-        start -= timedelta(days=start.weekday())
+        # Use the workplace's cycle instead of assuming every week starts Monday.
+        first, _ = workplace.limit_window(timezone.localdate())
+        start = timezone.make_aware(datetime.combine(first, time(9)))
         Shift.objects.create(
             user=self.user, workplace=workplace,
             clock_in=start, clock_out=start + timedelta(hours=hours),

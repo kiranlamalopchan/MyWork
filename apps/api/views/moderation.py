@@ -1,13 +1,13 @@
 """Blocking a person and reporting a post — the app's side of apps.moderation."""
 
 from django.contrib.auth import get_user_model
-from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.moderation.models import Block, Kind, Reason, Report
+from apps.moderation.services import REPORT_RECEIVED, report_target as _target
 
 from .. import serialize
 
@@ -43,15 +43,6 @@ class Blocked(APIView):
         })
 
 
-def _target(kind, pk):
-    from apps.noticeboard.models import Comment, Notice
-    from apps.stories.models import Story
-    model = {Kind.NOTICE: Notice, Kind.COMMENT: Comment, Kind.STORY: Story, Kind.USER: User}.get(kind)
-    if model is None:
-        raise Http404
-    return get_object_or_404(model, pk=pk)
-
-
 class ReportThing(APIView):
     """
     POST {kind, id, reason, note?}: flag a notice, comment, story or person.
@@ -76,6 +67,6 @@ class ReportThing(APIView):
             reason = Reason.OTHER
         Report.file(request.user, kind, target, reason, request.data.get("note") or "")
         return Response(
-            {"detail": "Thanks — it's been reported and will be reviewed within 24 hours."},
+            {"detail": REPORT_RECEIVED},
             status=status.HTTP_201_CREATED,
         )

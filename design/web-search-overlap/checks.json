@@ -1,0 +1,164 @@
+[
+  {
+    "width": 328,
+    "height": 720,
+    "mode": "dark",
+    "motion": "no-preference",
+    "states": [
+      {
+        "state": "initial",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      },
+      {
+        "state": "searching",
+        "gap": 16,
+        "top": "56px",
+        "overflow": false
+      },
+      {
+        "state": "cleared",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      }
+    ],
+    "runtimeErrors": 0
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "dark",
+    "motion": "reduce",
+    "states": [
+      {
+        "state": "initial",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      },
+      {
+        "state": "searching",
+        "gap": 16,
+        "top": "56px",
+        "overflow": false
+      },
+      {
+        "state": "cleared",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      }
+    ],
+    "runtimeErrors": 0
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "light",
+    "motion": "reduce",
+    "states": [
+      {
+        "state": "initial",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      },
+      {
+        "state": "searching",
+        "gap": 16,
+        "top": "56px",
+        "overflow": false
+      },
+      {
+        "state": "cleared",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      }
+    ],
+    "runtimeErrors": 0
+  },
+  {
+    "width": 320,
+    "height": 420,
+    "mode": "dark",
+    "motion": "reduce",
+    "states": [
+      {
+        "state": "initial",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      },
+      {
+        "state": "searching",
+        "gap": 16,
+        "top": "56px",
+        "overflow": false
+      },
+      {
+        "state": "cleared",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      }
+    ],
+    "runtimeErrors": 0
+  },
+  {
+    "width": 844,
+    "height": 390,
+    "mode": "dark",
+    "motion": "reduce",
+    "states": [
+      {
+        "state": "initial",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      },
+      {
+        "state": "searching",
+        "gap": 16,
+        "top": "48px",
+        "overflow": false
+      },
+      {
+        "state": "cleared",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      }
+    ],
+    "runtimeErrors": 0
+  },
+  {
+    "width": 1280,
+    "height": 900,
+    "mode": "dark",
+    "motion": "reduce",
+    "states": [
+      {
+        "state": "initial",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      },
+      {
+        "state": "searching",
+        "gap": 16,
+        "top": "56px",
+        "overflow": false
+      },
+      {
+        "state": "cleared",
+        "gap": 16,
+        "top": "0px",
+        "overflow": false
+      }
+    ],
+    "runtimeErrors": 0
+  }
+]

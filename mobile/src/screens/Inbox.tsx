@@ -15,7 +15,7 @@ import { navigateTo } from "@/nav/paths";
 import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen, usePullRefresh } from "@/ui";
 import { SkeletonNotifications } from "@/ui/Skeleton";
 import { useLayout } from "@/ui/layout";
-import { hsl, sp, useTheme } from "@/ui/theme";
+import { hsl, mix, radius, sp, useTheme } from "@/ui/theme";
 
 const ICONS: Record<Notification["kind"], keyof typeof Ionicons.glyphMap> = {
   notice: "chatbubble-outline", comment: "chatbubbles-outline", reply: "return-down-forward-outline", reaction: "happy-outline", timesheet: "time-outline",
@@ -91,7 +91,7 @@ export default function Inbox() {
           const heading = index === 0 || day(item.created) !== day(rows[index - 1].created) ? day(item.created) : null;
           const unread = wasUnread.current.has(item.id);
           const from = !!item.actor;
-          const titleInk = t.text;
+          const titleInk = unread && from ? hsl(item.hue, t.dark ? 72 : 48, t.dark ? 78 : 32) : t.text;
           return (
             <>
               {heading ? (
@@ -99,7 +99,8 @@ export default function Inbox() {
                   <Text style={{ color: t.text, fontSize: 17, fontWeight: "800", letterSpacing: -0.4 }}>{heading}</Text>
                 </View>
               ) : null}
-              <Card pad={false} style={{ marginBottom: sp[2] }}>
+              <Card pad={false} tint={unread && !from ? mix(t.brand, t.surface, 0.07) : undefined} style={{ marginBottom: sp[2], borderColor: unread ? from ? `hsla(${item.hue}, 72%, 52%, 0.32)` : mix(t.brand, t.line, 0.28) : t.line }}>
+                {unread && from ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius.lg - 1, backgroundColor: `hsla(${item.hue}, 72%, 52%, ${t.dark ? 0.15 : 0.09})` }]} /> : null}
                 <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.8 : 1 }]}>
                   <View>
                     {item.actor ? (

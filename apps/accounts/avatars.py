@@ -18,6 +18,12 @@ def initial_for(name):
     return (name or "?")[:1].upper()
 
 
+def display_name(user):
+    """The chosen profile name, with a username fallback for missing profiles."""
+    profile = getattr(user, "profile", None)
+    return getattr(profile, "name", None) or user.get_username()
+
+
 def hue_for(name):
     """
     A stable colour for somebody's avatar, 0-359.

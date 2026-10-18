@@ -10,6 +10,7 @@
  * it is hidden from the screen reader rather than described.
  */
 import React from "react";
+import { Platform } from "react-native";
 import Svg, { Circle, G, Path, Rect } from "react-native-svg";
 
 import { alpha, useTheme } from "@/ui/theme";
@@ -20,7 +21,7 @@ export function HolidayArt() {
   const doodle = alpha(t.brand, 0.34);
 
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 160 150" fill="none" accessible={false}>
+    <Svg width="100%" height="100%" viewBox="0 0 160 150" fill="none" accessible={Platform.OS === "web" ? undefined : false} aria-hidden>
       <Circle cx={82} cy={74} r={70} fill={wash} />
 
       <Path d="M8 52q9-11 18 0t18 0" stroke={doodle} strokeWidth={3.5} strokeLinecap="round" />
@@ -38,7 +39,7 @@ export function HolidayArt() {
       />
 
       {/* Tilted a few degrees: a page pinned up, not a box ruled on the screen. */}
-      <G rotation={-4} originX={98} originY={78}>
+      <G transform="rotate(-4 98 78)">
         <Rect x={52} y={36} width={92} height={84} rx={12} fill={t.surface} />
         <Path d="M64 36h68a12 12 0 0 1 12 12v12H52V48a12 12 0 0 1 12-12Z" fill={t.brandStrong} />
         <Rect x={72} y={27} width={8} height={19} rx={4} fill={t.brandStrong} />

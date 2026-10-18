@@ -1,11 +1,10 @@
 /**
  * The app's design tokens, light and dark. The colours are the site's — the
  * brand green, the reactions' inks, a person's hue from their username — on
- * a calm, flat modern ground: solid panels, no gradients, bigger radii,
- * softer shadows. Read
+ * the same flat ground, solid panels, hairline borders and corner radii. Read
  * through `useTheme()`. As on the site, the phone's setting decides unless
- * the person has flicked the day/night switch in the app bar; that choice
- * is kept (`setThemeMode`) the way the site keeps its cookie.
+ * the person has changed Dark mode in Profile; that choice is saved on
+ * this device independently of the site's appearance setting.
  */
 import { createContext, useContext } from "react";
 import { Platform, useColorScheme } from "react-native";
@@ -21,10 +20,10 @@ export const light = {
   heroInk: "#ffffff",
   heroSoft: "rgba(255, 255, 255, 0.78)",
   heroChip: "rgba(255, 255, 255, 0.18)",
-  danger: "#e11d48",
-  dangerSoft: "rgba(225, 29, 72, 0.10)",
-  warn: "#c2410c",
-  warnSoft: "rgba(194, 65, 12, 0.11)",
+  danger: "#dc2626",
+  dangerSoft: "rgba(220, 38, 38, 0.10)",
+  warn: "#b45309",
+  warnSoft: "rgba(180, 83, 9, 0.12)",
   // The accents the icon tiles are coded in.
   blue: "#2563eb",
   violet: "#7c3aed",
@@ -44,10 +43,10 @@ export const light = {
   muted: "#687b6c",
   line: "#dfe7dd",
   lineStrong: "#c7d4c7",
-  pill: "#eef3ed",
-  pillGlass: "rgba(255, 255, 255, 0.72)",
-  pillLine: "rgba(255, 255, 255, 0.9)",
-  track: "rgba(15, 20, 32, 0.07)",
+  pill: "#f3f5f9",
+  pillGlass: "rgba(255, 255, 255, 0.58)",
+  pillLine: "rgba(255, 255, 255, 0.8)",
+  track: "rgba(15, 23, 42, 0.075)",
   knob: "#ffffff",
   // Panels are solid now; these stay for anything that still asks for glass.
   glass: "#ffffff",
@@ -62,18 +61,18 @@ export const light = {
 };
 
 export const dark: Theme = {
-  brand: "#34d399",
-  brandStrong: "#6ee7b7",
-  brandSoft: "rgba(52, 211, 153, 0.15)",
-  brandInk: "#04231a",
+  brand: "#79cfa8",
+  brandStrong: "#a0e3c2",
+  brandSoft: "rgba(121, 207, 168, 0.12)",
+  brandInk: "#10261c",
   hero: "#065f46",
   heroInk: "#ffffff",
   heroSoft: "rgba(255, 255, 255, 0.78)",
   heroChip: "rgba(255, 255, 255, 0.16)",
-  danger: "#fb7185",
-  dangerSoft: "rgba(251, 113, 133, 0.14)",
-  warn: "#fb923c",
-  warnSoft: "rgba(251, 146, 60, 0.14)",
+  danger: "#f87171",
+  dangerSoft: "rgba(248, 113, 113, 0.13)",
+  warn: "#fbbf24",
+  warnSoft: "rgba(251, 191, 36, 0.13)",
   blue: "#60a5fa",
   violet: "#a78bfa",
   orange: "#fb923c",
@@ -83,21 +82,21 @@ export const dark: Theme = {
   rxLove: "#f5607a",
   rxFace: "#f2c14e",
   rxAngry: "#f2795c",
-  bg: "#101b14",
-  surface: "#19271e",
-  surface2: "#223329",
-  surface3: "#2d4133",
-  text: "#eef4ee",
-  text2: "#c1d0c3",
-  muted: "#93a998",
-  line: "#2c4031",
-  lineStrong: "#415b46",
-  pill: "#223329",
-  pillGlass: "rgba(30, 35, 48, 0.72)",
-  pillLine: "rgba(255, 255, 255, 0.12)",
-  track: "rgba(255, 255, 255, 0.10)",
-  knob: "#3a4356",
-  glass: "#19271e",
+  bg: "#111318",
+  surface: "#1b1e25",
+  surface2: "#242831",
+  surface3: "#303641",
+  text: "#f0f2f5",
+  text2: "#c5cad3",
+  muted: "#a0a7b5",
+  line: "#303641",
+  lineStrong: "#485262",
+  pill: "#242831",
+  pillGlass: "rgba(35, 39, 49, 0.88)",
+  pillLine: "rgba(255, 255, 255, 0.16)",
+  track: "rgba(0, 0, 0, 0.32)",
+  knob: "#3c4554",
+  glass: "#1b1e25",
   glassLine: "rgba(255, 255, 255, 0.07)",
   glassHi: "transparent",
   shadow: "#000000",
@@ -149,7 +148,7 @@ export async function saveThemeMode(mode: ThemeMode): Promise<void> {
 
 /** Spacing and radii. */
 export const sp = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32 } as const;
-export const radius = { sm: 12, md: 16, lg: 22, xl: 28, pill: 999 } as const;
+export const radius = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;
 
 /** The page's side margin. */
 export const gutter = 20;

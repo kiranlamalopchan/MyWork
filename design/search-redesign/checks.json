@@ -1,0 +1,57 @@
+[
+  {
+    "width": 320,
+    "height": 420,
+    "mode": "dark",
+    "titleAndActionsSeparated": true,
+    "inputContained": true,
+    "focusPreserved": true,
+    "resultsReachable": true,
+    "photoAndUploadWorking": true,
+    "runtimeErrors": 0
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "dark",
+    "titleAndActionsSeparated": true,
+    "inputContained": true,
+    "focusPreserved": true,
+    "resultsReachable": true,
+    "photoAndUploadWorking": true,
+    "runtimeErrors": 0
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "light",
+    "titleAndActionsSeparated": true,
+    "inputContained": true,
+    "focusPreserved": true,
+    "resultsReachable": true,
+    "photoAndUploadWorking": true,
+    "runtimeErrors": 0
+  },
+  {
+    "width": 844,
+    "height": 390,
+    "mode": "dark",
+    "titleAndActionsSeparated": true,
+    "inputContained": true,
+    "focusPreserved": true,
+    "resultsReachable": true,
+    "photoAndUploadWorking": true,
+    "runtimeErrors": 0
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "mode": "dark",
+    "titleAndActionsSeparated": true,
+    "inputContained": true,
+    "focusPreserved": true,
+    "resultsReachable": true,
+    "photoAndUploadWorking": true,
+    "runtimeErrors": 0
+  }
+]

@@ -18,7 +18,7 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonRespon
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.timesince import timesince
+from mywork.formatting import relative_time as _ago
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Profile
@@ -140,13 +140,6 @@ def delete(request, pk):
 
 
 # ---- looking at them --------------------------------------------------------
-
-
-def _ago(when):
-    delta = timezone.now() - when
-    if delta.total_seconds() < 60:
-        return "just now"
-    return timesince(when, timezone.now()).split(",")[0] + " ago"
 
 
 def video(request, name):

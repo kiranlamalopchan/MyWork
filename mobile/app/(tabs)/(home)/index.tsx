@@ -2,7 +2,7 @@
  * Home brings together stories, notices, daily extras and holidays.
  * Item search and work tools are reached through the native tab bar.
  */
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +14,8 @@ import { HUB_SIDE, useLayout } from "@/ui/layout";
 import { DailyPair, JokeCard, QuoteCard } from "@/ui/DailyCard";
 import { SkeletonHome } from "@/ui/Skeleton";
 import { HolidayArt } from "@/ui/HolidayArt";
-import { NoticeCard } from "@/ui/NoticeCard";
+import { NoticePreview } from "@/ui/NoticePreview";
+import { NoticeFold } from "@/ui/NoticeFold";
 import { FestivalBanner } from "@/ui/FestivalBanner";
 import { StoriesTray } from "@/ui/StoriesTray";
 import { alpha, mix, radius, sp, useTheme } from "@/ui/theme";
@@ -27,20 +28,14 @@ export default function Home() {
   const refresh = usePullRefresh(refetch);
   const layout = useLayout();
   const desk = layout.desk;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <Screen>
       <Page refreshControl={refresh} contentContainerStyle={desk ? layout.hub : undefined}>
-        {/* The greeting: at the top of the page on a phone, at the top of
-            the left column on a wide screen (below, inside hubSide). */}
-        {!desk ? (
-          <View style={styles.greet}>
-            <Text style={[styles.hello, { color: t.muted }]}>{greeting()}</Text>
-            <Text style={[styles.name, { color: t.text }]} numberOfLines={1}>{me?.display_name || me?.username || "there"}</Text>
-          </View>
-        ) : null}
         {error ? <ErrorBanner error={error} onRetry={refetch} /> : null}
         {isLoading ? <SkeletonHome /> : null}
+        {data?.festival ? <FestivalBanner festival={data.festival} /> : null}
         {data ? (
           // Wide: two columns starting together at the top — the greeting
           // and the cards on the left, the stories and the board on the
@@ -60,7 +55,6 @@ export default function Home() {
               </View>
             ) : null}
             <View style={desk ? styles.hubMain : styles.stack}>
-              {data.festival ? <FestivalBanner festival={data.festival} /> : null}
               <StoriesTray rows={data.stories} boxed={desk} />
               {/* Beside the stories on a phone: the thought and the laugh as
                   one pair, a glance each. A wide screen keeps them in its side
@@ -70,17 +64,21 @@ export default function Home() {
               <View style={styles.board}>
                 <View style={styles.boardHead}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.boardTitle, { color: t.text }]}>Notice board</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: sp[2] }}>
+                      <Ionicons name="chatbubble-outline" size={18} color={t.brand} />
+                      <Text style={[styles.boardTitle, { color: t.text }]}>Notice board</Text>
+                    </View>
                     {data.notice_total ? <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }}>{data.notice_total} notice{data.notice_total === 1 ? "" : "s"}</Text> : null}
                   </View>
-                  <Pressable onPress={() => router.push("/notices/compose")} testID="post-button" style={({ pressed }) => [styles.post, { backgroundColor: t.brand, transform: [{ scale: pressed ? 0.95 : 1 }] }, glow(t.brand)]}>
+                  <Pressable onPress={() => router.push("/notices/compose")} accessibilityRole="button" accessibilityLabel="Post a notice" testID="post-button" style={({ pressed }) => [styles.post, { backgroundColor: t.brand, transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
                     <Ionicons name="add" size={18} color={t.brandInk} />
                     <Text style={{ color: t.brandInk, fontWeight: "700", fontSize: 14 }}>Post</Text>
                   </Pressable>
                 </View>
                 {data.notices.length === 0 ? (
                   <Card><Text style={{ color: t.muted, textAlign: "center", fontSize: 14.5 }}>Nothing on the board — post the first notice; everyone signed in will see it.</Text></Card>
-                ) : data.notices.map((n) => <NoticeCard key={n.id} notice={n} />)}
+                ) : (expanded ? data.notices : data.notices.slice(0, 2)).map((n) => <NoticePreview key={n.id} notice={n} />)}
+                {data.notices.length > 2 ? <NoticeFold expanded={expanded} count={data.notices.length - 2} onPress={() => setExpanded(value => !value)} /> : null}
                 {data.notice_total > data.notices.length ? (
                   <Pressable onPress={() => router.push("/board")} style={styles.more} testID="see-all">
                     <Text style={{ color: t.brandStrong, fontWeight: "700", fontSize: 14.5 }}>See all {data.notice_total} notices</Text>
@@ -95,8 +93,6 @@ export default function Home() {
     </Screen>
   );
 }
-
-const glow = (colour: string) => ({ shadowColor: colour, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 });
 
 function greeting() {
   const h = new Date().getHours();

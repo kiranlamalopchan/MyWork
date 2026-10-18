@@ -39,13 +39,6 @@
     </label>
     {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
   {% else %}
-    <div class="field{% if field.errors %} field--invalid{% endif %}">
-      <label class="label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-      {{ field }}
-      {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
-      {# Always present, so a message appearing doesn't shove the form down. #}
-      <div class="help help--error" data-error
-           {% if not field.errors %}hidden{% endif %}>{{ field.errors|striptags }}</div>
-    </div>
+    {% include "_form_field.html" with field=field show_help=True only %}
   {% endif %}
 {% endfor %}

@@ -32,18 +32,7 @@
 
   <div class="card card__pad">
     {% for field in form %}
-      {% comment %}
-        Every field carries an error slot whether or not it has an error yet.
-        It is where the server's complaint is rendered, and where app.js puts
-        a live one — and having it always present means a message appearing
-        never pushes the rest of the form down the screen.
-      {% endcomment %}
-      <div class="field{% if field.errors %} field--invalid{% endif %}">
-        <label class="label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {{ field }}
-        <div class="help help--error" data-error
-             {% if not field.errors %}hidden{% endif %}>{{ field.errors|striptags }}</div>
-      </div>
+      {% include "_form_field.html" with field=field show_help=False only %}
     {% endfor %}
   </div>
 

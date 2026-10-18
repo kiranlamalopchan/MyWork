@@ -1,4 +1,4 @@
-{% load reactions %}
+{% load reactions ui %}
 {% comment %}
   The React button and the row of faces behind it — one control, shared by a
   notice and by a comment, so they can never drift apart.
@@ -22,10 +22,7 @@
       {% reaction item.my_emoji %}
       <span class="act__label">{{ item.my_label }}</span>
     {% else %}
-      <svg class="act__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/>
-        <path d="M9 9.5v.01M15 9.5v.01"/>
-      </svg>
+      {% icon "smile" class="act__icon" %}
       <span class="act__label">React</span>
     {% endif %}
   </summary>

@@ -1,10 +1,8 @@
-{% extends "base.html" %}
+{% extends "registration/base.html" %}
 {% block title %}Create account · KaamKoRecord{% endblock %}
 
-{% block content %}
+{% block auth_content %}
 
-<div class="auth">
-  <div class="auth__logo" aria-hidden="true">{% include "_mark.html" with uid="auth" %}</div>
   <h1 class="auth__title">Create account</h1>
   <p class="auth__sub">One account for your items and timesheets.</p>
 
@@ -33,6 +31,5 @@
     Already have an account? <a href="{% url 'login' %}">Sign in</a>
   </p>
   <p class="auth__footer">By creating an account you agree to the <a href="{% url 'moderation:rules' %}">community rules</a> and <a href="{% url 'privacy' %}">privacy policy</a>.</p>
-</div>
 
 {% endblock %}

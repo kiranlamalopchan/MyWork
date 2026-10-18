@@ -1,0 +1,42 @@
+[
+  {
+    "width": 390,
+    "mode": "dark",
+    "homePreview": "opens conversation",
+    "reactions": "opens native picker",
+    "edit": "opens and cancels",
+    "comment": "focuses inline",
+    "horizontalOverflow": false,
+    "errors": 0
+  },
+  {
+    "width": 320,
+    "mode": "dark",
+    "homePreview": "opens conversation",
+    "reactions": "opens native picker",
+    "edit": "opens and cancels",
+    "comment": "focuses inline",
+    "horizontalOverflow": false,
+    "errors": 0
+  },
+  {
+    "width": 390,
+    "mode": "light",
+    "homePreview": "opens conversation",
+    "reactions": "opens native picker",
+    "edit": "opens and cancels",
+    "comment": "focuses inline",
+    "horizontalOverflow": false,
+    "errors": 0
+  },
+  {
+    "width": 768,
+    "mode": "dark",
+    "homePreview": "opens conversation",
+    "reactions": "opens native picker",
+    "edit": "opens and cancels",
+    "comment": "focuses inline",
+    "horizontalOverflow": false,
+    "errors": 0
+  }
+]

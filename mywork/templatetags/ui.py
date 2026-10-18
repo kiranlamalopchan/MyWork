@@ -40,6 +40,8 @@ ICONS = {
     "pencil":     '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     "trash":      '<path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>',
     "search":     '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>',
+    "close":      '<path d="M6 6l12 12M18 6 6 18"/>',
+    "flag":       '<path d="M4 22V4a1 1 0 0 1 1-1h11l1 2h4v11h-9l-1-2H6"/>',
     "clock":      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     "alert":      '<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16.5v.5"/>',
     "doc":        '<path d="M14 3v5h5"/><path d="M19 21H5V3h9l5 5v13Z"/><path d="M9 13h6M9 17h4"/>',

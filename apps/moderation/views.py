@@ -9,21 +9,14 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from mywork.http import safe_next as _back
+
 from .models import Block, Kind, Reason, Report
+from .services import REPORT_RECEIVED, report_target as _target
 
 User = get_user_model()
-
-
-def _back(request, fallback):
-    target = request.POST.get("next") or request.GET.get("next") or ""
-    if target and url_has_allowed_host_and_scheme(
-        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return target
-    return fallback
 
 
 def _is_fetch(request):
@@ -66,15 +59,6 @@ def blocked(request):
     return render(request, "moderation/blocked.html", {"blocks": rows})
 
 
-def _target(kind, pk):
-    from apps.noticeboard.models import Comment, Notice
-    from apps.stories.models import Story
-    model = {Kind.NOTICE: Notice, Kind.COMMENT: Comment, Kind.STORY: Story, Kind.USER: User}.get(kind)
-    if model is None:
-        raise Http404
-    return get_object_or_404(model, pk=pk)
-
-
 @login_required
 def report(request):
     """
@@ -98,8 +82,8 @@ def report(request):
             reason = Reason.OTHER
         Report.file(request.user, kind, target, reason, request.POST.get("note", ""))
         if _is_fetch(request):
-            return JsonResponse({"detail": "Thanks — it's been reported and will be reviewed within 24 hours."})
-        messages.success(request, "Thanks — it's been reported and will be reviewed within 24 hours.")
+            return JsonResponse({"detail": REPORT_RECEIVED})
+        messages.success(request, REPORT_RECEIVED)
         return redirect(_back(request, reverse("home")))
 
     quoted = ""

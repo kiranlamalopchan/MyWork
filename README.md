@@ -389,6 +389,12 @@ belongs in `initPage()`, which runs for every page; anything wired to
 undone when the page is left. See the comments at the top and bottom of
 `app.js`.
 
+Shared rendering lives in `templates/_form_field.html`,
+`templates/registration/base.html` and the `ui` icon tags. Website views and the
+API share redirect validation (`mywork/http.py`), timestamp formatting
+(`mywork/formatting.py`), moderation targets, thread folding and fortnight hints.
+Validation screenshots are in `design/shared-components/`.
+
 ## Settings
 
 `DJANGO_SETTINGS_MODULE` chooses; nothing imports one settings module from

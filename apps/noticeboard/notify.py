@@ -20,6 +20,8 @@ after the save rather than inside it.
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
+from apps.accounts.avatars import display_name
+
 from apps.notifications.models import Kind
 from apps.notifications.notify import notify, notify_many
 
@@ -27,13 +29,6 @@ from apps.notifications.notify import notify, notify_many
 # to know whether to get up and read it, short enough to fit on a lock screen
 # without being cut off mid-word by the phone instead of by us.
 EXCERPT = 140
-
-
-def _name(user):
-    """What to call somebody in a notification: their chosen name, else their
-    username — the same name the app bar and the board use."""
-    profile = getattr(user, "profile", None)
-    return getattr(profile, "name", None) or user.get_username()
 
 
 def _excerpt(text):
@@ -83,7 +78,7 @@ def notice_posted(notice):
     notify_many(
         people,
         Kind.NOTICE,
-        f"{_name(notice.author)} posted a notice",
+        f"{display_name(notice.author)} posted a notice",
         body=_excerpt(notice.body),
         url=_notice_url(notice),
         actor=notice.author,
@@ -126,7 +121,7 @@ def comment_posted(comment):
     notify_many(
         recipients,
         kind,
-        f"{_name(author)} {verb}",
+        f"{display_name(author)} {verb}",
         body=_excerpt(comment.body),
         url=_notice_url(notice, anchor=f"comment-{comment.pk}"),
         actor=author,
@@ -167,7 +162,7 @@ def _reacted(recipient, actor, emoji, what, url, dedupe_key, text):
     notify(
         recipient,
         Kind.REACTION,
-        f"{_name(actor)} reacted to {what}",
+        f"{display_name(actor)} reacted to {what}",
         body=_excerpt(text),
         url=url,
         actor=actor,

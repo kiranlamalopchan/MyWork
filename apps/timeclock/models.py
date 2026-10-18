@@ -222,6 +222,14 @@ def fortnight_runs(anchor):
     return f"{start.label} → {Weekday((anchor.weekday() + 13) % 7).label}"
 
 
+def fortnight_hint(anchor, today=None):
+    """The same current-fortnight description for forms and API responses."""
+    today = today or timezone.localdate()
+    start = fortnight_start(today, anchor)
+    end = start + timedelta(days=13)
+    return f"{fortnight_runs(anchor)}. This one runs {start:%-d %b} – {end:%-d %b}."
+
+
 # Historical migrations name these as field defaults and are loaded on every
 # fresh `migrate`, so they stay importable. Nothing in the models uses them.
 _monday_of_this_week = _current_week_start

@@ -7,7 +7,7 @@ import React from "react";
 import { useLocalSearchParams } from "expo-router";
 
 import { useNotice } from "@/api";
-import { ErrorBanner, Page, Screen } from "@/ui";
+import { ErrorBanner, Page, PageTitle, Screen } from "@/ui";
 import { SkeletonNotice } from "@/ui/Skeleton";
 import { NoticeCard } from "@/ui/NoticeCard";
 
@@ -16,8 +16,9 @@ export default function NoticeScreen() {
   const q = useNotice(Number(id));
 
   return (
-    <Screen back title="Notice" backLabel="Board">
+    <Screen back backLabel="Home">
       <Page>
+        <PageTitle sub="Read the conversation, leave a reaction or add a comment.">Notice post</PageTitle>
         {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonNotice lines={4} comments={2} /> : null}
         {q.data ? <NoticeCard notice={q.data} full /> : null}

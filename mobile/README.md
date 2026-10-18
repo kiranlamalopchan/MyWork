@@ -47,8 +47,8 @@ need it explain themselves rather than blanking (`src/ui/native.ts`).
     npm test              # jest: the API client, path mapping, hue maths
     npm run web           # the same screens in a browser, for a quick look
 
-The look is flat and modern — no gradients: a calm grey (or near-black)
-ground (`src/ui/Backdrop.tsx`), solid cards with soft shadows, filled
+The shared screens use the website's calm grey (or charcoal) ground
+(`src/ui/Backdrop.tsx`), solid cards with hairline borders, filled
 fields, pill buttons, colour-coded icon tiles, a deep-green hero for the
 next holiday and the week's pay, the app bar with the logo and
 page-specific actions (`src/ui/AppBar.tsx`), a saved appearance setting in
@@ -56,7 +56,7 @@ Profile (`src/ui/AppearanceSetting.tsx`), and the tokens in `src/ui/theme.ts`. I
 is on: `useLayout()` (`src/ui/layout.ts`) gives every screen its gutter,
 safe-area insets and screen class — tighter on a narrow Android phone
 (tiles become rows, the dial shrinks, the clock buttons stack), a centred
-column capped at 680pt on a tablet or a phone on its side. The phone
+column capped at 720pt on a tablet or a phone on its side. The phone
 answers taps (`src/ui/haptics.ts`, expo-haptics on both platforms): a
 tick on chips, segments and switches, a knock on buttons and a heavier one
 on Clock in / out, "done" on a save or a post, a warning before anything
@@ -83,6 +83,12 @@ the server (`auth/logout/` with `keep_token`), and the sign-in screen
 keeps a small button for it at the end of the password box (beside the
 show/hide eye) — the lock is asked only when that is pressed. A token the server
 has forgotten drops the lock and asks for the password once more.
+Returning to a signed-in session after locking the phone or switching apps
+does not require another app unlock.
+The app's Dark mode switch is in Profile and is saved independently of the
+website's appearance setting. Dark mode uses the website's charcoal backgrounds.
+Installed release builds include their own screen styles; mobile style changes
+require a new mobile build to be installed, even after the website is updated.
 A screen that throws shows the
 error and a way back (`ErrorBoundary` in `app/_layout.tsx`). The tab bar is the phone's own
 (`expo-router/unstable-native-tabs`: the system bar on iOS, Material's on
@@ -90,6 +96,20 @@ Android) with the site's five tabs — Home, Items, Work, Alerts, Profile —
 each tab a stack of its own under `app/(tabs)/<tab>/`. Every screen draws
 the app bar itself (`<Screen>`), so the stacks draw no headers. The web
 build keeps the JavaScript tab bar (the native one has no icons there).
+
+Home follows the website's content order: festival banner, stories, daily
+extras, holiday and notice previews. The greeting sits over the festival
+art, with its description below. Home previews open the full native notice
+screen; the board and Home initially show two notices with a disclosure for
+the rest. Native notice cards use the author's colour wash, an own-post rail,
+and the same React, Comment, Edit/Remove or Report, and permitted Pin actions.
+The full board keeps inline native comment inputs and paginated scrolling.
+
+Search uses one scrolling native list for its controls and results, so a small
+screen or open keyboard cannot trap the results below a fixed header. Catalogue
+selection and the labelled search field sit together, with Photo search and
+Upload in a wrapping action row. Result codes sit above titles and favourites
+have their own touch targets. Layout previews are in `../design/search-redesign/`.
 
 TimeSheet's screens read `/api/v1/timesheet/…` (`apps/api/views/timeclock.py`),
 which wraps the site's own helpers and forms, so every figure — the week's

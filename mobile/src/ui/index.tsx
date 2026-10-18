@@ -96,30 +96,23 @@ export function SectionLabel({ children, style }: { children: React.ReactNode; s
 // ---- surfaces --------------------------------------------------------------------
 
 /**
- * A panel: a solid surface with a soft, wide shadow under it and no visible
- * edge in the light; in the dark, a hairline instead of the shadow. Inside
- * another panel (`inset`) it is a quieter, filled block.
+ * A flat panel with the site's surface and hairline. Inside another panel
+ * (`inset`) it is a quieter, filled block.
  */
-export function Card({ children, style, pad = true, inset, tint, testID, onPress }: {
-  children: React.ReactNode; style?: StyleProp<ViewStyle>; pad?: boolean; inset?: boolean; tint?: string; testID?: string; onPress?: () => void;
+export function Card({ children, style, pad = true, inset, tint, testID, onPress, accessibilityLabel }: {
+  children: React.ReactNode; style?: StyleProp<ViewStyle>; pad?: boolean; inset?: boolean; tint?: string; testID?: string; onPress?: () => void; accessibilityLabel?: string;
 }) {
   const t = useTheme();
   const look = inset
     ? { backgroundColor: t.surface2, borderColor: "transparent" }
-    : { backgroundColor: tint ? tint : t.surface, borderColor: t.dark ? t.line : "transparent", ...glassShadow(t.shadow, t.dark) };
+    : { backgroundColor: tint ? tint : t.surface, borderColor: t.line };
   const body = (
     <View testID={testID} style={[styles.card, look, pad && { padding: sp[5] }, style]}>
       {children}
     </View>
   );
   if (!onPress) return body;
-  return <Pressable onPress={onPress} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.985 : 1 }], opacity: pressed ? 0.92 : 1 })}>{body}</Pressable>;
-}
-
-/** The panel's shadow: barely there in the light, none in the dark. */
-export function glassShadow(colour: string, dark: boolean): ViewStyle {
-  if (Platform.OS === "android") return { elevation: dark ? 0 : 1 };
-  return dark ? {} : { shadowColor: colour, shadowOpacity: 0.07, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } };
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.985 : 1 }], opacity: pressed ? 0.92 : 1 })}>{body}</Pressable>;
 }
 
 export function Title({ children, style }: { children: React.ReactNode; style?: TextStyle }) {
@@ -367,7 +360,7 @@ export function MenuRow({ icon, title, sub, value, onPress, tint, last, stacked,
 
   if (stacked) {
     return (
-      <Pressable testID={testID} onPress={() => { tap("light"); onPress(); }} style={({ pressed }) => [styles.menuTile, { backgroundColor: pressed ? mix(ink, t.surface, 0.09) : t.surface, borderColor: t.dark ? t.line : "transparent", ...glassShadow(t.shadow, t.dark) }]}>
+      <Pressable testID={testID} onPress={() => { tap("light"); onPress(); }} style={({ pressed }) => [styles.menuTile, { backgroundColor: pressed ? mix(ink, t.surface, 0.09) : t.surface, borderColor: t.line }]}>
         {mark}
         <Text style={{ color: t.text, fontWeight: "700", fontSize: 16, marginTop: sp[3] }}>{title}</Text>
         {sub ? <Text style={{ color: t.muted, fontSize: 13, marginTop: 2, lineHeight: 18 }}>{sub}</Text> : null}

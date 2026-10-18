@@ -14,7 +14,6 @@ import { StatusBar } from "expo-status-bar";
 import { SessionProvider, useSession } from "@/auth/session";
 import { OnboardingProvider, useOnboarding } from "@/onboarding/seen";
 import { Crashed } from "@/ui/Crashed";
-import { AppLock } from "@/ui/AppLock";
 import { OfflineSync } from "@/offline/shifts";
 import { Splash } from "@/ui/Splash";
 import { useNotificationNavigation } from "@/push/useNotificationNavigation";
@@ -130,7 +129,7 @@ function Shell() {
       {/* The splash is navy whichever way the phone is set. */}
       <StatusBar style={wayIn || t.dark ? "light" : "dark"} />
       <OfflineSync />
-      <AppLock><Guard /></AppLock>
+      <Guard />
       {wayIn ? <Splash ready={ready && checked} onDone={() => setWayIn(false)} /> : null}
     </GestureHandlerRootView>
   );

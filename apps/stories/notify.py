@@ -13,13 +13,10 @@ on the board. Blocks, and the author's own actions, are dropped by
 """
 from django.urls import reverse
 
+from apps.accounts.avatars import display_name
+
 from apps.notifications.models import Kind
 from apps.notifications.notify import notify, notify_many
-
-
-def _name(user):
-    from apps.accounts.models import Profile
-    return Profile.of(user).name
 
 
 def _url(story):
@@ -46,7 +43,7 @@ def story_posted(story):
     notify_many(
         people,
         Kind.STORY,
-        f"{_name(story.author)} added to their story",
+        f"{display_name(story.author)} added to their story",
         body=story.caption.strip() or f"Shared {what} from their day.",
         url=_url(story),
         actor=story.author,
@@ -64,7 +61,7 @@ def story_reacted(story, actor, emoji):
     notify(
         story.author,
         Kind.REACTION,
-        f"{_name(actor)} reacted to your story",
+        f"{display_name(actor)} reacted to your story",
         body=story.caption.strip() or "",
         url=_url(story),
         actor=actor,

@@ -10,8 +10,8 @@ from django.utils.safestring import mark_safe
 
 from .models import (
     DEFAULT_FORTNIGHT_START, MAX_MONTH_START_DAY, Break, PaidIn, Shift,
-    TaxScale, TimePreference, Weekday, Workplace, fortnight_anchor_for, fortnight_runs,
-    fortnight_start, fortnight_started_last_week,
+    TaxScale, TimePreference, Weekday, Workplace, fortnight_anchor_for,
+    fortnight_hint as _fortnight_hint, fortnight_started_last_week,
 )
 
 # Phones give a proper date+time spinner for this input type, which beats
@@ -79,15 +79,6 @@ class FortnightFields:
         self.instance.fortnight_anchor = fortnight_anchor_for(
             starts_on, started_last_week=cleaned.get("fortnight_phase") == "last"
         )
-
-
-def _fortnight_hint(anchor, today):
-    """"Thursday → Wednesday. This one: 10 Sep – 23 Sep." — under the box."""
-    start = fortnight_start(today, anchor)
-    end = start + timedelta(days=13)
-    return "%s. This one runs %s – %s." % (
-        fortnight_runs(anchor), start.strftime("%-d %b"), end.strftime("%-d %b")
-    )
 
 
 class WorkplaceForm(FortnightFields, forms.ModelForm):

@@ -9,10 +9,8 @@
 import { Platform, useWindowDimensions, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { gutter as defaultGutter } from "./theme";
-
 /** The widest a column of cards should ever get. */
-export const MAX_COLUMN = 680;
+export const MAX_COLUMN = 720;
 /** The widest the hub gets when it is two columns (see `desk`). */
 export const MAX_HUB = 1180;
 /** The side column of a two-column hub: the holiday and the stories. */
@@ -44,7 +42,7 @@ export function useLayout(): Layout {
   const compact = width < 360;
   const wide = width >= 600;
   const desk = width >= 900;
-  const gutter = compact ? 14 : wide ? 28 : defaultGutter;
+  const gutter = wide ? 28 : Math.max(16, Math.min(22, width * 0.045));
   const side = wide ? Math.max(gutter, (width - MAX_COLUMN) / 2) : gutter;
   const hubSide = desk ? Math.max(gutter, (width - MAX_HUB) / 2) : side;
   const bottom = Platform.OS === "ios" ? 24 : 40 + insets.bottom;

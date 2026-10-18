@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth">
+  <div class="auth__logo" aria-hidden="true">{% include "_mark.html" with uid="auth" %}</div>
+  {% block auth_content %}{% endblock %}
+</div>
+{% endblock %}

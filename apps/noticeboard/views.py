@@ -16,13 +16,15 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+
+from mywork.http import safe_next as _safe_next
 
 from apps.accounts.models import Friendship
 
 from . import notify
 from .forms import CommentForm, NoticeForm
+from .presentation import COMMENTS_SHOWN, REPLIES_SHOWN, fold_thread as _fold
 from .models import (
     Comment, CommentReaction, Emoji, Notice, Reaction,
 )
@@ -39,13 +41,6 @@ HUB_LIMIT = 2
 # How much of a person's board history their profile carries. A profile is a
 # glance at who somebody is, not an archive of everything they ever said.
 PROFILE_LIMIT = 10
-
-# How much of a thread stays open. A busy notice shouldn't push the next one
-# off the screen, so the newest few stay and the rest fold away behind a line
-# you can tap. It is the newest that stay rather than the oldest, which is
-# what keeps a comment you just wrote in front of you.
-COMMENTS_SHOWN = 3
-REPLIES_SHOWN = 2
 
 
 def decorate(notices, user):
@@ -85,18 +80,6 @@ def _visible_comments(notice, user, friend_ids):
     for comment in notice.comment_list:
         yield comment
         yield from comment.reply_list
-
-
-def _fold(items, keep):
-    """
-    Split a thread into the part that folds away and the part that stays.
-
-    Returns (older, recent). Keeping the tail rather than the head is the
-    whole point: whatever was just written is in `recent`, so nobody posts a
-    comment and then has to go looking for it behind a fold.
-    """
-    cut = max(len(items) - keep, 0)
-    return items[:cut], items[cut:]
 
 
 def _mark(item, user, friend_ids=None):
@@ -144,23 +127,6 @@ def board_context(request, **extra):
     }
     context.update(extra)
     return context
-
-
-def _safe_next(request, fallback):
-    """
-    Where to go back to after posting.
-
-    The form carries the page it was posted from so a notice written on the
-    hub lands back on the hub, and the + button carries it in the query
-    string. Either way it is checked against this host first — a redirect
-    target is never trusted just because it arrived from the browser.
-    """
-    target = request.POST.get("next") or request.GET.get("next") or ""
-    if target and url_has_allowed_host_and_scheme(
-        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
-    ):
-        return target
-    return fallback
 
 
 def _page_holding(pk, user):

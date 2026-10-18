@@ -34,7 +34,7 @@ from apps.timeclock import views as site
 from apps.timeclock.forms import BreakFormSet, ShiftForm, TimePreferenceForm, WorkplaceForm
 from apps.timeclock.models import (
     MAX_MONTH_START_DAY, WORKPLACE_COLORS, LimitPeriod, PaidIn, PayCycle, Payment, Shift, TaxScale,
-    TimePreference, Weekday, Workplace, color_css, fortnight_runs, fortnight_start, fortnight_started_last_week,
+    TimePreference, Weekday, Workplace, color_css, fortnight_hint as _fortnight_hint, fortnight_started_last_week,
 )
 from apps.timeclock.templatetags.timeclock_extras import decimal_hours, hm, hms, minutes
 
@@ -112,13 +112,6 @@ def workplace_full(w):
         ])),
     })
     return data
-
-
-def _fortnight_hint(anchor):
-    today = timezone.localdate()
-    start = fortnight_start(today, anchor)
-    end = start + timedelta(days=13)
-    return f"{fortnight_runs(anchor)}. This one runs {start:%-d %b} – {end:%-d %b}."
 
 
 def shift_row(shift, seq=None):
