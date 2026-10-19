@@ -10,4 +10,7 @@ def mail_settings():
         'PASSWORD_RESET_BASE_URL': os.environ.get('PASSWORD_RESET_BASE_URL', '').rstrip('/'),
         'EMAIL_TIMEOUT': 10,
         'PASSWORD_RESET_TIMEOUT': 3600,
+        # Read here rather than in base.py: base is imported before the .env
+        # file is loaded, so a CONTACT_EMAIL kept in .env was never seen there.
+        'CONTACT_EMAIL': os.environ.get('CONTACT_EMAIL', '') or os.environ.get('VAPID_CONTACT_EMAIL', ''),
     }

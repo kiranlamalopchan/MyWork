@@ -1,6 +1,7 @@
 """Email recovery works without exposing accounts or granting a login session."""
 from datetime import datetime, timedelta
 from io import StringIO
+import os
 import json
 import re
 from unittest import mock
@@ -232,3 +233,17 @@ class RecoveryConfigurationTests(SimpleTestCase):
             with self.subTest(sender=sender), override_settings(DEFAULT_FROM_EMAIL=sender):
                 with self.assertRaises(RecoveryUnavailable):
                     require_email_setup()
+
+
+class ContactEmailSettingTests(SimpleTestCase):
+    def test_contact_email_is_read_after_the_env_file_loads(self):
+        # base.py runs before .env is loaded; mail_settings runs after, so a
+        # CONTACT_EMAIL kept only in .env must come through here.
+        from unittest import mock
+
+        from mywork.settings.mail import mail_settings
+
+        with mock.patch.dict(os.environ, {"CONTACT_EMAIL": "help@example.com"}):
+            self.assertEqual(mail_settings()["CONTACT_EMAIL"], "help@example.com")
+        with mock.patch.dict(os.environ, {"CONTACT_EMAIL": "", "VAPID_CONTACT_EMAIL": "push@example.com"}):
+            self.assertEqual(mail_settings()["CONTACT_EMAIL"], "push@example.com")
