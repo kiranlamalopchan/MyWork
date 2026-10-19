@@ -5358,6 +5358,33 @@
     });
   }
 
+  /* ----------------------------------------------------------------------
+     Show password: the eye in a password box swaps it between dots and
+     plain text. The buttons ship hidden so a page without this script has
+     no dead control; each page shows its own when it arrives.
+     ---------------------------------------------------------------------- */
+  function showPasswordEyes() {
+    var eyes = document.querySelectorAll("[data-pw-toggle][hidden]");
+    for (var i = 0; i < eyes.length; i++) eyes[i].hidden = false;
+  }
+
+  function initPasswordEyes() {
+    document.addEventListener("click", function (event) {
+      var eye = event.target.closest ? event.target.closest("[data-pw-toggle]") : null;
+      if (!eye) return;
+      var box = document.getElementById(eye.getAttribute("aria-controls"));
+      if (!box) return;
+      var show = box.type === "password";
+      box.type = show ? "text" : "password";
+      eye.setAttribute("aria-pressed", show ? "true" : "false");
+      eye.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      // Keep typing where you were.
+      var at = box.value.length;
+      box.focus();
+      try { box.setSelectionRange(at, at); } catch (e) { /* not every type allows it */ }
+    });
+  }
+
   function stillMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -5473,6 +5500,7 @@
     initRipple();
     initNavSkeleton();
     initAccordion();
+    initPasswordEyes();
   }
 
   function initCatalogueReview() {
@@ -5511,6 +5539,7 @@
   }
 
   function initPage() {
+    showPasswordEyes();
     initTheme();
     initFestivalMotion();
     initAppBar();
