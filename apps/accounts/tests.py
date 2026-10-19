@@ -1,5 +1,6 @@
 """What the profile has to get right."""
 
+import os
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -93,6 +94,56 @@ class PresenceTests(TestCase):
     def test_signing_out_leaves_presence_alone_rather_than_erroring(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("login")).status_code, 200)
+
+
+class FriendCirclesTests(TestCase):
+    """The friend circles above the notice board on the hub (site and app)."""
+
+    def setUp(self):
+        self.me = User.objects.create_user("me", password="pw")
+        self.client.force_login(self.me)
+
+    def befriend(self, *names):
+        people = [User.objects.create_user(name, password="pw") for name in names]
+        for person in people:
+            Friendship.befriend(self.me, person)
+        return people
+
+    def test_the_newest_six_with_a_count_and_a_line_naming_two(self):
+        self.befriend("ana", "ben", "cai", "dev", "eli", "fay", "gus")
+        faces = Friendship.faces_for(self.me)
+        self.assertEqual(faces["total"], 7)
+        self.assertEqual(faces["more"], 1)
+        self.assertEqual([p.username for p in faces["people"]], ["gus", "fay", "eli", "dev", "cai", "ben"])
+        self.assertEqual(faces["summary"], "gus, fay and 5 others")
+
+    def test_anyone_here_now_comes_first_and_short_lists_read_naturally(self):
+        ana, ben = self.befriend("ana", "ben")
+        Profile.objects.filter(user=ana).update(last_seen=timezone.now())
+        faces = Friendship.faces_for(self.me)
+        self.assertEqual([p.username for p in faces["people"]], ["ana", "ben"])
+        self.assertEqual(faces["summary"], "ana and ben")
+        Friendship.unfriend(self.me, ben)
+        self.assertEqual(Friendship.faces_for(self.me)["summary"], "ana")
+
+    def test_the_hub_shows_just_the_faces_just_above_the_board(self):
+        self.befriend("ana", "ben", "cai", "dev", "eli", "fay", "gus", "hal")
+        html = self.client.get(reverse("home")).content.decode()
+        self.assertIn('class="friend-stack"', html)
+        self.assertLess(html.index('class="friend-stack"'), html.index('class="board"'))
+        row = html[html.index('class="friend-stack"'):html.index('class="board"')]
+        # Six faces and nothing else: no count, no "+N", no names line.
+        self.assertEqual(row.count('class="avatar'), 6)
+        self.assertNotIn("8 friends", row)
+        self.assertNotIn("friend-stack__more", row)
+        self.assertNotIn("friend-stack__text", row)
+        # Only shown: not a link or a button.
+        self.assertNotIn("<a ", row)
+        self.assertNotIn("<button", row)
+
+    def test_with_nobody_to_show_the_row_is_not_there(self):
+        html = self.client.get(reverse("home")).content.decode()
+        self.assertNotIn("friend-stack", html)
 
 
 class FriendshipTests(TestCase):
@@ -291,6 +342,31 @@ class AccountDeletionTests(TestCase):
         self.assertFalse(User.objects.filter(username="me").exists())
         self.assertFalse(Profile.objects.filter(user__username="me").exists())
         self.assertEqual(self.client.get(reverse("accounts:profile")).status_code, 302)
+
+    def test_story_and_support_files_go_with_the_account(self):
+        # The privacy policy promises these files are deleted, not just their rows.
+        import tempfile
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+
+        from apps.api.models import SupportReport
+        from apps.stories.models import Story
+
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            story = Story.objects.create(
+                author=self.me, image=SimpleUploadedFile("s.jpg", b"jpeg"),
+                expires_at=timezone.now() + timedelta(hours=24),
+            )
+            report = SupportReport.objects.create(
+                user=self.me, description="It broke", screenshot=SimpleUploadedFile("shot.png", b"png"),
+            )
+            files = [story.image.path, report.screenshot.path]
+            for path in files:
+                self.assertTrue(os.path.exists(path))
+            self.client.post(reverse("accounts:delete"), {"password": "pw12345678"})
+            for path in files:
+                self.assertFalse(os.path.exists(path), path)
 
 
 class PasswordChangeTests(TestCase):

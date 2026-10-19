@@ -204,6 +204,15 @@ class HomeTests(ApiTestCase):
         self.assertEqual(data["stories"], [])
         self.assertEqual(data["unread"], 1)   # sam's post told kiran
         self.assertEqual(len(data["emoji"]), 7)
+        self.assertEqual(data["friends"], {"total": 0, "more": 0, "summary": "", "people": []})
+
+    def test_the_hub_carries_the_friend_circles(self):
+        from apps.accounts.models import Friendship
+        Friendship.befriend(self.kiran, self.sam)
+        friends = self.api("get", "home").json()["friends"]
+        self.assertEqual((friends["total"], friends["more"], friends["summary"]), (1, 0, "sam"))
+        self.assertEqual([p["username"] for p in friends["people"]], ["sam"])
+        self.assertEqual(set(friends["people"][0]), {"username", "name", "initial", "hue", "photo", "is_live", "is_me", "is_admin"})
 
 
 class BoardTests(ApiTestCase):

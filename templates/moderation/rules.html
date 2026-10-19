@@ -1,47 +1,86 @@
 {% extends "base.html" %}
 {% comment %}
-  The community rules: what the notice board is for and what gets taken
-  off it. Public, because you agree to them before you have an account.
+  The community rules: what the notice board and stories are for and what
+  gets taken off them. Public, because you agree to them before you have an
+  account. Written to match what moderation actually does
+  (apps/moderation: the word filter, reports, the hide-at-three rule,
+  blocking) — change one, change the other.
 {% endcomment %}
 {% block title %}Community rules · KaamKoRecord{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1 class="page-title">Community rules</h1>
-  <p class="page-sub">The notice board is shared with everyone signed in. These are the terms for using it.</p>
+  <p class="page-sub">Updated 19 October 2026 · these are the terms for posting anything on KaamKoRecord — notices, comments, reactions, stories and your profile.</p>
 </div>
 
 <article class="card card__pad legal">
+  <section class="legal__summary" aria-labelledby="rules-summary">
+    <h2 id="rules-summary" class="section-label">In short</h2>
+    <ul>
+      <li>Be the kind of colleague you'd want on shift with you.</li>
+      <li>The same rules apply whoever can see a post — everyone, friends only, or just you.</li>
+      <li>Report anything that breaks them; block anyone you'd rather not see.</li>
+    </ul>
+  </section>
+
   <section>
-    <h2>What the board is for</h2>
-    <p>Shift swaps, reminders, questions, and the odd photo from your day. Post what you'd be comfortable saying out loud in the staff room.</p>
+    <h2>What it's for</h2>
+    <p>Shift swaps, reminders, questions, a heads-up about the roster, and the odd photo from your day. Post what you'd be comfortable saying out loud in the staff room — and remember that a screenshot can travel further than the audience you picked.</p>
   </section>
 
   <section>
     <h2>What isn't allowed</h2>
-    <p>There is no tolerance for any of the following, from anyone. Content that breaks these rules is removed and the account responsible may be closed without notice.</p>
+    <p>There is no tolerance for any of the following, from anyone, in any post, comment, story, photo, video, name or profile picture. Content that breaks these rules is removed and the account responsible may be closed without notice.</p>
     <ul>
-      <li><strong>Harassment or bullying</strong> — targeting, threatening or demeaning another person.</li>
-      <li><strong>Hate</strong> — attacks on people for their race, ethnicity, religion, gender, sexuality, disability or age.</li>
-      <li><strong>Violence</strong> — threats, or encouraging harm to anyone.</li>
-      <li><strong>Nudity or sexual content</strong> — of any kind.</li>
-      <li><strong>Spam and scams</strong> — repeated, misleading or commercial posts.</li>
-      <li><strong>Other people's private information</strong> — phone numbers, addresses or anything shared without their say-so.</li>
-      <li><strong>Impersonation</strong> — pretending to be somebody else.</li>
+      <li><strong>Harassment or bullying</strong> — targeting, threatening, shaming or demeaning another person, including pile-ons and unwanted repeated contact.</li>
+      <li><strong>Hate</strong> — attacks on people for their race, ethnicity, nationality, visa status, religion, gender, sexuality, disability or age.</li>
+      <li><strong>Violence and self-harm</strong> — threats, encouraging harm to anyone, or promoting self-harm.</li>
+      <li><strong>Nudity or sexual content</strong> — of any kind, and never anything involving a minor.</li>
+      <li><strong>Illegal activity</strong> — selling or arranging drugs, weapons, stolen goods, fake documents, or cash-in-hand work offered to dodge tax or visa conditions.</li>
+      <li><strong>Spam and scams</strong> — repeated, misleading or commercial posts, fake job offers, and anything asking for money, bank details or passwords.</li>
+      <li><strong>Other people's private information</strong> — their phone number, address, pay, shifts or photos, shared without their say-so.</li>
+      <li><strong>Your employer's confidential information</strong> — anything you were told not to share, such as internal figures, security codes or customer details.</li>
+      <li><strong>Impersonation</strong> — pretending to be somebody else, or to speak for a business you don't.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Stories, photos and videos</h2>
+    <ul>
+      <li>Only post photos and videos you took or have the right to share, and ask before posting anyone else in them.</li>
+      <li>A story disappears after 24 hours, but anyone who saw it could have kept a copy — the rules apply for the whole of its day.</li>
+      <li>The owner of a story can see who has viewed it.</li>
     </ul>
   </section>
 
   <section>
     <h2>Keeping it civil</h2>
     <ul>
-      <li><strong>Filtering:</strong> the board refuses posts containing slurs and threats outright.</li>
-      <li><strong>Reporting:</strong> any notice, comment, story or person can be reported from its menu. Reports are reviewed within 24 hours, and anything reported by several people is hidden straight away until it has been looked at.</li>
+      <li><strong>Filtering:</strong> notices, comments and story captions containing slurs or threats are refused outright.</li>
+      <li><strong>Reporting:</strong> any notice, comment, story or person can be reported from its menu, with a reason. Reports are reviewed within 24 hours, and anything reported by three or more people is hidden straight away until it has been looked at.</li>
       <li><strong>Blocking:</strong> you can block anyone. Neither of you will see the other's posts, comments or stories, and they can't send you a friend request. Manage it under <a href="{% url 'moderation:blocked' %}">Blocked people</a>.</li>
+      <li><strong>Friends:</strong> only accept friend requests from people you know. You can remove a friend at any time from your profile; they are not told.</li>
     </ul>
   </section>
 
   <section>
+    <h2>What happens when a rule is broken</h2>
+    <ul>
+      <li>The content is taken down.</li>
+      <li>Depending on how serious it is, the account may be warned, suspended or closed. Threats, sexual content involving minors, and scams lead straight to closure.</li>
+      <li>Anything that looks like a threat to someone's safety may be passed to the police.</li>
+    </ul>
+    <p>If you think something was removed by mistake, get in touch using the contact details in the <a href="{% url 'privacy' %}#contact">privacy policy</a>.</p>
+  </section>
+
+  <section>
+    <h2>If someone is in danger</h2>
+    <p>KaamKoRecord is not watched around the clock. If you or someone else is in immediate danger, call <strong>000</strong> in Australia, or your local emergency number. For support you can talk to Lifeline on <strong>13 11 14</strong>.</p>
+  </section>
+
+  <section>
     <h2>Your account</h2>
-    <p>By creating an account you agree to these rules and to the <a href="{% url 'privacy' %}">privacy policy</a>. Accounts that break the rules may be suspended or closed. You can delete your own account at any time from your profile.</p>
+    <p>By creating an account you agree to these rules and to the <a href="{% url 'privacy' %}">privacy policy</a>. You must be at least 13 years old. You're responsible for what you post from your account, so keep your password to yourself. You can delete your own account at any time from Settings.</p>
   </section>
 </article>
 {% endblock %}

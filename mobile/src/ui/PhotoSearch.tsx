@@ -192,8 +192,8 @@ function RowView({ catalogueId, row, last, open, onOpen, onPut }: { catalogueId?
   return (
     <View style={[!last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.line }]}>
       <Pressable onPress={onOpen} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? t.surface2 : "transparent" }]} testID={`photo-row-${row.key}`}>
-        <View style={[styles.badge, { backgroundColor: t.blue }]}>
-          <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16, fontVariant: ["tabular-nums"] }}>{row.item.plu_no}</Text>
+        <View style={[styles.badge, { backgroundColor: t.brand }]}>
+          <Text style={{ color: t.brandInk, fontWeight: "800", fontSize: 16, fontVariant: ["tabular-nums"] }}>{row.item.plu_no}</Text>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ color: t.text, fontWeight: "700", fontSize: 15.5 }} numberOfLines={2}>{row.item.description}</Text>

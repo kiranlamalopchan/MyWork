@@ -1,0 +1,258 @@
+{
+  "pages": [
+    {
+      "mode": "light",
+      "name": "home",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "search",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "clock",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "timesheets",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "pay",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "work-settings",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "alerts",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "profile",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "settings",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "privacy",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "rules",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "meta": "#f5f5f5",
+      "overflow": false
+    },
+    {
+      "mode": "light",
+      "name": "admin",
+      "bg": "#f5f5f5",
+      "body": "rgb(245, 245, 245)",
+      "surface": "#ffffff",
+      "accent": "#047857",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "home",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "search",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "clock",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "timesheets",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "pay",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "work-settings",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "alerts",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "profile",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "settings",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "privacy",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "rules",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "meta": "#000000",
+      "overflow": false
+    },
+    {
+      "mode": "dark",
+      "name": "admin",
+      "bg": "#000000",
+      "body": "rgb(0, 0, 0)",
+      "surface": "#171717",
+      "accent": "#79cfa8",
+      "overflow": false
+    }
+  ],
+  "systemDark": true,
+  "toggle": true,
+  "desktop1280": true,
+  "runtimeErrors": [],
+  "anonymousSystemDark": {
+    "bg": "rgb(0, 0, 0)",
+    "meta": "#000000",
+    "scheme": null,
+    "overflow": false
+  },
+  "savedLightOverridesDarkSystem": {
+    "bg": "rgb(245, 245, 245)",
+    "meta": "#f5f5f5",
+    "scheme": "light",
+    "overflow": false
+  }
+}

@@ -51,6 +51,7 @@ test("shows separate workplace cards and only the selected job's payment control
   expect(screen.getByTestId("pay-1")).toBeTruthy();
 });
 
+
 test("swiping switches the selected workplace and never mixes its payment action", async () => {
   const screen = await render(<Pay />);
   await fireEvent(screen.getByTestId("pay-workplace-carousel"), "momentumScrollEnd", { nativeEvent: { contentOffset: { x: 340 } } });

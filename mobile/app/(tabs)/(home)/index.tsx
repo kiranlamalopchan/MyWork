@@ -17,8 +17,10 @@ import { HolidayArt } from "@/ui/HolidayArt";
 import { NoticePreview } from "@/ui/NoticePreview";
 import { NoticeFold } from "@/ui/NoticeFold";
 import { FestivalBanner } from "@/ui/FestivalBanner";
+import { FriendStack } from "@/ui/FriendStack";
 import { StoriesTray } from "@/ui/StoriesTray";
-import { alpha, mix, radius, sp, useTheme } from "@/ui/theme";
+import { alpha, radius, sp, useTheme } from "@/ui/theme";
+import { Fold } from "@/ui/Disclosure";
 
 export default function Home() {
   const t = useTheme();
@@ -61,6 +63,7 @@ export default function Home() {
                   column instead, so only one of the two places ever shows. */}
               {!desk && data.daily ? <DailyPair daily={data.daily} /> : null}
               {!desk && data.holiday.holiday ? <Holiday card={data.holiday.holiday} state={data.holiday.state} /> : null}
+              {data.friends ? <FriendStack friends={data.friends} /> : null}
               <View style={styles.board}>
                 <View style={styles.boardHead}>
                   <View style={{ flex: 1 }}>
@@ -77,7 +80,15 @@ export default function Home() {
                 </View>
                 {data.notices.length === 0 ? (
                   <Card><Text style={{ color: t.muted, textAlign: "center", fontSize: 14.5 }}>Nothing on the board — post the first notice; everyone signed in will see it.</Text></Card>
-                ) : (expanded ? data.notices : data.notices.slice(0, 2)).map((n) => <NoticePreview key={n.id} notice={n} />)}
+                ) : data.notices.slice(0, 2).map((n) => <NoticePreview key={n.id} notice={n} />)}
+                {/* The rest fold open under the first two, the way every fold in the app moves. */}
+                {data.notices.length > 2 ? (
+                  <View style={{ marginTop: -sp[3] }}>
+                    <Fold open={expanded} style={{ gap: sp[3], paddingTop: sp[3] }}>
+                      {data.notices.slice(2).map((n) => <NoticePreview key={n.id} notice={n} />)}
+                    </Fold>
+                  </View>
+                ) : null}
                 {data.notices.length > 2 ? <NoticeFold expanded={expanded} count={data.notices.length - 2} onPress={() => setExpanded(value => !value)} /> : null}
                 {data.notice_total > data.notices.length ? (
                   <Pressable onPress={() => router.push("/board")} style={styles.more} testID="see-all">
@@ -112,7 +123,7 @@ export function Holiday({ card, state, stacked = false }: { card: HolidayCard; s
   const t = useTheme();
   const router = useRouter();
   return (
-    <Pressable onPress={() => router.push("/holidays")} testID="holiday-card" style={({ pressed }) => [styles.hero, stacked && styles.heroStacked, { backgroundColor: mix(t.brand, t.surface, t.dark ? 0.1 : 0.26) }, { transform: [{ scale: pressed ? 0.985 : 1 }] }]}>
+    <Pressable onPress={() => router.push("/holidays")} testID="holiday-card" style={({ pressed }) => [styles.hero, stacked && styles.heroStacked, { backgroundColor: t.surface, borderColor: t.line }, { transform: [{ scale: pressed ? 0.985 : 1 }] }]}>
       <View style={styles.hText}>
         <View style={styles.hHead}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -156,7 +167,7 @@ const styles = StyleSheet.create({
   hello: { fontSize: 15, fontWeight: "600" },
   today: { fontSize: 15, fontWeight: "500", marginTop: 6 },
   name: { fontSize: 32, fontWeight: "800", letterSpacing: -1, lineHeight: 38 },
-  hero: { flexDirection: "row", alignItems: "center", gap: sp[3], borderRadius: radius.xl, padding: sp[4], overflow: "hidden" },
+  hero: { flexDirection: "row", alignItems: "center", gap: sp[3], borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: sp[4], overflow: "hidden" },
   heroStacked: { flexDirection: "column-reverse", alignItems: "stretch" },
   hText: { flex: 1, minWidth: 0, gap: sp[3] },
   // A bit over a third, and never a stamp: the name is what has to stay

@@ -906,6 +906,24 @@ class NavigationTests(TestCase):
                 else:
                     self.assertNotIn('class="segments segments--places', html)
 
+    def test_every_page_ends_with_the_footer_and_both_app_store_codes(self):
+        apple = "https://apps.apple.com/au/app/kaamkorecord/id6813073450"
+        google = "https://play.google.com/store/apps/details?id=com.kiranlama.merokaam"
+        signed_in = self.client.get(reverse("timeclock:dashboard"))
+        self.client.logout()
+        signed_out = self.client.get(reverse("login"))
+        for resp in (signed_in, signed_out):
+            self.assertContains(resp, 'class="site-footer"', count=1)
+            self.assertContains(resp, f'href="{apple}"', count=1)
+            self.assertContains(resp, f'href="{google}"', count=1)
+            self.assertContains(resp, "img/qr-app-store.svg")
+            self.assertContains(resp, "img/qr-google-play.svg")
+            self.assertContains(resp, reverse("privacy"))
+        # The places in the app are offered only to someone signed in.
+        self.assertContains(signed_in, f'href="{reverse("timeclock:payments")}"')
+        self.assertNotContains(signed_out, f'href="{reverse("timeclock:payments")}"')
+        self.assertContains(signed_out, f'href="{reverse("register")}"')
+
     def test_home_uses_navigation_and_settings_owns_appearance_and_profile_sign_out(self):
         home = self.client.get(reverse("home"))
         for duplicate in ["home-actions", "Ready for work?", "Find an item", "My timesheets", 'id="theme-toggle"']:
@@ -1514,6 +1532,20 @@ class StatementTests(TestCase):
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertTrue(response.content.startswith(b"%PDF-"))
         self.assertTrue(response.content.rstrip().endswith(b"%%EOF"))
+
+    def test_it_is_issued_under_the_apps_own_name_and_mark(self):
+        from unittest import mock
+        from apps.timeclock import statement as statement_pdf
+
+        with mock.patch.object(statement_pdf, "draw_mark", wraps=statement_pdf.draw_mark) as mark, \
+                mock.patch.object(statement_pdf, "build", wraps=statement_pdf.build) as build:
+            self._get()
+        sent = build.call_args.args[0]
+        self.assertTrue(sent["reference"].startswith(f"KKR-{self.user.pk}-"))
+        self.assertTrue(mark.called)
+        # The mark is the clock on its navy tile, the same as the site's and the app icon's.
+        self.assertEqual(statement_pdf.MARK_PLATE_LIGHT.hexval().lower(), "0x1a2740")
+        self.assertEqual(statement_pdf.MARK_PLATE_DEEP.hexval().lower(), "0x0b111a")
 
     def test_no_dates_means_this_month_so_far(self):
         response = self._get()

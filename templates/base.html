@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f4f5f7">
+  <meta name="theme-color" content="#eaeaf0">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="KaamKoRecord — Your private item catalogue and timesheets in one place.">
 
@@ -31,6 +31,7 @@
 
   <title>{% block title %}KaamKoRecord{% endblock %}</title>
 
+  <link rel="stylesheet" href="{% static 'css/palette.css' %}{% if asset_revision %}?v={{ asset_revision }}{% endif %}">
   {# Applied before first paint so the correct palette is up immediately. #}
   <script src="{% static 'js/theme.js' %}{% if asset_revision %}?v={{ asset_revision }}{% endif %}"></script>
 
@@ -137,6 +138,8 @@
 
   {% block content %}{% endblock %}
 </main>
+
+{% include "_footer.html" %}
 
 {% if request.user.is_authenticated %}
   {% comment %}

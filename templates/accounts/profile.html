@@ -21,6 +21,19 @@
 {# ---- Who you are ------------------------------------------------------ #}
 <div class="profile-minimal">
 <div class="profile-id">
+  {% comment %}
+    The cover: a flat band in a soft violet with two flat hills across it —
+    no gradient, no picture to upload — and your face sitting half over its
+    lower edge. Edit profile waits in its corner.
+  {% endcomment %}
+  <div class="profile-cover">
+    <svg class="profile-cover__art" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
+      <path class="profile-cover__hill profile-cover__hill--back" d="M0 70 C70 30 130 30 200 62 S330 96 400 48 V120 H0 Z"/>
+      <path class="profile-cover__hill profile-cover__hill--front" d="M0 96 C80 64 150 70 220 92 S340 112 400 84 V120 H0 Z"/>
+    </svg>
+    <a class="profile-cover__edit" href="{% url 'accounts:edit' %}">{% icon "pencil" %} Edit profile</a>
+  </div>
+
   <form class="photo-form" method="post" enctype="multipart/form-data"
         action="{% url 'accounts:photo' %}" id="photo-form">
     {% csrf_token %}
@@ -70,14 +83,21 @@
   <p class="profile-id__meta">
     @{{ request.user.username }}
   </p>
-  <a class="profile-minimal__edit" href="{% url 'accounts:edit' %}">Edit profile {% icon "arrow-right" %}</a>
   <p class="profile-id__note" id="photo-hint" hidden></p>
-</div>
 
-<svg class="profile-minimal__curve" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true">
-  <path d="M0 0 Q200 108 400 0 L400 20 Q200 100 0 20 Z" fill="currentColor"/>
-  <path d="M0 8 Q200 120 400 8 L400 16 Q200 102 0 16 Z" fill="#db2777" opacity=".45"/>
-</svg>
+  {# Three figures under the name, each a way in: your posts, your friends, your shifts. #}
+  <ul class="profile-stats" aria-label="Your numbers">
+    <li><a class="profile-stat" href="{% url 'notices:person' request.user.username %}">
+      {% icon "chat-lines" %}<strong>{{ notice_count }}</strong><span>Post{{ notice_count|pluralize }}</span>
+    </a></li>
+    <li><a class="profile-stat" href="#friends">
+      {% icon "people" %}<strong>{{ friend_count }}</strong><span>Friend{{ friend_count|pluralize }}</span>
+    </a></li>
+    <li><a class="profile-stat" href="{% url 'timeclock:timesheet' %}">
+      {% icon "timesheet" %}<strong>{{ shift_count }}</strong><span>Shift{{ shift_count|pluralize }}</span>
+    </a></li>
+  </ul>
+</div>
 <nav class="profile-minimal__menu" aria-label="Profile options">
 <p class="profile-minimal__label">YOUR SPACE</p>
 {% comment %}
@@ -96,7 +116,7 @@
   friends — and app.js (initFolds) remembers which were open, so adding or
   removing somebody lands back on the list it was done in.
 {% endcomment %}
-<details class="panel" name="profile-space" id="friends">
+<details class="panel" data-fold-group="profile-space" id="friends">
   <summary class="panel__head">
     {% icon "people" class="profile-minimal__icon" %}
     <span class="panel__title">Friends</span>
@@ -269,7 +289,7 @@
   it stood on the day you took it. A plain GET, so the browser saves the
   file and the page stays where it is.
 {% endcomment %}
-<details class="panel" name="profile-space" id="statement">
+<details class="panel" data-fold-group="profile-space" id="statement">
   <summary class="panel__head">
     {% icon "doc" class="profile-minimal__icon" %}
     <span class="panel__title">Statement</span>
@@ -326,7 +346,7 @@
   everything else is a count, and counts belong in a grid where they can be
   compared rather than in six rows of equal weight where they can't.
 {% endcomment %}
-<details class="panel" name="profile-space" id="activity">
+<details class="panel" data-fold-group="profile-space" id="activity">
   <summary class="panel__head">
     {% icon "clock" class="profile-minimal__icon" %}
     <span class="panel__title">Activity</span>

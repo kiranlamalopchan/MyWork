@@ -16,11 +16,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { friends as api, useFriends, useFriendsChanged, type FriendRequest, type Person } from "@/api";
 import { AdminBadge } from "./AdminBadge";
 import { Avatar } from "./Avatar";
-import { Disclosure } from "./Disclosure";
-import { Button, Empty, ErrorBanner, Input, SectionLabel } from "./index";
+import { useComeUp } from "./depth";
+import { Disclosure, Fold, FoldChevron } from "./Disclosure";
+import { Button, Empty, ErrorBanner, Input } from "./index";
 import { SkeletonFriends } from "./Skeleton";
 import type { PanelProps } from "./ProfilePanels";
-import { notify } from "./confirm";
+import { confirm, notify } from "./confirm";
 import { success, tick } from "./haptics";
 import { radius, sp, useTheme } from "./theme";
 
@@ -37,8 +38,10 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
   const changed = useFriendsChanged();
   const data = query.data;
   const [busy, setBusy] = useState<string | null>(null);
-  const [shown, setShown] = useState({ sent: false, friends: false, others: false });
-  const flip = (k: keyof typeof shown) => setShown((v) => ({ ...v, [k]: !v[k] }));
+  // One list open at a time, like the timesheet's days: opening one folds the last away.
+  const [list, setList] = useState<"sent" | "friends" | "others" | null>(null);
+  const shown = { sent: list === "sent", friends: list === "friends", others: list === "others" };
+  const flip = (k: NonNullable<typeof list>) => setList((v) => (v === k ? null : k));
 
   const guard = async (key: string, run: () => Promise<unknown>) => {
     setBusy(key);
@@ -56,7 +59,11 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
   const accept = (r: FriendRequest) => guard(`accept-${r.id}`, () => api.accept(r.id));
   const decline = (r: FriendRequest) => guard(`decline-${r.id}`, () => api.decline(r.id));
   const request = (p: Person) => guard(`request-${p.username}`, () => api.request(p.username));
-  const remove = (p: Person) => guard(`remove-${p.username}`, () => api.remove(p.username));
+  const remove = (p: Person) => {
+    if (busy) return;
+    confirm(`Unfriend ${p.name}?`, `This removes ${p.name} from your friends. You can send them a new friend request later.`, "Unfriend",
+      () => { void guard(`remove-${p.username}`, () => api.remove(p.username)); });
+  };
 
   const waiting = data?.received.length || 0;
   const hint = !data
@@ -67,7 +74,7 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
 
   return (
     <Disclosure badge={waiting} minimal={minimal} icon="people-outline" title="Friends" hint={hint} open={open} onToggle={onToggle} last={last} testID="friends-panel">
-      <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>
+      <Text style={{ color: t.text2, fontSize: 14, lineHeight: 21 }}>
         Posts and comments marked "Friends only" are shown to the people here.
       </Text>
       {query.error ? <ErrorBanner error={query.error} onRetry={query.refetch} /> : null}
@@ -75,7 +82,7 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
 
       {data?.received.length ? (
         <View style={{ gap: sp[2] }}>
-          <SectionLabel>Waiting on you</SectionLabel>
+          <Text style={{ color: t.text, fontSize: 14.5, fontWeight: "600" }}>Waiting on you</Text>
           <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
             {data.received.map((r, i) => (
               <Row key={r.id} person={r.person} last={i === data.received.length - 1}
@@ -111,7 +118,7 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
                 <Row key={p.username} person={p} last={i === data.friends.length - 1}
                   onPress={() => router.push(`/people/${p.username}`)}
                   right={(
-                    <Pressable onPress={() => remove(p)} hitSlop={8} accessibilityLabel={`Remove ${p.name}`}>
+                    <Pressable onPress={() => remove(p)} disabled={!!busy} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`}>
                       <Ionicons name="close-circle-outline" size={22} color={t.muted} />
                     </Pressable>
                   )}
@@ -144,7 +151,8 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
 }
 
 /**
- * One list inside the panel, folded behind its label and a count. The
+ * One list inside the panel, folded behind its label and a count — with the
+ * timesheet's fold (Fold, FoldChevron): it grows open and shrinks shut. The
  * panel's own fold measures what it holds, so opening one of these grows
  * the panel with it.
  */
@@ -152,8 +160,9 @@ function SubFold({ title, count, open, onToggle, children, testID }: {
   title: string; count?: number; open: boolean; onToggle: () => void; children: React.ReactNode; testID?: string;
 }) {
   const t = useTheme();
+  const root = useComeUp(open);
   return (
-    <View style={{ gap: sp[2] }} testID={testID}>
+    <View ref={root} style={{ gap: sp[2] }} testID={testID}>
       <Pressable
         onPress={() => { tick(); onToggle(); }}
         accessibilityRole="button"
@@ -162,15 +171,15 @@ function SubFold({ title, count, open, onToggle, children, testID }: {
         hitSlop={4}
         style={({ pressed }) => [styles.foldHead, { opacity: pressed ? 0.6 : 1 }]}
       >
-        <SectionLabel>{title}</SectionLabel>
+        <Text style={{ color: t.text, fontSize: 14.5, fontWeight: "600" }}>{title}</Text>
         {count !== undefined ? (
           <View style={[styles.count, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
             <Text style={{ color: t.text2, fontSize: 12, fontWeight: "600" }}>{count}</Text>
           </View>
         ) : null}
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={t.muted} style={{ marginLeft: "auto" }} />
+        <View style={{ marginLeft: "auto" }}><FoldChevron open={open} size={16} colour={t.muted} /></View>
       </Pressable>
-      {open ? children : null}
+      <Fold open={open} style={{ gap: sp[2] }}>{children}</Fold>
     </View>
   );
 }

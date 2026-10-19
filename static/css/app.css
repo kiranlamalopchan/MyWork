@@ -1,129 +1,24 @@
-/* ==========================================================================
-   KaamKoRecord — mobile-first design system
-   Built phone-first: everything below is the phone layout, and a small number
-   of min-width queries at the bottom widen it for tablet/desktop.
-   ========================================================================== */
-
-/* --------------------------------------------------------------------------
-   1. Tokens
-   -------------------------------------------------------------------------- */
+/* Colours: palette.css, generated from design/tokens/palette.json. Layout and motion below. */
 :root {
-  color-scheme: light dark;
-
-  /* Brand */
-  --brand:        #059669;
-  --brand-strong: #047857;
-  --brand-soft:   rgba(5, 150, 105, .12);
-  /* How much brand goes into the holiday card's wash: enough in the light
-     to stand off the page, less in the dark where a little green glows. */
-  --holiday-mix:  26%;
-  --brand-ink:    #ffffff;
-
-  --danger:       #dc2626;
-  --danger-soft:  rgba(220, 38, 38, .10);
-  --warn:         #b45309;
-  --warn-soft:    rgba(180, 83, 9, .12);
-
-  /* Accents that are nobody's status — they only tell one way in apart from
-     the next on the More page. The same three the app carries in
-     mobile/src/ui/theme.ts, so a row is the same colour on both. */
-  --violet:       #7c3aed;
-  --orange:       #ea580c;
-  --blue:         #2563eb;
-
-  /* The reactions, for the word beside a face you have left: the blue of
-     the thumb, the red of the heart, and one darker yellow that reads as
-     text where the faces' own yellow would not. */
-  --rx-like:  #1b74e4;
-  --rx-love:  #e0243f;
-  --rx-face:  #b7791f;
-  --rx-angry: #d9482a;
-
-  /* Surfaces — light
-     Three steps, close together. With the shadows gone the separation between
-     a card and the page behind it is this half-tone and one hairline, which
-     is all it needs to be. */
-  --bg:        #f3f6f2;
-  --surface:   #ffffff;
-  --surface-2: #eef3ed;
-  --surface-3: #e3eae2;
-
-  /* Text */
-  --text:   #17271c;
-  --text-2: #415546;
-  --muted:  #687b6c;
-
-  --line:        #dfe7dd;
-  --line-strong: #c7d4c7;
-
-  /* The floating tab bar: a slab of clear glass the way an iPhone's own is,
-     the page blurred and brightened through it, in the theme's own light
-     rather than a dark object of its own. --pill is what a browser that
-     cannot blur shows instead — the same material, gone opaque. */
-  --pill:        #f3f5f9;
-  /* The glass itself, where the page shows through. 58% white is where the
-     two demands meet: enough of the page comes through for the lens in §33
-     to have something to bend, and the captions still read over whatever
-     happens to be passing underneath. */
-  --pill-glass:  rgba(255, 255, 255, .58);
-  --pill-ink:    rgba(15, 23, 42, .60);
-  --pill-line:   rgba(255, 255, 255, .80);
-  /* How hard the dock's shadow falls. Light glass over a light page casts
-     little. */
   --pill-shadow:
-    0 8px 28px rgba(15, 23, 42, .13),
-    0 2px 6px rgba(15, 23, 42, .07);
-
-  /* Which side the day/night switch sits on (§3): 0 is day, 1 is night. A
-     number rather than a state so the switch's every part — knob, sky,
-     stars, sun, moon — is one rule that reads it, in either theme. */
+    0 8px 28px rgba(0, 0, 0, .13),
+    0 2px 6px rgba(0, 0, 0, .07);
   --night: 0;
-
-  /* The switch's materials, which every toggle in the app shares (§3b,
-     §4): a track the knob sits in, sunk a little into the page, and the
-     knob itself, raised out of it. Named once so a form's yes/no, the
-     List/Calendar control and the dock all read as one family. */
-  --track:       rgba(15, 23, 42, .075);
-  --track-inset: inset 0 1px 3px rgba(15, 23, 42, .14);
-  --knob:        #ffffff;
-  --knob-shadow: 0 1px 3px rgba(15, 23, 42, .18), 0 0 1px rgba(15, 23, 42, .12), inset 0 1px 0 rgba(255, 255, 255, .7);
-
-  /* Elevation
-     Only things that genuinely float cast a shadow — a menu over the page, a
-     dialog over everything. A card is not floating: it is a piece of the page,
-     and a hairline says so more quietly than a drop shadow under every one of
-     a dozen of them. */
+  --track-inset: inset 0 1px 3px rgba(0, 0, 0, .14);
+  --knob-shadow: 0 1px 3px rgba(0, 0, 0, .18), 0 0 1px rgba(0, 0, 0, .12), inset 0 1px 0 rgba(255, 255, 255, .7);
   --shadow-1: none;
-  --shadow-2: 0 2px 8px rgba(15, 23, 42, .05);
-  --shadow-3: 0 16px 40px rgba(15, 23, 42, .12), 0 2px 8px rgba(15, 23, 42, .04);
-
-  /* Panels are solid now, as they are in the app — see §32, which still
-     describes the glass these names were built for. The names are kept so
-     every rule that asks for the material still gets one; what they carry is
-     a plain surface, a hairline and nothing else. Flat, per the app. */
-  --glass:        #ffffff;
-  --glass-line:   rgba(15, 20, 32, .05);
-  --glass-hi:     transparent;
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, .05);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, .12), 0 2px 8px rgba(0, 0, 0, .04);
   --glass-glow:   transparent;
   --glass-base:   transparent;
-  --glass-hover:  #fbfcfd;
   --glass-blur:   none;
   --lens-blur:    none;
-  --glass-shadow: 0 8px 24px rgba(26, 37, 64, .07), 0 1px 2px rgba(26, 37, 64, .04);
-
-  /* The page is flat: there is nothing behind a solid panel to wash. */
-  --amb-1: transparent;
-  --amb-2: transparent;
-  --amb-3: transparent;
-
-  /* Shape */
+  --glass-shadow: none;
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 18px;
   --r-xl: 24px;
   --r-pill: 999px;
-
-  /* Spacing */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -131,189 +26,57 @@
   --sp-5: 20px;
   --sp-6: 24px;
   --sp-8: 32px;
-
-  /* The page: how far in from the screen's edge the content starts, and
-     how wide it is allowed to get. The gutter grows a little with the
-     screen — 16px on a 320px phone, 22px on a Pro Max — so a card never
-     touches the edge and never floats in a sea of margin either. The
-     column is held to a phone-ish width on a tablet or a desktop, because
-     a shift row stretched across a 13" screen is unreadable and looks like
-     a web page; a native app on an iPad keeps its lists in a column too. */
   --gutter:   clamp(16px, 4.5vw, 22px);
   --page-max: 720px;
-
-  /* Chrome heights — used to reserve scroll room for the fixed bars. The
-     tab bar's figure is the dock's own height plus the gap it floats at. */
   --appbar-h: 56px;
   --tabbar-h: 76px;
-
-  /* Safe areas (iPhone notch / home indicator) */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
-
-  --tap: 48px; /* minimum comfortable touch target */
-
-  /* Motion — one set of curves and durations so everything moves alike.
-     `--ease-out` overshoots slightly at the end, which is what makes an
-     entrance read as "settled" rather than "stopped". */
+  --tap: 48px;
   --ease:      cubic-bezier(.4, 0, .2, 1);
   --ease-out:  cubic-bezier(.16, 1, .3, 1);
   --ease-snap: cubic-bezier(.34, 1.4, .64, 1);
-
-  --dur-1: .12s;  /* press / hover feedback */
-  --dur-2: .2s;   /* state changes */
-  --dur-3: .34s;  /* entrances */
+  --dur-1: .12s;
+  --dur-2: .2s;
+  --dur-3: .34s;
 }
-
-/* Dark palette: applied when the OS asks for it, unless the user forced light */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --brand:        #79cfa8;
-    --brand-strong: #a0e3c2;
-    --brand-soft:   rgba(121, 207, 168, .12);
-    --holiday-mix:  10%;
-    --brand-ink:    #10261c;
-
-    --danger:      #f87171;
-    --danger-soft: rgba(248, 113, 113, .13);
-    --warn:        #fbbf24;
-    --warn-soft:   rgba(251, 191, 36, .13);
-
-    --violet:      #a78bfa;
-    --orange:      #fb923c;
-    --blue:        #60a5fa;
-
-    --rx-like:  #5aa0f2;
-    --rx-love:  #f5607a;
-    --rx-face:  #f2c14e;
-    --rx-angry: #f2795c;
-
-    --bg:        #000000;
-    --surface:   #1c1c1e;
-    --surface-2: #2c2c2e;
-    --surface-3: #3a3a3c;
-
-    --text:   #f5f5f7;
-    --text-2: #d1d1d6;
-    --muted:  #98989f;
-
-    --line:        #2c2c2e;
-    --line-strong: #48484a;
-
-    /* Lifted off the dark background rather than sunk into it. */
-    --pill:        #2c2c2e;
-    --pill-glass:  rgba(28, 28, 30, .88);
-    --pill-ink:    rgba(231, 235, 242, .78);
-    --pill-line:   rgba(255, 255, 255, .16);
     --pill-shadow:
       0 8px 28px rgba(0, 0, 0, .40),
       0 2px 6px rgba(0, 0, 0, .24);
-
     --night: 1;
-
-    --track:       rgba(255, 255, 255, .08);
     --track-inset: inset 0 1px 3px rgba(0, 0, 0, .45);
-    --knob:        #48484a;
     --knob-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10);
-
-    /* Flat here too: on a dark ground a card is separated by its own lighter
-       surface, and a shadow under it only muddies the edge. */
     --shadow-1: none;
     --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
     --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
-
-    /* Solid here too: a dark card is told apart by its own lighter surface. */
-    --glass:        #1c1c1e;
-    --glass-line:   rgba(255, 255, 255, .07);
-    --glass-hi:     transparent;
     --glass-glow:   transparent;
     --glass-base:   transparent;
-    --glass-hover:  #2c2c2e;
     --glass-blur:   none;
     --lens-blur:    none;
-    --glass-shadow: 0 8px 28px rgba(0, 0, 0, .40), 0 1px 2px rgba(0, 0, 0, .24);
-
-    --amb-1: transparent;
-    --amb-2: transparent;
-    --amb-3: transparent;
+    --glass-shadow: none;
   }
 }
-
-/* Dark palette: applied when the user explicitly picks dark */
 :root[data-theme="dark"] {
-  color-scheme: dark;
-  --brand:        #79cfa8;
-  --brand-strong: #a0e3c2;
-  --brand-soft:   rgba(121, 207, 168, .12);
-  --holiday-mix:  10%;
-  --brand-ink:    #10261c;
-
-  --danger:      #f87171;
-  --danger-soft: rgba(248, 113, 113, .13);
-  --warn:        #fbbf24;
-  --warn-soft:   rgba(251, 191, 36, .13);
-
-  --violet:      #a78bfa;
-  --orange:      #fb923c;
-  --blue:        #60a5fa;
-
-  --rx-like:  #5aa0f2;
-  --rx-love:  #f5607a;
-  --rx-face:  #f2c14e;
-  --rx-angry: #f2795c;
-
-  --bg:        #000000;
-  --surface:   #1c1c1e;
-  --surface-2: #2c2c2e;
-  --surface-3: #3a3a3c;
-
-  --text:   #f5f5f7;
-  --text-2: #d1d1d6;
-  --muted:  #98989f;
-
-  --line:        #2c2c2e;
-  --line-strong: #48484a;
-
-  --pill:        #2c2c2e;
-  --pill-glass:  rgba(28, 28, 30, .88);
-  --pill-ink:    rgba(231, 235, 242, .78);
-  --pill-line:   rgba(255, 255, 255, .16);
   --pill-shadow:
     0 8px 28px rgba(0, 0, 0, .40),
     0 2px 6px rgba(0, 0, 0, .24);
-
   --night: 1;
-
-  --track:       rgba(255, 255, 255, .08);
   --track-inset: inset 0 1px 3px rgba(0, 0, 0, .45);
-  --knob:        #48484a;
   --knob-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .10);
-
   --shadow-1: none;
   --shadow-2: 0 2px 10px rgba(0, 0, 0, .30);
   --shadow-3: 0 16px 40px rgba(0, 0, 0, .50);
-
-  /* Solid here too: a dark card is told apart by its own lighter surface. */
-  --glass:        #1c1c1e;
-  --glass-line:   rgba(255, 255, 255, .07);
-  --glass-hi:     transparent;
   --glass-glow:   transparent;
   --glass-base:   transparent;
-  --glass-hover:  #2c2c2e;
   --glass-blur:   none;
   --lens-blur:    none;
-  --glass-shadow: 0 8px 28px rgba(0, 0, 0, .40), 0 1px 2px rgba(0, 0, 0, .24);
-
-  --amb-1: transparent;
-  --amb-2: transparent;
-  --amb-3: transparent;
+  --glass-shadow: none;
 }
-
 :root[data-theme="light"] { color-scheme: light; }
-
 /* --------------------------------------------------------------------------
    2. Reset / base
    -------------------------------------------------------------------------- */
@@ -475,7 +238,7 @@ img { max-width: 100%; height: auto; display: block; }
 .appbar.is-titled .appbar__title { opacity: 1; transform: translate(-50%, -50%); }
 
 /* Phones: the back link replaces the brand, and the title needs the middle. */
-@media (max-width: 859px) {
+@media (max-width: 767px) {
   .appbar.has-back .appbar__back { display: inline-flex; }
   .appbar.has-back .brand { display: none; }
   /* Room in the middle for the title: the brand keeps its mark and gives
@@ -580,9 +343,9 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: 999px;
   overflow: hidden;
   /* Daytime: a sky, deeper at the top the way a sky is. */
-  background: linear-gradient(180deg, #bfe4ff, #7ec3f2);
+  background: var(--surface-3);
   box-shadow:
-    inset 0 1px 3px rgba(15, 23, 42, .28),
+    inset 0 1px 3px rgba(0, 0, 0, .28),
     0 1px 0 rgba(255, 255, 255, .5);
   transition: transform var(--dur-2) var(--ease-snap);
 }
@@ -606,7 +369,7 @@ img { max-width: 100%; height: auto; display: block; }
 .daynight__night {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #1c2b4d, #0b1120);
+  background: var(--surface-2);
   opacity: var(--night);
   transition: opacity .45s var(--ease);
 }
@@ -638,10 +401,10 @@ img { max-width: 100%; height: auto; display: block; }
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: color-mix(in srgb, #fff4c2 calc(100% * (1 - var(--night))), #e2e8f0);
+  background: var(--surface);
   box-shadow:
-    0 1px 3px rgba(15, 23, 42, .35),
-    inset 0 -1px 1px rgba(15, 23, 42, .08);
+    0 1px 3px rgba(0, 0, 0, .35),
+    inset 0 -1px 1px rgba(0, 0, 0, .08);
   transform: translateX(calc(var(--travel) * var(--night)));
   transition:
     transform .5s var(--ease-snap),
@@ -661,12 +424,12 @@ img { max-width: 100%; height: auto; display: block; }
     transform .55s var(--ease-snap);
 }
 .daynight__sun {
-  color: #f59e0b;
+  color: var(--warn);
   opacity: calc(1 - var(--night));
   transform: rotate(calc(-100deg * var(--night))) scale(calc(1 - .6 * var(--night)));
 }
 .daynight__moon {
-  color: #334155;
+  color: var(--text-2);
   opacity: var(--night);
   transform: rotate(calc(100deg * (1 - var(--night)))) scale(calc(.4 + .6 * var(--night)));
 }
@@ -845,7 +608,7 @@ img { max-width: 100%; height: auto; display: block; }
   box-shadow:
     var(--pill-shadow),
     inset 0 1px 0 rgba(255, 255, 255, .55),
-    inset 0 2px 6px -3px rgba(15, 23, 42, .18);
+    inset 0 2px 6px -3px rgba(0, 0, 0, .18);
   /* More tabs than a narrow phone can hold slide rather than wrap. */
   overflow-x: auto;
   scrollbar-width: none;
@@ -996,7 +759,7 @@ img { max-width: 100%; height: auto; display: block; }
   place-items: center;
   border-radius: 999px;
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-ink);
   font-size: 10px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -1170,7 +933,6 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
   background: var(--brand);
   border-color: var(--brand);
   color: var(--brand-ink);
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--brand) 30%, transparent);
 }
 .btn--primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
 
@@ -1868,7 +1630,7 @@ fieldset.chips { min-width: 0; }
 .big-btn:hover { filter: brightness(1.06); text-decoration: none; }
 
 .big-btn--go   { background: var(--brand); color: var(--brand-ink); }
-.big-btn--stop { background: var(--danger); color: #fff; }
+.big-btn--stop { background: var(--danger); color: var(--danger-ink); }
 .big-btn--soft { background: var(--surface-3); color: var(--text); box-shadow: var(--shadow-1); }
 
 .clock__where {
@@ -2855,7 +2617,7 @@ select, textarea {
   letter-spacing: .02em;
   text-transform: uppercase;
 }
-@media (max-width: 859px) {
+@media (max-width: 1023px) {
   .brand__section { display: none; }
 }
 
@@ -2925,7 +2687,7 @@ select, textarea {
 /* --------------------------------------------------------------------------
    19. Wider screens — the tabs move up into the app bar, the floating bar goes
    -------------------------------------------------------------------------- */
-@media (min-width: 860px) {
+@media (min-width: 768px) {
   :root { --tabbar-h: 0px; }
 
   .tabbar { display: none; }
@@ -2991,7 +2753,6 @@ select, textarea {
   35%           { box-shadow: 0 0 0 7px color-mix(in srgb, var(--tint) 6%, transparent); }
 }
 @keyframes mw-pop  { 0% { opacity: 0; transform: scale(.9); } 60% { transform: scale(1.03); } 100% { opacity: 1; transform: none; } }
-@keyframes mw-sweep { from { transform: translateX(-100%); } to { transform: translateX(400%); } }
 @keyframes mw-dots { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 
 /* ---- Arrival ------------------------------------------------------------
@@ -3049,20 +2810,6 @@ body[data-arrive="tab"]     > .container { animation: mw-page-tab  .24s var(--ea
 @keyframes mw-ripple {
   to { width: 260%; padding-bottom: 260%; opacity: 0; }
 }
-
-/* A light sweeps across the primary action on hover — only the primary, so it
-   stays a highlight rather than ambient noise. */
-.btn--primary::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(115deg, transparent 35%,
-              rgba(255, 255, 255, .28) 50%, transparent 65%);
-  transform: translateX(-100%);
-  opacity: 0;
-}
-.btn--primary:hover::after { opacity: 1; animation: mw-sweep .7s var(--ease) forwards; }
 
 /* ---- Busy ---------------------------------------------------------------
    A button that submitted work keeps its size, swaps its label for a spinner,
@@ -3166,7 +2913,7 @@ body[data-arrive="tab"]     > .container { animation: mw-page-tab  .24s var(--ea
 .cal__grid          { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .detail-actions > * { min-width: 0; }
 
-@media (min-width: 860px) {
+@media (min-width: 768px) {
   .detail-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
@@ -3324,10 +3071,10 @@ input, select, textarea { min-width: 0; max-width: 100%; }
   width: var(--dot);
   height: var(--dot);
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--brand);
   box-shadow:
     0 0 0 var(--dot-ring) var(--surface),
-    0 0 0 calc(var(--dot-ring) + 1px) color-mix(in srgb, #22c55e 45%, transparent);
+    0 0 0 calc(var(--dot-ring) + 1px) color-mix(in srgb, var(--brand) 45%, transparent);
   animation: mw-here 3.2s var(--ease) infinite;
 }
 
@@ -3537,30 +3284,15 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   animation-delay: calc(var(--i, 0) * 55ms);
 }
 
-/* Sent by somebody else: their colour, flat, on a card that floats. The hue
-   comes off the name (see hue_for), so a person is the same colour on every
-   device with nothing assigned or stored — one soft wash of it for the card,
-   a stronger one for the edge, and the strongest for the name and the dot. */
+/* Sent by somebody else: the same plain card as any other — no wash of
+   their colour, no tinted edge, no lift. The hue comes off the name (see
+   hue_for) and shows only where it says something: their name and, while it
+   is new, the dot. */
 .notice--from {
-  --tint: hsl(var(--hue, 210) 72% 52%);
-  --tint-ink: hsl(var(--hue, 210) 48% 32%);
-  background: color-mix(in srgb, var(--tint) 9%, var(--surface));
-  border-color: color-mix(in srgb, var(--tint) 30%, var(--line));
-  box-shadow: var(--shadow-2);
+  --tint: var(--brand);
+  --tint-ink: var(--text);
 }
 .notice--from .notice__who { color: var(--tint-ink); }
-/* The face is the app icon of this notification, so it wears the same ring. */
-.notice--from .avatar {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 22%, transparent);
-}
-/* The bubbles and the reply box sit on top of the wash, so they take the
-   card's own surface rather than the grey they use on a plain white one —
-   grey on a colour reads as dirt. */
-.notice--from .comment__body,
-.notice--from .reply__input { background: var(--surface); }
-
-/* Still new, so it is worth a dot — and a little more of its own colour. */
-.notice--new { border-color: color-mix(in srgb, var(--tint) 42%, var(--line)); }
 .notice__dot {
   position: absolute;
   top: 16px; right: 16px;
@@ -3569,13 +3301,6 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   background: var(--tint);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--tint) 18%, transparent);
   animation: mw-ping 2.6s var(--ease) infinite;
-}
-
-/* Your own is not news to you: no tint, no dot, no lift — just a quiet rail
-   down the edge so the board still reads as one wall. */
-.notice--mine {
-  border-left: 3px solid var(--brand);
-  padding-left: calc(var(--sp-4) - 2px);
 }
 
 .notice__body { flex: 1; min-width: 0; }
@@ -3607,18 +3332,11 @@ a.avatar:hover { transform: scale(1.06); text-decoration: none; }
   overflow-wrap: anywhere;
 }
 
-/* On a dark card the name needs lifting rather than darkening, and the wash
-   needs a little more of itself to be seen at all. */
+/* On a dark card the name needs lifting rather than darkening. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .notice--from {
-    --tint-ink: hsl(var(--hue, 210) 72% 78%);
-    background: color-mix(in srgb, var(--tint) 14%, var(--surface));
-  }
+  :root:not([data-theme="light"]) .notice--from { --tint-ink: var(--text); }
 }
-:root[data-theme="dark"] .notice--from {
-  --tint-ink: hsl(var(--hue, 210) 72% 78%);
-  background: color-mix(in srgb, var(--tint) 14%, var(--surface));
-}
+:root[data-theme="dark"] .notice--from { --tint-ink: var(--text); }
 
 .notices-empty {
   padding: var(--sp-6) var(--sp-4);
@@ -4791,6 +4509,26 @@ a.comment__who:hover { color: var(--brand); text-decoration: none; }
   animation: mw-rise var(--dur-3) var(--ease-out) both;
 }
 
+/* The Profile page's folds open and shut the way the timesheet's days do
+   (initAccordion in app.js grows and shrinks the body), so they drop the
+   rise above; while one is shutting, its chevron and hint turn back with it. */
+details[data-fold-group] > .panel__body,
+.subfold__body { animation: none; }
+.panel.is-closing .panel__chev,
+.subfold.is-closing .subfold__chev { transform: none; }
+.panel.is-closing .panel__hint { opacity: 1; }
+
+/* Every other fold on the site moves the same way (initAccordion, which
+   marks the page .js-folds): the box grows and the contents ease in, so
+   the rises some bodies do on their own would only double it. While one
+   is shutting, whatever it flipped on opening flips back with it. */
+.js-folds details:not(.react):not([data-dismiss]) > :not(summary) { animation: none !important; }
+.hmonth.is-closing .hmonth__chev,
+.daily--joke.is-closing .daily__reveal svg { transform: none; }
+.hmonth.is-closing .hmonth__count { opacity: 1; }
+.fold.is-closing .fold__more { display: inline; }
+.fold.is-closing .fold__less { display: none; }
+
 /* ---- Your details -------------------------------------------------------
    A label and its value on one line, the labels in a column of their own so
    the values line up down the card and can be read without being hunted for.
@@ -5767,7 +5505,8 @@ a.tally:hover { background: var(--surface-2); text-decoration: none; }
    Two quick picks, two dates side by side, a job, and the button. */
 .statement-form__quick { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .statement-form__quick .btn { flex: 1 1 0; }
-.statement-form__dates { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.statement-form__dates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-3); }
+.statement-form__dates input { min-width: 0; width: 100%; }
 .statement-form .field { margin-bottom: var(--sp-3); }
 
 /* Download a PDF: the same quiet link wherever a document is offered. */
@@ -5905,26 +5644,6 @@ body::before {
     border-color: color-mix(in srgb, var(--brand) 40%, var(--glass-line));
   }
 
-  /* A notice is still washed in the colour of whoever sent it; the colour now
-     sits in the glass instead of on white. Repeated per theme because each
-     theme mixes a different amount, and the dark rules further up the file
-     outrank a bare .notice--from selector. */
-  .notice--from {
-    background: color-mix(in srgb, var(--tint) 9%, var(--glass));
-    border-color: color-mix(in srgb, var(--tint) 32%, var(--glass-line));
-  }
-  .notice--new  { border-color: color-mix(in srgb, var(--tint) 46%, var(--glass-line)); }
-  .notice--mine { border-left-color: var(--brand); }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .notice--from {
-      background: color-mix(in srgb, var(--tint) 14%, var(--glass));
-    }
-  }
-  :root[data-theme="dark"] .notice--from {
-    background: color-mix(in srgb, var(--tint) 14%, var(--glass));
-  }
-
   /* Glass inside glass is mud: the inner sheet blurs an image that is already
      blurred and both stop looking like anything. A panel that sits inside
      another one goes back to being a plain surface — which is what the inner
@@ -6001,12 +5720,11 @@ body::before {
   }
 
   /* Said again, because the reset above is a later rule of equal weight and
-     would otherwise take the colour off the two things whose colour is the
-     point of them. */
+     would otherwise take the colour off the things whose colour is the point
+     of them. */
   .alert--success { background: var(--brand-soft); }
   .alert--error   { background: var(--danger-soft); }
   .alert--warning { background: var(--warn-soft); }
-  .notice--from   { background: color-mix(in srgb, var(--tint) 9%, var(--surface)); }
 }
 
 /* --------------------------------------------------------------------------
@@ -6350,9 +6068,9 @@ body::before {
 /* Unread, and from a person: washed in their colour. Read rows keep the plain
    surface — what you have already seen should stop asking for attention. */
 .note--unread.note--from {
-  --tint: hsl(var(--hue, 210) 72% 52%);
-  --tint-ink: hsl(var(--hue, 210) 48% 32%);
-  background: color-mix(in srgb, var(--tint) 9%, var(--surface));
+  --tint: var(--brand);
+  --tint-ink: var(--text);
+  background: var(--surface);
   border-color: color-mix(in srgb, var(--tint) 32%, var(--line));
   box-shadow: var(--shadow-2);
 }
@@ -6364,7 +6082,7 @@ body::before {
 /* Nobody caused it — the app spoke. It takes the brand rather than borrowing
    somebody else's colour. */
 .note--unread.note--app {
-  background: color-mix(in srgb, var(--brand) 7%, var(--surface));
+  background: var(--surface);
   border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
   box-shadow: var(--shadow-2);
 }
@@ -6411,7 +6129,7 @@ body::before {
   place-items: center;
   border-radius: 999px;
   background: var(--pill);
-  color: #fff;
+  color: var(--text-2);
   box-shadow: 0 0 0 2.5px var(--surface);
 }
 .note__kind svg { width: 11px; height: 11px; }
@@ -6426,7 +6144,7 @@ body::before {
 }
 .note__kind--emoji .rx { vertical-align: 0; }
 
-.note--unread.note--from .note__kind { background: var(--tint); }
+.note--unread.note--from .note__kind { background: var(--tint); color: var(--brand-ink); }
 .note--unread.note--from .note__kind--emoji { background: var(--surface); }
 
 /* ---- What it says ---- */
@@ -6473,13 +6191,13 @@ body::before {
    makes for a notice. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .note--unread.note--from {
-    --tint-ink: hsl(var(--hue, 210) 72% 78%);
-    background: color-mix(in srgb, var(--tint) 15%, var(--surface));
+    --tint-ink: var(--text);
+    background: var(--surface);
   }
 }
 :root[data-theme="dark"] .note--unread.note--from {
-  --tint-ink: hsl(var(--hue, 210) 72% 78%);
-  background: color-mix(in srgb, var(--tint) 15%, var(--surface));
+  --tint-ink: var(--text);
+  background: var(--surface);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -6632,7 +6350,7 @@ body::before {
    the title between them were most of it. The dock sits lower and smaller,
    the bar loses a little height, and the big title is a normal heading.
    -------------------------------------------------------------------------- */
-@media (max-height: 520px) and (orientation: landscape) and (max-width: 859px) {
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 767px) {
   :root { --appbar-h: 48px; --tabbar-h: 62px; }
   .tabbar { bottom: calc(var(--safe-b) + 6px); }
   .tabbar .tab { height: 42px; }
@@ -6663,7 +6381,8 @@ body::before {
   margin-bottom: var(--sp-4);
   padding: var(--sp-4);
   border-radius: var(--r-xl);
-  background: color-mix(in srgb, var(--brand) var(--holiday-mix), var(--surface));
+  background: var(--surface);
+  border: 1px solid var(--line);
   color: inherit;
   text-decoration: none;
   overflow: hidden;
@@ -6722,7 +6441,6 @@ body::before {
 }
 
 /* A thought for the day (hub/_quote.html). */
-.daily--quote { background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
 .daily__kicker { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--brand); }
 .daily__kicker svg { width: 14px; height: 14px; }
 .daily__quote { margin: var(--sp-2) 0 0; font-size: 17px; line-height: 1.4; font-weight: 600; letter-spacing: -.2px; }
@@ -7759,11 +7477,6 @@ body::before {
 .catalogue-picker { display: grid; gap: .4rem; margin-bottom: 1rem; font-weight: 600; min-width: 0; }
 
 /* Five primary destinations share readable labels and an unread badge. */
-:root { --clock-metal-hi: #edf2ed; --clock-metal: #becdc2; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --clock-metal-hi: #7b8595; --clock-metal: #303641; }
-}
-:root[data-theme="dark"] { --clock-metal-hi: #7b8595; --clock-metal: #303641; }
 .tabbar__inner { width: min(440px, calc(100vw - 2 * var(--gutter))); }
 .tabbar .tab { flex: 1; min-width: 0; flex-direction: column; gap: 4px; height: 58px; padding: 5px 8px; }
 .tabbar .tab__label, .tabbar .tab.is-active .tab__label { display: block; font-size: 11px; }
@@ -7846,33 +7559,31 @@ body::before {
   .search-heading__actions .btn { flex:1; }
 }
 
-/* The Home festival banner is the only seasonal decoration. */
-.festival-hero { margin: 0 0 24px; overflow: hidden; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); }
-.festival-hero__scene { position: relative; height: clamp(185px, 24vw, 260px); overflow: hidden; background: #153c39; color: #fff; }
-.festival-hero__art { width: 100%; height: 100%; object-fit: cover; object-position: center bottom; display: block; }
-/* No shade over the picture (cards stay flat, no gradients): the words carry their own shadow instead. */
-.festival-hero__wish { position: absolute; z-index: 1; top: 25%; left: clamp(20px, 4vw, 42px); max-width: 58%; }
-.festival-hero__wish>p { font-size: 10px; font-weight: 750; letter-spacing: .18em; margin: 0 0 8px; text-shadow: 0 1px 4px rgba(0,0,0,.55); }
-.festival-hero__wish h2 { margin: 0; font-size: clamp(26px, 4vw, 44px); line-height: 1.1; letter-spacing: -.035em; text-wrap: balance; text-shadow: 0 1px 10px rgba(0,0,0,.5); }
-.festival-hero__story { padding: 18px 24px 22px; }
-.festival-hero__story>span { display: block; color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 750; }
-.festival-hero__story>p { margin: 7px 0 0; max-width: 85ch; font-size: 14px; line-height: 1.65; color: var(--text-2); }
+/* A compact, illustrated festival scene with readable copy and continuous live objects. */
+.festival-hero { margin: 0 0 24px; overflow: hidden; border-radius: 24px; border: 1px solid var(--line); background: var(--surface); }
+.festival-hero__scene { position: relative; min-height: 260px; overflow: hidden; background: #17362f; color: #fff; display: flex; align-items: center; }
+.festival-hero__art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center bottom; display: block; }
+.festival-hero__scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(16,28,40,.72), rgba(16,28,40,.58) 65%, rgba(16,28,40,0)); }
+.festival-hero__wish { position: relative; z-index: 2; width: 60%; padding: 36px 0 36px 32px; }
+.festival-hero__wish>p { font-size: 10px; color: #ffe6b1; font-weight: 700; letter-spacing: .16em; margin: 0 0 10px; }
+.festival-hero__wish h2 { margin: 0; color: #fffaf0; font-size: 40px; line-height: 1.15; font-weight: 700; letter-spacing: -.03em; text-wrap: balance; overflow-wrap: anywhere; text-shadow: 0 1px 8px rgba(0,0,0,.3); }
+.festival-hero__story { padding: 20px 24px; }
+.festival-hero__story>span { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+.festival-hero__story>span::before { content: ""; flex: none; width: 4px; height: 12px; border-radius: 2px; background: var(--brand); }
+.festival-hero__story>p { margin: 5px 0 0; max-width: 85ch; font-size: 14px; line-height: 1.65; color: var(--text-2); }
 @media (max-width: 560px) {
-  .festival-hero { margin-bottom: 20px; border-radius: 16px; }
-  .festival-hero__scene { height: 104px; }
-  .festival-hero__art { object-position: 65% bottom; }
-  .festival-hero__wish { top: 14px; left: 16px; max-width: 70%; }
-  .festival-hero__wish>p { font-size: 9px; margin-bottom: 5px; }
-  .festival-hero__wish h2 { font-size: 24px; }
-  .festival-hero__story { padding: 8px 14px 10px; }
-  .festival-hero__story>p { font-size: 12px; line-height: 1.5; margin-top: 4px; }
+  .festival-hero { margin-bottom: 20px; border-radius: 18px; }
+  .festival-hero__scene { min-height: 104px; }
+  .festival-hero__art { object-position: center bottom; }
+  .festival-hero__wish { width: 60%; padding: 13px 0 13px 16px; }
+  .festival-hero__wish>p { font-size: 9px; margin-bottom: 5px; line-height: 1.4; }
+  .festival-hero__wish h2 { font-size: 24px; line-height: 27px; }
+  .festival-hero__wish--long h2 { font-size: 19px; line-height: 23px; }
+  .festival-hero__story { padding: 12px 16px; }
+  .festival-hero__story>p { font-size: 12px; line-height: 18px; }
 }
 @media print { .festival-hero { display: none; } }
-
-/* Live objects are separate from the illustrated landscape. */
 .festival-live { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-.festival-hero__wish { z-index: 2; }
-.festival-hero__story { position: relative; }
 .festival-kite { animation: festival-kite 5.5s ease-in-out infinite alternate; }
 .festival-kite--gold { animation-delay: -2.3s; animation-duration: 7s; }
 .festival-swing-seat { transform-origin: 865px 72px; transform-box: view-box; animation: festival-swing 3.6s ease-in-out infinite alternate; }
@@ -7882,36 +7593,38 @@ body::before {
 .festival-flags { transform-box: fill-box; transform-origin: center top; animation: festival-flags 3.4s ease-in-out infinite alternate; }
 .festival-bell { transform-origin: 0 0; animation: festival-bell 5s ease-in-out infinite alternate; }
 .festival-feather { animation: festival-kite 7s ease-in-out infinite alternate; }
-.festival-powder { transform-box: fill-box; transform-origin: center; animation: festival-powder 6s ease-in-out infinite alternate; }
-.festival-petals { animation: festival-petals 11s linear infinite; }
+.festival-powder { transform-box: fill-box; transform-origin: center; animation: festival-powder 4s ease-in-out infinite alternate; }
+.festival-petals { animation: festival-petals 10s linear infinite; }
 .festival-reflection { animation: festival-reflection 4s ease-in-out infinite alternate; }
-.festival-butterfly { transform-box: fill-box; transform-origin: center; animation: festival-butterfly 4s ease-in-out infinite alternate; }
-.festival-confetti { animation: festival-petals 10s linear infinite; }
-.festival-stars { animation: festival-glow 4s ease-in-out infinite alternate; }
+.festival-butterfly { transform-box: fill-box; transform-origin: center; animation: festival-butterfly 3s ease-in-out infinite alternate; }
+.festival-confetti { animation: festival-petals 8s linear infinite; }
+.festival-stars, .festival-halo { animation: festival-glow 3s ease-in-out infinite alternate; }
+.festival-incense { animation: festival-incense 6s ease-in-out infinite; }
+.festival-thread { animation: festival-thread 5s ease-in-out infinite alternate; }
 .festival-delay { animation-delay: -2.5s; }
 .festival-live * { animation-play-state: paused; }
 [data-motion-ready="true"]:not([data-motion-paused="true"]) .festival-live * { animation-play-state: running; }
 @keyframes festival-kite { from { transform: translate(-7px, 8px) rotate(-7deg); } to { transform: translate(12px, -10px) rotate(8deg); } }
 @keyframes festival-swing { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
 @keyframes festival-flame { from { transform: scale(.88, 1.06); opacity: .8; } to { transform: scale(1.1, .92); opacity: 1; } }
-@keyframes festival-snow { from { transform: translate(0, -35px); opacity: 0; } 15%, 80% { opacity: .85; } to { transform: translate(-20px, 100px); opacity: 0; } }
-@keyframes festival-firework { 0%, 65%, 100% { transform: scale(.3); opacity: 0; } 12% { opacity: .9; } 55% { transform: scale(1.2); opacity: 0; } }
+@keyframes festival-snow { from { transform: translate(0, -90px); opacity: 0; } 15%, 75% { opacity: .85; } to { transform: translate(-30px, 300px); opacity: 0; } }
+@keyframes festival-firework { 0%, 100% { transform: scale(.2); opacity: 0; } 20% { opacity: .85; } 70% { transform: scale(1.2); opacity: 0; } }
 @keyframes festival-flags { from { transform: skewX(-4deg) scaleY(.96); } to { transform: skewX(4deg) scaleY(1.03); } }
 @keyframes festival-bell { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
-@keyframes festival-powder { from { transform: translate(0, 8px) scale(.9); opacity: .3; } to { transform: translate(-12px, -8px) scale(1.12); opacity: .6; } }
-@keyframes festival-petals { from { transform: translate(8px, -25px); opacity: 0; } 15%, 75% { opacity: .85; } to { transform: translate(-45px, 105px); opacity: 0; } }
-@keyframes festival-reflection { from { opacity: .25; transform: translateX(-5px); } to { opacity: .7; transform: translateX(7px); } }
-@keyframes festival-butterfly { from { transform: translate(-12px, 5px) scaleX(.65) rotate(-10deg); } to { transform: translate(18px, -12px) scaleX(1) rotate(10deg); } }
-@keyframes festival-glow { from { opacity: .25; } to { opacity: .85; } }
-@media (prefers-reduced-motion: reduce) {
-  .festival-live * { animation: none !important; }
-}
+@keyframes festival-powder { from { transform: translate(0, 8px) scale(.85); opacity: .3; } to { transform: translate(-12px, -8px) scale(1.12); opacity: .7; } }
+@keyframes festival-petals { from { transform: translate(8px, -80px); opacity: 0; } 15%, 75% { opacity: .85; } to { transform: translate(-45px, 320px); opacity: 0; } }
+@keyframes festival-reflection { from { opacity: .3; transform: translateX(-5px); } to { opacity: .8; transform: translateX(7px); } }
+@keyframes festival-butterfly { from { transform: translate(-12px, 5px) scaleX(.55) rotate(-10deg); } to { transform: translate(18px, -12px) scaleX(1) rotate(10deg); } }
+@keyframes festival-glow { from { opacity: .5; } to { opacity: .95; } }
+@keyframes festival-incense { 0%, 100% { opacity: 0; transform: translateY(8px); } 30%, 65% { opacity: .6; } 90% { opacity: 0; transform: translateY(-18px); } }
+@keyframes festival-thread { from { transform: translateY(3px); } to { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { .festival-live * { animation: none !important; } }
 
 /* Workplace pay wallet: one selected job, with its own payment actions. */
 .pay-dashboard { display: grid; gap: 24px; min-width: 0; }
 /* The wallet: the app's bank cards (mobile/src/screens/Pay.tsx), straight on
-   the page — no dark tray behind them — each on a gradient of its job's own
-   hue (--wp-hue, the workplace's colour), the chosen one sharp and full size,
+   the page — no dark tray behind them — each on a gradient of its workplace's
+   own hue, the chosen one sharp and full size,
    its neighbours a little smaller and softened as they peek in. */
 .pay-wallet { min-width: 0; color: var(--text); }
 .pay-wallet__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -7947,7 +7660,7 @@ body::before {
 .pay-workplace__chiprow { display: flex; align-items: center; justify-content: space-between; }
 .pay-chip { width: 44px; height: 33px; flex: none; }
 .pay-contactless { width: 22px; height: 22px; color: rgba(255, 255, 255, .85); }
-.pay-workplace__amount { display: block; font-size: clamp(24px, 5.6vw, 30px); line-height: 1.15; font-weight: 800; letter-spacing: .04em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pay-workplace__amount { display: block; font-size: clamp(28px, 7vw, 34px); line-height: 1.15; font-weight: 900; letter-spacing: .015em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pay-workplace__bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .pay-workplace__field { display: grid; gap: 2px; min-width: 0; }
 .pay-workplace__field--end { text-align: right; flex: none; }
@@ -7961,7 +7674,7 @@ body::before {
 .pay-wallet__dots { display: flex; flex: 1; justify-content: center; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .pay-wallet__dots button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 0; background: none; cursor: pointer; }
 .pay-wallet__dots span { width: 6px; height: 6px; border-radius: 3px; background: var(--line); transition: width var(--dur-2) var(--ease); }
-.pay-wallet__dots button[aria-pressed="true"] span { width: 18px; background: var(--brand); }
+.pay-wallet__dots button[aria-pressed="true"] span { width: 18px; background: var(--wp-css, var(--brand)); }
 .pay-details { display: grid; gap: 16px; min-width: 0; }
 .pay-details[hidden] { display: none; }
 .pay-details__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -8005,19 +7718,137 @@ body::before {
 
 /* Profile and account preferences: restrained surfaces and generous touch targets. */
 .profile-minimal, .profile-settings { width: 100%; max-width: 560px; margin-inline: auto; }
-.profile-minimal { background: var(--surface); border-radius: 24px; }
-.profile-minimal .profile-id { padding: 24px 24px 18px; }
-.profile-minimal .profile-id__name { white-space: normal; overflow-wrap: anywhere; margin-top: 8px; font-size: 24px; letter-spacing: -.025em; }
-.profile-minimal .profile-id__meta { overflow-wrap: anywhere; max-width: 100%; }
-.profile-minimal .photo-menu__btn { padding: 4px; }
-.profile-minimal .photo-menu__btn .avatar { width: 80px; height: 80px; font-size: 32px; }
-.profile-minimal .photo-menu__badge { width: 28px; height: 28px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); right: 1px; bottom: 3px; }
+.profile-minimal { background: var(--surface); border-radius: 24px; border: 1px solid var(--line); box-shadow: var(--float-1); }
+/* Floating, but crisp: a tight contact shadow and one short lift — never a
+   wide blurred glow. On the dark theme a shadow cannot be seen on black, so
+   the hairline round each piece carries the lift there. */
+:root { --float-1: 0 1px 2px rgba(0, 0, 0, .05), 0 10px 24px -14px rgba(0, 0, 0, .22); --float-2: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 14px -8px rgba(0, 0, 0, .25); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --float-1: none; --float-2: 0 6px 14px -8px rgba(0, 0, 0, .7); } }
+:root[data-theme="dark"] { --float-1: none; --float-2: 0 6px 14px -8px rgba(0, 0, 0, .7); }
+.profile-minimal .profile-id { padding: 0 20px 22px; gap: 2px; }
+.profile-minimal .profile-id__name { white-space: normal; overflow-wrap: anywhere; margin-top: 10px; font-size: 22px; letter-spacing: -.025em; }
+.profile-minimal .profile-id__meta { overflow-wrap: anywhere; max-width: 100%; font-size: 14px; }
+.profile-minimal .photo-menu { position: relative; z-index: 1; margin-top: -50px; }
+.profile-minimal .photo-menu__btn { padding: 0; }
+.profile-minimal .photo-menu__btn .avatar { width: 96px; height: 96px; font-size: 38px; box-shadow: 0 0 0 4px var(--surface), var(--float-2); }
+.profile-minimal .photo-menu__badge { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); right: -2px; bottom: 2px; box-shadow: var(--float-2); }
 .profile-minimal .photo-menu .avatar__live { display: none; }
-.profile-minimal__edit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; min-height: 44px; margin-top: 10px; border-radius: 22px; background: var(--brand-soft); color: var(--brand-strong); font-size: 13px; font-weight: 600; text-decoration: none; }
-.profile-minimal__edit svg { width: 14px; height: 14px; }
-.profile-minimal__curve { display: block; width: 100%; height: 30px; color: #7c3aed; opacity: .2; }
-:root[data-theme="dark"] .profile-minimal__curve { color: #a78bfa; opacity: .35; }
+
+/* The cover: one flat soft-violet panel with two flat hills across it,
+   floating inside the card — inset from its edges, rounded all round —
+   with your face over its lower edge. Every fill is a flat colour — no
+   gradients — and the dark theme takes the same shapes a shade down. */
+.profile-cover {
+  --cover: var(--surface-2);
+  position: relative;
+  justify-self: stretch;
+  height: 132px;
+  margin: 10px -10px 0;
+  border-radius: 18px;
+  background: var(--cover);
+  overflow: hidden;
+}
+.profile-cover__art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.profile-cover__hill--back  { fill: var(--surface-3); }
+.profile-cover__hill--front { fill: var(--line-strong); }
+.profile-cover__edit {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--float-2);
+}
+.profile-cover__edit:hover { background: var(--surface-2); text-decoration: none; }
+.profile-cover__edit svg { width: 14px; height: 14px; }
+
+/* Three figures under the name — icon, number, word — on a tile of their
+   own that floats a little off the card, split by hairlines. */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  max-width: 380px;
+  margin: 18px 0 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--float-2);
+}
+.profile-stats > li + li { border-left: 1px solid var(--line); }
+.profile-stat {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.profile-stat:hover { background: var(--surface-2); text-decoration: none; }
+.profile-stat svg { width: 20px; height: 20px; color: var(--text-2); margin-bottom: 2px; }
+.profile-stat strong { font-size: 19px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.profile-stat span { font-size: 13px; color: var(--muted); }
 .profile-minimal__menu { padding: 18px 0 8px; }
+
+/* ---- Inside an open section: easy to read ------------------------------
+   What a section holds sits on a soft inset of its own under the head, so
+   it reads as that section's and not as more of the card. Words a size up
+   and a shade darker; the lists' heads in plain words rather than small
+   capitals; Activity's counts as an even grid of tiles — the number big,
+   the word under it — instead of a ragged run of figures. */
+.profile-minimal .panel[open] > .panel__head .panel__title { font-weight: 600; color: var(--text); }
+.profile-minimal .panel > .panel__body {
+  margin: 0 14px 14px;
+  padding: 16px;
+  gap: 14px;
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+.profile-minimal .panel__body > p.muted,
+.profile-minimal .panel__body > .muted { margin: 0 !important; font-size: 14px; line-height: 1.55; color: var(--text-2); }
+.profile-minimal .panel__body .section-label { font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text); }
+.profile-minimal .panel__body .result-list { background: var(--surface); }
+/* Fields and plain buttons are filled with the inset's own grey elsewhere;
+   on the inset they take the card's colour, so they still stand out. */
+.profile-minimal .panel__body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea),
+.profile-minimal .panel__body .btn:not(.btn--primary):not(.btn--ghost):not(.btn--danger) { background-color: var(--surface) !important; }
+
+.profile-minimal .subfold { margin: 0 -16px; border-top: 1px solid var(--line); }
+.profile-minimal .subfold:last-child { margin-bottom: -16px; }
+.profile-minimal .subfold__head { min-height: 52px; padding: 0 16px; border-radius: 0; }
+.profile-minimal .subfold__head:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.profile-minimal .subfold:last-child:not([open]) > .subfold__head { border-radius: 0 0 18px 18px; }
+.profile-minimal .subfold__count { background: var(--surface); }
+.profile-minimal .subfold__body { margin: 0 16px 16px; }
+
+.profile-minimal .panel__body .lead-stat { padding: 8px 0 4px; border-bottom: 0; }
+.profile-minimal .panel__body .lead-stat__label { font-size: 13.5px; color: var(--text-2); }
+.profile-minimal .panel__body .tallies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; }
+.profile-minimal .panel__body .tally {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 12px 6px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: visible;
+}
+.profile-minimal .panel__body a.tally:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.profile-minimal .panel__body .tally__value { font-size: 21px; font-weight: 650; color: var(--text); }
+.profile-minimal .panel__body .tally__label { margin: 0; font-size: 12.5px; color: var(--text-2); }
 .profile-minimal__label, .profile-settings__label { font-size: 10px; letter-spacing: .14em; font-weight: 600; color: var(--muted); margin: 0; padding: 0 22px 6px; }
 .profile-minimal__row, .profile-minimal .panel__head { display: flex; align-items: center; gap: 18px; min-height: 60px; padding: 16px 22px; color: var(--text-2); text-decoration: none; }
 .profile-minimal__row:hover, .profile-minimal .panel__head:hover { background: var(--surface-2); }
@@ -8073,12 +7904,12 @@ body::before {
 .trend__key { display: inline-flex; align-items: center; gap: 6px; }
 .trend__dot { width: 8px; height: 8px; border-radius: 50%; }
 .trend__dot--now { background: var(--brand); }
-.trend__dot--then { background: var(--orange); }
+.trend__dot--then { background: var(--muted); }
 
 .trend__plot { position: relative; height: 178px; touch-action: pan-y; cursor: crosshair; user-select: none; -webkit-user-select: none; }
 .trend__svg { display: block; overflow: visible; }
 .trend__grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 6; }
-.trend__then { fill: none; stroke: var(--orange); stroke-width: 2; stroke-linecap: round; opacity: .9; }
+.trend__then { fill: none; stroke: var(--muted); stroke-dasharray: 5 4; stroke-width: 2; stroke-linecap: round; opacity: .9; }
 .trend__now { fill: none; stroke: var(--brand); stroke-width: 2.5; stroke-linecap: round; }
 .trend__pick { stroke: var(--brand); stroke-width: 1.2; stroke-dasharray: 4 4; }
 .trend__ring { fill: var(--surface); }
@@ -8110,11 +7941,299 @@ body::before {
   .sheet { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
   .sheet__figures, .sheet__shifts { min-width: 0; }
   .sheet__figures .summary-grid { margin-top: 0; }
-  /* Pay: the cards on the left, the chosen job's details on the right. */
-  .container--wide .pay-dashboard {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-4) var(--sp-6); align-items: start;
-  }
-  .container--wide .pay-dashboard > .pay-wallet { grid-column: 1; grid-row: 1; }
-  .container--wide .pay-dashboard > .pay-details { grid-column: 2; grid-row: 1; margin-top: 0; }
 }
 .sheet__figures > * + *, .sheet__shifts > * + * { margin-top: var(--sp-4); }
+
+/* ==========================================================================
+   41. The website — iPad and desktop
+
+   On a phone this is an app: a tab bar under the thumb, a pill switch at the
+   top of a section, screens that slide in. From iPad width up it is a
+   website instead: the five places are a menu in the header (§19), the
+   header and the page share one frame, a section's own pages are a tab
+   strip (iPad) or a sidebar (desktop), pages fade rather than slide, and a
+   footer closes every page.
+   ========================================================================== */
+
+@keyframes mw-page-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (min-width: 768px) {
+  :root { --gutter: 32px; }
+
+  /* The footer stays at the foot of a short page. */
+  body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+  body > .container { flex: 1 0 auto; width: 100%; }
+
+  /* A page arriving is a page loading: a quick fade, no sideways slide. */
+  body[data-arrive] > .container { animation: mw-page-fade .18s var(--ease) both; }
+
+  /* A section's pages (Clock, Timesheets, Pay, Settings; Search,
+     Catalogues) as a website's tab strip: words on an underline. */
+  .segments--places,
+  .segments--search {
+    max-width: none;
+    justify-content: flex-start;
+    gap: var(--sp-2);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .segments--places > .tab-slider { display: none; }
+  .segments--places .tab,
+  .segments--places.has-slider .tab.is-active {
+    flex: none;
+    min-height: 46px;
+    height: auto;
+    margin-bottom: -1px;
+    padding: 10px 14px;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    box-shadow: none;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .segments--places .tab:hover { color: var(--text); }
+  .segments--places .tab:active { transform: none; }
+  .segments--places .tab.is-active,
+  .segments--places.has-slider .tab.is-active { color: var(--text); border-bottom-color: var(--brand); background: none; box-shadow: none; }
+  .segments--places .tab svg { display: inline; }
+
+  /* List / Calendar: a small button group, not a phone's capsule. */
+  .segments--views,
+  .container--wide > .segments--views { max-width: 360px; border-radius: 12px; }
+  .segments--views .tab,
+  .segments--views > .tab-slider { border-radius: 9px; }
+  .segments--views .tab { min-height: 38px; }
+
+  /* Pay: every workplace's card in view at once, in a grid — nothing cut off
+     at the column's edge the way a phone's swipeable row peeks the next one.
+     A click picks one (app.js initPayWallet); its details follow below. */
+  .pay-wallet__rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--sp-4);
+    overflow: visible;
+    margin: 0;
+    padding: 4px;
+    scroll-snap-type: none;
+  }
+  .pay-wallet__rail::after,
+  .pay-wallet__controls { display: none; }
+  .pay-workplace,
+  .pay-workplace:only-child {
+    flex: none;
+    width: auto;
+    max-width: none;
+    aspect-ratio: auto;
+    min-height: 200px;
+    transform: none;
+    filter: none;
+    opacity: .72;
+    transition: opacity var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+  }
+  .pay-workplace:hover { opacity: .92; }
+  .pay-workplace[aria-selected="true"] { opacity: 1; box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--brand); }
+  .pay-workplace__amount { font-size: 32px; }
+
+}
+
+@media (min-width: 1024px) {
+  /* One frame for the header and the page under it. */
+  .appbar__inner,
+  .container--hub { max-width: 1200px; }
+
+  /* A section's pages: its tab strip becomes a sidebar beside the page, held
+     in view while the page scrolls, headed with the section's name. */
+  main.container:has(> .segments--places) {
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    column-gap: 48px;
+    align-items: start;
+  }
+  main.container:has(> .segments--places) > * { grid-column: 2; }
+  main.container:has(> .segments--places) > .segments--places + * { margin-top: 0; }
+  main.container:has(> .segments--places) > .segments--places {
+    grid-column: 1;
+    grid-row: 1 / span 60;
+    position: sticky;
+    top: calc(var(--safe-t) + var(--appbar-h) + var(--sp-5));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    overflow: visible;
+    border-bottom: 0;
+  }
+  main.container:has(> .segments--places) > .segments--places::before {
+    content: attr(aria-label);
+    padding: 4px 12px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  main.container:has(> .segments--places) > .segments--places .tab {
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 42px;
+    margin: 0;
+    padding: 9px 12px;
+    border-bottom: 0;
+    border-radius: 10px;
+    color: var(--text-2);
+  }
+  main.container:has(> .segments--places) > .segments--places .tab:hover { background: var(--surface-2); color: var(--text); }
+  main.container:has(> .segments--places) > .segments--places .tab.is-active { background: var(--brand-soft); color: var(--brand-strong); box-shadow: none; }
+  main.container:has(> .segments--places) > .segments--places .tab svg { width: 18px; height: 18px; }
+
+  /* The clock: the dial on one side, where you are and the buttons on the other. */
+  .clock { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 48px; align-items: start; }
+  .clock > * { grid-column: 2; }
+  .clock > .clock__head,
+  .clock > .alert,
+  .clock > .card { grid-column: 1 / -1; }
+  .clock > .clock-face { grid-column: 1; grid-row: span 6; margin: 0; }
+  .clock > .clock-settings { justify-content: flex-start; padding-left: 0; }
+  /* Every workplace in view at once: a desk has the room, and no thumb to swipe with. */
+  .clock .chips__scroll { flex-wrap: wrap; overflow: visible; }
+
+  /* The profile: who you are on the left, your space on the right. */
+  main.container:has(> .profile-minimal) { max-width: 1000px; }
+  .profile-minimal { max-width: none; display: grid; grid-template-columns: 300px minmax(0, 1fr); overflow: hidden; }
+  .profile-minimal .profile-id { grid-column: 1; grid-row: 1 / span 2; align-self: stretch; align-content: start; padding: 0 24px 32px; border-right: 1px solid var(--line); }
+  .profile-cover { margin: 12px -12px 0; border-radius: 18px; }
+  .profile-minimal__menu { grid-column: 2; padding: 24px 0 16px; }
+}
+
+/* ==========================================================================
+   42. The footer — on every page (templates/_footer.html)
+
+   Who we are, where to go, the small print, and the app. On iPad and up
+   each store has a QR code to scan from the screen; on a phone the codes
+   give way to two buttons, since a phone cannot scan itself, and the
+   footer keeps clear of the floating tab bar.
+   ========================================================================== */
+.site-footer {
+  flex: none;
+  margin-top: var(--sp-8);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+}
+.site-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--sp-7, 40px) max(var(--gutter), var(--safe-r)) calc(var(--tabbar-h) + var(--safe-b) + var(--sp-5)) max(var(--gutter), var(--safe-l));
+}
+.site-footer__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-6) var(--sp-5); }
+.site-footer__about,
+.site-footer__apps { grid-column: 1 / -1; }
+.site-footer__brand { display: inline-flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.site-footer__brand:hover { text-decoration: none; }
+.site-footer__mark { display: block; flex: none; }
+.site-footer__mark svg { display: block; width: 100%; height: 100%; }
+.site-footer__tagline { max-width: 34ch; margin: var(--sp-3) 0 0; line-height: 1.55; }
+.site-footer__heading { margin: 0 0 var(--sp-3); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+.site-footer__list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.site-footer__list a { color: var(--text-2); }
+.site-footer__list a:hover { color: var(--brand-strong); text-decoration: none; }
+.site-footer__hint { display: none; margin: 0 0 var(--sp-3); }
+.site-footer__stores { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.store {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+.store:hover { text-decoration: none; }
+/* A white tile in either theme: a code is read dark on light. */
+.store__qr { display: none; width: 104px; height: 104px; padding: 6px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+.store__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 16px 6px 12px;
+  border-radius: 12px;
+  background: var(--text);
+  color: var(--bg);
+  transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease);
+}
+.store:hover .store__label { opacity: .88; }
+.store:active .store__label { transform: scale(.97); }
+.store__label svg { flex: none; width: 22px; height: 22px; }
+.store__label > span { display: grid; font-size: 15px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
+.store__label small { font-size: 10.5px; font-weight: 500; letter-spacing: .02em; opacity: .8; }
+.site-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-5);
+  margin-top: var(--sp-7, 40px);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+/* On a phone the page's own bottom room is the footer's now. */
+@media (max-width: 767px) {
+  body > .container { padding-bottom: var(--sp-6); }
+}
+
+@media (min-width: 768px) {
+  .site-footer__hint { display: block; }
+  .store__qr { display: block; }
+  .store__label { min-height: 44px; padding: 5px 14px 5px 10px; }
+  .store__label > span { font-size: 14px; }
+  .site-footer__stores { gap: var(--sp-5); }
+  .site-footer__top { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .site-footer__about { grid-column: auto; }
+  .site-footer__apps { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1024px) {
+  .site-footer__top { grid-template-columns: minmax(0, 1.3fr) minmax(0, .8fr) minmax(0, .8fr) auto; gap: var(--sp-6) var(--sp-8); }
+  .site-footer__apps { grid-column: auto; }
+}
+
+
+/* ==========================================================================
+   43. Friend circles — above the notice board (accounts/_friend_stack.html)
+
+   Your friends as a row of overlapping faces, each ringed in the page's own
+   colour so one circle reads as sitting on the next. Just the faces — no
+   count, no names. Only shown — not a button. The app draws the same row
+   (mobile/src/ui/FriendStack.tsx).
+   ========================================================================== */
+.friend-stack {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp-4);
+  padding: 0 4px;
+}
+.friend-stack__faces { display: flex; align-items: center; flex: none; padding-left: 12px; }
+.friend-stack__faces > .avatar {
+  width: 46px;
+  height: 46px;
+  margin-left: -12px;
+  box-shadow: 0 0 0 3px var(--bg);
+  font-size: 17px;
+}
+.friend-stack__faces > .avatar .avatar__img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+/* Each face sits over the one after it, as in a hand of cards. */
+.friend-stack__faces > :nth-child(1) { z-index: 6; }
+.friend-stack__faces > :nth-child(2) { z-index: 5; }
+.friend-stack__faces > :nth-child(3) { z-index: 4; }
+.friend-stack__faces > :nth-child(4) { z-index: 3; }
+.friend-stack__faces > :nth-child(5) { z-index: 2; }
+.friend-stack__faces > :nth-child(6) { z-index: 1; }
+@media (max-width: 480px) {
+  .friend-stack__faces { padding-left: 11px; }
+  .friend-stack__faces > .avatar { width: 40px; height: 40px; margin-left: -11px; font-size: 15px; }
+}

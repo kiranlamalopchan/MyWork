@@ -77,7 +77,7 @@ export default function EditProfile() {
           <Field label="Display name" help={`How you appear on the board. Blank means ${username.trim() || me.username}.`}>
             <Input placeholder="e.g. Kiran L." value={display} onChangeText={setDisplay} maxLength={40} autoComplete="name" testID="display-name" />
           </Field>
-          <Field label="Email">
+          <Field label="Email" help="Used to send a reset link if you forget your password.">
             <Input placeholder="you@example.com" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
           </Field>
           <Field label="Phone">

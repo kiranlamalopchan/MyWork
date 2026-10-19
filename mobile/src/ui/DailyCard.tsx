@@ -16,14 +16,15 @@ import type { Daily } from "@/api/types";
 
 import { Card } from "./index";
 import { useLayout } from "./layout";
-import { mix, sp, useTheme } from "./theme";
+import { sp, useTheme } from "./theme";
+import { Fold, FoldChevron } from "./Disclosure";
 
 type Props = { compact?: boolean; style?: StyleProp<ViewStyle> };
 
 export function QuoteCard({ quote, compact, style }: { quote: Daily["quote"] } & Props) {
   const t = useTheme();
   return (
-    <Card style={[compact && styles.compactCard, style]} pad={!compact} tint={mix(t.brand, t.surface, 0.08)} testID="daily-quote">
+    <Card style={[compact && styles.compactCard, style]} pad={!compact} testID="daily-quote">
       <View style={styles.kicker}>
         <Ionicons name="sparkles-outline" size={compact ? 13 : 14} color={t.brandStrong} />
         <Text style={[styles.kickerText, compact && styles.kickerCompact, { color: t.brandStrong }]}>Thought for the day</Text>
@@ -45,14 +46,13 @@ export function JokeCard({ joke, compact, style }: { joke: Daily["joke"] } & Pro
           <Text style={[styles.kickerText, compact && styles.kickerCompact, { color: t.brandStrong }]}>A little laugh</Text>
         </View>
         <Text style={[styles.setup, compact && styles.setupCompact, { color: t.text }]}>{joke.setup}</Text>
-        {told ? (
+        <View style={styles.reveal}>
+          <FoldChevron open={told} size={14} colour={t.brandStrong} />
+          <Text style={{ color: t.brandStrong, fontSize: 13, fontWeight: "700" }}>{told ? "Hide" : "Punchline"}</Text>
+        </View>
+        <Fold open={told}>
           <Text style={[styles.punchline, compact && styles.setupCompact, { color: t.text2 }]}>{joke.punchline}</Text>
-        ) : (
-          <View style={styles.reveal}>
-            <Ionicons name="chevron-down" size={14} color={t.brandStrong} />
-            <Text style={{ color: t.brandStrong, fontSize: 13, fontWeight: "700" }}>Punchline</Text>
-          </View>
-        )}
+        </Fold>
       </Pressable>
     </Card>
   );

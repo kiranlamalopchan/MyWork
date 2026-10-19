@@ -19,7 +19,7 @@ type Session = {
   signIn: (username: string, password: string) => Promise<void>;
   /** With a token the phone's lock has just released (see auth/biometric). */
   signInWithToken: (token: string) => Promise<void>;
-  register: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, email?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   setMe: (me: Me) => void;
@@ -112,7 +112,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           throw e;
         }
       },
-      register: async (username, password) => signedIn(await auth.register(username, password)),
+      register: async (username, password, email) => signedIn(await auth.register(username, password, email)),
       signOut: async () => {
         // Signed in by the phone's lock next time? Then the token stays
         // alive on the server; only this screen forgets it.

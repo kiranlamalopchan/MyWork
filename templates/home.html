@@ -5,16 +5,16 @@
 
 {% block content %}
 {% if festival_banner %}
-<section class="festival-hero" data-festival-motion aria-labelledby="festival-greeting">
+<section class="festival-hero" data-festival="{{ festival_banner.id }}" data-festival-motion aria-labelledby="festival-greeting">
   <div class="festival-hero__scene festival-hero__scene--{{ festival_banner.id }}">
     <img src="{% if festival_banner.uploaded_art %}{{ festival_banner.uploaded_art }}{% else %}{% static festival_banner.art %}{% endif %}" alt="" class="festival-hero__art" fetchpriority="high">
     {% include "holidays/_banner_motion.html" %}
-    <div class="festival-hero__wish">
-      <p>CELEBRATING TOGETHER</p>
+    <div class="festival-hero__wish{% if festival_banner.greeting|length > 28 %} festival-hero__wish--long{% endif %}">
+      <p>SEASON OF TOGETHERNESS</p>
       <h2 id="festival-greeting">{{ festival_banner.greeting }}</h2>
     </div>
   </div>
-  <div class="festival-hero__story"><span>About {{ festival_banner.name }}</span><p>{{ festival_banner.description }}</p></div>
+  <div class="festival-hero__story"><span>The spirit of {{ festival_banner.name }}</span><p>{{ festival_banner.description }}</p></div>
 </section>
 {% endif %}
 
@@ -66,6 +66,8 @@
 
 </aside>
 <div class="hub__main">
+
+{% include "accounts/_friend_stack.html" %}
 
 <section class="board" aria-labelledby="board-title">
   <div class="board__head">

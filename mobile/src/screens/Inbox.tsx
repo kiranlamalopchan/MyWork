@@ -16,7 +16,7 @@ import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen, usePullRef
 import { underRefresh, WithDepth } from "@/ui/depth";
 import { SkeletonNotifications } from "@/ui/Skeleton";
 import { useLayout } from "@/ui/layout";
-import { hsl, mix, radius, sp, useTheme } from "@/ui/theme";
+import { alpha, sp, useTheme } from "@/ui/theme";
 
 const ICONS: Record<Notification["kind"], keyof typeof Ionicons.glyphMap> = {
   notice: "chatbubble-outline", comment: "chatbubbles-outline", reply: "return-down-forward-outline", reaction: "happy-outline", timesheet: "time-outline",
@@ -94,8 +94,7 @@ export default function Inbox() {
         renderItem={({ item, index }) => {
           const heading = index === 0 || day(item.created) !== day(rows[index - 1].created) ? day(item.created) : null;
           const unread = wasUnread.current.has(item.id);
-          const from = !!item.actor;
-          const titleInk = unread && from ? hsl(item.hue, t.dark ? 72 : 48, t.dark ? 78 : 32) : t.text;
+          const titleInk = t.text;
           return (
             <>
               {heading ? (
@@ -103,12 +102,11 @@ export default function Inbox() {
                   <Text style={{ color: t.text, fontSize: 17, fontWeight: "800", letterSpacing: -0.4 }}>{heading}</Text>
                 </View>
               ) : null}
-              <Card pad={false} tint={unread && !from ? mix(t.brand, t.surface, 0.07) : undefined} style={{ marginBottom: sp[2], borderColor: unread ? from ? `hsla(${item.hue}, 72%, 52%, 0.32)` : mix(t.brand, t.line, 0.28) : t.line }}>
-                {unread && from ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius.lg - 1, backgroundColor: `hsla(${item.hue}, 72%, 52%, ${t.dark ? 0.15 : 0.09})` }]} /> : null}
+              <Card pad={false} style={{ marginBottom: sp[2], borderColor: unread ? alpha(t.brand, .32) : t.line }}>
                 <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.8 : 1 }]}>
                   <View>
                     {item.actor ? (
-                      <Avatar person={item.actor} size={40} live={false} ring={unread ? `hsla(${item.hue}, 72%, 52%, 0.22)` : undefined} />
+                      <Avatar person={item.actor} size={40} live={false} ring={unread ? alpha(t.brand, .22) : undefined} />
                     ) : (
                       <View style={[styles.mark, { backgroundColor: t.brandSoft }]}>
                         <Ionicons name="time-outline" size={18} color={t.brand} />
@@ -118,8 +116,8 @@ export default function Inbox() {
                       item.emoji ? (
                         <View style={[styles.kind, { backgroundColor: t.surface }]}><Text style={{ fontSize: 13 }}>{item.emoji}</Text></View>
                       ) : (
-                        <View style={[styles.kind, { backgroundColor: unread ? hsl(item.hue, 72, 52) : t.pill }]}>
-                          <Ionicons name={ICONS[item.kind] || "notifications-outline"} size={11} color={unread ? "#fff" : t.text2} />
+                        <View style={[styles.kind, { backgroundColor: unread ? t.brand : t.pill }]}>
+                          <Ionicons name={ICONS[item.kind] || "notifications-outline"} size={11} color={unread ? t.brandInk : t.text2} />
                         </View>
                       )
                     ) : null}
@@ -130,8 +128,8 @@ export default function Inbox() {
                     <Text style={{ color: t.muted, fontSize: 12, marginTop: 2 }}>{item.ago}</Text>
                   </View>
                   {unread ? (
-                    <View style={[styles.dotRing, { backgroundColor: from ? `hsla(${item.hue}, 72%, 52%, 0.18)` : t.brandSoft }]}>
-                      <View style={[styles.dot, { backgroundColor: from ? hsl(item.hue, 72, 52) : t.brand }]} />
+                    <View style={[styles.dotRing, { backgroundColor: t.brandSoft }]}>
+                      <View style={[styles.dot, { backgroundColor: t.brand }]} />
                     </View>
                   ) : (
                     <Ionicons name="chevron-forward" size={18} color={t.lineStrong} style={{ marginTop: 5 }} />

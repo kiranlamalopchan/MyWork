@@ -10,7 +10,7 @@ from datetime import date
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
+from apps.accounts.forms import RegistrationForm
 from django.conf import settings
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -34,6 +34,7 @@ def home(request):
     to know and nobody wants to go looking for, which is the whole argument
     for it being on the page you land on rather than a screen you navigate to.
     """
+    from apps.accounts.models import Friendship
     from apps.stories.views import tray_for
     from .seasons import home_festival_banner
 
@@ -56,6 +57,7 @@ def home(request):
         today=today,
         daily=daily(today),
         festival_banner=home_festival_banner(),
+        friends=Friendship.faces_for(request.user),
     ))
 
 
@@ -65,7 +67,7 @@ def register(request):
         return redirect("home")
 
     if request.method == "POST":
-        form = UserCreationForm(request.POST)
+        form = RegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
@@ -73,13 +75,13 @@ def register(request):
             return redirect("home")
         messages.error(request, "Please correct the errors below.")
     else:
-        form = UserCreationForm()
+        form = RegistrationForm()
 
     return render(request, "registration/register.html", {"form": form})
 
 
 # The date the policy last changed. Bump it when privacy.html changes in substance.
-PRIVACY_EFFECTIVE = date(2026, 9, 17)
+PRIVACY_EFFECTIVE = date(2026, 10, 19)
 
 
 def privacy(request):

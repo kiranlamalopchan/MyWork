@@ -17,6 +17,7 @@ import { useLayout } from "@/ui/layout";
 import { NoticeCard } from "@/ui/NoticeCard";
 import { NoticeFold } from "@/ui/NoticeFold";
 import { radius, sp, useTheme } from "@/ui/theme";
+import Animated, { Easing, FadeInDown, FadeOut } from "react-native-reanimated";
 
 export default function Board() {
   const t = useTheme();
@@ -39,7 +40,7 @@ export default function Board() {
           ref={list}
           data={expanded ? notices : notices.slice(0, 2)}
           keyExtractor={(n) => String(n.id)}
-          renderItem={({ item }) => <NoticeCard notice={item} />}
+          renderItem={({ item, index }) => index < 2 ? <NoticeCard notice={item} /> : <Animated.View entering={FadeInDown.duration(380).easing(Easing.bezier(0.32, 0.72, 0, 1))} exiting={FadeOut.duration(200)}><NoticeCard notice={item} /></Animated.View>}
           contentContainerStyle={[layout.column, { paddingTop: sp[3] + under.padTop, gap: sp[4], paddingBottom: layout.bottom + sp[6] }]}
           keyboardShouldPersistTaps="handled"
           onScroll={(e) => { keyboard.onScroll(e); under.onScroll(e); }}

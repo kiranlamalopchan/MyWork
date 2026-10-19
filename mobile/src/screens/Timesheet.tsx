@@ -144,9 +144,9 @@ export function SummaryBlock({ summary }: { summary: Summary }) {
           <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((v) => !v)} testID="timesheet-pay-details"
             style={({ pressed }) => [styles.more, { borderTopColor: t.line, backgroundColor: pressed ? t.surface2 : "transparent" }]}>
             <Text style={{ color: t.text2, fontSize: 14, fontWeight: "600" }}>{open ? "Hide breakdown" : "Pay breakdown"}</Text>
-            <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={t.muted} />
+            <FoldChevron open={open} size={16} colour={t.muted} />
           </Pressable>
-          {open ? (
+          <Fold open={open}>
             <View style={{ paddingHorizontal: sp[5], paddingBottom: sp[5] }}>
               <Ledger>
                 <LedgerRow label="Hours worked" value={period.total.decimal} />
@@ -162,7 +162,7 @@ export function SummaryBlock({ summary }: { summary: Summary }) {
                     : "Estimated with the ATO’s 2026–27 withholding formulas — check it against your payslip."}
               </Text>
             </View>
-          ) : null}
+          </Fold>
         </>
       ) : null}
       {/* The caps live on the clock, where you want them before pressing the

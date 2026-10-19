@@ -127,6 +127,6 @@ def version(request):
     if settings.DEBUG:
         # Development uses plain filenames. Changing one must also invalidate
         # cached documents during soft navigation, as production hashes do.
-        paths = ("static/css/app.css", "static/js/app.js", "static/js/theme.js")
+        paths = ("static/css/app.css", "static/css/palette.css", "static/js/app.js", "static/js/theme.js")
         context["asset_revision"] = max((settings.BASE_DIR / path).stat().st_mtime_ns for path in paths)
     return context

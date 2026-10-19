@@ -1,7 +1,7 @@
 """Signing in and up. The only views anyone may reach without a token."""
 
 from django.contrib.auth import authenticate
-from django.contrib.auth.forms import UserCreationForm
+from apps.accounts.forms import RegistrationForm
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny
@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.notifications.models import Device
+from apps.accounts.recovery import RecoveryForm, RecoveryLimited, RecoveryUnavailable, RESET_MESSAGE, request_reset
 
 from .. import serialize
 from ..errors import form_errors
@@ -43,8 +44,9 @@ class Register(APIView):
 
     def post(self, request):
         password = request.data.get("password") or ""
-        form = UserCreationForm({
+        form = RegistrationForm({
             "username": (request.data.get("username") or "").strip(),
+            "email": request.data.get("email") or "",
             "password1": password,
             "password2": password,
         })
@@ -52,6 +54,23 @@ class Register(APIView):
             return Response(form_errors(form), status=status.HTTP_400_BAD_REQUEST)
         user = form.save()
         return Response(_signed_in(request, user), status=status.HTTP_201_CREATED)
+
+
+class PasswordReset(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        form = RecoveryForm({'email': request.data.get('email', '')})
+        if not form.is_valid():
+            return Response(form_errors(form), status=status.HTTP_400_BAD_REQUEST)
+        try:
+            request_reset(form, request)
+        except (RecoveryLimited, RecoveryUnavailable) as error:
+            limited = isinstance(error, RecoveryLimited)
+            return Response({'detail': str(error)}, status=429 if limited else 503,
+                            headers={'Retry-After': '60'} if limited else None)
+        return Response({'detail': RESET_MESSAGE}, status=status.HTTP_202_ACCEPTED)
 
 
 class Logout(APIView):

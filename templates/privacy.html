@@ -3,7 +3,9 @@
   The privacy policy. Public — reachable signed out, from the way in — because
   the app stores ask for exactly this page by address. Written as a policy
   reads: dated, numbered, a summary first and the detail after, in the same
-  plain words as the rest of the site.
+  plain words as the rest of the site. When a feature starts keeping, showing
+  or sending something new, it belongs in here, and the effective date
+  (PRIVACY_EFFECTIVE in mywork/views.py) moves.
 {% endcomment %}
 {% block title %}Privacy Policy · KaamKoRecord{% endblock %}
 {% block content %}
@@ -16,9 +18,10 @@
   <section class="legal__summary" aria-labelledby="summary">
     <h2 id="summary" class="section-label">In short</h2>
     <ul>
-      <li>KaamKoRecord keeps only what it needs to run your timesheet, the notice board and notifications.</li>
-      <li>Nothing is sold, shared with advertisers, or used to track you. There is no analytics in the app.</li>
-      <li>Your shifts, pay and contact details are private to you. Posts are shown only to the audience you choose.</li>
+      <li>KaamKoRecord keeps only what it needs to run your timesheet and pay, your item catalogues, the notice board and notifications.</li>
+      <li>Nothing is sold, shared with advertisers, or used to track you. There is no analytics or advertising software in the app or on the site.</li>
+      <li>Your shifts, pay, tax settings, catalogues and contact details are private to you. Posts and stories are shown only to the audience you choose.</li>
+      <li>Other members can see your name, photo and whether you are using KaamKoRecord right now — nothing more unless you post it.</li>
       <li>You can delete your account, and everything in it, at any time from the app or the site.</li>
     </ul>
   </section>
@@ -27,8 +30,10 @@
     <ol>
       <li><a href="#who">Who is responsible</a></li>
       <li><a href="#collect">What we collect</a></li>
+      <li><a href="#device">On your device</a></li>
       <li><a href="#use">How we use it</a></li>
       <li><a href="#share">Who can see it</a></li>
+      <li><a href="#services">Services that carry your information</a></li>
       <li><a href="#store">Where it is stored, and for how long</a></li>
       <li><a href="#security">Security</a></li>
       <li><a href="#rights">Your choices and rights</a></li>
@@ -40,12 +45,12 @@
 
   <section id="who">
     <h2>1. Who is responsible</h2>
-    <p>KaamKoRecord is a personal work-tracking service operated by its developer{% if contact_email %}, who can be reached at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}. This policy explains what information KaamKoRecord collects when you use the website or the app, why it is collected, who can see it, and what control you have over it.</p>
+    <p>KaamKoRecord is a personal work-tracking service operated by its developer{% if contact_email %}, who can be reached at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}. This policy explains what information KaamKoRecord collects when you use the website or the app, why it is collected, who can see it, and what control you have over it. KaamKoRecord aims to handle personal information in line with the Australian Privacy Principles.</p>
   </section>
 
   <section id="collect">
     <h2>2. What we collect</h2>
-    <p>Everything KaamKoRecord holds is information you enter yourself. It does not buy, infer or collect data from anywhere else.</p>
+    <p>Almost everything KaamKoRecord holds is information you enter yourself. The only things it records on its own are when you were last active and the details listed under "Activity status" and "Device" below. It does not buy, infer or collect data about you from anywhere else.</p>
     <table class="legal__table">
       <thead>
         <tr><th scope="col">Information</th><th scope="col">What it is</th><th scope="col">Why</th></tr>
@@ -59,88 +64,145 @@
         <tr>
           <th scope="row">Profile <span class="legal__opt">optional</span></th>
           <td>Display name, email address, phone number, one line of address and a photo.</td>
-          <td>Shown on your profile and, if you post, beside your posts.</td>
+          <td>Your name and photo identify you to other members; the contact details are for you alone.</td>
         </tr>
         <tr>
-          <th scope="row">Work</th>
-          <td>The workplaces you add with their pay settings, and every shift, break and payment you record.</td>
-          <td>To keep your timesheet and work out your pay.</td>
+          <th scope="row">Work and pay</th>
+          <td>The workplaces you add with their pay settings — pay rate, pay cycle, hour limits and the tax situation you choose (for example the tax-free threshold, working holiday maker or a study loan) — and every shift, break, note and payment you record.</td>
+          <td>To keep your timesheet, work out your pay and estimate tax withheld.</td>
         </tr>
         <tr>
-          <th scope="row">Posts</th>
-          <td>Notices, comments, reactions and stories, together with the audience you chose for each.</td>
-          <td>To show them to the people you chose.</td>
+          <th scope="row">Catalogues <span class="legal__opt">optional</span></th>
+          <td>Item catalogues you create or import from a spreadsheet. An uploaded spreadsheet is held for up to one hour while you review the import, then discarded.</td>
+          <td>So you can search your own items.</td>
+        </tr>
+        <tr>
+          <th scope="row">Photos you ask us to read <span class="legal__opt">optional</span></th>
+          <td>A photographed picking list, or a payslip (photo or PDF) you upload to fill in a workplace's pay settings. These are read on our server and <strong>not kept</strong>; only the lines read from a picking list stay with your signed-in session until you clear them.</td>
+          <td>To turn the photo into a list of items or pay figures.</td>
+        </tr>
+        <tr>
+          <th scope="row">Posts and stories</th>
+          <td>Notices, comments, reactions and stories (photos or short videos), together with the audience you chose for each, and who has viewed each of your stories.</td>
+          <td>To show them to the people you chose, and to show you who saw your story.</td>
         </tr>
         <tr>
           <th scope="row">Friends</th>
           <td>Who you are friends with, and friend requests sent or received.</td>
-          <td>To work out who your "friends only" posts reach.</td>
+          <td>To work out who your "Friends only" posts reach.</td>
+        </tr>
+        <tr>
+          <th scope="row">Activity status</th>
+          <td>The time you were last active on the site or in the app, updated at most once a minute.</td>
+          <td>To show a small green dot on your photo while you are using KaamKoRecord.</td>
+        </tr>
+        <tr>
+          <th scope="row">Safety</th>
+          <td>People you have blocked, and reports you make about posts or people, with the reason you gave.</td>
+          <td>To hide blocked people from each other and to review reports.</td>
+        </tr>
+        <tr>
+          <th scope="row">Support <span class="legal__opt">optional</span></th>
+          <td>A problem you report from the app: your description, a screenshot if you attach one, and the app's version and platform.</td>
+          <td>To understand and fix the problem.</td>
+        </tr>
+        <tr>
+          <th scope="row">Preferences</th>
+          <td>The state or territory whose public holidays you follow, and similar settings you choose.</td>
+          <td>To show the right holidays and remember your choices.</td>
         </tr>
         <tr>
           <th scope="row">Device <span class="legal__opt">optional</span></th>
-          <td>A push-notification token and the device's name, only if you turn notifications on.</td>
-          <td>To deliver notifications to that device.</td>
-        </tr>
-        <tr>
-          <th scope="row">Time zone</th>
-          <td>The time zone your device reports.</td>
-          <td>So shifts and posts show in your local time.</td>
+          <td>A push-notification token and the device's name, only if you turn notifications on; and the time zone your device reports.</td>
+          <td>To deliver notifications to that device, and to show times in your local time.</td>
         </tr>
       </tbody>
     </table>
-    <p>The app asks for the camera, microphone or photo library only when you choose to take or attach a photo or video. It does not read your contacts, location or files.</p>
+  </section>
+
+  <section id="device">
+    <h2>3. On your device</h2>
+    <ul>
+      <li><strong>Camera, microphone and photos:</strong> asked for only when you choose to take or attach a photo or video, and used only for that.</li>
+      <li><strong>Face ID, Touch ID or fingerprint:</strong> if you turn on biometric sign-in, the check happens entirely on your device. KaamKoRecord never receives or stores any biometric information — only a yes or no from your device.</li>
+      <li><strong>Sign-in token and settings:</strong> the app keeps its sign-in token in your device's secure storage, and small settings such as light or dark mode on the device itself.</li>
+      <li><strong>Not used:</strong> the app does not read your contacts, location, calendar or other files.</li>
+    </ul>
   </section>
 
   <section id="use">
-    <h2>3. How we use it</h2>
-    <p>Your information is used solely to provide KaamKoRecord to you: keeping your timesheet, showing the notice board, delivering notifications you have turned on, and answering support requests you send. It is not used for advertising or profiling, and it is not sold, rented or given to third parties for their own purposes.</p>
-    <p>KaamKoRecord contains no third-party analytics, advertising or tracking software. The only third-party service involved is the push-notification delivery service of your device's platform (Apple or Google), which receives the notification's text so it can be delivered.</p>
+    <h2>4. How we use it</h2>
+    <p>Your information is used solely to provide KaamKoRecord to you: keeping your timesheet, working out pay and tax estimates, searching your catalogues, making the PDFs you ask for (statements and picking lists), showing the notice board and stories, delivering notifications you have turned on, keeping the community safe, and answering support requests you send.</p>
+    <p>Tax figures are estimates worked out on our server from the published ATO withholding formulas. They are not sent to the ATO, your employer or anyone else.</p>
+    <p>It is not used for advertising or profiling, and it is not sold, rented or given to third parties for their own purposes.</p>
   </section>
 
   <section id="share">
-    <h2>4. Who can see it</h2>
+    <h2>5. Who can see it</h2>
     <ul>
-      <li><strong>Only you:</strong> your workplaces, shifts, breaks, payments, timesheet and the contact details on your profile.</li>
-      <li><strong>The audience you choose:</strong> each notice, comment or story is shown to everyone signed in, to your friends, or to you alone — whichever you picked when posting — along with your display name and photo.</li>
-      <li><strong>Other signed-in members:</strong> your username, display name and photo, so they can find you and send friend requests.</li>
-      <li><strong>Nobody else.</strong> Public holidays and PLU codes are shared reference data and are not about you.</li>
+      <li><strong>Only you:</strong> your workplaces, shifts, breaks, payments, pay and tax settings, timesheet, statements, catalogues, and the contact details on your profile.</li>
+      <li><strong>The audience you choose:</strong> each notice, comment or story is shown to everyone signed in, to your friends, or to you alone — whichever you picked when posting — along with your name and photo.</li>
+      <li><strong>The owner of a story:</strong> when you view someone's story, they can see that you viewed it.</li>
+      <li><strong>Other signed-in members:</strong> your username, display name, photo and activity status (the green dot), so they can find you and send friend requests.</li>
+      <li><strong>Moderators:</strong> when something is reported, the developer reviews the report and the reported content.</li>
+      <li><strong>Nobody else.</strong> Public holidays, the daily quote and joke are shared reference content and are not about you.</li>
     </ul>
     <p>You can <strong>block</strong> anyone, after which neither of you sees the other's posts, and <strong>report</strong> any post or person; reports are reviewed within 24 hours. The <a href="{% url 'moderation:rules' %}">community rules</a> say what is not allowed.</p>
   </section>
 
+  <section id="services">
+    <h2>6. Services that carry your information</h2>
+    <p>KaamKoRecord contains no third-party analytics, advertising or tracking software. A few services are needed to run it, and each receives only what it needs:</p>
+    <ul>
+      <li><strong>Hosting:</strong> the website, the app's data and your uploads are stored on a server run by PythonAnywhere.</li>
+      <li><strong>Password recovery emails:</strong> when email recovery is enabled, Brevo receives your saved email address, username and one-use reset link to deliver the message. It does not receive your password or work records.</li>
+      <li><strong>App notifications:</strong> notifications to the app travel through Expo's push service and then Apple's or Google's, which receive the notification's text and your device token so they can deliver it.</li>
+      <li><strong>Website notifications:</strong> notifications to a browser travel through that browser's own push service (Apple, Google or Mozilla), encrypted so that service cannot read them.</li>
+      <li><strong>App stores:</strong> Apple and Google handle downloading and updating the app under their own privacy policies.</li>
+    </ul>
+  </section>
+
   <section id="store">
-    <h2>5. Where it is stored, and for how long</h2>
-    <p>Your information is stored on the server that hosts the KaamKoRecord website and is kept for as long as your account exists, with one exception: notifications are deleted 30 days after they are sent, read or not. Deleting your account removes your account, profile, work records, posts, reactions, stories, friendships and device tokens at once.</p>
-    <p>One thing remains after deletion: where you had commented on or reacted to another member's post, that member keeps the notification they were sent at the time, with your name removed from it, until it reaches 30 days old like any other.</p>
+    <h2>7. Where it is stored, and for how long</h2>
+    <p>Your information is stored on the server that hosts the KaamKoRecord website and is kept for as long as your account exists, with these exceptions:</p>
+    <ul>
+      <li><strong>Stories</strong> stop showing 24 hours after they are posted and are then deleted, with their photo or video.</li>
+      <li><strong>Notifications</strong> are deleted 30 days after they are sent, read or not.</li>
+      <li><strong>Imported spreadsheets</strong> are discarded after one hour, and <strong>photos you ask us to read</strong> are not kept at all.</li>
+    </ul>
+    <p>Deleting your account removes your account, profile, photo, work and pay records, catalogues, posts, comments, reactions, stories, friendships, blocks, reports you made, support requests and device tokens at once.</p>
+    <p>Two things remain after deletion. Where you had commented on or reacted to another member's post, that member keeps the notification they were sent at the time, with your name removed from it, until it reaches 30 days old like any other. And a report someone else made about you stays on record for moderation, with your account no longer attached to it.</p>
   </section>
 
   <section id="security">
-    <h2>6. Security</h2>
+    <h2>8. Security</h2>
     <p>All traffic between the app or your browser and the server is encrypted with HTTPS. Passwords are stored only as salted hashes. Access to your account from the app is by a private token held in your device's secure storage, which you can revoke at any time by signing out. No method of storage or transmission is completely secure, but KaamKoRecord uses recognised, current practice to protect what it holds.</p>
   </section>
 
   <section id="rights">
-    <h2>7. Your choices and rights</h2>
+    <h2>9. Your choices and rights</h2>
     <ul>
       <li><strong>See and correct:</strong> everything KaamKoRecord holds about you is visible and editable in the app and on the site.</li>
+      <li><strong>Take a copy:</strong> download a statement of your hours, pay and payments as a PDF, for any dates, from your profile.</li>
+      <li><strong>Choose your audience:</strong> pick who sees each post or story when you share it, and delete anything you have posted at any time.</li>
       <li><strong>Notifications:</strong> turn them off in the app or in your device's settings at any time; the device token is then no longer used.</li>
-      <li><strong>Delete your account:</strong> in the app, open <em>Profile → Delete account</em>; on the site, use <a href="{% url 'accounts:delete' %}">your profile's delete page</a>. Both ask for your password and then remove everything described in section 5. Deletion is immediate and cannot be undone.</li>
-      <li><strong>Ask a question or make a request:</strong> use the contact details in section 10.</li>
+      <li><strong>Delete your account:</strong> in the app, open <em>Profile → Settings → Delete account</em>; on the site, use <a href="{% url 'accounts:delete' %}">the delete page in Settings</a>. Both ask for your password and then remove everything described in section 7. Deleting your account is immediate and cannot be undone.</li>
+      <li><strong>Ask a question or make a complaint:</strong> use the contact details in section 12. If you are in Australia and not satisfied with the answer, you can also contact the Office of the Australian Information Commissioner (<a href="https://www.oaic.gov.au" rel="noopener">oaic.gov.au</a>).</li>
     </ul>
   </section>
 
   <section id="children">
-    <h2>8. Children</h2>
+    <h2>10. Children</h2>
     <p>KaamKoRecord is intended for people who work and is not directed at children under 13. If you believe a child has created an account, contact us and it will be removed.</p>
   </section>
 
   <section id="changes">
-    <h2>9. Changes to this policy</h2>
+    <h2>11. Changes to this policy</h2>
     <p>If this policy changes, the new version will be published at this address with an updated effective date. Changes that materially affect how your information is used will be announced on the notice board.</p>
   </section>
 
   <section id="contact">
-    <h2>10. Contact</h2>
+    <h2>12. Contact</h2>
     {% if contact_email %}
       <p>Questions about this policy or your information: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
     {% else %}

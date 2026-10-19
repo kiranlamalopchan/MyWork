@@ -21,6 +21,7 @@ of tiles; then the detail underneath, for checking.
 """
 
 import colorsys
+import math
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -45,9 +46,11 @@ MUTED = colors.HexColor("#64748b")
 LINE = colors.HexColor("#e8ebf0")
 LINE_STRONG = colors.HexColor("#d4dae2")
 BRAND = colors.HexColor("#059669")
-BRAND_DEEP = colors.HexColor("#047857")
-BRAND_LIGHT = colors.HexColor("#34d399")
 BRAND_SOFT = colors.HexColor("#e7f6f0")
+# The mark (templates/_mark.html): a navy tile and a mint dial.
+MARK_PLATE_LIGHT = colors.HexColor("#1a2740")
+MARK_PLATE_DEEP = colors.HexColor("#0b111a")
+MARK_MINT = colors.HexColor("#32d291")
 TILE = colors.HexColor("#f4f6f9")
 WHITE = colors.white
 
@@ -89,33 +92,41 @@ def draw_mark(canvas, x, y, size):
     """
     The KaamKoRecord mark: the app icon, drawn rather than pasted.
 
-    The same shapes static/img/icon.svg is made of — a rounded square with
-    the green running light to deep across it, and the M as one stroke with
-    round ends — scaled from the icon's 512 grid to `size`. Drawn with the
-    canvas so it is crisp at any size and the PDF carries no image.
+    The same shapes templates/_mark.html (and the app's icon) is made of — a
+    deep-navy rounded tile, a mint dial broken by four tick gaps at twelve,
+    three, six and nine, one hand, and the pin at the centre — scaled from
+    the 512 grid to `size`. Drawn with the canvas so it is crisp at any size
+    and the PDF carries no image.
     """
     scale = size / 512.0
     canvas.saveState()
     canvas.translate(x, y)
     canvas.scale(scale, scale)
 
-    box = canvas.beginPath()
-    box.roundRect(0, 0, 512, 512, 120)
-    canvas.clipPath(box, stroke=0, fill=0)
-    canvas.linearGradient(0, 512, 512, 0, (BRAND_LIGHT, BRAND_DEEP), extend=True)
+    # The tile, light navy at the top-left running to near-black.
+    tile = canvas.beginPath()
+    tile.roundRect(0, 0, 512, 512, 102)
+    canvas.clipPath(tile, stroke=0, fill=0)
+    canvas.linearGradient(0, 512, 512, 0, (MARK_PLATE_LIGHT, MARK_PLATE_DEEP), extend=True)
 
-    canvas.setStrokeColor(WHITE)
-    canvas.setLineWidth(44)
+    # The dial: four arcs, each stopping short of a cardinal point where the
+    # SVG's mask cuts a 12-unit tick gap out of the ring.
+    canvas.setStrokeColor(MARK_MINT)
+    canvas.setLineCap(0)
+    canvas.setLineWidth(18)
+    gap = math.degrees(6 / 138)
+    for start in (0, 90, 180, 270):
+        ring = canvas.beginPath()
+        ring.arc(256 - 138, 256 - 138, 256 + 138, 256 + 138, startAng=start + gap, extent=90 - 2 * gap)
+        canvas.drawPath(ring, stroke=1, fill=0)
+
+    # The hand, out to the right and a little down; the SVG's y runs down the
+    # page and the canvas's runs up.
     canvas.setLineCap(1)
-    canvas.setLineJoin(1)
-    # The SVG's y runs down the page; the canvas's runs up.
-    m = canvas.beginPath()
-    m.moveTo(136, 512 - 358)
-    m.lineTo(136, 512 - 178)
-    m.lineTo(256, 512 - 284)
-    m.lineTo(376, 512 - 178)
-    m.lineTo(376, 512 - 358)
-    canvas.drawPath(m, stroke=1, fill=0)
+    canvas.setLineWidth(14)
+    canvas.line(256, 256, 322, 512 - 298)
+    canvas.setFillColor(MARK_MINT)
+    canvas.circle(256, 256, 15, stroke=0, fill=1)
     canvas.restoreState()
 
 

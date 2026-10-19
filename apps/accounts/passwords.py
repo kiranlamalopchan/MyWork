@@ -1,24 +1,9 @@
-"""
-Changing a password, and the one way back in when it has been forgotten.
+"""Password changes and recovery links share Django's signed, one-use tokens.
 
-KaamKoRecord cannot send email. The host's free tier carries no outbound mail, and
-five of the six accounts have no address on them at all — signing up never
-asks for one. So "email me a link", the flow every other site uses, is not
-one this site can offer: it would lock most people out of their own accounts
-while looking like it worked.
-
-What stands in for it is a link an admin makes by hand and passes on, in
-person or over whatever they already use to talk to each other. The link
-itself is Django's own and nothing here invents a token: it is signed, it
-carries the account's current password hash and last-login time, and it dies
-the moment either changes. That is what makes it single-use — setting a new
-password with it is itself what stops it working a second time — and what
-makes handing one over no worse than handing over a password, since it
-expires on its own (PASSWORD_RESET_TIMEOUT, three days by default).
-
-Both ways in end the same way: the phones signed into the app are signed out.
-A password that has just changed is a password the sessions behind it should
-not outlive.
+Email recovery (recovery.py) delivers links to saved addresses over HTTPS.
+Admins can still issue a link for an account with no email, after verifying
+who is asking. Links expire after one hour and become invalid when the
+password changes. Completing a reset also revokes native app tokens.
 """
 
 from django.contrib.auth.tokens import default_token_generator

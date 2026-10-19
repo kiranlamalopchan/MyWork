@@ -164,12 +164,15 @@ export type HolidayCard = {
 /** The hub's small pleasures (mywork/daily.py): new at midnight, the same for everyone. */
 export type Daily = { quote: { text: string; who: string }; joke: { setup: string; punchline: string } };
 export type Festival = { id: string; name: string; greeting: string; description: string; motion: string; image_url: string };
+/** The friend circles above the board: the newest few faces, how many in all, and a line naming them. */
+export type HomeFriends = { total: number; more: number; summary: string; people: Person[] };
 export type Home = {
   festival?: Festival | null;
   holiday: { state: string; holiday: HolidayCard | null };
   stories: TrayRow[];
   notices: Notice[];
   notice_total: number;
+  friends: HomeFriends;
   unread: number;
   emoji: Emoji[];
   /** "Monday, 21 September" — for the wide hub's header. */

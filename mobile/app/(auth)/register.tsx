@@ -10,6 +10,7 @@ import { AuthFrame } from "@/ui/AuthFrame";
 export default function Register() {
   const { register } = useSession();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -21,7 +22,7 @@ export default function Register() {
     setBusy(true);
     try {
       const who = username.trim();
-      await register(who, password);
+      await register(who, password, email.trim());
       // A new account on this phone: the lock for next time, then
       // notifications, in the phone's own dialogs (auth/welcome).
       welcome(who);
@@ -30,6 +31,7 @@ export default function Register() {
       // whichever half it complains about is about the box above.
       setErrors(fieldErrors(e, {
         username: "username",
+        email: "email",
         password1: "password",
         password2: "password",
       }, "again"));
@@ -42,6 +44,9 @@ export default function Register() {
     <AuthFrame title="Create account" sub="One account for your items and timesheets." foot="Already have an account?" link="Sign in" linkHref="/(auth)/login" agree>
       <Field label="Username" error={errors.username}>
         <Input autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} textContentType="username" testID="username" />
+      </Field>
+      <Field label="Email (recommended)" help="Add an email so you can reset a forgotten password." error={errors.email}>
+        <Input value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" maxLength={254} testID="email" />
       </Field>
       <Field label="Password" help="At least 8 characters, and not all numbers." error={errors.password}>
         <Input secureTextEntry value={password} onChangeText={setPassword} textContentType="newPassword" testID="password" />

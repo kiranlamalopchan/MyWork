@@ -25,6 +25,7 @@ export default function TabsLayout() {
     <NativeTabs
       tintColor={t.brand}
       badgeBackgroundColor={t.danger}
+      badgeTextColor={t.dangerInk}
       minimizeBehavior="onScrollDown"
       labelStyle={{ fontWeight: "600" }}
       iconColor={{ default: t.muted, selected: t.brand }}

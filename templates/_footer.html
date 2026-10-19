@@ -1,0 +1,75 @@
+{% load static %}
+{% comment %}
+  The site's footer (§41 in app.css): who we are, where to go, the small
+  print, and the app — a QR code for each store, to scan from the screen
+  with a phone's camera. On a phone the codes give way to two buttons,
+  because a phone cannot scan itself.
+{% endcomment %}
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__top">
+      <div class="site-footer__about">
+        <a class="site-footer__brand" href="{% if request.user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}">
+          <span class="site-footer__mark" aria-hidden="true" style="width:28px;height:28px">{% include "_mark.html" with uid="foot" %}</span>
+          KaamKoRecord
+        </a>
+        <p class="site-footer__tagline">Clock in, keep your timesheets and pay, and find any item in your own catalogue — on the web and on your phone.</p>
+      </div>
+
+      <nav class="site-footer__col" aria-labelledby="footer-explore">
+        <h2 class="site-footer__heading" id="footer-explore">Explore</h2>
+        <ul class="site-footer__list">
+          {% if request.user.is_authenticated %}
+            <li><a href="{% url 'home' %}">Home</a></li>
+            <li><a href="{% url 'plu:list' %}">Search items</a></li>
+            <li><a href="{% url 'timeclock:dashboard' %}">Clock</a></li>
+            <li><a href="{% url 'timeclock:timesheet' %}">Timesheets</a></li>
+            <li><a href="{% url 'timeclock:payments' %}">Pay</a></li>
+            <li><a href="{% url 'notices:board' %}">Notice board</a></li>
+          {% else %}
+            <li><a href="{% url 'login' %}">Sign in</a></li>
+            <li><a href="{% url 'register' %}">Create an account</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+
+      <nav class="site-footer__col" aria-labelledby="footer-help">
+        <h2 class="site-footer__heading" id="footer-help">Help &amp; legal</h2>
+        <ul class="site-footer__list">
+          <li><a href="{% url 'privacy' %}">Privacy policy</a></li>
+          <li><a href="{% url 'moderation:rules' %}">Community rules</a></li>
+          {% if request.user.is_authenticated %}
+            <li><a href="{% url 'holidays:calendar' %}">Public holidays</a></li>
+            <li><a href="{% url 'accounts:settings' %}">Settings</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+
+      <section class="site-footer__apps" aria-labelledby="footer-apps">
+        <h2 class="site-footer__heading" id="footer-apps">Get the app</h2>
+        <p class="site-footer__hint">Scan with your phone's camera.</p>
+        <div class="site-footer__stores">
+          <a class="store" href="https://apps.apple.com/au/app/kaamkorecord/id6813073450" target="_blank" rel="noopener" data-full-load>
+            <img class="store__qr" src="{% static 'img/qr-app-store.svg' %}" alt="QR code for KaamKoRecord on the App Store" width="104" height="104" loading="lazy">
+            <span class="store__label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+              <span><small>Download on the</small>App Store</span>
+            </span>
+          </a>
+          <a class="store" href="https://play.google.com/store/apps/details?id=com.kiranlama.merokaam" target="_blank" rel="noopener" data-full-load>
+            <img class="store__qr" src="{% static 'img/qr-google-play.svg' %}" alt="QR code for KaamKoRecord on Google Play" width="104" height="104" loading="lazy">
+            <span class="store__label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5Z"/></svg>
+              <span><small>Get it on</small>Google Play</span>
+            </span>
+          </a>
+        </div>
+      </section>
+    </div>
+
+    <div class="site-footer__bottom">
+      <span>© {% now "Y" %} KaamKoRecord. All rights reserved.</span>
+      <span>Version {{ app_version }}</span>
+    </div>
+  </div>
+</footer>

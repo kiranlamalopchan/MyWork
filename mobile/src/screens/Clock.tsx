@@ -178,7 +178,7 @@ function Where({ name }: { name?: string }) {
 function BigButton({ title, icon, kind, onPress, busy, testID, style }: { title: string; icon: keyof typeof Ionicons.glyphMap; kind: "go" | "stop" | "soft"; onPress: () => void; busy?: boolean; testID?: string; style?: any }) {
   const t = useTheme();
   const bg = kind === "go" ? t.brand : kind === "stop" ? t.danger : t.dark ? t.surface3 : t.surface;
-  const ink = kind === "go" ? t.brandInk : kind === "stop" ? "#fff" : t.text;
+  const ink = kind === "go" ? t.brandInk : kind === "stop" ? t.dangerInk : t.text;
   return (
     <Pressable
       onPress={onPress}

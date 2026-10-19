@@ -360,6 +360,33 @@ class Friendship(models.Model):
         return cls.objects.filter(user=a, friend=b).exists()
 
     @classmethod
+    def faces_for(cls, user, limit=6):
+        """
+        The friend circles on the hub, above the notice board (site and app):
+        the newest few friends — anyone here right now first — with how many
+        there are in all and one line naming them ("Sam, Alex and 3 others")
+        for screen readers; the row itself shows only the faces.
+        """
+        rows = list(
+            cls.objects.filter(user=user, friend__is_active=True)
+            .select_related("friend__profile")
+            .order_by("-created_at")[: limit * 4]
+        )
+        total = cls.objects.filter(user=user, friend__is_active=True).count()
+        people = [row.friend for row in rows]
+        people.sort(key=lambda person: not Profile.of(person).is_live)
+        people = people[:limit]
+        names = [Profile.of(person).name for person in people[:2]]
+        others = total - len(names)
+        if not names:
+            summary = ""
+        elif others <= 0:
+            summary = " and ".join(names)
+        else:
+            summary = f"{', '.join(names)} and {others} other{'' if others == 1 else 's'}"
+        return {"people": people, "total": total, "more": max(0, total - len(people)), "summary": summary}
+
+    @classmethod
     def ids_for(cls, user):
         """
         The ids of everyone `user` is friends with, as a set — the shape a

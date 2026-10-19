@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load ui %}
 {% comment %}
-  An admin letting somebody back in. This site cannot email anybody, so the
-  link is made here and passed on by hand — see apps/accounts/passwords.py
-  for why that is the flow rather than a shortcut around one.
+  An admin helping an account without a recovery email. Verify who is
+  asking before handing over a link. Email recovery is available from sign-in.
 {% endcomment %}
 {% block title %}Reset links · KaamKoRecord{% endblock %}
 {% block content %}
@@ -27,8 +26,7 @@
     </div>
     <ul class="help" style="margin-top:var(--sp-2);padding-left:1.2em;">
       <li>It stops working as soon as it has been used once.</li>
-      <li>It stops working on its own after three days.</li>
-      <li>Making a new link below replaces this one.</li>
+      <li>It expires after one hour.</li>
       <li>Using it signs {{ person.username }} out of the app everywhere.</li>
     </ul>
   </div>

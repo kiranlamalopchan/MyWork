@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,12 +11,14 @@ import { FriendsPanel } from "@/ui/FriendsPanel";
 import { ProfilePhoto } from "@/ui/ProfilePhoto";
 import { ProfileRow } from "@/ui/ProfileRow";
 import { Version } from "@/ui/Version";
-import { alpha, useTheme } from "@/ui/theme";
+import { useTheme } from "@/ui/theme";
+import { useActivity } from "@/api";
 
 export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
   const t = useTheme();
   const router = useRouter();
   const { me, setMe, signOut } = useSession();
+  const figures = useActivity().data;
   const [open, setOpen] = useState<"friends" | "statement" | "activity" | null>(null);
   const fold = (key: NonNullable<typeof open>) => ({ minimal: true, open: open === key, onToggle: () => setOpen(v => v === key ? null : key) });
   const leave = () => confirm("Sign out?", undefined, "Sign out", () => {
@@ -25,22 +27,35 @@ export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
   if (!me) return null;
   return <Screen back={!tabMode} backLabel="Home" section="Profile">
     <Page>
-      <Card pad={false} style={styles.surface}>
-        <View style={styles.hero}>
-          <ProfilePhoto me={me} onChange={setMe} />
-          <Text accessibilityRole="header" style={[styles.name, { color: t.text }]}>{me.name}</Text>
-          <Text style={[styles.handle, { color: t.muted }]}>@{me.username}{me.is_staff ? " · Admin" : ""}</Text>
+      <Card pad={false} style={[styles.surface, { borderColor: t.line, borderWidth: StyleSheet.hairlineWidth }, float(t.dark, 1)]}>
+        {/* The cover: a neutral panel with two flat hills — no gradient —
+            floating inside the card (inset, rounded all round), with Edit
+            profile in its corner and your face half over its lower edge. */}
+        <View style={[styles.cover, { backgroundColor: t.surface2 }]}>
+          <View style={StyleSheet.absoluteFill} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Svg width="100%" height="100%" viewBox="0 0 400 120" preserveAspectRatio="none">
+              <Path d="M0 70 C70 30 130 30 200 62 S330 96 400 48 V120 H0 Z" fill={t.surface3} />
+              <Path d="M0 96 C80 64 150 70 220 92 S340 112 400 84 V120 H0 Z" fill={t.lineStrong} />
+            </Svg>
+          </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Edit profile" onPress={() => router.push("/profile/edit")} testID="profile-edit"
-            style={({ pressed }) => [styles.edit, { backgroundColor: alpha(t.brand, pressed ? .14 : .07) }]}>
-            <Text style={{ color: t.brand, fontSize: 13, fontWeight: "600" }}>Edit profile</Text>
-            <Ionicons name="arrow-forward" size={14} color={t.brand} />
+            style={({ pressed }) => [styles.edit, { backgroundColor: pressed ? t.surface2 : t.surface }, float(t.dark, 2)]}>
+            <Ionicons name="pencil-outline" size={14} color={t.text} />
+            <Text style={{ color: t.text, fontSize: 13, fontWeight: "600" }}>Edit profile</Text>
           </Pressable>
         </View>
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Svg height={30} width="100%" viewBox="0 0 400 64" preserveAspectRatio="none">
-            <Path d="M0 0 Q200 108 400 0 L400 20 Q200 100 0 20 Z" fill={t.violet} opacity={t.dark ? .23 : .2} />
-            <Path d="M0 8 Q200 120 400 8 L400 16 Q200 102 0 16 Z" fill={t.pink} opacity={.22} />
-          </Svg>
+        <View style={styles.hero}>
+          <View style={[styles.face, float(t.dark, 2)]}><ProfilePhoto me={me} onChange={setMe} size={92} ring={t.surface} /></View>
+          <Text accessibilityRole="header" style={[styles.name, { color: t.text }]}>{me.name}</Text>
+          <Text style={[styles.handle, { color: t.muted }]}>@{me.username}{me.is_staff ? " · Admin" : ""}</Text>
+          {/* Three figures under the name, each a way in: your posts, your friends, your shifts. */}
+          <View style={[styles.stats, { backgroundColor: t.surface, borderColor: t.line }, float(t.dark, 2)]} testID="profile-stats">
+            <Stat icon="chatbox-ellipses-outline" value={figures?.notice_count} word="Post" onPress={() => router.push(`/people/${me.username}`)} />
+            <View style={[styles.rule, { backgroundColor: t.line }]} />
+            <Stat icon="people-outline" value={figures?.friend_count} word="Friend" onPress={() => setOpen("friends")} />
+            <View style={[styles.rule, { backgroundColor: t.line }]} />
+            <Stat icon="calendar-outline" value={figures?.shift_count} word="Shift" onPress={() => router.push("/work/timesheet")} />
+          </View>
         </View>
         <View style={styles.menu}>
           <Text style={[styles.label, { color: t.muted }]}>YOUR SPACE</Text>
@@ -57,12 +72,41 @@ export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
     </Page>
   </Screen>;
 }
+/**
+ * Floating, but crisp: a tight contact shadow and one short lift — never a
+ * wide glow. Level 1 is the card, 2 what sits on it. On the dark theme a
+ * shadow cannot be seen on black, so there the hairlines carry the lift.
+ */
+function float(dark: boolean, level: 1 | 2): ViewStyle {
+  if (Platform.OS === "android") return { elevation: dark ? 0 : level === 1 ? 2 : 3 };
+  return { shadowColor: "#000000", shadowOpacity: dark ? (level === 1 ? 0 : 0.6) : level === 1 ? 0.1 : 0.14, shadowRadius: level === 1 ? 14 : 8, shadowOffset: { width: 0, height: level === 1 ? 6 : 4 } };
+}
+
+/** One figure under the name: icon, number, word — a way into what it counts. */
+function Stat({ icon, value, word, onPress }: { icon: keyof typeof Ionicons.glyphMap; value?: number; word: string; onPress: () => void }) {
+  const t = useTheme();
+  const label = value === undefined ? `${word}s` : `${value} ${word.toLowerCase()}${value === 1 ? "" : "s"}`;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}
+    style={({ pressed }) => [styles.stat, { backgroundColor: pressed ? t.surface2 : "transparent" }]}>
+    <Ionicons name={icon} size={20} color={t.text2} />
+    <Text style={[styles.statValue, { color: t.text }]}>{value === undefined ? "–" : value}</Text>
+    <Text style={[styles.statWord, { color: t.muted }]}>{`${word}${value === 1 ? "" : "s"}`}</Text>
+  </Pressable>;
+}
+
 const styles = StyleSheet.create({
-  surface: { borderWidth: 0, overflow: "hidden" },
-  hero: { alignItems: "center", paddingTop: 24, paddingHorizontal: 24, paddingBottom: 18, gap: 5 },
-  name: { fontSize: 24, fontWeight: "600", letterSpacing: -.65, textAlign: "center", marginTop: 8, alignSelf: "stretch" },
-  handle: { fontSize: 13, lineHeight: 19, textAlign: "center", alignSelf: "stretch" },
-  edit: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 44, paddingHorizontal: 18, borderRadius: 22, marginTop: 10 },
+  surface: {},
+  cover: { height: 132, margin: 10, marginBottom: 0, borderRadius: 18, overflow: "hidden" },
+  face: { borderRadius: 50 },
+  hero: { alignItems: "center", marginTop: -50, paddingHorizontal: 20, paddingBottom: 20, gap: 3 },
+  stats: { flexDirection: "row", alignItems: "stretch", alignSelf: "center", maxWidth: 380, width: "100%", marginTop: 18, padding: 6, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth },
+  rule: { width: StyleSheet.hairlineWidth, marginVertical: 8 },
+  stat: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 8, borderRadius: 14 },
+  statValue: { fontSize: 19, fontWeight: "700", letterSpacing: -.3, fontVariant: ["tabular-nums"] },
+  statWord: { fontSize: 13 },
+  name: { fontSize: 22, fontWeight: "600", letterSpacing: -.55, textAlign: "center", marginTop: 10, alignSelf: "stretch" },
+  handle: { fontSize: 14, lineHeight: 20, textAlign: "center", alignSelf: "stretch" },
+  edit: { position: "absolute", top: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18 },
   menu: { paddingTop: 18, paddingBottom: 8 },
   label: { fontSize: 10, fontWeight: "600", letterSpacing: 1.4, paddingHorizontal: 22, paddingBottom: 6 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 22, marginTop: 8, marginBottom: 4 },

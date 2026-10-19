@@ -19,7 +19,13 @@ import { useComeUp } from "./depth";
 import { tick } from "./haptics";
 import { alpha, sp, useTheme } from "./theme";
 
-const TIMING = { duration: 280, easing: Easing.out(Easing.cubic) };
+// One motion for every fold in the app, matching the website's: a soft
+// iOS-like curve, a touch longer opening than closing so it settles rather
+// than snaps. `fold(open)` is the timing for the way it is going.
+const EASE = Easing.bezier(0.32, 0.72, 0, 1);
+const TIMING = { duration: 380, easing: EASE };
+const SHUT = { duration: 300, easing: EASE };
+export const fold = (open: boolean) => (open ? TIMING : SHUT);
 
 /**
  * The fold on its own, for a list that draws its own heads (the timesheet's
@@ -31,7 +37,7 @@ export function Fold({ open, children, style }: { open: boolean; children: React
   const progress = useSharedValue(open ? 1 : 0);
   const content = useSharedValue(0);
   useEffect(() => {
-    progress.value = withTiming(open ? 1 : 0, TIMING);
+    progress.value = withTiming(open ? 1 : 0, fold(open));
   }, [open, progress]);
   const window = useAnimatedStyle(() => ({ height: progress.value * content.value, opacity: progress.value }));
   const settle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.value) * -10 }] }));
@@ -53,7 +59,7 @@ export function Fold({ open, children, style }: { open: boolean; children: React
 export function FoldChevron({ open, size = 18, colour }: { open: boolean; size?: number; colour: string }) {
   const progress = useSharedValue(open ? 1 : 0);
   useEffect(() => {
-    progress.value = withTiming(open ? 1 : 0, TIMING);
+    progress.value = withTiming(open ? 1 : 0, fold(open));
   }, [open, progress]);
   const turn = useAnimatedStyle(() => ({ transform: [{ rotate: `${progress.value * 180}deg` }] }));
   return <Animated.View style={turn}><Ionicons name="chevron-down" size={size} color={colour} /></Animated.View>;
@@ -68,11 +74,14 @@ export function Disclosure({ icon, tint, title, hint, open, onToggle, children, 
   const root = useComeUp(open);
   const progress = useSharedValue(open ? 1 : 0);
   const content = useSharedValue(0);
+  // The minimal look (the profile's) folds the same way as the rest — and as
+  // the timesheet's days do: the window grows, the contents ease down into it.
   useEffect(() => {
-    progress.value = minimal ? (open ? 1 : 0) : withTiming(open ? 1 : 0, TIMING);
-  }, [open, progress, minimal]);
+    progress.value = withTiming(open ? 1 : 0, fold(open));
+  }, [open, progress]);
 
   const window = useAnimatedStyle(() => ({ height: progress.value * content.value, opacity: progress.value }));
+  const settle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.value) * -10 }] }));
   const chevron = useAnimatedStyle(() => ({ transform: [{ rotate: `${progress.value * 180}deg` }] }));
 
   return (
@@ -88,7 +97,7 @@ export function Disclosure({ icon, tint, title, hint, open, onToggle, children, 
           <Ionicons name={icon} size={20} color={minimal ? t.text2 : ink} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.title, minimal && styles.minimalTitle, { color: t.text }]} numberOfLines={1}>{title}</Text>
+          <Text style={[styles.title, minimal && styles.minimalTitle, minimal && open && styles.minimalTitleOpen, { color: t.text }]} numberOfLines={1}>{title}</Text>
           {hint && !minimal ? <Text style={[styles.hint, { color: t.muted }]} numberOfLines={1}>{hint}</Text> : null}
         </View>
         {badge ? <View style={[styles.badge, { backgroundColor: t.brandSoft }]}><Text style={{ color: t.brand, fontSize: 12, fontWeight: "600" }}>{badge}</Text></View> : null}
@@ -96,26 +105,30 @@ export function Disclosure({ icon, tint, title, hint, open, onToggle, children, 
           <Ionicons name="chevron-down" size={20} color={t.muted} />
         </Animated.View>
       </Pressable>
-      {minimal ? (open ? <View style={styles.staticBody}>{children}</View> : null) : <Animated.View style={[styles.window, window]} pointerEvents={open ? "auto" : "none"}>
-        <View
-          style={styles.body}
+      <Animated.View style={[styles.window, window]} pointerEvents={open ? "auto" : "none"}>
+        <Animated.View
+          style={[minimal ? styles.minimalBody : styles.body, minimal && settle]}
           onLayout={(e) => { content.value = withTiming(e.nativeEvent.layout.height, TIMING); }}
           accessibilityElementsHidden={!open}
           importantForAccessibility={open ? "auto" : "no-hide-descendants"}
         >
-          {children}
-        </View>
-      </Animated.View>}
+          {minimal ? <View style={[styles.inset, { borderColor: t.line, backgroundColor: t.surface }]}>{children}</View> : children}
+        </Animated.View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7, justifyContent: "center", alignItems: "center" },
-  staticBody: { paddingHorizontal: 22, paddingBottom: 20, paddingTop: 4, gap: 16 },
+  minimalBody: { position: "absolute", left: 0, right: 0, top: 0, paddingHorizontal: 14, paddingBottom: 14, paddingTop: 2 },
+  // What an open section holds, on a rounded box of its own under the head,
+  // so it reads as that section's and not as more of the card.
+  inset: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 14 },
   minimalHead: { minHeight: 60, paddingHorizontal: 22, paddingVertical: 16, gap: 18 },
   minimalIcon: { width: 20, height: 24, borderRadius: 0, backgroundColor: "transparent" },
   minimalTitle: { fontSize: 15, fontWeight: "400" },
+  minimalTitleOpen: { fontWeight: "600" },
   head: { flexDirection: "row", alignItems: "center", gap: sp[4], paddingHorizontal: sp[4], paddingVertical: sp[3], minHeight: 72 },
   icon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16, fontWeight: "600", letterSpacing: -0.1 },

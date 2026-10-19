@@ -17,9 +17,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
+from django.views.generic.edit import FormView
 
 from apps.noticeboard.models import Comment, CommentReaction, Notice, Reaction
 from apps.timeclock.models import Shift, Workplace
@@ -29,6 +32,7 @@ from . import notify
 from .forms import PhotoForm, ProfileForm
 from .models import FriendRequest, Friendship, Profile
 from .passwords import reset_url, revoke_app_tokens
+from .recovery import RecoveryForm, RecoveryLimited, RecoveryUnavailable, request_reset, require_email_setup
 
 
 def _activity(user):
@@ -308,12 +312,21 @@ def delete_account(user):
     profile, shifts, workplaces, notices, comments, reactions, stories,
     friendships and devices. What they said to others stays where it was
     said only as a notification's words, with no actor (SET_NULL there is
-    deliberate — see apps/notifications/models.py). The photo file is
-    dropped by hand, since a FileField leaves it behind.
+    deliberate — see apps/notifications/models.py). Files are dropped by
+    hand, since a FileField leaves them behind when its row goes: the
+    profile photo, every story's photo or video, and any screenshot sent
+    with a support report — the privacy policy promises all of them go.
     """
+    from apps.api.models import SupportReport
+    from apps.stories.models import Story
+
     profile = Profile.objects.filter(user=user).first()
     if profile and profile.photo:
         profile.clear_photo()
+    for story in Story.objects.filter(author=user):
+        story.take_down()
+    for report in SupportReport.objects.filter(user=user).exclude(screenshot=""):
+        report.screenshot.delete(save=False)
     user.delete()
 
 
@@ -376,8 +389,8 @@ def reset_links(request):
     """
     An admin's way of letting somebody back in who cannot get in at all.
 
-    This site has no way to email anybody (see apps/accounts/passwords.py), so
-    the link is made here and handed over by whoever runs the place. It is
+    For accounts without a saved email, the link can still be made here and
+    handed over after the admin verifies who is asking. It is
     404 rather than 403 for everyone else: a page only admins may use is a
     page only admins need to know exists.
 
@@ -402,9 +415,37 @@ def reset_links(request):
     })
 
 
+@method_decorator(never_cache, name='dispatch')
+class ResetRequest(FormView):
+    template_name = 'registration/password_reset_form.html'
+    form_class = RecoveryForm
+    success_url = reverse_lazy('password_reset_done')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            require_email_setup()
+            context['email_setup_ready'] = True
+        except RecoveryUnavailable:
+            context['email_setup_ready'] = False
+        return context
+
+    def form_valid(self, form):
+        try:
+            request_reset(form, self.request)
+        except (RecoveryLimited, RecoveryUnavailable) as error:
+            form.add_error(None, str(error))
+            response = self.form_invalid(form)
+            response.status_code = 429 if isinstance(error, RecoveryLimited) else 503
+            if response.status_code == 429:
+                response['Retry-After'] = '60'
+            return response
+        return super().form_valid(form)
+
+
 class ResetConfirm(auth_views.PasswordResetConfirmView):
     """
-    Where an admin's link lands.
+    Where an emailed or admin-issued link lands.
 
     Django's own view does the part worth not rewriting: it reads the account
     out of the link, checks the token against that account's current password
@@ -414,6 +455,13 @@ class ResetConfirm(auth_views.PasswordResetConfirmView):
     """
 
     template_name = "registration/password_reset_confirm.html"
+
+    def dispatch(self, *args, **kwargs):
+        response = super().dispatch(*args, **kwargs)
+        # Preserve same-origin form Origin headers for CSRF checks while
+        # withholding reset-page URLs from other sites.
+        response['Referrer-Policy'] = 'same-origin'
+        return response
 
     def form_valid(self, response_form):
         response = super().form_valid(response_form)

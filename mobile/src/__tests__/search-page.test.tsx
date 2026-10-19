@@ -85,6 +85,7 @@ test("results show only number and description without copy, favourite or open c
   expect(screen.queryByText("Tap a code to copy")).toBeNull();
 });
 
+
 test("search keeps photo search without a duplicate upload action", async () => {
   const screen = await render(<Search />);
   expect(screen.queryByTestId("plu-import")).toBeNull();

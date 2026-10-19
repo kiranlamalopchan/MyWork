@@ -8,10 +8,10 @@ import { me as api, type Me } from "@/api";
 const mockPush = jest.fn(), mockSet = jest.fn(), mockSignOut = jest.fn(), mockConfirm = jest.fn(), mockNotify = jest.fn(), mockToggle = jest.fn();
 let mockMe: Me;
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock("react-native-reanimated", () => ({ __esModule: true, default: { View: jest.requireActual("react-native").View }, useSharedValue: (value: number) => ({ value }), useAnimatedStyle: () => ({}), withTiming: (value: number) => value, Easing: { out: (value: unknown) => value, cubic: () => {} } }));
+jest.mock("react-native-reanimated", () => ({ __esModule: true, default: { View: jest.requireActual("react-native").View }, useSharedValue: (value: number) => ({ value }), useAnimatedStyle: () => ({}), withTiming: (value: number) => value, Easing: { out: (value: unknown) => value, cubic: () => {}, bezier: () => (v: number) => v } }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/auth/session", () => ({ useSession: () => ({ me: mockMe, setMe: mockSet, signOut: mockSignOut }) }));
-jest.mock("@/api", () => ({ me: { setPhoto: jest.fn(), clearPhoto: jest.fn() } }));
+jest.mock("@/api", () => ({ me: { setPhoto: jest.fn(), clearPhoto: jest.fn() }, useActivity: () => ({ data: { notice_count: 3, friend_count: 7, shift_count: 1 } }) }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("@/ui/confirm", () => ({ confirm: (...a: unknown[]) => mockConfirm(...a), notify: (...a: unknown[]) => mockNotify(...a) }));
 jest.mock("@/ui/theme", () => ({ ...jest.requireActual("@/ui/theme"), useThemeMode: () => ({ isDark: false, toggle: mockToggle }) }));
@@ -119,4 +119,14 @@ test("successful upload uses the saved response and prevents a second operation 
   expect(s.getByRole("button", { name: "Updating your photo" })).toBeDisabled();
   await act(async () => finish(saved));
   await waitFor(() => expect(mockSet).toHaveBeenCalledWith(saved));
+});
+test("the header's three figures read out and each leads somewhere", async () => {
+  const s = await render(<Profile tabMode />);
+  await fireEvent.press(s.getByRole("button", { name: "3 posts" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/people/preview");
+  await fireEvent.press(s.getByRole("button", { name: "1 shift" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/work/timesheet");
+  expect(s.queryByText("Friends content")).toBeNull();
+  await fireEvent.press(s.getByRole("button", { name: "7 friends" }));
+  expect(s.getByText("Friends content")).toBeTruthy();
 });

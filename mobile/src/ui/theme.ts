@@ -1,112 +1,19 @@
 /**
- * The app's design tokens, light and dark. The colours are the site's — the
- * brand green, the reactions' inks, a person's hue from their username — on
- * the same flat ground, solid panels, hairline borders and corner radii. Read
- * through `useTheme()`. As on the site, the phone's setting decides unless
- * the person has changed Dark mode in Profile; that choice is saved on
- * this device independently of the site's appearance setting.
+ * Shared 60/30/10 colour roles: neutral page, supporting surfaces, one emerald
+ * accent. Dark page backgrounds are pure black. Status colours and content
+ * artwork retain meaning; legacy decorative colour names reuse the accent.
+ * Edit design/tokens/palette.json and run scripts/sync_palette.py.
  */
 import { createContext, useContext } from "react";
 import { useColorScheme } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
-export const light = {
-  brand: "#059669",
-  brandStrong: "#047857",
-  brandSoft: "rgba(5, 150, 105, 0.12)",
-  brandInk: "#ffffff",
-  // The solid deep green a hero card is painted, and its ink.
-  hero: "#047857",
-  heroInk: "#ffffff",
-  heroSoft: "rgba(255, 255, 255, 0.78)",
-  heroChip: "rgba(255, 255, 255, 0.18)",
-  danger: "#dc2626",
-  dangerSoft: "rgba(220, 38, 38, 0.10)",
-  warn: "#b45309",
-  warnSoft: "rgba(180, 83, 9, 0.12)",
-  // The accents the icon tiles are coded in.
-  blue: "#2563eb",
-  violet: "#7c3aed",
-  orange: "#ea580c",
-  pink: "#db2777",
-  teal: "#0d9488",
-  rxLike: "#1b74e4",
-  rxLove: "#e0243f",
-  rxFace: "#b7791f",
-  rxAngry: "#d9482a",
-  bg: "#f3f6f2",
-  surface: "#ffffff",
-  surface2: "#eef3ed",
-  surface3: "#e3eae2",
-  text: "#17271c",
-  text2: "#415546",
-  muted: "#687b6c",
-  line: "#dfe7dd",
-  lineStrong: "#c7d4c7",
-  pill: "#f3f5f9",
-  pillGlass: "rgba(255, 255, 255, 0.58)",
-  pillLine: "rgba(255, 255, 255, 0.8)",
-  track: "rgba(15, 23, 42, 0.075)",
-  knob: "#ffffff",
-  // Panels are solid now; these stay for anything that still asks for glass.
-  glass: "#ffffff",
-  glassLine: "rgba(15, 20, 32, 0.05)",
-  glassHi: "transparent",
-  shadow: "#1a2540",
-  // Kept for anything that still asks for the old ambient washes; the page is flat now.
-  amb1: "transparent",
-  amb2: "transparent",
-  amb3: "transparent",
-  dark: false,
-};
+import { palettes } from "./palette";
 
-export const dark: Theme = {
-  brand: "#79cfa8",
-  brandStrong: "#a0e3c2",
-  brandSoft: "rgba(121, 207, 168, 0.12)",
-  brandInk: "#10261c",
-  hero: "#065f46",
-  heroInk: "#ffffff",
-  heroSoft: "rgba(255, 255, 255, 0.78)",
-  heroChip: "rgba(255, 255, 255, 0.16)",
-  danger: "#f87171",
-  dangerSoft: "rgba(248, 113, 113, 0.13)",
-  warn: "#fbbf24",
-  warnSoft: "rgba(251, 191, 36, 0.13)",
-  blue: "#60a5fa",
-  violet: "#a78bfa",
-  orange: "#fb923c",
-  pink: "#f472b6",
-  teal: "#2dd4bf",
-  rxLike: "#5aa0f2",
-  rxLove: "#f5607a",
-  rxFace: "#f2c14e",
-  rxAngry: "#f2795c",
-  // The phone's own dark mode: true black ground, the system's neutral greys
-  // for panels and text (iOS's grouped-background steps), no blue cast.
-  bg: "#000000",
-  surface: "#1c1c1e",
-  surface2: "#2c2c2e",
-  surface3: "#3a3a3c",
-  text: "#f5f5f7",
-  text2: "#d1d1d6",
-  muted: "#98989f",
-  line: "#2c2c2e",
-  lineStrong: "#48484a",
-  pill: "#2c2c2e",
-  pillGlass: "rgba(28, 28, 30, 0.88)",
-  pillLine: "rgba(255, 255, 255, 0.16)",
-  track: "rgba(255, 255, 255, 0.08)",
-  knob: "#48484a",
-  glass: "#1c1c1e",
-  glassLine: "rgba(255, 255, 255, 0.07)",
-  glassHi: "transparent",
-  shadow: "#000000",
-  amb1: "transparent",
-  amb2: "transparent",
-  amb3: "transparent",
-  dark: true,
-};
+// Shared background, surfaces and accents on web and mobile.
+export { palettes } from "./palette";
+export const light = palettes.light;
+export const dark: Theme = palettes.dark;
 
 export type Theme = typeof light;
 export type ThemeMode = "system" | "light" | "dark";

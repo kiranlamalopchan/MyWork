@@ -1,0 +1,132 @@
+{
+  "scenes": [
+    {
+      "id": "dashain",
+      "fits": true,
+      "loops": 6,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "tihar",
+      "fits": true,
+      "loops": 7,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "christmas",
+      "fits": true,
+      "loops": 4,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "new-year",
+      "fits": true,
+      "loops": 4,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "easter",
+      "fits": true,
+      "loops": 3,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "holi",
+      "fits": true,
+      "loops": 3,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "nepali-new-year",
+      "fits": true,
+      "loops": 2,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "chhath",
+      "fits": true,
+      "loops": 3,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "buddha-jayanti",
+      "fits": true,
+      "loops": 3,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "shivaratri",
+      "fits": true,
+      "loops": 3,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "lhosar",
+      "fits": true,
+      "loops": 2,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "maghe-sankranti",
+      "fits": true,
+      "loops": 2,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "janai-poornima",
+      "fits": true,
+      "loops": 3,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "krishna-janmashtami",
+      "fits": true,
+      "loops": 2,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "eid",
+      "fits": true,
+      "loops": 4,
+      "height": 104,
+      "textFits": true
+    },
+    {
+      "id": "celebration",
+      "fits": true,
+      "loops": 2,
+      "height": 104,
+      "textFits": true
+    }
+  ],
+  "narrow320": true,
+  "longGreetingFits": true,
+  "continuousLoopBeyondFirstCycle": true,
+  "reducedMotion": true,
+  "runtimeErrors": [],
+  "nativeValidation": {
+    "unitTests": 182,
+    "festivalComponentTests": 19,
+    "typecheck": true,
+    "bundlePlatforms": [
+      "ios",
+      "android"
+    ],
+    "physicalDeviceTested": false
+  },
+  "desktop1280": true
+}

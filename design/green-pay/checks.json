@@ -1,0 +1,39 @@
+{
+  "checks": [
+    {
+      "mode": "light",
+      "cards": [
+        {
+          "id": "2",
+          "background": "linear-gradient(135deg, rgb(216, 238, 226), rgb(185, 221, 202) 55%, rgb(145, 200, 175))",
+          "ink": "rgb(18, 56, 43)",
+          "weight": "900"
+        },
+        {
+          "id": "1",
+          "background": "linear-gradient(135deg, rgb(216, 238, 226), rgb(185, 221, 202) 55%, rgb(145, 200, 175))",
+          "ink": "rgb(18, 56, 43)",
+          "weight": "900"
+        }
+      ]
+    },
+    {
+      "mode": "dark",
+      "cards": [
+        {
+          "id": "2",
+          "background": "linear-gradient(135deg, rgb(216, 238, 226), rgb(185, 221, 202) 55%, rgb(145, 200, 175))",
+          "ink": "rgb(18, 56, 43)",
+          "weight": "900"
+        },
+        {
+          "id": "1",
+          "background": "linear-gradient(135deg, rgb(216, 238, 226), rgb(185, 221, 202) 55%, rgb(145, 200, 175))",
+          "ink": "rgb(18, 56, 43)",
+          "weight": "900"
+        }
+      ]
+    }
+  ],
+  "runtimeErrors": []
+}

@@ -91,8 +91,8 @@ function TrendCard({ data, range, onRange, testID }: { data: Trend; range: Trend
   // against all of it — or every week would start "down 100%".
   const sum = (list: TrendFigure[]) => list.slice(0, Math.max(done, 1)).reduce((a, f) => a + value(f), 0);
   const change = delta(sum(data.points), sum(data.previous));
-  const ink = t.dark ? t.text : "#111111";
-  const inkText = t.dark ? "#000000" : "#ffffff";
+  const ink = t.text;
+  const inkText = t.bg;
   const id = `trend-${React.useId()}`;
 
   return (
@@ -111,7 +111,7 @@ function TrendCard({ data, range, onRange, testID }: { data: Trend; range: Trend
       </View>
       <View style={styles.legend}>
         <Key colour={t.brand} label={data.title} />
-        <Key colour={t.orange} label={data.compare_title} />
+        <Key colour={t.muted} label={data.compare_title} />
       </View>
 
       <View style={{ height: CHART_H }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
@@ -128,7 +128,7 @@ function TrendCard({ data, range, onRange, testID }: { data: Trend; range: Trend
             </Defs>
             {xs.map((x, i) => i === selected ? null : <Line key={i} x1={x} x2={x} y1={TOP - 14} y2={CHART_H} stroke={t.line} strokeWidth={1} strokeDasharray="4 6" />)}
             <Path d={fill} fill={`url(#${id})`} />
-            <Path d={beforeLine} stroke={t.orange} strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.9} />
+            <Path d={beforeLine} stroke={t.muted} strokeDasharray="5 4" strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.9} />
             <Path d={nowLine} stroke={t.brand} strokeWidth={2.5} fill="none" strokeLinecap="round" />
             <Line x1={sx} x2={sx} y1={TOP - 6} y2={CHART_H} stroke={t.brand} strokeWidth={1.2} strokeDasharray="4 4" />
             {sy !== null ? <>

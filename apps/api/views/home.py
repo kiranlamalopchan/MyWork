@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import Friendship
 from apps.holidays.services import card_for_user
 from apps.holidays.whereabouts import guess_state
 from apps.noticeboard.models import Notice
@@ -30,6 +31,7 @@ class Home(APIView):
         total = visible.count()
 
         banner = serialize.festival(request, home_festival_banner())
+        friends = Friendship.faces_for(user)
         state, card = card_for_user(user, guess=guess_state(request))
         return Response({
             "festival": banner,
@@ -37,6 +39,13 @@ class Home(APIView):
             "stories": [serialize.tray_row(request, row, user) for row in tray_for(user)],
             "notices": [serialize.notice(request, n, user) for n in notices],
             "notice_total": total,
+            # The friend circles above the board (Friendship.faces_for).
+            "friends": {
+                "total": friends["total"],
+                "more": friends["more"],
+                "summary": friends["summary"],
+                "people": [serialize.person(request, f, user) for f in friends["people"]],
+            },
             "unread": Notification.unread_count(user),
             "emoji": serialize.emoji_choices(),
             # The wide hub's extras: today's date in words, a thought for the

@@ -15,7 +15,7 @@ export function DashainMotion({ animate, compact = false }: { animate: boolean; 
     const animations = values.map((value, index) => {
       const duration = [5500, 7000, 1800][index];
       const step = (toValue: number) => Animated.timing(value, {
-        toValue, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        toValue, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true, isInteraction: false,
       });
       return Animated.loop(Animated.sequence([step(1), step(0)]));
     });
@@ -30,7 +30,7 @@ export function DashainMotion({ animate, compact = false }: { animate: boolean; 
   ];
 
   return <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} testID="dashain-scene">
-    <Animated.View style={{ position: "absolute", left: "55%", top: compact ? 12 : 20, width: compact ? 36 : 46, height: compact ? 83 : 108, transform: kiteTransform(red) }} testID="dashain-red-kite">
+    <Animated.View style={{ position: "absolute", left: "55%", top: compact ? 1 : 20, width: compact ? 44 : 46, height: compact ? 105 : 108, transform: kiteTransform(red) }} testID="dashain-red-kite">
       <Svg width="100%" height="100%" viewBox="-40 -45 80 225">
         <Path d="M0 -31 26 0 0 34 -26 0Z" fill="#e9392b" stroke="#742718" strokeWidth={1.6} />
         <Path d="M0 -31V34M-26 0H26" stroke="#f8c772" strokeWidth={1} />
@@ -38,7 +38,7 @@ export function DashainMotion({ animate, compact = false }: { animate: boolean; 
         <Path d="M0 34Q35 108 -5 162" fill="none" stroke="#241a15" strokeWidth={1} />
       </Svg>
     </Animated.View>
-    <Animated.View style={{ position: "absolute", left: "68%", top: compact ? 4 : 6, width: compact ? 28 : 36, height: compact ? 77 : 100, transform: kiteTransform(gold, true) }} testID="dashain-gold-kite">
+    <Animated.View style={{ position: "absolute", left: "68%", top: compact ? 0 : 6, width: compact ? 34 : 36, height: compact ? 95 : 100, transform: kiteTransform(gold, true) }} testID="dashain-gold-kite">
       <Svg width="100%" height="100%" viewBox="-32 -35 64 205">
         <Path d="M0 -24 21 0 0 28 -21 0Z" fill="#ffda45" stroke="#ae5619" strokeWidth={1.4} />
         <Path d="M0 -24V28M-21 0H21" stroke="#c87328" />

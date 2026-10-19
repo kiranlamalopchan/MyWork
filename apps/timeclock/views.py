@@ -1975,7 +1975,7 @@ def statement(request):
 
     pdf = statement_pdf.build({
         "period_label": label,
-        "reference": f"MW-{request.user.pk}-{first:%Y%m%d}-{last:%Y%m%d}",
+        "reference": f"KKR-{request.user.pk}-{first:%Y%m%d}-{last:%Y%m%d}",
         "issued": f"{today.day} {today:%b %Y}",
         "person": {"name": me.name, "lines": lines},
         "details": [

@@ -15,6 +15,7 @@ app_name = "api"
 urlpatterns = [
     path("auth/login/", auth.Login.as_view(), name="login"),
     path("auth/register/", auth.Register.as_view(), name="register"),
+    path("auth/password-reset/", auth.PasswordReset.as_view(), name="password_reset"),
     path("auth/logout/", auth.Logout.as_view(), name="logout"),
 
     path("me/", me.Me.as_view(), name="me"),

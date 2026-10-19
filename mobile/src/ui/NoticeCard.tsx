@@ -21,7 +21,7 @@ import { NoticeSurface } from "./NoticeSurface";
 import { useReveal } from "./keyboard";
 import { ReactionSheet, type Anchor } from "./ReactionPicker";
 import { ReportSheet, type ReportTarget } from "./ReportSheet";
-import { hsl, radius, sp, useTheme } from "./theme";
+import { radius, sp, useTheme } from "./theme";
 import { success, tap, tick } from "./haptics";
 import { VisibilityBadge, VisibilityToggle } from "./VisibilityPicker";
 
@@ -52,8 +52,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
   const notice = unfolded || given;
   const shown = tally || notice;
   const mine = notice.mine;
-  const hue = notice.author.hue;
-  const inkFor = t.dark ? hsl(hue, 72, 78) : hsl(hue, 48, 32);
+  const inkFor = t.text;
   const comments = notice.comment_total;
 
   const react = async (emoji: string) => {
@@ -113,7 +112,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
       {/* The author line: face, name and when, and the ⋯ (yours) or the new dot (theirs). */}
       <View style={styles.head}>
         <Pressable onPress={() => router.push(`/people/${notice.author.username}`)} style={styles.author}>
-          <Avatar person={notice.author} size={42} ring={mine ? t.brandSoft : `hsla(${hue}, 72%, 52%, 0.22)`} />
+          <Avatar person={notice.author} size={42} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.nameRow}>
               <Text style={[styles.who, { color: mine ? t.text : inkFor }]} numberOfLines={1}>{mine ? "You" : notice.author.username}</Text>
@@ -128,8 +127,8 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
         {!editing ? (
           <View style={styles.menuWrap}>
             {notice.is_new && !mine ? (
-              <View style={[styles.dotRing, { backgroundColor: `hsla(${hue}, 72%, 52%, 0.16)` }]}>
-                <View style={[styles.dot, { backgroundColor: hsl(hue, 72, 52) }]} />
+              <View style={[styles.dotRing, { backgroundColor: t.brandSoft }]}>
+                <View style={[styles.dot, { backgroundColor: t.brand }]} />
               </View>
             ) : null}
             <ActionMenu label="Notice actions" actions={[

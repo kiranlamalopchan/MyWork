@@ -47,7 +47,7 @@ export function StatementPanel({ open, onToggle, last, minimal }: PanelProps) {
       {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
       {st ? (
         <>
-          <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>Hours, pay and payments over the dates you pick, as a PDF to keep beside a payslip or a bank line.</Text>
+          <Text style={{ color: t.text2, fontSize: 14, lineHeight: 21 }}>Hours, pay and payments over the dates you pick, as a PDF to keep beside a payslip or a bank line.</Text>
           <View style={{ flexDirection: "row", gap: sp[2] }}>
             <Button title="This month" kind="plain" size="sm" onPress={() => { setFrom(st.this_month[0]); setTo(st.this_month[1]); }} />
             <Button title="Last month" kind="plain" size="sm" onPress={() => { setFrom(st.last_month[0]); setTo(st.last_month[1]); }} />
@@ -75,7 +75,7 @@ export function ActivityPanel({ open, onToggle, last, minimal }: PanelProps) {
   const stat = (n: number, word: string) => (
     <View key={word} style={[styles.stat, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
       <Text style={[styles.statValue, { color: t.text }]}>{n}</Text>
-      <Text style={[styles.statLabel, { color: t.muted }]}>{word}{n === 1 ? "" : "s"}</Text>
+      <Text style={[styles.statLabel, { color: t.text2 }]}>{word}{n === 1 ? "" : "s"}</Text>
     </View>
   );
   return (

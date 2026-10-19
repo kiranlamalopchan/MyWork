@@ -1,0 +1,35 @@
+{
+  "checks": [
+    {
+      "name": "login",
+      "mode": "light",
+      "background": "rgb(237, 247, 241)",
+      "meta": "#edf7f1",
+      "surface": "#ffffff",
+      "overflow": false
+    },
+    {
+      "name": "privacy",
+      "mode": "light",
+      "background": "rgb(237, 247, 241)",
+      "meta": "#edf7f1",
+      "surface": "#ffffff",
+      "overflow": false
+    },
+    {
+      "name": "rules",
+      "mode": "light",
+      "background": "rgb(237, 247, 241)",
+      "meta": "#edf7f1",
+      "surface": "#ffffff",
+      "overflow": false
+    },
+    {
+      "name": "login",
+      "mode": "dark",
+      "background": "rgb(0, 0, 0)",
+      "meta": "#000000"
+    }
+  ],
+  "runtimeErrors": []
+}

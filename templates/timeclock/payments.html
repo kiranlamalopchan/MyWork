@@ -14,9 +14,9 @@
         A bank card per job, the app's design (mobile/src/screens/Pay.tsx):
         what kind of pay up top, the chip, the figure where a card number
         goes, the workplace and the hours where the holder and the expiry go,
-        on a gradient of the job's own hue.
+        on a gradient of its workplace colour.
       {% endcomment %}
-      <button class="pay-workplace" type="button" role="tab" id="pay-tab-{{ row.workplace.pk }}" aria-controls="pay-{{ row.workplace.pk }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" data-pay-workplace="{{ row.workplace.pk }}"{% if row.workplace.is_default %} data-pay-default{% endif %} style="--wp-css: {{ row.workplace|wp_color }}; --wp-hue: {{ row.workplace.color|default:270 }}" aria-label="{{ row.workplace.name }}: {% if row.owed_pay %}${{ row.owed_pay.gross|floatformat:2 }} unpaid{% elif row.worked %}{{ row.worked|hm }} unpaid{% else %}all clear{% endif %}">
+      <button class="pay-workplace" type="button" role="tab" id="pay-tab-{{ row.workplace.pk }}" aria-controls="pay-{{ row.workplace.pk }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" data-pay-workplace="{{ row.workplace.pk }}"{% if row.workplace.is_default %} data-pay-default{% endif %} style="--wp-css: {{ row.workplace|wp_color }}; --wp-hue: {{ row.workplace.color|default_if_none:270 }}" aria-label="{{ row.workplace.name }}: {% if row.owed_pay %}${{ row.owed_pay.gross|floatformat:2 }} unpaid{% elif row.worked %}{{ row.worked|hm }} unpaid{% else %}all clear{% endif %}">
         <span class="pay-workplace__top"><span class="pay-workplace__kicker">{{ row.workplace.get_pay_cycle_display }}{% if row.workplace.pays_on_a_cycle %} pay{% endif %}</span><span class="pay-workplace__mark">{% if row.worked %}UNPAID{% else %}PAID{% endif %}</span></span>
         <span class="pay-workplace__chiprow" aria-hidden="true">
           <svg class="pay-chip" viewBox="0 0 44 33"><defs><linearGradient id="chip-{{ row.workplace.pk }}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dc94"/><stop offset=".45" stop-color="#e2b85e"/><stop offset="1" stop-color="#c8963d"/></linearGradient></defs><rect x=".5" y=".5" width="43" height="32" rx="6.5" fill="url(#chip-{{ row.workplace.pk }})" stroke="#9a7128" stroke-width=".9"/><g fill="none" stroke="#9a7128" stroke-width=".9" stroke-linecap="round"><rect x="16" y="4.5" width="12" height="24" rx="6"/><path d="M22 .5V4.5M22 28.5V32.5M.5 11.5H16.4M.5 21.5H16.4M27.6 11.5H43.5M27.6 21.5H43.5M.5 16.5H16M28 16.5H43.5"/></g></svg>
@@ -32,7 +32,7 @@
     </div>
     {% if owing|length > 1 %}<div class="pay-wallet__controls">
       <button type="button" class="pay-wallet__arrow" data-pay-previous aria-label="Previous workplace">{% icon "back" %}</button>
-      <div class="pay-wallet__dots" aria-label="Choose workplace">{% for row in owing %}<button type="button" data-pay-dot="{{ row.workplace.pk }}" aria-label="Show {{ row.workplace.name }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}"><span></span></button>{% endfor %}</div>
+      <div class="pay-wallet__dots" aria-label="Choose workplace">{% for row in owing %}<button type="button" data-pay-dot="{{ row.workplace.pk }}" style="--wp-css: {{ row.workplace|wp_color }}" aria-label="Show {{ row.workplace.name }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}"><span></span></button>{% endfor %}</div>
       <button type="button" class="pay-wallet__arrow" data-pay-next aria-label="Next workplace">{% icon "chev" %}</button>
     </div>{% endif %}
   </section>

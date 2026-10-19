@@ -20,6 +20,7 @@ import { success, tap } from "@/ui/haptics";
 import { sp, useTheme } from "@/ui/theme";
 import { cssColour } from "@/ui/timesheet";
 import { Select } from "@/ui/Select";
+import { Fold, FoldChevron } from "@/ui/Disclosure";
 
 export default function Workplaces() {
   const t = useTheme();
@@ -127,9 +128,9 @@ function CyclesPanel({ cycles, choices }: { cycles: Cycles; choices: { weekdays:
       <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.panelHead}>
         <Text style={{ color: t.text, fontWeight: "600", fontSize: 15, flex: 1 }}>Week starts</Text>
         <Text style={{ color: t.muted, fontSize: 15 }} numberOfLines={1}>{cycles.week_label}</Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={t.muted} />
+        <FoldChevron open={open} size={16} colour={t.muted} />
       </Pressable>
-      {open ? (
+      <Fold open={open}>
         <View style={[styles.panelBody, { borderTopColor: t.line }]}>
           <Field label="Week starts on" help="Also sets which day the calendar grid starts on.">
             <Select label="Week starts on" value={String(week)} onChange={(v) => setWeek(Number(v))} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
@@ -145,7 +146,7 @@ function CyclesPanel({ cycles, choices }: { cycles: Cycles; choices: { weekdays:
           </Field>
           <Button title="Save cycles" onPress={save} busy={busy} />
         </View>
-      ) : null}
+      </Fold>
     </Card>
   );
 }

@@ -3,13 +3,17 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
+const palette = JSON.parse(readFileSync(resolve(__dirname, '../../design/tokens/palette.json'), 'utf8'));
 const source = readFileSync(resolve(__dirname, '../../static/js/theme.js'), 'utf8');
 function load({ saved, dark = false, storageFails = false, season, calendar = {}, today = "2026-10-16T12:00:00" } = {}) {
   let stored = saved, color, changes = 0;
   const attributes = {};
   const storage = { "mywork-theme": saved, "mywork-season": season };
   const system = { matches: dark, addEventListener: (_, callback) => { system.change = callback; } };
-  const window = { matchMedia: () => system, dispatchEvent: () => { changes++; } };
+  const window = { getComputedStyle: () => ({ getPropertyValue: () => {
+    const isDark = attributes['data-theme'] ? attributes['data-theme'] === 'dark' : system.matches;
+    return palette[isDark ? 'dark' : 'light'].bg;
+  } }), matchMedia: () => system, dispatchEvent: () => { changes++; } };
   const document = {
     documentElement: { getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; } },
     getElementById: id => id === 'seasonal-calendar' ? { textContent: JSON.stringify(calendar) } : null,
@@ -27,16 +31,16 @@ test('saved theme overrides the system and survives another page load', () => {
   assert.equal(page.theme.isDark(), false);
   page.theme.toggle();
   assert.equal(page.stored(), 'dark');
-  assert.equal(page.color(), '#111318');
+  assert.equal(page.color(), '#000000');
   assert.equal(load({ saved: page.stored() }).theme.isDark(), true);
 });
 test('system appearance updates browser chrome until the user makes a choice', () => {
   const page = load();
-  assert.equal(page.color(), '#f3f6f2');
+  assert.equal(page.color(), '#eaeaf0');
   page.system.matches = true;
   page.system.change();
   assert.equal(page.theme.isDark(), true);
-  assert.equal(page.color(), '#111318');
+  assert.equal(page.color(), '#000000');
   page.theme.toggle();
   page.system.change();
   assert.equal(page.theme.isDark(), false);
@@ -45,7 +49,7 @@ test('appearance still changes when browser storage is unavailable', () => {
   const page = load({ storageFails: true });
   page.theme.toggle();
   assert.equal(page.theme.isDark(), true);
-  assert.equal(page.color(), '#111318');
+  assert.equal(page.color(), '#000000');
   assert.equal(page.changes(), 2);
 });
 

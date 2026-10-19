@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 import { biometricKind, biometricName, biometricUser, unlockWithBiometric, type BiometricKind } from "@/auth/biometric";
 import { useSession } from "@/auth/session";
@@ -20,6 +21,7 @@ import { radius, sp, useTheme } from "@/ui/theme";
 
 export default function Login() {
   const t = useTheme();
+  const router = useRouter();
   const { signIn, signInWithToken } = useSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -112,11 +114,10 @@ export default function Login() {
           ) : null}
         </View>
       </Field>
+      <Pressable accessibilityRole="link" accessibilityLabel="Forgot password?" onPress={() => router.push("/(auth)/forgot-password")} style={{ alignSelf: "flex-end", minHeight: 44, justifyContent: "center" }}>
+        <Text style={{ color: t.brand, fontSize: 14, fontWeight: "600" }}>Forgot password?</Text>
+      </Pressable>
       <Button title="Sign in" onPress={go} busy={busy} disabled={!username || !password} />
-      {/* No self-service reset: nobody can be emailed a link (apps/accounts/passwords.py). */}
-      <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>
-        Forgotten your password? Ask whoever looks after KaamKoRecord for a reset link.
-      </Text>
       {kind && !locked ? (
         <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>After you sign in, you can use {biometricName(kind)} next time.</Text>
       ) : null}

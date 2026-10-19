@@ -19,6 +19,9 @@ from .env import load_env_file
 # Never committed — see .gitignore.
 load_env_file(BASE_DIR / ".env")
 
+from .mail import mail_settings
+globals().update(mail_settings())
+
 
 def required(name):
     """An environment variable with no sensible default."""

@@ -15,6 +15,9 @@ from .env import load_env_file
 # exactly as it did before.
 load_env_file(BASE_DIR / ".env")
 
+from .mail import mail_settings
+globals().update(mail_settings())
+
 # Not a secret. It signs sessions on one developer machine, and production.py
 # refuses to start without a real one, so there is no path by which this value
 # ends up guarding anything.

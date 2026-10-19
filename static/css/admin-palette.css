@@ -1,0 +1,44 @@
+/* Bridge Django's administration controls to the same site palette. */
+:root, :root[data-theme] {
+  --primary: var(--surface-2);
+  --secondary: var(--brand);
+  --accent: var(--brand-strong);
+  --primary-fg: var(--text);
+  --body-fg: var(--text);
+  --body-bg: var(--bg);
+  --body-quiet-color: var(--muted);
+  --body-medium-color: var(--text-2);
+  --body-loud-color: var(--text);
+  --header-color: var(--text);
+  --header-branding-color: var(--brand-strong);
+  --header-bg: var(--surface);
+  --header-link-color: var(--brand-strong);
+  --breadcrumbs-fg: var(--text-2);
+  --breadcrumbs-link-fg: var(--brand-strong);
+  --breadcrumbs-bg: var(--surface-2);
+  --link-fg: var(--brand-strong);
+  --link-hover-color: var(--brand);
+  --link-selected-fg: var(--brand-strong);
+  --hairline-color: var(--line);
+  --border-color: var(--line-strong);
+  --error-fg: var(--danger);
+  --message-success-bg: var(--brand-soft);
+  --message-warning-bg: var(--warn-soft);
+  --message-error-bg: var(--danger-soft);
+  --darkened-bg: var(--surface-2);
+  --selected-bg: var(--surface-3);
+  --selected-row: var(--brand-soft);
+  --button-fg: var(--brand-ink);
+  --button-bg: var(--brand);
+  --button-hover-bg: var(--brand-strong);
+  --default-button-bg: var(--brand);
+  --default-button-hover-bg: var(--brand-strong);
+  --close-button-bg: var(--surface-3);
+  --close-button-hover-bg: var(--surface-2);
+  --delete-button-bg: var(--danger);
+  --delete-button-hover-bg: var(--danger);
+  --object-tools-fg: var(--text-2);
+  --object-tools-bg: var(--surface-2);
+  --object-tools-hover-bg: var(--surface-3);
+}
+.submit-row a.deletelink { color: var(--danger-ink); }

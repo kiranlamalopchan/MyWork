@@ -1,0 +1,15 @@
+{% load avatars %}
+{% comment %}
+  Your friends, as overlapping circles just above the notice board — the
+  people "Friends only" posts reach. Just the faces: no count, no names
+  line, and only shown, not a control. The app draws the same row
+  (mobile/src/ui/FriendStack.tsx) from the same figures
+  (Friendship.faces_for). Nothing at all with nobody to show.
+{% endcomment %}
+{% if friends.total %}
+  <div class="friend-stack" role="img" aria-label="Your friends: {{ friends.summary }}">
+    <span class="friend-stack__faces" aria-hidden="true">
+      {% for person in friends.people %}{% avatar person %}{% endfor %}
+    </span>
+  </div>
+{% endif %}

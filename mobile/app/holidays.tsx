@@ -6,7 +6,6 @@
  */
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useUpcomingHolidays } from "@/api";
 import { useSession } from "@/auth/session";
@@ -14,6 +13,7 @@ import { Card, Empty, ErrorBanner, Page, PageTitle, Screen } from "@/ui";
 import { SkeletonHolidays } from "@/ui/Skeleton";
 import { Select } from "@/ui/Select";
 import { alpha, radius, sp, useTheme } from "@/ui/theme";
+import { Fold, FoldChevron } from "@/ui/Disclosure";
 
 const LABELS: Record<string, string> = {
   ACT: "Australian Capital Territory", NSW: "New South Wales", NT: "Northern Territory", QLD: "Queensland",
@@ -61,10 +61,10 @@ export default function Holidays() {
                 <Text style={{ color: t.text, fontSize: 18, fontWeight: "700" }}>{m.month} <Text style={{ color: t.muted, fontWeight: "500", fontSize: 15 }}>{m.year}</Text></Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: sp[2] }}>
                   {!isOpen ? <Text style={{ color: t.muted, fontSize: 14 }}>{m.rows.length} date{m.rows.length === 1 ? "" : "s"}</Text> : null}
-                  <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={18} color={t.muted} />
+                  <FoldChevron open={isOpen} size={18} colour={t.muted} />
                 </View>
               </Pressable>
-              {isOpen ? (
+              <Fold open={isOpen}>
                 <View style={{ gap: sp[2], paddingTop: sp[3] }}>
                   {m.rows.map((h) => (
                     <Card key={h.date + h.name} pad={false} style={styles.row}>
@@ -82,7 +82,7 @@ export default function Holidays() {
                     </Card>
                   ))}
                 </View>
-              ) : null}
+              </Fold>
             </View>
           );
         })}

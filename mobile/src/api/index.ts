@@ -24,8 +24,10 @@ export { ApiError } from "./client";
 export const auth = {
   login: (username: string, password: string) =>
     api<{ token: string; me: Me }>("auth/login/", { method: "POST", body: { username, password }, anonymous: true }),
-  register: (username: string, password: string) =>
-    api<{ token: string; me: Me }>("auth/register/", { method: "POST", body: { username, password }, anonymous: true }),
+  register: (username: string, password: string, email = "") =>
+    api<{ token: string; me: Me }>("auth/register/", { method: "POST", body: { username, password, email }, anonymous: true }),
+  requestPasswordReset: (email: string) =>
+    api<{ detail: string }>("auth/password-reset/", { method: "POST", body: { email }, anonymous: true }),
   /** `keep` leaves the token alive on the server: it is behind the phone's lock for next time. */
   logout: (device?: string | null, keep = false) => api("auth/logout/", { method: "POST", body: { device: device || "", keep_token: keep } }),
 };
@@ -63,7 +65,9 @@ export function useMe() {
 // ---- home ------------------------------------------------------------------------
 
 export function useHome() {
-  return useQuery({ queryKey: ["home"], queryFn: () => api<Home>("home/"), staleTime: 15_000 });
+  // Every minute while it is open, so a friend's live dot comes and goes as
+  // they do rather than staying as it was when Home first loaded.
+  return useQuery({ queryKey: ["home"], queryFn: () => api<Home>("home/"), staleTime: 15_000, refetchInterval: 60_000 });
 }
 
 // ---- the board -----------------------------------------------------------------

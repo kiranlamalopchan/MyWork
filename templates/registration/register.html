@@ -18,6 +18,12 @@
 
       {% include "registration/_credential_field.html" with field=form.username label="Username" kind="text" autocomplete="username" enterkeyhint="next" show_errors=True password_help=False %}
 
+      <div class="field">
+        <label class="label" for="id_email">Email (recommended)</label>
+        <input class="input" type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254">
+        {% if form.email.errors %}<div class="help help--error">{{ form.email.errors|striptags }}</div>{% else %}<div class="help">{{ form.email.help_text }}</div>{% endif %}
+      </div>
+
       {% include "registration/_credential_field.html" with field=form.password1 label="Password" kind="password" autocomplete="new-password" enterkeyhint="next" show_errors=True password_help=True %}
 
       {% include "registration/_credential_field.html" with field=form.password2 label="Confirm password" kind="password" autocomplete="new-password" enterkeyhint="go" show_errors=True password_help=False %}

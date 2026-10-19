@@ -15,12 +15,13 @@ import { WorkPage } from "@/ui/WorkPage";
 import { WorkNavigation } from "@/ui/WorkNavigation";
 import { SkeletonPay } from "@/ui/Skeleton";
 import { confirm, notify, tell } from "@/ui/confirm";
-import { radius, sp, useTheme } from "@/ui/theme";
+import { light, radius, sp, useTheme } from "@/ui/theme";
 import { Frost } from "@/ui/Frost";
 import { Split } from "@/ui/Split";
 import { Choices } from "@/ui/timesheet";
 import { success, tick } from "@/ui/haptics";
 import { useReducedMotion } from "@/ui/useReducedMotion";
+import { Fold, FoldChevron } from "@/ui/Disclosure";
 
 const money = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const GAP = 12;
@@ -121,7 +122,7 @@ function WorkplaceCards({ rows, selectedId, onSelect }: { rows: PayRow[]; select
   </View>;
 }
 
-/** Each job keeps its own colour, deepened into a card: dark at one corner, bright at the other. */
+/** Each workplace retains its own card colour. */
 const cardInk = (hue: number | null | undefined) => `hsl(${(hue ?? 270) % 360}, 62%, 42%)`;
 function cardPaint(hue: number | null | undefined) {
   const h = hue ?? 270;
@@ -165,7 +166,7 @@ function CardChip({ width = 44, height = 33 }: { width?: number; height?: number
  * where the holder's name and expiry go.
  */
 function WorkplaceCard({ row, width, height, selected, onPress }: { row: PayRow; width: number; height: number; selected: boolean; onPress: () => void }) {
-  const w = row.workplace, owed = !!row.worked.seconds, paint = cardPaint(w.hue), id = `pay-card-${React.useId().replace(/:/g, "")}`;
+  const t = useTheme(), w = row.workplace, owed = !!row.worked.seconds, paint = cardPaint(w.hue), id = `pay-card-${React.useId().replace(/:/g, "")}`;
   return <Pressable accessibilityRole="button" accessibilityLabel={`Select ${w.name}`} accessibilityState={{ selected }} onPress={onPress} testID={`pay-workplace-${w.id}`}
     style={[styles.card, { width, height, backgroundColor: paint.from, shadowColor: paint.mid }]}>
     <View style={[StyleSheet.absoluteFill, { borderRadius: 20, overflow: "hidden" }]} pointerEvents="none">
@@ -176,9 +177,9 @@ function WorkplaceCard({ row, width, height, selected, onPress }: { row: PayRow;
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={height} fill={`url(#${id})`} />
-        <Path d={`M 0 ${height * 0.62} C ${width * 0.3} ${height * 0.42}, ${width * 0.55} ${height * 0.95}, ${width} ${height * 0.55} L ${width} ${height} L 0 ${height} Z`} fill="#ffffff" opacity={0.07} />
-        <Path d={`M 0 ${height * 0.8} C ${width * 0.35} ${height * 0.6}, ${width * 0.6} ${height * 1.05}, ${width} ${height * 0.75} L ${width} ${height} L 0 ${height} Z`} fill="#ffffff" opacity={0.06} />
-        <Circle cx={width * 0.92} cy={height * 0.08} r={height * 0.55} fill="#ffffff" opacity={0.06} />
+        <Path d={`M 0 ${height * 0.62} C ${width * 0.3} ${height * 0.42}, ${width * 0.55} ${height * 0.95}, ${width} ${height * 0.55} L ${width} ${height} L 0 ${height} Z`} fill={t.walletInk} opacity={0.07} />
+        <Path d={`M 0 ${height * 0.8} C ${width * 0.35} ${height * 0.6}, ${width * 0.6} ${height * 1.05}, ${width} ${height * 0.75} L ${width} ${height} L 0 ${height} Z`} fill={t.walletInk} opacity={0.06} />
+        <Circle cx={width * 0.92} cy={height * 0.08} r={height * 0.55} fill={t.walletInk} opacity={0.06} />
       </Svg>
     </View>
     <View style={styles.cardRow}>
@@ -234,12 +235,12 @@ function PaymentDetails({ row, today }: { row: PayRow; today: string }) {
         style={[styles.covers, { backgroundColor: t.surface, borderColor: t.line }]} testID={`covers-${w.id}`}>
         <Text style={{ color: t.muted, fontSize: 14 }}>Covers</Text>
         <Text style={{ color: t.text, fontSize: 14, fontWeight: "600", flex: 1, textAlign: "right" }} numberOfLines={1}>{chosen}</Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={t.muted} />
+        <FoldChevron open={open} size={16} colour={t.muted} />
       </Pressable>
-      {open ? <View style={{ gap: sp[3] }}>
+      <Fold open={open} style={{ gap: sp[3] }}>
         <Choices value={covers} onChange={setCovers} options={[...row.covers.map(c => ({ value: String(c.value), label: c.label })), { value: "date", label: "Choose a date" }]} />
         {covers === "date" ? <Field label="Paid up to and including"><Input accessibilityLabel="Paid up to and including" value={upTo} onChangeText={setUpTo} placeholder="YYYY-MM-DD" autoCapitalize="none" editable={!busy} /></Field> : null}
-      </View> : null}
+      </Fold>
       <Button title="Payment received" icon="checkmark" onPress={settle} busy={busy} disabled={busy || (covers === "date" && !upTo)} testID={`settle-${w.id}`} />
       {!row.owed_pay ? <Button title="Add a pay rate" kind="ghost" size="sm" onPress={() => router.push(`/workplaces/${w.id}/edit`)} /> : null}
     </View> : null}
@@ -290,10 +291,10 @@ const styles = StyleSheet.create({
   card: { borderRadius: 20, padding: sp[5], justifyContent: "space-between", shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   cardRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: sp[3] },
   cardKicker: { color: "rgba(255,255,255,.82)", fontSize: 11, fontWeight: "700", letterSpacing: 1.4, flexShrink: 1, textTransform: "uppercase" },
-  cardMark: { color: "#ffffff", fontSize: 18, fontWeight: "900", fontStyle: "italic", letterSpacing: 0.5 },
-  cardNumber: { color: "#ffffff", fontSize: 30, fontWeight: "700", letterSpacing: 2, fontVariant: ["tabular-nums"] },
+  cardMark: { color: light.walletInk, fontSize: 18, fontWeight: "900", fontStyle: "italic", letterSpacing: 0.5 },
+  cardNumber: { color: light.walletInk, fontSize: 34, fontWeight: "900", letterSpacing: 0.5, fontVariant: ["tabular-nums"] },
   cardLabel: { color: "rgba(255,255,255,.7)", fontSize: 9, fontWeight: "700", letterSpacing: 1 },
-  cardValue: { color: "#ffffff", fontSize: 13, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
+  cardValue: { color: light.walletInk, fontSize: 13, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
   pager: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   dots: { flexDirection: "row", alignItems: "center", justifyContent: "center", flex: 1 },

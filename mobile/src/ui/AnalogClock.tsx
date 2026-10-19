@@ -8,9 +8,9 @@ export function AnalogClock({ timestamp, size }: { timestamp: number; size: numb
   const hands = clockHands(timestamp);
   return <View accessibilityRole="image" accessibilityLabel={`Clock showing ${new Date(timestamp).toLocaleTimeString()}`} style={{ width: size, height: size, alignSelf: "center", shadowColor: t.shadow, shadowOpacity: 0.14, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }}>
     <Svg width={size} height={size} viewBox="0 0 240 240">
-      <Defs><LinearGradient id="bezel" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={t.dark ? "#66786e" : "#edf2ed"} /><Stop offset="0.45" stopColor={t.dark ? "#273e32" : "#becdc2"} /><Stop offset="1" stopColor={t.dark ? "#5c7164" : "#e3ebe5"} /></LinearGradient></Defs>
+      <Defs><LinearGradient id="bezel" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={t.clockMetalHi} /><Stop offset="0.45" stopColor={t.clockMetal} /><Stop offset="1" stopColor={t.clockMetalHi} /></LinearGradient></Defs>
       <Circle cx="120" cy="120" r="117" fill="url(#bezel)" stroke={t.lineStrong} />
-      <Circle cx="120" cy="120" r="109" fill={t.surface} stroke={t.dark ? "#09160e" : "#a7b9ac"} strokeWidth="2" />
+      <Circle cx="120" cy="120" r="109" fill={t.surface} stroke={t.lineStrong} strokeWidth="2" />
       <Circle cx="120" cy="120" r="105" fill="none" stroke={t.line} />
       {Array.from({ length: 60 }, (_, i) => <Line key={i} x1="120" y1={i % 5 ? 20 : 18} x2="120" y2={i % 5 ? 24 : 30} stroke={i % 5 ? t.muted : t.text} strokeWidth={i % 5 ? 1 : 2.4} transform={`rotate(${i * 6} 120 120)`} />)}
       {Array.from({ length: 12 }, (_, i) => {

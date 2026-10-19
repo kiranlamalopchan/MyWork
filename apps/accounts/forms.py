@@ -10,9 +10,17 @@ to be in the box at the time.
 
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.validators import UnicodeUsernameValidator
 
 from .models import MAX_ADDRESS, MAX_DISPLAY_NAME, MAX_PHONE, Profile
+
+
+class RegistrationForm(UserCreationForm):
+    email = forms.EmailField(required=False, help_text='Add an email so you can reset a forgotten password.')
+
+    class Meta(UserCreationForm.Meta):
+        fields = ('username', 'email')
 
 # A phone photo is a couple of megabytes; anything past this is somebody
 # uploading the wrong kind of file, and it is cheaper to say so than to hand
@@ -78,6 +86,7 @@ class ProfileForm(forms.ModelForm):
     email = forms.EmailField(
         required=False,
         label="Email",
+        help_text="Used to send a reset link if you forget your password.",
         widget=forms.EmailInput(attrs={
             "placeholder": "you@example.com",
             "autocomplete": "email",

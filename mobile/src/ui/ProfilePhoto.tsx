@@ -9,7 +9,9 @@ import { Avatar } from "./Avatar";
 import { confirm, notify } from "./confirm";
 import { useTheme } from "./theme";
 
-export function ProfilePhoto({ me, onChange }: { me: Me; onChange: (me: Me) => void }) {
+export function ProfilePhoto({ me, onChange, size = 80, ring }: { me: Me; onChange: (me: Me) => void; size?: number; ring?: string }) {
+  // `ring`: a band of the card's colour round the face, for when it sits over a cover.
+  const box = { width: size + 8, height: size + 8, borderRadius: (size + 8) / 2 };
   const t = useTheme();
   const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -32,20 +34,20 @@ export function ProfilePhoto({ me, onChange }: { me: Me; onChange: (me: Me) => v
   const remove = () => confirm("Remove your photo?", "Your initial goes back in its place.", "Remove", () => {
     void run(async () => onChange(await api.clearPhoto()));
   });
-  return <View style={styles.wrap}>
+  return <View style={[styles.wrap, box, ring ? { backgroundColor: ring } : null]}>
     <ActionMenu label={busy ? "Updating your photo" : "Profile photo actions"} disabled={busy}
       trigger={<View>
-        <Avatar person={me} size={80} live={false} />
+        <Avatar person={me} size={size} live={false} />
         <View style={[styles.badge, { backgroundColor: t.surface, borderColor: t.line }]}>
           <Ionicons name="camera-outline" size={14} color={t.text2} />
         </View>
       </View>}
-      triggerStyle={styles.trigger}
+      triggerStyle={[styles.trigger, box]}
       actions={[
         { label: me.photo ? "Change photo" : "Add photo", icon: "image-outline", onPress: () => { void pick(); } },
         ...(me.photo ? [{ label: "Remove photo", icon: "trash-outline" as const, destructive: true, onPress: remove }] : []),
       ]} />
-    {busy ? <View pointerEvents="none" style={[styles.loading, { backgroundColor: t.surface }]}><ActivityIndicator color={t.brand} accessibilityLabel="Updating your photo" /></View> : null}
+    {busy ? <View pointerEvents="none" style={[styles.loading, { backgroundColor: t.surface, borderRadius: box.borderRadius }]}><ActivityIndicator color={t.brand} accessibilityLabel="Updating your photo" /></View> : null}
   </View>;
 }
 const styles = StyleSheet.create({

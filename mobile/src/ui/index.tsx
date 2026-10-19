@@ -247,7 +247,6 @@ export function Button({
         styles.button,
         small && styles.buttonSm,
         { backgroundColor: bg, opacity: disabled ? 0.5 : state.pressed ? 0.85 : 1, transform: [{ scale: state.pressed ? 0.97 : 1 }] },
-        primary && Platform.OS !== "android" && { shadowColor: t.brand, shadowOpacity: t.dark ? 0 : 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
         style,
       ]}
     >
@@ -331,7 +330,7 @@ export function Chip({ children, on, colour, onPress, dot, style }: { children: 
   return (
     <Pressable onPress={onPress ? () => { tick(); onPress(); } : undefined} disabled={!onPress} style={({ pressed }) => [styles.chip, { backgroundColor: on ? c : t.dark ? t.surface2 : t.surface, opacity: pressed ? 0.8 : 1, ...(on || t.dark ? {} : chipShadow) }, style]}>
       {dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: on ? "rgba(255,255,255,0.85)" : dot }} /> : null}
-      <Text style={{ color: on ? "#fff" : t.text, fontWeight: "600", fontSize: 14.5 }}>{children}</Text>
+      <Text style={{ color: on ? colour ? t.walletInk : t.brandInk : t.text, fontWeight: "600", fontSize: 14.5 }}>{children}</Text>
     </Pressable>
   );
 }
@@ -444,7 +443,7 @@ export function Tally({ tally, onPress, right }: { tally: ReactionTally; onPress
   );
 }
 
-const chipShadow: ViewStyle = Platform.OS === "android" ? { elevation: 1 } : { shadowColor: "#1a2540", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } };
+const chipShadow: ViewStyle = Platform.OS === "android" ? { elevation: 1 } : { shadowColor: "#000000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } };
 
 const styles = StyleSheet.create({
   page: { paddingTop: sp[2], gap: sp[4] },

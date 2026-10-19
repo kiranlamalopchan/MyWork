@@ -1,52 +1,53 @@
-import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, AppState, Image, Text, useWindowDimensions, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useId, useState } from "react";
+import { AccessibilityInfo, AppState, Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { Festival } from "@/api/types";
 import { Card } from "./index";
 import { DashainMotion } from "./DashainMotion";
+import { FestivalScene } from "./FestivalScene";
 import { useTheme } from "./theme";
-const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-  lights: "flame", snow: "ellipse", fireworks: "sparkles", butterflies: "flower",
-  colour: "ellipse", flags: "flag", sun: "sunny", petals: "flower", bell: "notifications",
-  water: "water", feather: "leaf", lantern: "bulb", confetti: "sparkles",
-};
+
 export function FestivalBanner({ festival }: { festival: Festival }) {
-  const t = useTheme(), progress = useRef(new Animated.Value(0)).current;
+  const t = useTheme(), gradient = `festival-shade-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const compact = useWindowDimensions().width < 560;
   const dashain = festival.id === "dashain" || festival.motion === "kites";
-  const { width } = useWindowDimensions();
-  const narrow = width < 560;
   const [reduced, setReduced] = useState(true), [active, setActive] = useState(AppState.currentState === "active");
   useEffect(() => {
     let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setReduced(value); });
+    AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setReduced(value); }).catch(() => {});
     const reduce = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced);
     const state = AppState.addEventListener("change", value => setActive(value === "active"));
     return () => { alive = false; reduce.remove(); state.remove(); };
   }, []);
-  useEffect(() => {
-    if (dashain || reduced || !active || !icons[festival.motion]) return;
-    progress.setValue(0);
-    const animation = Animated.loop(Animated.timing(progress, { toValue: 1, duration: 4500, useNativeDriver: true }));
-    animation.start(); return () => animation.stop();
-  }, [progress, reduced, active, festival.motion, dashain]);
-  return <Card pad={false} style={{ overflow: "hidden", borderRadius: narrow ? 16 : 20 }}>
-    <View style={{ height: narrow ? 104 : 260, overflow: "hidden", backgroundColor: "#153c39" }}>
-      <Image source={{ uri: festival.image_url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-      {dashain ? <DashainMotion animate={!reduced && active} compact={narrow} /> : null}
-      {!dashain && !reduced && icons[festival.motion] ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: "absolute", inset: 0 }}>
-        {Array.from({ length: festival.motion === "sun" || festival.motion === "bell" ? 1 : 7 }, (_, index) => <Animated.View key={index} style={{ position: "absolute", left: `${8 + index * 13}%`, top: 25 + index % 3 * 35, opacity: progress.interpolate({ inputRange: [0, .5, 1], outputRange: [.35, 1, .35] }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [15, -20] }) }, { rotate: progress.interpolate({ inputRange: [0, 1], outputRange: ["-10deg", "15deg"] }) }] }}>
-          <Ionicons name={icons[festival.motion]} size={festival.motion === "snow" ? 8 : festival.motion === "sun" ? 48 : 22} color={festival.motion === "snow" ? "white" : index % 2 ? t.brand : t.warn} />
-        </Animated.View>)}
-      </View> : null}
-      <View style={{ position: "absolute", top: narrow ? 14 : 60, left: narrow ? 16 : 32, maxWidth: "58%", gap: narrow ? 5 : 6 }}>
-        {/* No shade over the picture (flat, no gradients): the words carry their own shadow instead. */}
-        <Text style={{ color: "#fff", fontSize: narrow ? 9 : 10, fontWeight: "700", letterSpacing: 1.6, textShadowColor: "rgba(0,0,0,0.55)", textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 } }}>CELEBRATING TOGETHER</Text>
-        <Text style={{ color: "#fff", fontSize: narrow ? 24 : 40, lineHeight: narrow ? 26 : 44, fontWeight: "800", letterSpacing: -0.8, textShadowColor: "rgba(0,0,0,0.5)", textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 } }}>{festival.greeting}</Text>
+  const animate = !reduced && active;
+  return <Card pad={false} style={{ overflow: "hidden", borderRadius: compact ? 18 : 24 }}>
+    <View testID="festival-artwork" style={{ minHeight: compact ? 104 : 260, overflow: "hidden", backgroundColor: "#17362f", justifyContent: "center" }}>
+      <Image source={{ uri: festival.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={gradient} x1={0} y1={0} x2={1} y2={0}>
+              <Stop offset={0} stopColor="#101c28" stopOpacity={0.72} />
+              <Stop offset={0.65} stopColor="#101c28" stopOpacity={0.58} />
+              <Stop offset={1} stopColor="#101c28" stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${gradient})`} />
+        </Svg>
+      </View>
+      {dashain ? <DashainMotion animate={animate} compact={compact} /> : null}
+      <FestivalScene id={festival.id} motion={festival.motion} animate={animate} compact={compact} />
+      <View style={{ paddingVertical: compact ? 13 : 36, paddingLeft: compact ? 16 : 32, width: "60%", gap: compact ? 5 : 10 }}>
+        <Text style={{ color: "#ffe6b1", fontSize: compact ? 9 : 10, fontWeight: "700", letterSpacing: 1.6 }}>SEASON OF TOGETHERNESS</Text>
+        <Text accessibilityRole="header" style={{ color: "#fffaf0", fontSize: compact ? festival.greeting.length > 28 ? 19 : 24 : 40, lineHeight: compact ? festival.greeting.length > 28 ? 23 : 27 : 46, fontWeight: "700", letterSpacing: -.7, textShadowColor: "rgba(0,0,0,.3)", textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } }}>{festival.greeting}</Text>
       </View>
     </View>
-    <View style={{ paddingHorizontal: narrow ? 14 : 24, paddingTop: narrow ? 8 : 18, paddingBottom: narrow ? 10 : 22, gap: narrow ? 4 : 5 }}>
-      <Text style={{ color: t.muted, fontSize: 10, fontWeight: "700", letterSpacing: 1.2 }}>ABOUT {festival.name.toUpperCase()}</Text>
-      <Text style={{ color: t.text2, fontSize: narrow ? 12 : 14, lineHeight: narrow ? 18 : 23 }}>{festival.description}</Text>
+    <View style={{ paddingHorizontal: compact ? 16 : 24, paddingVertical: compact ? 12 : 20, gap: 5 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+        <View style={{ width: 4, height: 12, borderRadius: 2, backgroundColor: t.brand }} />
+        <Text style={{ flex: 1, color: t.muted, fontSize: 10, fontWeight: "600", letterSpacing: 1.2 }}>THE SPIRIT OF {festival.name.toUpperCase()}</Text>
+      </View>
+      <Text style={{ color: t.text2, fontSize: compact ? 12 : 14, lineHeight: compact ? 18 : 23 }}>{festival.description}</Text>
     </View>
   </Card>;
 }

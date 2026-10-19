@@ -27,6 +27,13 @@ site: PLU photo search reads the photo through the API too.
    If the address has no API on it (an old deploy), the sign-in error says
    so instead of a bare "not found".
 
+If Android shows **Cannot connect to Expo CLI**, reconnect to the development
+server rather than changing the API address. Keep the phone and computer on
+the same Wi-Fi and reopen the app from the current Expo QR code. With an
+authorised USB debugging connection, `adb reverse tcp:8081 tcp:8081` can
+forward Metro over USB. This development connection is separate from Django
+on port 8000; release builds carry their JavaScript and do not need Expo CLI.
+
 Push notifications need a *development build* rather than Expo Go (Expo
 Go on Android has none since SDK 53 — the app detects Expo Go and skips
 push there, so everything else works): `npx eas login`, then
@@ -86,7 +93,7 @@ has forgotten drops the lock and asks for the password once more.
 Returning to a signed-in session after locking the phone or switching apps
 does not require another app unlock.
 The app's Dark mode switch is in Profile and is saved independently of the
-website's appearance setting. Dark mode uses the website's charcoal backgrounds.
+website's appearance setting. Dark mode uses a pure black page background, charcoal cards and light text. Light-mode cards remain soft green. Workplace Pay cards retain their own colours.
 Installed release builds include their own screen styles; mobile style changes
 require a new mobile build to be installed, even after the website is updated.
 A screen that throws shows the

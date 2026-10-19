@@ -24,10 +24,11 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("register/", views.register, name="register"),
 
-    # Getting back in with no password at all. There is no "email me a link"
-    # step in front of these — this site cannot send mail and most accounts
-    # have no address (apps/accounts/passwords.py) — so the only way here is
-    # a link an admin made on /profile/reset-links/ and handed over.
+    # Email recovery, with the existing admin-issued links as a fallback for
+    # accounts that have no email address saved.
+    path("reset/", accounts_views.ResetRequest.as_view(), name="password_reset"),
+    path("reset/sent/", auth_views.PasswordResetDoneView.as_view(
+        template_name="registration/password_reset_done.html"), name="password_reset_done"),
     path("reset/<uidb64>/<token>/", accounts_views.ResetConfirm.as_view(), name="password_reset_confirm"),
     path(
         "reset/done/",

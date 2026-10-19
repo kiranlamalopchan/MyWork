@@ -5310,68 +5310,136 @@
   }
 
   /* ----------------------------------------------------------------------
-     The timesheet's days and weeks (<details class="day|week">) open and
-     shut one at a time: opening one folds the others at its level away. The
-     fold is animated — the content grows to its height and eases down into
-     place, or shrinks away before the <details> actually shuts — and once a
-     day has opened, the page brings it up to just under the bar, so what
-     opened near the foot of the screen is not left out of sight.
+     Every fold on the site — a <details> — opens and shuts with one motion:
+     the box grows from its head to its full height (or shrinks back to its
+     head before it actually shuts) on a soft iOS-like curve, while what is
+     inside fades in and eases down into place. Whatever a fold holds — one
+     body or several pieces — moves as one, because it is the box that is
+     sized, not a part of it.
+
+     A few keep to one open at a time: the timesheet's days and weeks (at
+     their level), the Profile page's panels (<details data-fold-group>,
+     across the group) and the lists folded inside Friends (details.subfold).
+     Those come up to just under the bar once open, as the timesheet always
+     has; any other fold that opens past the foot of the screen is scrolled
+     just far enough to be seen.
+
+     Menus and pickers that happen to be <details> (the reaction row, the
+     ⋯ menus — anything data-dismiss) pop rather than fold, and are left to
+     their own code. Without JavaScript every fold still opens; it just does
+     not move.
      ---------------------------------------------------------------------- */
-  var FOLD_MS = 280, FOLD_EASE = "cubic-bezier(.2, .8, .2, 1)";
+  var FOLD_OPEN_MS = 380, FOLD_SHUT_MS = 300, FOLD_EASE = "cubic-bezier(.32, .72, 0, 1)";
+  var NOT_FOLDS = ".react, [data-dismiss]";
+  var GROUPED = ".sheet details.day, .sheet details.week, details[data-fold-group], details.subfold";
 
   function initAccordion() {
+    document.documentElement.classList.add("js-folds");
     document.addEventListener("click", function (event) {
-      var summary = event.target.closest ? event.target.closest(".sheet details.day > summary, .sheet details.week > summary") : null;
+      var summary = event.target.closest ? event.target.closest("details > summary") : null;
       if (!summary || event.defaultPrevented) return;
-      event.preventDefault();
       var box = summary.parentElement;
+      if (box.matches(NOT_FOLDS)) return;
+      // A link or button inside a head does its own thing.
+      var inner = event.target.closest("a, button, input, select, textarea, label");
+      if (inner && inner !== summary && summary.contains(inner)) return;
+      event.preventDefault();
       if (box.open && !box.classList.contains("is-closing")) { foldShut(box); return; }
-      var level = box.parentElement;
-      for (var i = 0; i < level.children.length; i++) {
-        var other = level.children[i];
-        if (other !== box && other.matches && other.matches("details.day[open], details.week[open]")) foldShut(other);
+      if (box.matches(GROUPED)) {
+        var group = box.getAttribute("data-fold-group");
+        var others = group
+          ? document.querySelectorAll('details[data-fold-group="' + group + '"][open]')
+          : box.parentElement.querySelectorAll(":scope > details.day[open], :scope > details.week[open], :scope > details.subfold[open]");
+        for (var i = 0; i < others.length; i++) {
+          if (others[i] !== box) foldShut(others[i]);
+        }
       }
       foldOpen(box);
     });
-  }
-
-  function foldBody(box) {
-    return box.querySelector(":scope > :not(summary)");
   }
 
   function stillMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
+  function foldInside(box) {
+    var out = [];
+    for (var i = 0; i < box.children.length; i++) {
+      if (box.children[i].tagName !== "SUMMARY") out.push(box.children[i]);
+    }
+    return out;
+  }
+
+  // How tall the box is with only its head showing: the head, its margins,
+  // and the box's own padding and border.
+  function foldShutHeight(box) {
+    var head = box.querySelector(":scope > summary");
+    var b = getComputedStyle(box), h = head ? getComputedStyle(head) : null;
+    var px = function (v) { return parseFloat(v) || 0; };
+    return (head ? head.offsetHeight + px(h.marginTop) + px(h.marginBottom) : 0)
+      + px(b.paddingTop) + px(b.paddingBottom) + px(b.borderTopWidth) + px(b.borderBottomWidth);
+  }
+
+  // Stop whatever the box was doing, keeping it where it was on screen, so
+  // a second tap mid-fold turns it round rather than starting again.
+  function foldStop(box) {
+    var now = box.getBoundingClientRect().height;
+    if (box._fold) { box._fold.cancel(); box._fold = null; }
+    foldInside(box).forEach(function (el) { el.getAnimations && el.getAnimations().forEach(function (a) { if (a.id === "fold") a.cancel(); }); });
+    return now;
+  }
+
+  function foldFade(box, keyframes, duration) {
+    foldInside(box).forEach(function (el) {
+      var run = el.animate(keyframes, { duration: duration, easing: FOLD_EASE });
+      run.id = "fold";
+    });
+  }
+
   function foldOpen(box) {
+    var still = stillMotion() || !box.animate;
+    var from = box.open ? foldStop(box) : box.getBoundingClientRect().height;
     box.classList.remove("is-closing");
     box.open = true;
-    var body = foldBody(box);
-    if (body && !stillMotion() && body.animate) {
-      var h = body.scrollHeight;
-      body.style.overflow = "hidden";
-      var run = body.animate(
-        [{ height: "0px", opacity: 0, transform: "translateY(-10px)" }, { height: h + "px", opacity: 1, transform: "none" }],
-        { duration: FOLD_MS, easing: FOLD_EASE }
-      );
-      run.onfinish = function () { body.style.overflow = ""; };
+    if (!still) {
+      var to = box.getBoundingClientRect().height;
+      box.style.overflow = "hidden";
+      box._fold = box.animate([{ height: from + "px" }, { height: to + "px" }], { duration: FOLD_OPEN_MS, easing: FOLD_EASE });
+      box._fold.onfinish = function () { box.style.overflow = ""; box._fold = null; };
+      foldFade(box, [{ opacity: 0, transform: "translateY(-8px)" }, { opacity: 1, transform: "none" }], FOLD_OPEN_MS);
     }
-    setTimeout(function () { bringUp(box); }, stillMotion() ? 0 : FOLD_MS + 20);
+    setTimeout(function () {
+      if (box.matches(GROUPED)) bringUp(box); else bringInView(box);
+    }, still ? 0 : FOLD_OPEN_MS + 20);
   }
 
   function foldShut(box) {
-    var body = foldBody(box);
-    if (!body || stillMotion() || !body.animate) { box.open = false; return; }
+    if (stillMotion() || !box.animate) { box.open = false; return; }
+    var from = foldStop(box);
+    var to = foldShutHeight(box);
     box.classList.add("is-closing");
-    body.style.overflow = "hidden";
-    var run = body.animate(
-      [{ height: body.offsetHeight + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
-      { duration: FOLD_MS - 40, easing: FOLD_EASE }
-    );
-    run.onfinish = function () {
-      body.style.overflow = "";
+    box.style.overflow = "hidden";
+    box._fold = box.animate([{ height: from + "px" }, { height: to + "px" }], { duration: FOLD_SHUT_MS, easing: FOLD_EASE });
+    foldFade(box, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-6px)" }], FOLD_SHUT_MS * 0.7);
+    box._fold.onfinish = function () {
+      box._fold = null;
+      box.style.overflow = "";
       if (box.classList.contains("is-closing")) { box.open = false; box.classList.remove("is-closing"); }
     };
+  }
+
+  /* Only as far as it takes: an opened fold whose foot is under the bottom
+     of the screen (or the tab bar) scrolls up until it shows — but never so
+     far that its own head goes under the bar. */
+  function bringInView(box) {
+    var bar = document.querySelector(".appbar");
+    var under = (bar ? bar.getBoundingClientRect().bottom : 0) + 12;
+    var dock = document.querySelector(".tabbar");
+    var floor = window.innerHeight - (dock && dock.offsetParent ? dock.getBoundingClientRect().height + 16 : 16);
+    var r = box.getBoundingClientRect();
+    if (r.bottom <= floor) return;
+    var by = Math.min(r.bottom - floor, r.top - under);
+    if (by > 6) window.scrollBy({ top: by, behavior: stillMotion() ? "auto" : "smooth" });
   }
 
   /* The opened fold's head comes up to just under the bar (sticky at the
