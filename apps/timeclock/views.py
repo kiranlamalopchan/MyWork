@@ -1636,6 +1636,16 @@ def _swept_to(workplace, end):
     return _run(workplace, covered, end=end) if covered else None
 
 
+def _date_typed(request):
+    """Whether the cut-off came from the date box (`up_to`), not a run button."""
+    covers = (request.POST.get("covers") or "").strip()
+    if covers == "date":
+        return True
+    if covers.startswith("run:") or covers == "now":
+        return False
+    return bool((request.POST.get("up_to") or "").strip())
+
+
 def _cut_off_named(request):
     """
     The end date the form is asking for, or None if it named no date at all.
@@ -1706,7 +1716,11 @@ def _run_being_paid(request, state):
         # cycle has runs to choose between and must name one.
         return None if state["scheduled"] else state["current"]
 
-    if state["scheduled"]:
+    # Only a run button (or a run picked from the list) names a run. A date
+    # somebody typed means everything up to it, even on the day it happens to
+    # be a run's last — matching it to that run would leave every earlier
+    # unpaid run owed.
+    if state["scheduled"] and not _date_typed(request):
         payable = list(state["due"])
         if state["current"]["payable"]:
             payable.append(state["current"])

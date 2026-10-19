@@ -1922,6 +1922,22 @@ class PaidUpToADateOnACycleTests(TestCase):
         payment = Payment.objects.filter(workplace=self.job).latest("created_at")
         self.assertIsNotNone(payment.covers_from)
 
+    def test_a_typed_date_on_a_runs_last_day_still_sweeps_everything_before_it(self):
+        # The day a fortnight ends is a date somebody can type, too. Taken as
+        # that one run it would leave every earlier unpaid run owed.
+        last_day = self._state()["due"][-1]["end"] - timedelta(days=1)
+        self.client.post(
+            reverse("timeclock:payment_record", args=[self.job.pk]),
+            {"up_to": last_day.isoformat()}, follow=True,
+        )
+        payment = Payment.objects.filter(workplace=self.job).latest("created_at")
+        self.assertIsNone(payment.covers_from)
+        left = [
+            shift for shift in Shift.objects.filter(workplace=self.job)
+            if timezone.localtime(shift.clock_in).date() > last_day
+        ]
+        self.assertEqual(self._state()["worked"], sum((s.worked_duration for s in left), timedelta()))
+
     def test_a_date_records_a_sweep(self):
         self.client.post(
             reverse("timeclock:payment_record", args=[self.job.pk]),

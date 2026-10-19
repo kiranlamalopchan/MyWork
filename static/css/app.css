@@ -971,13 +971,14 @@ hr.rule { border: 0; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
 select,
 textarea {
-  /* Filled and borderless, as in the app: the fill is what marks the box out,
-     so the rim is only kept transparent for the invalid state to colour in. */
+  /* Filled, with a quiet rim: in the mint palette the fill is within a shade
+     of the card it sits on, so the fill alone no longer marks the box out —
+     the hairline does, and the invalid state colours the same rim in. */
   width: 100%;
   min-height: 52px;
   padding: 13px var(--sp-4);
   border-radius: var(--r-md);
-  border: 1.5px solid transparent;
+  border: 1.5px solid var(--line);
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
