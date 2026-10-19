@@ -908,6 +908,20 @@ def group_by_week(days, user, today=None):
 
 
 @login_required
+def trend(request):
+    """
+    The figures behind the chart on the timesheet and pay pages, as JSON —
+    the same ones the app draws (figures.trend_json). Someone else's
+    workplace is not a filter you can use; it falls back to all of yours.
+    """
+    from .figures import trend_json
+
+    picked = request.GET.get("workplace", "")
+    workplace = Workplace.objects.filter(user=request.user, pk=picked).first() if picked.isdigit() else None
+    return JsonResponse(trend_json(request.user, request.GET.get("range", "week"), workplace))
+
+
+@login_required
 def timesheet(request):
     workplaces = list(Workplace.objects.filter(user=request.user))
     workplace = None

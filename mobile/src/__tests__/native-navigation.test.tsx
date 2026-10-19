@@ -17,14 +17,6 @@ jest.mock("expo-router/unstable-native-tabs", () => {
   NativeTabs.Trigger.Badge = function Badge({ children }: any) { return React.createElement(Text, { testID: "unread-badge" }, children); };
   return { NativeTabs };
 });
-jest.mock("expo-router", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const Tabs = ({ children }: any) => React.createElement(View, { testID: "browser-tabs" }, children);
-  Tabs.Screen = function Screen() { return null; };
-  return { Tabs };
-});
-
 const originalPlatform = Platform.OS;
 afterEach(() => { Object.defineProperty(Platform, "OS", { value: originalPlatform }); });
 
@@ -33,17 +25,9 @@ test.each(["ios", "android"])("%s uses the native navigator and keeps the unread
   mockUnread = 120;
   const view = await render(<TabsLayout />);
   expect(view.getByTestId("native-tabs")).toBeTruthy();
-  expect(view.queryByTestId("browser-tabs")).toBeNull();
   for (const label of ["Home", "Items", "Work", "Alerts", "Profile"]) expect(view.getByText(label)).toBeTruthy();
   expect(view.getByTestId("unread-badge")).toHaveTextContent("99+");
   mockUnread = 0;
   await view.rerender(<TabsLayout />);
   expect(view.queryByTestId("unread-badge")).toBeNull();
-});
-
-test("the browser renderer is used only on web", async () => {
-  Object.defineProperty(Platform, "OS", { value: "web" });
-  const view = await render(<TabsLayout />);
-  expect(view.getByTestId("browser-tabs")).toBeTruthy();
-  expect(view.queryByTestId("native-tabs")).toBeNull();
 });

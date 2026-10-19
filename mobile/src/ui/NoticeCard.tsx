@@ -5,13 +5,14 @@
  * does, and a box that takes focus is scrolled clear of the keyboard.
  */
 import React, { useRef, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { board, safety, useBoardChanged, useSafetyChanged, type Comment, type Notice, type ReactionTally, type Visibility } from "@/api";
 import { useSession } from "@/auth/session";
 
+import { ActionMenu } from "./ActionMenu";
 import { Avatar } from "./Avatar";
 import { AdminBadge } from "./AdminBadge";
 import { confirm, notify } from "./confirm";
@@ -23,8 +24,6 @@ import { ReportSheet, type ReportTarget } from "./ReportSheet";
 import { hsl, radius, sp, useTheme } from "./theme";
 import { success, tap, tick } from "./haptics";
 import { VisibilityBadge, VisibilityToggle } from "./VisibilityPicker";
-
-const menuShadow = (dark: boolean) => (Platform.OS === "android" ? { elevation: 8 } : { shadowColor: "#0f1420", shadowOpacity: dark ? 0.5 : 0.14, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } });
 
 const LABELS: Record<string, string> = { "👍": "Like", "❤️": "Love", "🥰": "Care", "😂": "Haha", "😮": "Wow", "😢": "Sad", "😡": "Angry" };
 const labelFor = (emoji: string) => LABELS[emoji] || "Reacted";
@@ -39,13 +38,6 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
   const reactRef = useRef<View>(null);
   const [tally, setTally] = useState<ReactionTally | null>(null);
   const [editing, setEditing] = useState(false);
-  // Where the ⋯ menu drops from, measured on the screen when it opens.
-  // Where the menu sits stays put after it closes: the modal fades out over
-  // it, and with nowhere to be it would fade out in the top-left corner.
-  const [menuAt, setMenuAt] = useState<{ top: number; right: number } | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const moreRef = useRef<View>(null);
-  const { width } = useWindowDimensions();
   const [draft, setDraft] = useState(given.body);
   const [draftVis, setDraftVis] = useState<Visibility>(given.visibility);
   const [say, setSay] = useState("");
@@ -105,14 +97,8 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
     try { setUnfolded(await board.comment(notice.id, body, undefined, sayVis)); success(); setSay(""); setSayVis("public"); changed(notice.id); } finally { setBusy(false); }
   };
   const unfold = async () => setUnfolded(await board.one(notice.id));
-  const openMenu = () => {
-    tick();
-    moreRef.current?.measureInWindow((x, y, w, h) => { setMenuAt({ top: y + h + 4, right: Math.max(sp[3], width - (x + w)) }); setMenuOpen(true); });
-  };
-  const closeMenu = () => setMenuOpen(false);
   const open = full ? undefined : () => router.push(`/notices/${notice.id}`);
   const comment = () => { reveal(replyRef.current); sayRef.current?.focus(); };
-  const quietLabels = width >= 360 && (!notice.can_pin || width >= 560);
 
   return (
     <NoticeSurface notice={{ ...notice, pinned }} style={styles.notice}>
@@ -146,50 +132,16 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
                 <View style={[styles.dot, { backgroundColor: hsl(hue, 72, 52) }]} />
               </View>
             ) : null}
-            <Pressable ref={moreRef} onPress={openMenu} hitSlop={6} accessibilityLabel="More" testID={`notice-menu-${notice.id}`} style={({ pressed }) => [styles.more, { backgroundColor: pressed || menuOpen ? t.surface2 : "transparent" }]}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={t.text2} />
-            </Pressable>
-            {/* The menu floats over the whole screen so a tap anywhere else closes it. Yours: edit or remove; theirs: report or block. */}
-            <Modal transparent visible={menuOpen} animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={closeMenu}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} accessibilityLabel="Close menu" />
-              <View style={[styles.menu, menuAt, { backgroundColor: t.surface, borderColor: t.dark ? t.lineStrong : "transparent" }, menuShadow(t.dark)]}>
-                {/* Admins only, first in the menu: the server says who may. */}
-                {notice.can_pin ? (
-                  <>
-                    <Pressable onPress={() => { closeMenu(); togglePin(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-pin-${notice.id}`}>
-                      <Ionicons name={pinned ? "pin-outline" : "pin"} size={18} color={t.brand} />
-                      <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>{pinned ? "Unpin" : "Pin to the top"}</Text>
-                    </Pressable>
-                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
-                  </>
-                ) : null}
-                {mine ? (
-                  <>
-                    <Pressable onPress={() => { closeMenu(); setEditing(true); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-edit-${notice.id}`}>
-                      <Ionicons name="pencil-outline" size={18} color={t.text} />
-                      <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>Edit</Text>
-                    </Pressable>
-                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
-                    <Pressable onPress={() => { closeMenu(); remove(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-remove-${notice.id}`}>
-                      <Ionicons name="trash-outline" size={18} color={t.danger} />
-                      <Text style={{ color: t.danger, fontWeight: "600", fontSize: 15 }}>Remove</Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <>
-                    <Pressable onPress={() => { closeMenu(); report(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-report-${notice.id}`}>
-                      <Ionicons name="flag-outline" size={18} color={t.text} />
-                      <Text style={{ color: t.text, fontWeight: "600", fontSize: 15 }}>Report</Text>
-                    </Pressable>
-                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line }} />
-                    <Pressable onPress={() => { closeMenu(); block(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.surface2 }]} testID={`notice-block-${notice.id}`}>
-                      <Ionicons name="ban-outline" size={18} color={t.danger} />
-                      <Text style={{ color: t.danger, fontWeight: "600", fontSize: 15 }}>Block {notice.author.username}</Text>
-                    </Pressable>
-                  </>
-                )}
-              </View>
-            </Modal>
+            <ActionMenu label="Notice actions" actions={[
+              ...(mine ? [
+                { label: "Edit", icon: "pencil-outline" as const, onPress: () => setEditing(true) },
+                { label: "Delete", icon: "trash-outline" as const, destructive: true, onPress: remove },
+              ] : [
+                { label: "Report", icon: "flag-outline" as const, onPress: report },
+                { label: `Block ${notice.author.username}`, icon: "ban-outline" as const, destructive: true, onPress: block },
+              ]),
+              ...(notice.can_pin ? [{ label: pinned ? "Unpin" : "Pin", icon: pinned ? "pin-outline" as const : "pin" as const, onPress: togglePin }] : []),
+            ]} />
           </View>
         ) : null}
       </View>
@@ -240,7 +192,7 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
       {/* The website's action row, with native touch targets and picker. */}
       <View style={styles.acts}>
         <ReactionSheet anchor={faces} mine={shown.my_emoji} onPick={react} onClose={() => setFaces(null)} />
-        <View ref={reactRef} collapsable={false} style={{ flex: quietLabels ? 1 : 1.4 }}>
+        <View ref={reactRef} collapsable={false} style={{ flex: 1 }}>
           <Act
             onPress={openFaces}
             onLongPress={openFaces}
@@ -248,15 +200,10 @@ function NoticeCardInner({ notice: given, full = false }: { notice: Notice; full
             label={shown.my_emoji ? labelFor(shown.my_emoji) : "React"}
             emoji={shown.my_emoji || undefined}
             icon="happy-outline"
-            showIcon={width >= 360 || !notice.can_pin}
           />
         </View>
-        <Act onPress={comment} colour={t.muted} label="Comment" icon="chatbubble-outline" weight={quietLabels ? 1 : 1.4} showIcon={width >= 360 || !notice.can_pin} />
-        {mine ? <>
-          <Act onPress={() => setEditing(true)} colour={t.muted} label="Edit" icon="pencil-outline" showLabel={quietLabels} />
-          <Act onPress={remove} colour={t.danger} label="Remove" icon="trash-outline" showLabel={quietLabels} />
-        </> : <Act onPress={report} colour={t.muted} label="Report" icon="flag-outline" showLabel={quietLabels} />}
-        {notice.can_pin ? <Act onPress={togglePin} colour={pinned ? t.brand : t.muted} label={pinned ? "Unpin" : "Pin"} icon={pinned ? "pin-outline" : "pin"} showLabel={quietLabels} /> : null}
+        <Act onPress={comment} colour={t.muted} label="Comment" icon="chatbubble-outline" />
+        {!mine ? <Act onPress={report} colour={t.muted} label="Report" icon="flag-outline" /> : null}
       </View>
 
       {notice.older_comments || notice.comments.length || me ? (
@@ -469,9 +416,6 @@ const styles = StyleSheet.create({
   acts: { flexDirection: "row", alignItems: "center", gap: 2 },
   act: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, minHeight: 44, minWidth: 40, borderRadius: radius.pill },
   menuWrap: { flexDirection: "row", alignItems: "center", marginRight: -6 },
-  more: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  menu: { position: "absolute", minWidth: 160, borderRadius: radius.md, borderWidth: 1, overflow: "hidden" },
-  menuItem: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingHorizontal: sp[4], paddingVertical: sp[3] },
   thread: { gap: sp[3] },
   fold: { paddingVertical: 2 },
   comment: { flexDirection: "row", alignItems: "flex-start", gap: sp[2] },

@@ -15,6 +15,7 @@ from .models import Catalogue, CatalogueUpload, PluItem
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_ROWS = 20000
+SEARCH_PAGE_SIZE = 5
 UPLOAD_TTL = timedelta(hours=1)
 
 
@@ -87,6 +88,43 @@ def configuration(catalogue):
 def item_data(item):
     return {"id": item.pk, "catalogue_id": item.catalogue_id, "title": item.title, "description": item.description,
             "code": item.code, "fields": item.fields}
+
+
+@transaction.atomic
+def update_catalogue(user, catalogue_id, changes):
+    if not isinstance(changes, dict):
+        raise CatalogueProblem("Provide catalogue settings to update.")
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    chosen = select_catalogue(user, catalogue_id)
+    name = changes.get("name", chosen.name)
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 100:
+        raise CatalogueProblem("Give your catalogue a name of up to 100 characters.")
+    if catalogues_for(user).exclude(pk=chosen.pk).filter(name__iexact=name.strip()).exists():
+        raise CatalogueProblem("You already have a catalogue with that name.")
+    selected = changes.get("search_columns", chosen.search_columns)
+    if "search_columns" in changes and (not isinstance(selected, list) or not selected or any(h not in chosen.headers for h in selected)):
+        raise CatalogueProblem("Choose at least one searchable column from this catalogue.")
+    selected = list(dict.fromkeys(selected))
+    if selected != chosen.search_columns:
+        batch = []
+        for item in chosen.items.all().iterator(chunk_size=500):
+            item.search_text = "\n".join(str(item.fields.get(h, "")) for h in selected)
+            batch.append(item)
+            if len(batch) == 500:
+                PluItem.objects.bulk_update(batch, ["search_text"])
+                batch = []
+        if batch:
+            PluItem.objects.bulk_update(batch, ["search_text"])
+    chosen.name, chosen.search_columns = name.strip(), selected
+    chosen.save(update_fields=["name", "search_columns"])
+    return chosen
+
+
+@transaction.atomic
+def delete_catalogue(user, catalogue_id):
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    chosen = select_catalogue(user, catalogue_id)
+    chosen.delete()
 
 
 def search_items(user, query, catalogue_id=None):

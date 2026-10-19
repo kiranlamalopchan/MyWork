@@ -1,0 +1,9 @@
+{
+  "environment": "Isolated local preview database; actual web/native components and APIs",
+  "checks": [
+    "web: Edit saves inline, Pin/Unpin work, Delete requires confirmation, Escape/outside dismissal work, menu fits 320px",
+    "web: readers cannot see author/admin management actions",
+    "native: Edit saves inline, Pin/Unpin work, Delete requires confirmation, Escape/outside dismissal work, menu fits 320px",
+    "native: readers cannot see author/admin management actions"
+  ]
+}

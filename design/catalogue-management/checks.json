@@ -1,0 +1,17 @@
+[
+  {
+    "surface": "website",
+    "renameAndReindex": true,
+    "replacementTarget": true,
+    "deleteCancelAndConfirm": true,
+    "otherCatalogueKept": true,
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "renameAndReindex": true,
+    "deleteCancelAndConfirm": true,
+    "otherCatalogueKept": true,
+    "errors": 0
+  }
+]

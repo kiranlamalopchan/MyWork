@@ -1,0 +1,6 @@
+{
+  "checks": [
+    "web: pages 5/5/1; replaces results; no copy/favourite/open actions; no automatic next-page request; Previous works; changed query resets to page 1; clear empties; 320px fits",
+    "native: pages 5/5/1; replaces results; no copy/favourite/open actions; no automatic next-page request; Previous works; changed query resets to page 1; clear empties; 320px fits"
+  ]
+}

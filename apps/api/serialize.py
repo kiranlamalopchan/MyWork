@@ -23,6 +23,11 @@ def absolute(request, url):
     return request.build_absolute_uri(url) if url else None
 
 
+def festival(request, banner):
+    from django.templatetags.static import static
+    return {**banner, "image_url": absolute(request, banner.get("uploaded_art") or static(banner["art"]))} if banner else None
+
+
 def page_of(request, items, per_page, page=None):
     """
     A page of `items` (a queryset or a list) with the numbers a list screen
@@ -61,6 +66,7 @@ def person(request, user, viewer=None):
 def me(request, user):
     """The signed-in person, with what only they get to see and change."""
     from apps.holidays.models import HolidayPreference
+    from apps.holidays.permissions import can_manage_festival
 
     profile = Profile.of(user)
     data = person(request, user, viewer=user)
@@ -70,6 +76,7 @@ def me(request, user):
         "phone": profile.phone,
         "address": profile.address,
         "is_staff": user.is_staff,
+        "can_manage_festival": can_manage_festival(user),
         "holiday_state": HolidayPreference.state_for(user, guess=guess_state(request)),
         "since": user.date_joined.strftime("%b %Y"),
         # Which KaamKoRecord the phone is talking to. It rides along here

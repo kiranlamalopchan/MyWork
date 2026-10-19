@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Settings · KaamKoRecord{% endblock %}
+{% block content %}
+<div class="profile-settings">
+  <a class="backlink" href="{% url 'accounts:profile' %}">{% icon "back" %} Profile</a>
+  <div class="page-head"><h1 class="page-title">Settings</h1><p class="page-sub">Make KaamKoRecord work for you.</p></div>
+  <section aria-labelledby="device-settings">
+    <h2 class="profile-settings__label" id="device-settings">ON THIS DEVICE</h2>
+    <div class="profile-settings__group">{% include "accounts/_appearance_setting.html" with hide_festival=True %}</div>
+  </section>
+  <section aria-labelledby="account-settings">
+    <h2 class="profile-settings__label" id="account-settings">ACCOUNT &amp; PRIVACY</h2>
+    <div class="profile-settings__group">
+      <a class="profile-minimal__row" href="{% url 'accounts:password' %}">{% icon "lock" %}<span>Change password</span>{% icon "chev" %}</a>
+      <a class="profile-minimal__row" href="{% url 'moderation:blocked' %}">{% icon "shield" %}<span>Blocked people</span>{% icon "chev" %}</a>
+    </div>
+  </section>
+  {% if request.user.is_staff %}
+  <section aria-labelledby="admin-settings">
+    <h2 class="profile-settings__label" id="admin-settings">ADMINISTRATION</h2>
+    <div class="profile-settings__group">
+      {% if perms.holidays.change_festivalthemesettings %}<a class="profile-minimal__row" href="{% url 'admin:holidays_festivalthemesettings_change' 1 %}" data-full-load>{% icon "sparkle" %}<span>Festival banner</span>{% icon "chev" %}</a>{% endif %}
+      <a class="profile-minimal__row" href="{% url 'accounts:reset_links' %}">{% icon "lock" %}<span>Password reset links</span>{% icon "chev" %}</a>
+    </div>
+  </section>
+  {% endif %}
+  <div class="profile-settings__legal"><a href="{% url 'moderation:rules' %}">Community rules</a><a href="{% url 'privacy' %}">Privacy</a></div>
+  <a class="profile-settings__delete" href="{% url 'accounts:delete' %}">Delete account</a>
+  <p class="muted" style="text-align:center;font-size:12px">KaamKoRecord {{ app_version }}</p>
+</div>
+{% endblock %}

@@ -87,12 +87,12 @@ def section(request):
         context["active_catalogue"] = catalogue
         context["section_links"] = [
             _link("Search", "plu:list", icon="search", active=namespace == "plu" and page in {"list", "detail", "photo_search"} and not browsing, params=params),
-            _link("Catalogues", "plu:list", active=namespace == "plu" and (browsing or page == "import"), params={"view": "catalogues"}),
+            _link("Catalogues", "plu:list", active=namespace == "plu" and (browsing or page in {"import", "catalogue_edit", "catalogue_delete"}), params={"view": "catalogues"}),
         ]
         if namespace == "plu":
-            if catalogue and catalogue.code_column.lower() in {"plu", "plu_no"} and page != "photo_search":
+            if catalogue and catalogue.code_column.lower() in {"plu", "plu_no"} and page == "list" and not browsing:
                 context["search_actions"].append(_link("Photo search", "plu:photo_search", icon="camera", params=params))
-            if page != "import":
+            if browsing and page == "list":
                 context["search_actions"].append(_link("Upload catalogue", "plu:import", icon="plus"))
     return context
 

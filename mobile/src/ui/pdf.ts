@@ -1,12 +1,9 @@
 /**
  * A PDF from the API, opened the way the phone opens files: fetched with
- * the token, written to the cache, handed to the share sheet (or, on the
- * web build, a new tab). GET by default; a POST carries `body` as JSON.
+ * the token, written to the cache, handed to the share sheet. GET by default; a POST carries `body` as JSON.
  * The native modules are loaded here, not at the top of a screen, so a
  * build made before they were added still shows the screen.
  */
-import { Platform } from "react-native";
-
 import { getToken } from "@/auth/token";
 
 import { tell } from "./confirm";
@@ -24,11 +21,6 @@ export async function openPdf(url: string, name: string, body?: unknown): Promis
     let detail = `The server said no (HTTP ${response.status}).`;
     try { detail = (await response.json()).detail || detail; } catch { /* not JSON */ }
     throw new Error(detail);
-  }
-  if (Platform.OS === "web") {
-    const href = URL.createObjectURL(await response.blob());
-    globalThis.open?.(href, "_blank");
-    return;
   }
   const { Directory, File, Paths } = native<typeof import("expo-file-system")>(() => require("expo-file-system"));
   const Sharing = native<typeof import("expo-sharing")>(() => require("expo-sharing"));

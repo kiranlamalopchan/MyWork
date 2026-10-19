@@ -1,0 +1,34 @@
+{% comment %}
+  The earnings chart — the app's (mobile/src/ui/TrendChart.tsx), on the site.
+  What was earned across a week, a fortnight, a month or six months, as one
+  soft line over the same span before it; tap a day to read it. The figures
+  come from timeclock:trend (figures.trend_json), the same ones the app
+  draws. Drawn by app.js (initTrend); without it the card stays hidden, and
+  the page says everything it said before.
+
+  `workplace`: the job it is for, or nothing for all of them.
+{% endcomment %}
+<section class="card trend" data-trend="{% url 'timeclock:trend' %}{% if workplace %}?workplace={{ workplace.pk }}{% endif %}" aria-label="Earnings chart" hidden>
+  <div class="trend__switch" role="tablist" aria-label="Chart span">
+    <button type="button" role="tab" class="trend__span is-on" data-range="week" aria-selected="true">Weekly</button>
+    <button type="button" role="tab" class="trend__span" data-range="fortnight" aria-selected="false">Fortnightly</button>
+    <button type="button" role="tab" class="trend__span" data-range="month" aria-selected="false">Monthly</button>
+    <button type="button" role="tab" class="trend__span" data-range="months" aria-selected="false">6 months</button>
+  </div>
+  <div class="trend__kicker" data-trend-kicker>Earned</div>
+  <div class="trend__amount-row">
+    <span class="trend__amount" data-trend-total></span>
+    <span class="trend__change" data-trend-change hidden></span>
+  </div>
+  <div class="trend__legend">
+    <span class="trend__key"><span class="trend__dot trend__dot--now" aria-hidden="true"></span><span data-trend-now>This week</span></span>
+    <span class="trend__key"><span class="trend__dot trend__dot--then" aria-hidden="true"></span><span data-trend-then>Last week</span></span>
+  </div>
+  <div class="trend__plot" data-trend-plot>
+    <svg class="trend__svg" aria-hidden="true" data-trend-svg></svg>
+    <span class="trend__tail" data-trend-tail aria-hidden="true"></span>
+    <span class="trend__bubble" data-trend-bubble aria-hidden="true"></span>
+  </div>
+  <p class="trend__caption" data-trend-caption aria-live="polite"></p>
+  <div class="trend__pills" data-trend-pills></div>
+</section>

@@ -7,7 +7,7 @@
  * notice most of all.
  */
 import React, { createContext, useCallback, useContext, useEffect, useRef } from "react";
-import { Keyboard, KeyboardAvoidingView, type NativeScrollEvent, type NativeSyntheticEvent, Platform } from "react-native";
+import { Keyboard, KeyboardAvoidingView, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 
 /** Something on a page that can be measured on the screen: a View or a TextInput. */
 export type Measurable = { measureInWindow(cb: (x: number, y: number, width: number, height: number) => void): void };
@@ -43,7 +43,6 @@ export function useKeyboardScroll(scrollTo: (y: number) => void) {
   }, [scrollTo]);
 
   useEffect(() => {
-    if (Platform.OS === "web") return;
     // "Did" on both: by then the page has been padded and laid out again.
     const show = Keyboard.addListener("keyboardDidShow", (e) => { keyboardTop.current = e.endCoordinates.screenY; setTimeout(bring, 60); });
     const hide = Keyboard.addListener("keyboardDidHide", () => { keyboardTop.current = 0; });
@@ -63,6 +62,5 @@ export function useKeyboardScroll(scrollTo: (y: number) => void) {
 
 /** The page shrinks by the keyboard's height, on Android as on iOS. */
 export function KeyboardPad({ children }: { children: React.ReactNode }) {
-  if (Platform.OS === "web") return <>{children}</>;
   return <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>{children}</KeyboardAvoidingView>;
 }

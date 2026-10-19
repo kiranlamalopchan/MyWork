@@ -1,0 +1,105 @@
+[
+  {
+    "surface": "native-web-preview",
+    "width": 320,
+    "motion": [
+      {
+        "tab": "Pay",
+        "side": "right",
+        "firstOffset": 28.8372,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Clock",
+        "side": "left",
+        "firstOffset": -34.6573,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Settings",
+        "side": "right",
+        "firstOffset": 33.5781,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Timesheets",
+        "side": "left",
+        "firstOffset": -39.6013,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Clock",
+        "side": "left",
+        "firstOffset": -39.6013,
+        "finalOffset": 0
+      }
+    ],
+    "regions": {
+      "oneRow": true,
+      "horizontalSwipe": true
+    },
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 390,
+    "motion": [
+      {
+        "tab": "Pay",
+        "side": "right",
+        "firstOffset": 28.8372,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Clock",
+        "side": "left",
+        "firstOffset": 0,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Settings",
+        "side": "right",
+        "firstOffset": 0,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Timesheets",
+        "side": "left",
+        "firstOffset": -39.2053,
+        "finalOffset": 0
+      },
+      {
+        "tab": "Clock",
+        "side": "left",
+        "firstOffset": -39.6013,
+        "finalOffset": 0
+      }
+    ],
+    "regions": {
+      "oneRow": true,
+      "horizontalSwipe": true
+    },
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "motion": [
+      {
+        "tab": "Pay",
+        "side": "forward"
+      },
+      {
+        "tab": "Clock",
+        "side": "back"
+      },
+      {
+        "tab": "Settings",
+        "side": "forward"
+      },
+      {
+        "tab": "Timesheets",
+        "side": "back"
+      }
+    ]
+  }
+]

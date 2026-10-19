@@ -88,15 +88,25 @@ class PrioritySearchTests(TestCase):
 
     # ---- and it reaches both front doors --------------------------------
 
+    # Search comes a page of SEARCH_PAGE_SIZE at a time, so these read every page.
+
     def test_the_generic_search_page_lists_private_items(self):
-        resp = self.client.get(reverse("plu:list"), {"q": "beef"})
-        codes = [item.plu_no for item in resp.context["page_obj"]]
-        self.assertEqual(set(codes), {7000, 7050, 7100, 6999, 7101, 1234})
+        codes, page = [], 1
+        while True:
+            page_obj = self.client.get(reverse("plu:list"), {"q": "beef", "page": page}).context["page_obj"]
+            codes += [item.plu_no for item in page_obj]
+            if not page_obj.has_next():
+                break
+            page += 1
+        self.assertEqual(sorted(codes), [1234, 6999, 7000, 7050, 7100, 7101])
 
     def test_the_generic_live_search_endpoint_lists_private_items(self):
-        resp = self.client.get(reverse("plu:search_api"), {"q": "beef"})
-        ids = [row["id"] for row in resp.json()["results"]]
-        self.assertEqual(set(ids), set(self.catalogue.items.values_list("pk", flat=True)))
+        ids, page, pages = [], 1, 1
+        while page <= pages:
+            data = self.client.get(reverse("plu:search_api"), {"q": "beef", "page": page}).json()
+            ids += [row["id"] for row in data["results"]]
+            page, pages = page + 1, data["pages"]
+        self.assertEqual(sorted(ids), sorted(self.catalogue.items.values_list("pk", flat=True)))
 
 
 class PickingListMatchTests(TestCase):

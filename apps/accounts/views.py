@@ -92,6 +92,12 @@ def profile(request):
 
 
 @login_required
+def profile_settings(request):
+    """Device preferences, privacy and account tools, separate from the portrait."""
+    return render(request, "accounts/settings.html", {"section_title": "Settings"})
+
+
+@login_required
 def profile_edit(request):
     """Your details, to change."""
     me = Profile.of(request.user)

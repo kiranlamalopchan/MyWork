@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { inbox, useInbox, useInboxChanged, type Notification } from "@/api";
 import { navigateTo } from "@/nav/paths";
 import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen, usePullRefresh } from "@/ui";
+import { underRefresh, WithDepth } from "@/ui/depth";
 import { SkeletonNotifications } from "@/ui/Skeleton";
 import { useLayout } from "@/ui/layout";
 import { hsl, mix, radius, sp, useTheme } from "@/ui/theme";
@@ -60,12 +61,15 @@ export default function Inbox() {
 
   return (
     <Screen section="Notifications">
-      <FlatList
+      <WithDepth>{(under) => <FlatList
         showsVerticalScrollIndicator={false}
+        {...under.scroll}
+        onScroll={under.onScroll}
+        scrollEventThrottle={16}
         data={rows}
         keyExtractor={(n) => String(n.id)}
-        contentContainerStyle={[layout.column, { paddingTop: sp[4], paddingBottom: layout.bottom + sp[6] }]}
-        refreshControl={refresh}
+        contentContainerStyle={[layout.column, { paddingTop: sp[4] + under.padTop, paddingBottom: layout.bottom + sp[6] }]}
+        refreshControl={underRefresh(refresh, under)}
         onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
         onEndReachedThreshold={0.6}
         ListHeaderComponent={
@@ -137,7 +141,7 @@ export default function Inbox() {
             </>
           );
         }}
-      />
+      />}</WithDepth>
     </Screen>
   );
 }

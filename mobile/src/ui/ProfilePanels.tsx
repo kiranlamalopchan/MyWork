@@ -17,9 +17,9 @@ import { radius, sp, useTheme } from "./theme";
 import { Choices } from "./timesheet";
 
 /** Whether this item is the open one, and the tap that asks to be — the page decides. */
-export type PanelProps = { open: boolean; onToggle: () => void; last?: boolean };
+export type PanelProps = { open: boolean; onToggle: () => void; last?: boolean; minimal?: boolean };
 
-export function StatementPanel({ open, onToggle, last }: PanelProps) {
+export function StatementPanel({ open, onToggle, last, minimal }: PanelProps) {
   const t = useTheme();
   const q = useActivity();
   const [from, setFrom] = useState("");
@@ -41,7 +41,7 @@ export function StatementPanel({ open, onToggle, last }: PanelProps) {
   };
 
   return (
-    <Disclosure icon="document-text-outline" tint={t.blue} title="Statement" hint="Hours and pay as a PDF, any dates" open={open} onToggle={onToggle} last={last}>
+    <Disclosure minimal={minimal} icon="document-text-outline" tint={t.blue} title="Statement" hint="Hours and pay as a PDF, any dates" open={open} onToggle={onToggle} last={last}>
       {/* Opened with nothing behind it, this was an empty box that said
           nothing about why — offline being the usual why. */}
       {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
@@ -68,7 +68,7 @@ export function StatementPanel({ open, onToggle, last }: PanelProps) {
   );
 }
 
-export function ActivityPanel({ open, onToggle, last }: PanelProps) {
+export function ActivityPanel({ open, onToggle, last, minimal }: PanelProps) {
   const t = useTheme();
   const q = useActivity();
   const a = q.data;
@@ -79,7 +79,7 @@ export function ActivityPanel({ open, onToggle, last }: PanelProps) {
     </View>
   );
   return (
-    <Disclosure icon="pulse-outline" tint={t.violet} title="Activity" hint={a ? `${a.week_hours.toFixed(1)}h worked this week` : "What you've done in KaamKoRecord"} open={open} onToggle={onToggle} last={last}>
+    <Disclosure minimal={minimal} icon="pulse-outline" tint={t.violet} title="Activity" hint={a ? `${a.week_hours.toFixed(1)}h worked this week` : "What you've done in KaamKoRecord"} open={open} onToggle={onToggle} last={last}>
       {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
       {a ? (
         <>

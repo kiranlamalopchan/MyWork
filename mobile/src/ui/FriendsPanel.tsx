@@ -24,7 +24,7 @@ import { notify } from "./confirm";
 import { success, tick } from "./haptics";
 import { radius, sp, useTheme } from "./theme";
 
-export function FriendsPanel({ open, onToggle, last }: PanelProps) {
+export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
   const t = useTheme();
   const router = useRouter();
   const [typed, setTyped] = useState("");
@@ -66,7 +66,7 @@ export function FriendsPanel({ open, onToggle, last }: PanelProps) {
       : `${data.friends.length} friend${data.friends.length === 1 ? "" : "s"}`;
 
   return (
-    <Disclosure icon="people-outline" title="Friends" hint={hint} open={open} onToggle={onToggle} last={last} testID="friends-panel">
+    <Disclosure badge={waiting} minimal={minimal} icon="people-outline" title="Friends" hint={hint} open={open} onToggle={onToggle} last={last} testID="friends-panel">
       <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>
         Posts and comments marked "Friends only" are shown to the people here.
       </Text>

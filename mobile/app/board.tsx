@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useBoard, type Notice } from "@/api";
 import { Empty, ErrorBanner, Screen, usePullRefresh } from "@/ui";
+import { underRefresh, WithDepth } from "@/ui/depth";
 import { SkeletonNotice, SkeletonNotices } from "@/ui/Skeleton";
 import { RevealProvider, useKeyboardScroll } from "@/ui/keyboard";
 import { useLayout } from "@/ui/layout";
@@ -32,17 +33,18 @@ export default function Board() {
   return (
     <Screen back backLabel="Home">
       <RevealProvider value={keyboard.reveal}>
-        <FlatList
+        <WithDepth>{(under) => <FlatList
           showsVerticalScrollIndicator={false}
+          {...under.scroll}
           ref={list}
           data={expanded ? notices : notices.slice(0, 2)}
           keyExtractor={(n) => String(n.id)}
           renderItem={({ item }) => <NoticeCard notice={item} />}
-          contentContainerStyle={[layout.column, { paddingTop: sp[3], gap: sp[4], paddingBottom: layout.bottom + sp[6] }]}
+          contentContainerStyle={[layout.column, { paddingTop: sp[3] + under.padTop, gap: sp[4], paddingBottom: layout.bottom + sp[6] }]}
           keyboardShouldPersistTaps="handled"
-          onScroll={keyboard.onScroll}
-          scrollEventThrottle={32}
-          refreshControl={refresh}
+          onScroll={(e) => { keyboard.onScroll(e); under.onScroll(e); }}
+          scrollEventThrottle={16}
+          refreshControl={underRefresh(refresh, under)}
           onEndReached={() => expanded && q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
           onEndReachedThreshold={0.6}
           ListHeaderComponent={
@@ -66,7 +68,7 @@ export default function Board() {
             }} /> : null}
             {expanded && q.isFetchingNextPage ? <SkeletonNotice lines={2} /> : null}
           </View>}
-        />
+        />}</WithDepth>
       </RevealProvider>
     </Screen>
   );

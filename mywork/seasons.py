@@ -62,11 +62,14 @@ def calendar_for_year(year):
 
 def home_festival_banner():
     """One administrator choice and one site date for every visitor."""
-    from zoneinfo import ZoneInfo
     from apps.holidays.models import FestivalThemeSettings
-    from apps.holidays.festivals import FESTIVAL_INFO, FESTIVAL_MOTION
+    return festival_banner_for(FestivalThemeSettings.objects.filter(pk=1).first())
 
-    configuration = FestivalThemeSettings.objects.filter(pk=1).first()
+
+def festival_banner_for(configuration):
+    """Render saved settings or an unsaved preview without changing the site."""
+    from zoneinfo import ZoneInfo
+    from apps.holidays.festivals import FESTIVAL_INFO, FESTIVAL_MOTION
     choice = configuration.theme if configuration else 'auto'
     if choice == 'off':
         return None

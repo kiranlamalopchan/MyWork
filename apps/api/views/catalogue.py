@@ -19,9 +19,9 @@ class Search(PrivateCatalogueView):
         q = (request.GET.get("q") or "").strip()[:500]
         chosen = catalogue.for_request(request)
         items = catalogue.selected_items(request)
-        page, meta = serialize.page_of(request, catalogue.search_items(request.user, q, chosen.pk if chosen else None) if q else items.none(), 20)
+        page, meta = serialize.page_of(request, catalogue.search_items(request.user, q, chosen.pk if chosen else None) if q else items.none(), catalogue.SEARCH_PAGE_SIZE)
         meta.update(q=q, results=[catalogue.item_data(i) for i in page], total=items.count(),
-                    samples=[catalogue.item_data(i) for i in items.order_by("pk")[:6]],
+                    samples=[] if q else [catalogue.item_data(i) for i in items.order_by("pk")[:catalogue.SEARCH_PAGE_SIZE]],
                     catalogue=catalogue.configuration(chosen), catalogues=catalogue.catalogue_choices(request.user))
         return Response(meta)
 
@@ -29,6 +29,23 @@ class Search(PrivateCatalogueView):
 class Detail(PrivateCatalogueView):
     def get(self, request, pk):
         return Response(catalogue.item_data(get_object_or_404(catalogue.items_for(request.user), pk=pk)))
+
+
+class Manage(PrivateCatalogueView):
+    def get(self, request, pk):
+        chosen = catalogue.select_catalogue(request.user, pk)
+        return Response({**catalogue.configuration(chosen), "count": chosen.items.count()})
+
+    def patch(self, request, pk):
+        try:
+            chosen = catalogue.update_catalogue(request.user, pk, request.data)
+        except catalogue.CatalogueProblem as error:
+            raise ValidationError({"detail": str(error)})
+        return Response({**catalogue.configuration(chosen), "count": chosen.items.count()})
+
+    def delete(self, request, pk):
+        catalogue.delete_catalogue(request.user, pk)
+        return Response(status=204)
 
 
 class Preview(PrivateCatalogueView):

@@ -3,12 +3,12 @@
  * hooks and invalidations that keep screens in step after a change.
  */
 import { useCallback } from "react";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, apiUrl, FilePart, formWith } from "./client";
 import { CHUNK_AT, sizeOf, uploadInPieces } from "./chunked";
 import type {
-  Activity, CalendarPage, ClockState, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
+  Activity, CalendarPage, ClockState, Trend, TrendRange, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
   TimesheetPage, Workplace, WorkplaceBrief, WorkplaceInput, WorkplacesPage,
   Friends as FriendsPage, PhotoRead, PluImportable, PluImported,
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
@@ -332,6 +332,7 @@ export const timesheet = {
   clockOut: () => api<ClockState>("timesheet/clock-out/", { method: "POST", body: stamp() }),
   page: (page: number, workplace?: number | null) => api<TimesheetPage>("timesheet/", { query: { page, workplace: workplace ?? undefined } }),
   calendar: (year?: number, month?: number, day?: string | null) => api<CalendarPage>("timesheet/calendar/", { query: { year, month, day: day ?? undefined } }),
+  trend: (range: TrendRange, workplace?: number | null) => api<Trend>("timesheet/trend/", { query: { range, workplace: workplace ?? undefined } }),
   newShift: (day?: string) => api<NewShift>("timesheet/shifts/new/", { query: { day } }),
   shift: (id: number) => api<ShiftDetail>(`timesheet/shifts/${id}/`),
   addShift: (input: ShiftInput) => api<ShiftDetail>("timesheet/shifts/", { method: "POST", body: input }),
@@ -378,6 +379,10 @@ export function useTimesheet(workplace: number | null) {
 export function useCalendar(year?: number, month?: number, day?: string | null) {
   return useQuery({ queryKey: ["calendar", year, month, day], queryFn: () => timesheet.calendar(year, month, day) });
 }
+/** The chart's figures. The last span stays up while the next one loads, so switching never blanks the chart. */
+export function useTrend(range: TrendRange, workplace?: number | null) {
+  return useQuery({ queryKey: ["trend", range, workplace ?? null], queryFn: () => timesheet.trend(range, workplace), placeholderData: keepPreviousData, staleTime: 15_000 });
+}
 export function useShift(id: number) {
   return useQuery({ queryKey: ["shift", id], queryFn: () => timesheet.shift(id) });
 }
@@ -398,7 +403,7 @@ export function useActivity() {
 export function useTimesheetChanged() {
   const client = useQueryClient();
   return () => {
-    for (const key of ["clock", "timesheet", "calendar", "shift", "workplaces", "pay", "more", "activity", "home"]) {
+    for (const key of ["clock", "timesheet", "calendar", "trend", "shift", "workplaces", "pay", "more", "activity", "home"]) {
       client.invalidateQueries({ queryKey: [key] });
     }
   };

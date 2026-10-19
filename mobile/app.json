@@ -2,6 +2,7 @@
   "expo": {
     "name": "KaamKoRecord",
     "slug": "mywork",
+    "platforms": ["ios", "android"],
     "version": "1.3.0",
     "scheme": "mywork",
     "orientation": "portrait",
@@ -33,11 +34,6 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",

@@ -7,7 +7,7 @@
  * this device independently of the site's appearance setting.
  */
 import { createContext, useContext } from "react";
-import { Platform, useColorScheme } from "react-native";
+import { useColorScheme } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 export const light = {
@@ -82,21 +82,23 @@ export const dark: Theme = {
   rxLove: "#f5607a",
   rxFace: "#f2c14e",
   rxAngry: "#f2795c",
-  bg: "#111318",
-  surface: "#1b1e25",
-  surface2: "#242831",
-  surface3: "#303641",
-  text: "#f0f2f5",
-  text2: "#c5cad3",
-  muted: "#a0a7b5",
-  line: "#303641",
-  lineStrong: "#485262",
-  pill: "#242831",
-  pillGlass: "rgba(35, 39, 49, 0.88)",
+  // The phone's own dark mode: true black ground, the system's neutral greys
+  // for panels and text (iOS's grouped-background steps), no blue cast.
+  bg: "#000000",
+  surface: "#1c1c1e",
+  surface2: "#2c2c2e",
+  surface3: "#3a3a3c",
+  text: "#f5f5f7",
+  text2: "#d1d1d6",
+  muted: "#98989f",
+  line: "#2c2c2e",
+  lineStrong: "#48484a",
+  pill: "#2c2c2e",
+  pillGlass: "rgba(28, 28, 30, 0.88)",
   pillLine: "rgba(255, 255, 255, 0.16)",
-  track: "rgba(0, 0, 0, 0.32)",
-  knob: "#3c4554",
-  glass: "#1b1e25",
+  track: "rgba(255, 255, 255, 0.08)",
+  knob: "#48484a",
+  glass: "#1c1c1e",
   glassLine: "rgba(255, 255, 255, 0.07)",
   glassHi: "transparent",
   shadow: "#000000",
@@ -130,7 +132,7 @@ const KEY = "mywork.theme";
 
 export async function loadThemeMode(): Promise<ThemeMode> {
   try {
-    const raw = Platform.OS === "web" ? globalThis.localStorage?.getItem(KEY) : await SecureStore.getItemAsync(KEY);
+    const raw = await SecureStore.getItemAsync(KEY);
     return raw === "light" || raw === "dark" ? raw : "system";
   } catch {
     return "system";
@@ -139,8 +141,7 @@ export async function loadThemeMode(): Promise<ThemeMode> {
 
 export async function saveThemeMode(mode: ThemeMode): Promise<void> {
   try {
-    if (Platform.OS === "web") globalThis.localStorage?.setItem(KEY, mode);
-    else await SecureStore.setItemAsync(KEY, mode);
+    await SecureStore.setItemAsync(KEY, mode);
   } catch {
     /* the choice lasts the session then */
   }
@@ -153,8 +154,8 @@ export const radius = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;
 /** The page's side margin. */
 export const gutter = 20;
 
-/** The app bar's height, under the status bar. */
-export const APPBAR_H = 56;
+/** The app bar's height, under the status bar — about a system nav bar's, so the page keeps the screen. */
+export const APPBAR_H = 48;
 
 /**
  * A person's colour, from their username, the way apps/accounts/avatars.py

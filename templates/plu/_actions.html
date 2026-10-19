@@ -1,0 +1,2 @@
+{% load ui %}
+{% if search_actions %}<div class="search-heading__actions" role="group" aria-label="Catalogue actions">{% for action in search_actions %}<a class="btn" href="{{ action.href }}">{% if action.icon %}{% icon action.icon %}{% endif %}{{ action.label }}</a>{% endfor %}</div>{% endif %}

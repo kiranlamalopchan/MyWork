@@ -10,7 +10,6 @@
  * it is hidden from the screen reader rather than described.
  */
 import React from "react";
-import { Platform } from "react-native";
 import Svg, { Circle, G, Path, Rect } from "react-native-svg";
 
 import { alpha, useTheme } from "@/ui/theme";
@@ -21,7 +20,7 @@ export function HolidayArt() {
   const doodle = alpha(t.brand, 0.34);
 
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 160 150" fill="none" accessible={Platform.OS === "web" ? undefined : false} aria-hidden>
+    <Svg width="100%" height="100%" viewBox="0 0 160 150" fill="none" accessible={false} aria-hidden>
       <Circle cx={82} cy={74} r={70} fill={wash} />
 
       <Path d="M8 52q9-11 18 0t18 0" stroke={doodle} strokeWidth={3.5} strokeLinecap="round" />

@@ -1,13 +1,10 @@
 /**
- * My workplaces (templates/timeclock/workplace_list.html): your jobs, each
- * with its default star, edit and remove — and at the foot, where your own
- * week, fortnight and month begin.
- *
- * A job is a card rather than a row. Everything the server knows about one —
- * the rate, how it pays, whether it is cash, the hours cap — used to arrive
- * as a single `sub` line, which on a phone truncated after the address and
- * threw the rest away. Laid out as facts it all fits, and the three things
- * you can do to a job are named rather than left as three bare circles.
+ * My workplaces (templates/timeclock/workplace_list.html), kept to a list:
+ * one row per job — its colour, its name, and one quiet line with what it
+ * pays and when. Tapping a row opens it; making it the default, editing and
+ * removing are in its ⋯ menu. Tax, cash and the hours cap are on the job
+ * itself, one tap away, rather than spelled out under every name. Where your
+ * own week, fortnight and month begin is one row at the foot.
  */
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -15,48 +12,53 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, useTimesheetChanged, useWorkplaces, type Cycles, type Workplace } from "@/api";
-import { Button, Card, Empty, ErrorBanner, Field, Input, Page, PageTitle, Screen, useLayout } from "@/ui";
+import { Button, Card, Empty, ErrorBanner, Field, Input, Page, Screen } from "@/ui";
+import { ActionMenu } from "@/ui/ActionMenu";
 import { SkeletonWorkplaces } from "@/ui/Skeleton";
 import { notify, tell } from "@/ui/confirm";
 import { success, tap } from "@/ui/haptics";
-import { alpha, radius, sp, useTheme } from "@/ui/theme";
-import { cssColour, hslAlpha } from "@/ui/timesheet";
+import { sp, useTheme } from "@/ui/theme";
+import { cssColour } from "@/ui/timesheet";
 import { Select } from "@/ui/Select";
 
 export default function Workplaces() {
+  const t = useTheme();
   const router = useRouter();
-  const { wide } = useLayout();
   const q = useWorkplaces();
   const data = q.data;
+  const jobs = data?.workplaces ?? [];
 
   return (
     <Screen back backLabel="More">
       <Page>
-        <PageTitle sub="The default one is picked automatically when you clock in. Each one keeps its own hours limit.">My workplaces</PageTitle>
+        <View style={styles.head}>
+          <Text accessibilityRole="header" style={[styles.title, { color: t.text }]}>Workplaces</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Add workplace" testID="add-workplace" hitSlop={4}
+            onPress={() => { tap("light"); router.push("/workplaces/new"); }}
+            style={({ pressed }) => [styles.add, { backgroundColor: t.brand, opacity: pressed ? 0.8 : 1 }]}>
+            <Ionicons name="add" size={24} color={t.brandInk} />
+          </Pressable>
+        </View>
         {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
         {q.isLoading ? <SkeletonWorkplaces /> : null}
-        {data && data.workplaces.length === 0 ? <Empty icon="home-outline" title="No workplaces yet" sub="Add the places you work so shifts can be recorded against them." /> : null}
-        <View style={wide && styles.grid}>
-          {(data?.workplaces ?? []).map((w) => (
-            <View key={w.id} style={wide && styles.cell}>
-              <Job w={w} />
-            </View>
-          ))}
-        </View>
+        {data && jobs.length === 0 ? <Empty icon="home-outline" title="No workplaces yet" sub="Add the places you work so shifts can be recorded against them." action={<Button title="Add workplace" icon="add" onPress={() => router.push("/workplaces/new")} />} /> : null}
+        {jobs.length ? (
+          <Card pad={false} style={{ overflow: "hidden" }}>
+            {jobs.map((w, i) => <Job key={w.id} w={w} last={i === jobs.length - 1} />)}
+          </Card>
+        ) : null}
         {data ? <CyclesPanel cycles={data.cycles} choices={data.choices} /> : null}
-        <Button title="Add workplace" icon="add" onPress={() => router.push("/workplaces/new")} testID="add-workplace" />
       </Page>
     </Screen>
   );
 }
 
-function Job({ w }: { w: Workplace }) {
+function Job({ w, last }: { w: Workplace; last: boolean }) {
   const t = useTheme();
   const router = useRouter();
   const changed = useTimesheetChanged();
-  const hue = cssColour(w.css);
 
-  // Said out loud when it fails. The star simply not moving is what this
+  // Said out loud when it fails. The default simply not moving is what this
   // looked like before, which reads as the tap having missed.
   const makeDefault = async () => {
     try {
@@ -67,75 +69,30 @@ function Job({ w }: { w: Workplace }) {
       notify("Couldn't make it the default", e?.message || "");
     }
   };
+  const line = [w.hourly_rate ? `$${w.hourly_rate.toFixed(2)}/hr` : "No rate", w.pay_cycle_label].join(" · ");
 
   return (
-    <Card pad={false} style={styles.card} testID={`workplace-${w.id}`}>
-      <View style={styles.head}>
-        <View style={[styles.mark, { backgroundColor: hslAlpha(hue, 0.16) }]}>
-          <Text style={{ color: hue, fontWeight: "800", fontSize: 17 }}>{w.name.slice(0, 1).toUpperCase()}</Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
+    // The row and its ⋯ sit side by side rather than one inside the other: a
+    // button inside a button is not something the web allows.
+    <View testID={`workplace-${w.id}`} style={[styles.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.line }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${w.name}${w.is_default ? ", default" : ""}, ${line}`} accessibilityHint="Opens this workplace"
+        onPress={() => { tap("light"); router.push(`/workplaces/${w.id}/edit`); }}
+        style={({ pressed }) => [styles.open, { opacity: pressed ? 0.6 : 1 }]}>
+        <View style={[styles.dot, { backgroundColor: cssColour(w.css) }]} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <View style={styles.nameRow}>
-            <Text style={{ color: t.text, fontWeight: "700", fontSize: 16.5, flexShrink: 1 }} numberOfLines={1}>{w.name}</Text>
-            {w.is_default ? (
-              <View style={[styles.default, { backgroundColor: alpha(t.brand, 0.14) }]}>
-                <Ionicons name="star" size={10} color={t.brandStrong} />
-                <Text style={{ color: t.brandStrong, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.4 }}>DEFAULT</Text>
-              </View>
-            ) : null}
+            <Text style={{ color: t.text, fontWeight: "600", fontSize: 16, flexShrink: 1 }} numberOfLines={1}>{w.name}</Text>
+            {w.is_default ? <Text style={{ color: t.brandStrong, fontSize: 12, fontWeight: "700" }}>Default</Text> : null}
           </View>
-          <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }} numberOfLines={1}>{w.address || "No address"}</Text>
+          <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{line}</Text>
         </View>
-      </View>
-
-      {/* The numbers, one to a chip: a phone truncates a sentence of them. */}
-      <View style={styles.facts}>
-        <Fact tint={w.hourly_rate ? t.brandStrong : undefined}>{w.hourly_rate ? `$${w.hourly_rate.toFixed(2)}/hr` : "No rate set"}</Fact>
-        <Fact>{w.pay_cycle_label}</Fact>
-        {w.in_cash ? <Fact tint={t.warn}>Cash</Fact> : w.tax_label ? <Fact>{w.tax_label}</Fact> : w.tax_rate ? <Fact>{`${w.tax_rate}% tax`}</Fact> : null}
-        {w.limit_label ? <Fact tint={t.violet}>{w.limit_label}</Fact> : null}
-      </View>
-
-      <View style={[styles.acts, { borderTopColor: t.line }]}>
-        {!w.is_default ? (
-          <Act icon="star-outline" label="Make default" a11y={`Make ${w.name} the default`} onPress={makeDefault} />
-        ) : null}
-        <Act icon="pencil-outline" label="Edit" a11y={`Edit ${w.name}`} onPress={() => router.push(`/workplaces/${w.id}/edit`)} />
-        <Act icon="trash-outline" label="Remove" a11y={`Remove ${w.name}`} danger onPress={() => router.push(`/workplaces/${w.id}/remove`)} />
-      </View>
-    </Card>
-  );
-}
-
-/** One fact about a job, in a tint that says which kind it is. */
-function Fact({ children, tint }: { children: React.ReactNode; tint?: string }) {
-  const t = useTheme();
-  const ink = tint || t.text2;
-  return <Text style={[styles.fact, { backgroundColor: alpha(ink, 0.11), color: ink }]}>{children}</Text>;
-}
-
-/**
- * Something you can do to a job, named.
- *
- * The name is for the eye and the accessibility label for a screen reader,
- * which needs to know *which* job — three rows of "Edit" would otherwise all
- * read the same.
- */
-function Act({ icon, label, a11y, onPress, danger }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string; a11y: string; onPress: () => void; danger?: boolean;
-}) {
-  const t = useTheme();
-  const ink = danger ? t.danger : t.text2;
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={a11y}
-      onPress={() => { tap("light"); onPress(); }}
-      style={({ pressed }) => [styles.act, { backgroundColor: pressed ? alpha(ink, 0.12) : "transparent" }]}
-    >
-      <Ionicons name={icon} size={16} color={ink} />
-      <Text style={{ color: ink, fontWeight: "700", fontSize: 13 }}>{label}</Text>
-    </Pressable>
+      </Pressable>
+      <ActionMenu label={`Actions for ${w.name}`} actions={[
+        ...(w.is_default ? [] : [{ label: "Make default", accessibilityLabel: `Make ${w.name} the default`, icon: "star-outline" as const, onPress: makeDefault }]),
+        { label: "Edit", accessibilityLabel: `Edit ${w.name}`, icon: "pencil-outline", onPress: () => router.push(`/workplaces/${w.id}/edit`) },
+        { label: "Remove", accessibilityLabel: `Remove ${w.name}`, icon: "trash-outline", destructive: true, onPress: () => router.push(`/workplaces/${w.id}/remove`) },
+      ]} />
+    </View>
   );
 }
 
@@ -167,19 +124,13 @@ function CyclesPanel({ cycles, choices }: { cycles: Cycles; choices: { weekdays:
 
   return (
     <Card pad={false}>
-      <Pressable onPress={() => setOpen((v) => !v)} style={styles.panelHead}>
-        <View style={[styles.panelIcon, { backgroundColor: alpha(t.blue, 0.13) }]}>
-          <Ionicons name="calendar-outline" size={19} color={t.blue} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ color: t.text, fontWeight: "700", fontSize: 16 }}>My week &amp; cycles</Text>
-          <Text style={{ color: t.muted, fontSize: 13, marginTop: 1 }}>from {cycles.week_label}</Text>
-        </View>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={t.muted} />
+      <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.panelHead}>
+        <Text style={{ color: t.text, fontWeight: "600", fontSize: 15, flex: 1 }}>Week starts</Text>
+        <Text style={{ color: t.muted, fontSize: 15 }} numberOfLines={1}>{cycles.week_label}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={t.muted} />
       </Pressable>
       {open ? (
         <View style={[styles.panelBody, { borderTopColor: t.line }]}>
-          <Text style={{ color: t.muted, fontSize: 13.5, lineHeight: 19 }}>These drive the totals that span every workplace, and the calendar grid. A workplace's own limit uses its own cycle, set on that workplace.</Text>
           <Field label="Week starts on" help="Also sets which day the calendar grid starts on.">
             <Select label="Week starts on" value={String(week)} onChange={(v) => setWeek(Number(v))} options={choices.weekdays.map((d) => ({ value: String(d.value), label: d.label }))} />
           </Field>
@@ -200,19 +151,13 @@ function CyclesPanel({ cycles, choices }: { cycles: Cycles; choices: { weekdays:
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: sp[4] },
-  cell: { flexGrow: 1, flexBasis: 320, minWidth: 0 },
-  card: { padding: sp[4], gap: sp[3] },
   head: { flexDirection: "row", alignItems: "center", gap: sp[3] },
-  mark: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  title: { flex: 1, fontSize: 30, fontWeight: "800", letterSpacing: -0.8 },
+  add: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  row: { flexDirection: "row", alignItems: "center", gap: sp[1], paddingRight: sp[1] },
+  open: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: sp[3], minHeight: 64, paddingLeft: sp[4], paddingVertical: sp[2] },
+  dot: { width: 10, height: 10, borderRadius: 5 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: sp[2] },
-  default: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.pill },
-  facts: { flexDirection: "row", flexWrap: "wrap", gap: sp[2] },
-  fact: { paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: radius.pill, fontSize: 12.5, fontWeight: "600", overflow: "hidden" },
-  // Pulled out to the card's edges so the three read as one bar under it.
-  acts: { flexDirection: "row", flexWrap: "wrap", gap: sp[1], marginHorizontal: -sp[2], marginBottom: -sp[1], paddingTop: sp[2], borderTopWidth: StyleSheet.hairlineWidth },
-  act: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: sp[2], paddingVertical: sp[2], borderRadius: radius.sm, minHeight: 40 },
-  panelHead: { flexDirection: "row", alignItems: "center", gap: sp[3], padding: sp[4], minHeight: 60 },
-  panelIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  panelHead: { flexDirection: "row", alignItems: "center", gap: sp[2], paddingHorizontal: sp[4], minHeight: 56 },
   panelBody: { padding: sp[4], gap: sp[4], borderTopWidth: StyleSheet.hairlineWidth },
 });

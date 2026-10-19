@@ -1,8 +1,4 @@
-/**
- * Where the token lives: the phone's keychain/keystore through SecureStore;
- * on the web build, localStorage, which is what a browser has.
- */
-import { Platform } from "react-native";
+/** Where the token lives: the phone's keychain/keystore through SecureStore. */
 import * as SecureStore from "expo-secure-store";
 
 const KEY = "mywork.token";
@@ -12,7 +8,7 @@ const listeners = new Set<() => void>();
 export async function getToken(): Promise<string | null> {
   if (cached !== undefined) return cached;
   try {
-    cached = Platform.OS === "web" ? globalThis.localStorage?.getItem(KEY) ?? null : await SecureStore.getItemAsync(KEY);
+    cached = await SecureStore.getItemAsync(KEY);
   } catch {
     cached = null;
   }
@@ -22,10 +18,7 @@ export async function getToken(): Promise<string | null> {
 export async function setToken(token: string | null): Promise<void> {
   cached = token;
   try {
-    if (Platform.OS === "web") {
-      if (token) globalThis.localStorage?.setItem(KEY, token);
-      else globalThis.localStorage?.removeItem(KEY);
-    } else if (token) {
+    if (token) {
       await SecureStore.setItemAsync(KEY, token);
     } else {
       await SecureStore.deleteItemAsync(KEY);

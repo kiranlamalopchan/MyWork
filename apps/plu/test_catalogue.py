@@ -79,6 +79,11 @@ class PersonalCatalogueTests(TestCase):
         self.assertEqual(self.api("get", "item_detail", pk=foreign.pk).status_code, 404)
         self.assertEqual(self.client.get(reverse("plu:detail", args=[foreign.pk])).status_code, 404)
         self.assertNotContains(self.client.get(reverse("plu:list"), {"q": "secret"}), "Secret item")
+        idle_page = self.client.get(reverse("plu:list"))
+        self.assertNotContains(idle_page, "Blue apron")
+        self.assertNotContains(idle_page, "From your catalogue")
+        self.assertNotContains(idle_page, "Secret item")
+        self.assertNotContains(idle_page, "Legacy secret")
         self.assertEqual(self.api("get", "plu_item", pk=999).status_code, 404)
 
     def test_my_catalogues_view_lists_only_the_owners_named_uploads(self):
@@ -89,7 +94,8 @@ class PersonalCatalogueTests(TestCase):
         self.assertContains(response, "Meat")
         self.assertContains(response, "Groceries")
         self.assertNotContains(response, "Bobs private catalogue")
-        self.assertContains(response, f'?catalogue={first["catalogue_id"]}')
+        self.assertContains(response, reverse("plu:catalogue_edit", args=[first["catalogue_id"]]))
+        self.assertNotContains(response, "Search catalogue")
 
     def test_staff_has_no_cross_account_search_access(self):
         self.alice.is_staff = True
@@ -156,7 +162,7 @@ class PersonalCatalogueTests(TestCase):
         self.assertContains(response, "Stainless")
         token = response.context["preview"]["upload_id"]
         response = self.client.post(reverse("plu:import"), {"upload_id": token, "name": "Kit", "title_column": "Title", "description_column": "Description", "code_column": "Code", "search_columns": ["Title", "Code"]})
-        self.assertRedirects(response, reverse("plu:list") + f"?catalogue={catalogue.settings_for(self.alice).pk}")
+        self.assertRedirects(response, reverse("plu:list") + f"?view=catalogues&catalogue={catalogue.settings_for(self.alice).pk}")
         response = self.client.get(reverse("plu:list"), {"q": "Knife"})
         self.assertContains(response, "Knife")
         self.assertContains(response, "A-1")
@@ -215,7 +221,7 @@ class PersonalCatalogueTests(TestCase):
             data = response.json()
             self.assertEqual([r["title"] for r in data["results"]], [title])
             self.assertEqual(data["total"], 1)
-            self.assertEqual([r["title"] for r in data["samples"]], [title])
+            self.assertEqual(data["samples"], [])
             self.assertEqual({c["name"] for c in data["catalogues"]}, {"Groceries", "Meat"})
             self.assertEqual([c["count"] for c in data["catalogues"]], [1, 1])
 
@@ -301,3 +307,44 @@ class PersonalCatalogueTests(TestCase):
         response = self.client.get(reverse("plu:photo_search"), {"catalogue": second["catalogue_id"]})
         self.assertNotContains(response, "LAMB CHOPS")
         self.assertEqual(self.client.post(reverse("plu:photo_search_pick"), {"catalogue": second["catalogue_id"], "index": 0, "plu_no": 7012}).status_code, 400)
+
+
+class SearchPaginationTests(TestCase):
+    setUp = PersonalCatalogueTests.setUp
+    api = PersonalCatalogueTests.api
+    save = PersonalCatalogueTests.save
+    def test_search_pages_are_limited_and_disjoint_on_web_and_mobile(self):
+        saved = self.save(text="SKU,Name,Notes,Category\n" + "\n".join(f"{i:03},Item {i:02},Description {i:02},Match" for i in range(11)))
+        self.save(self.bob, text="SKU,Name,Notes,Category\n999,Private,Secret,Match\n")
+        for endpoint in ("item_search", "search_api"):
+            seen = set()
+            for page, expected in ((1, 5), (2, 5), (3, 1)):
+                params = {"q": "Match", "catalogue": saved["catalogue_id"], "page": page}
+                data = self.api("get", endpoint, params).json() if endpoint == "item_search" else self.client.get(reverse("plu:search_api"), params).json()
+                self.assertEqual(len(data["results"]), expected)
+                self.assertEqual((data["page"], data["pages"]), (page, 3))
+                ids = {row["id"] for row in data["results"]}
+                self.assertFalse(seen & ids)
+                seen |= ids
+                if endpoint == "item_search":
+                    self.assertEqual(data["next"], page + 1 if page < 3 else None)
+                    self.assertEqual(data["samples"], [])
+            self.assertEqual(len(seen), 11)
+        response = self.client.get(reverse("plu:list"), {"q": "Match", "catalogue": saved["catalogue_id"]})
+        self.assertEqual(len(response.context["page_obj"]), 5)
+        self.assertContains(response, 'class="search-result"', count=5)
+        self.assertContains(response, 'Description 00')
+        self.assertNotContains(response, 'data-copy=')
+        self.assertNotContains(response, 'Tap a code to copy')
+        self.assertNotContains(response, 'Item 00')
+
+    def test_final_page_empty_and_fallback_description(self):
+        saved = self.save(text="SKU,Name,Notes,Category\n001,Beef,,Meat\n")
+        params = {"q": "Beef", "catalogue": saved["catalogue_id"], "page": 100}
+        data = self.api("get", "item_search", params).json()
+        self.assertEqual((data["page"], data["pages"], data["next"]), (1, 1, None))
+        self.assertContains(self.client.get(reverse("plu:list"), params), 'Beef')
+        params["q"] = "no match"
+        data = self.api("get", "item_search", params).json()
+        self.assertEqual(data["results"], [])
+        self.assertIsNone(data["next"])

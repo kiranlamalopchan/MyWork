@@ -25,7 +25,7 @@ const WORDS: Record<Exclude<PushState, "unsupported">, string> = {
   blocked: "Blocked for KaamKoRecord in the phone's Settings. Tap the switch to open them.",
 };
 
-export function PushRow() {
+export function PushRow({ minimal = false }: { minimal?: boolean }) {
   const t = useTheme();
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -68,13 +68,13 @@ export function PushRow() {
   };
 
   return (
-    <Card pad={false}>
-      <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: alpha(t.orange, 0.14) }]}>
+    <Card pad={false} style={minimal ? { borderWidth: 0, borderRadius: 0 } : undefined}>
+      <View style={[styles.row, minimal && { paddingHorizontal: 22, paddingVertical: 16, gap: 18 }]}>
+        <View style={[styles.icon, { backgroundColor: alpha(t.orange, 0.14) }, minimal && { width: 20, height: 24, backgroundColor: "transparent" }]}>
           <Ionicons name="notifications-outline" size={22} color={t.orange} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ color: t.text, fontWeight: "600", fontSize: 16, letterSpacing: -0.1 }}>Notify this phone</Text>
+          <Text style={{ color: t.text, fontWeight: minimal ? "400" : "600", fontSize: minimal ? 15 : 16, letterSpacing: -0.1 }}>Notify this phone</Text>
           <Text style={{ color: t.muted, fontSize: 13.5, marginTop: 2, lineHeight: 18 }} testID="push-status">{WORDS[state]}</Text>
         </View>
         <Switch value={state === "on"} onValueChange={flip} disabled={busy} trackColor={{ true: t.brand }} accessibilityLabel="Notify this phone" testID="push-switch" />

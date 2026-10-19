@@ -29,6 +29,8 @@
       style="--hue: {{ notice.hue }}; --i: {% firstof forloop.counter0 "0" %}"
       id="notice-{{ notice.pk }}">
 
+    {% include "noticeboard/_notice_menu.html" %}
+
     {% if notice.is_new and not notice.is_mine %}
       <span class="notice__dot" role="img" aria-label="New"></span>
     {% endif %}
@@ -46,18 +48,8 @@
     {# ---- What everyone else made of it ------------------------------ #}
     {% include "noticeboard/_tally.html" with item=notice %}
 
-    {% comment %}
-      ---- Act on it: one row, and it stays one row ----------------------
-      Every action gets an equal share of the row — React and Comment on
-      everyone's, Edit and Remove too on your own — so the row reads as one
-      bar however many it holds. Remove is a form (it changes something, so
-      it is a POST) laid out as if it were not there, so its button takes a
-      cell like the links beside it.
-
-      Edit is a link to the edit page; app.js catches the tap and opens the
-      editor inside the card instead (see _notice_body.html).
-    {% endcomment %}
-    <div class="acts{% if request.user.is_staff %} acts--admin{% endif %}">
+    {# Conversation actions stay visible; post management lives in the menu. #}
+    <div class="acts">
       {% include "noticeboard/_react.html" with item=notice %}
 
       {% comment %}
@@ -71,21 +63,7 @@
         <span class="act__label">Comment</span>
       </a>
 
-      {% if notice.is_mine %}
-        <a class="act act--quiet" href="{% url 'notices:edit' notice.pk %}?next={{ next_url|urlencode }}" title="Edit" aria-label="Edit" data-edit>
-          {% icon "pencil" class="act__icon" %}
-          <span class="act__label">Edit</span>
-        </a>
-        <form class="acts__form" method="post" action="{% url 'notices:delete' notice.pk %}"
-              onsubmit="return confirm('Remove this notice? Everyone loses sight of it.');">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ delete_next_url|default:next_url }}">
-          <button type="submit" class="act act--quiet act--danger" title="Remove" aria-label="Remove">
-            {% icon "trash" class="act__icon" %}
-            <span class="act__label">Remove</span>
-          </button>
-        </form>
-      {% else %}
+      {% if not notice.is_mine %}
         {# Somebody else's: a way to flag it, and (on its page) to block them. #}
         <a class="act act--quiet" href="{% url 'moderation:report' %}?kind=notice&id={{ notice.pk }}&next={{ next_url|urlencode }}" title="Report" aria-label="Report">
           {% icon "flag" width="2" class="act__icon" %}
@@ -93,27 +71,6 @@
         </a>
       {% endif %}
 
-      {% comment %}
-        Admins only: hold this at the top of the board, or let it go. A
-        public notice can be pinned; one that is already pinned can always be
-        let go. Says which way it means ("pin" 1 or 0) rather than toggling,
-        so a double tap lands where it was meant to.
-      {% endcomment %}
-      {% if request.user.is_staff %}
-        {% if notice.is_pinned or notice.can_be_pinned %}
-          <form class="acts__form" method="post" action="{% url 'notices:pin' notice.pk %}">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{{ next_url }}">
-            <input type="hidden" name="pin" value="{% if notice.is_pinned %}0{% else %}1{% endif %}">
-            <button type="submit" class="act act--quiet act--pin{% if notice.is_pinned %} is-on{% endif %}"
-                    title="{% if notice.is_pinned %}Unpin{% else %}Pin to the top{% endif %}"
-                    aria-label="{% if notice.is_pinned %}Unpin this notice{% else %}Pin this notice to the top{% endif %}">
-              {% icon "pin" class="act__icon" %}
-              <span class="act__label">{% if notice.is_pinned %}Unpin{% else %}Pin{% endif %}</span>
-            </button>
-          </form>
-        {% endif %}
-      {% endif %}
     </div>
 
     {% comment %}

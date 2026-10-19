@@ -34,6 +34,7 @@ import { askForPush } from "@/push/register";
 import { Button } from "@/ui";
 import { tap, tick } from "@/ui/haptics";
 import { alpha, mix, radius, sp, useTheme, type Theme } from "@/ui/theme";
+import { FrostBlur } from "@/ui/Frost";
 
 type Slide = {
   key: string;
@@ -219,6 +220,11 @@ function Card({ slide, index, x, width, tall, top }: { slide: Slide; index: numb
       transform: [{ translateX: d * -width * 0.25 }, { scale: interpolate(Math.abs(d), [0, 1], [1, 0.82], Extrapolation.CLAMP) }],
     };
   });
+  // The Pay wallet's frost (Frost.tsx): the picture leaving, or arriving, is
+  // glassed over, and clears as it reaches the middle.
+  const frost = useAnimatedStyle(() => ({
+    opacity: interpolate(Math.abs(near(x.value, index, width)), [0, 0.9], [0, 1], Extrapolation.CLAMP),
+  }));
   // The words come in from the side they are arriving from and lag the page.
   const words = useAnimatedStyle(() => {
     const d = near(x.value, index, width);
@@ -231,7 +237,13 @@ function Card({ slide, index, x, width, tall, top }: { slide: Slide; index: numb
   return (
     <View style={[styles.card, { width }, tall > 0 && { height: tall }]}>
       <Animated.View style={[styles.stageArea, { paddingTop: top + sp[4] }, art]}>
-        <Art icon={slide.icon} tint={tint} />
+        <View>
+          <Art icon={slide.icon} tint={tint} />
+          <Animated.View pointerEvents="none" style={[styles.frost, frost]}>
+            {FrostBlur ? <FrostBlur intensity={t.dark ? 30 : 24} tint={t.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} /> : null}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(t.surface, FrostBlur ? 0.2 : 0.55) }]} />
+          </Animated.View>
+        </View>
       </Animated.View>
       <Animated.View style={[styles.words, words]}>
         <Text style={[styles.title, { color: t.text }]}>{slide.title}</Text>
@@ -299,6 +311,7 @@ const styles = StyleSheet.create({
   card: { justifyContent: "flex-end" },
   stageArea: { flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: sp[4] },
   art: { width: DISC + 120, height: DISC + 120, alignItems: "center", justifyContent: "center" },
+  frost: { position: "absolute", top: 0, left: 0, width: DISC + 120, height: DISC + 120, borderRadius: (DISC + 120) / 2, overflow: "hidden" },
   halo: { position: "absolute", width: DISC + 96, height: DISC + 96, borderRadius: (DISC + 96) / 2, borderWidth: 2 },
   halo2: { position: "absolute", width: DISC + 44, height: DISC + 44, borderRadius: (DISC + 44) / 2 },
   disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },

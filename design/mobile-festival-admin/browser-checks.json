@@ -1,0 +1,8 @@
+{
+  "renderer": "Expo React Native web preview, real local API; no save requests",
+  "checks": [
+    "Admin editor fits 390px",
+    "Admin editor fits 320px",
+    "Reader has no admin entry; direct route denies editor"
+  ]
+}

@@ -1,17 +1,20 @@
 import React, { useState } from "react";
-import { Platform, ScrollView, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
+import { Animated, Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { catalogue, useCatalogueChanged, useCatalogueIdle, type CatalogueMapping, type CataloguePreview } from "@/api/catalogue";
 import type { FilePart } from "@/api/client";
 import { Button, Card, Chip, Field, Page, PageTitle, Screen } from "@/ui";
 import { Select } from "@/ui/Select";
 import { native } from "@/ui/native";
-import { sp, useTheme } from "@/ui/theme";
+import { radius, sp, useTheme } from "@/ui/theme";
+import { EdgeItem, useRailScroll } from "@/ui/Frost";
 import { confirm, tell } from "@/ui/confirm";
 
 export default function ImportItems() {
   const t = useTheme();
+  const columns = useRailScroll();
   const router = useRouter();
+  const params = useLocalSearchParams<{ catalogue?: string }>();
   const changed = useCatalogueChanged();
   const current = useCatalogueIdle();
   const [preview, setPreview] = useState<CataloguePreview | null>(null);
@@ -27,12 +30,11 @@ export default function ImportItems() {
       const picked = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
       if (picked.canceled) return;
       const asset = picked.assets[0];
-      const file: FilePart = Platform.OS === "web"
-        ? ((asset as any).file || new File([await (await fetch(asset.uri)).blob()], asset.name, { type: "text/csv" })) as unknown as FilePart
-        : { uri: asset.uri, name: asset.name, type: asset.mimeType || "text/csv" };
+      const file: FilePart = { uri: asset.uri, name: asset.name, type: asset.mimeType || "text/csv" };
       setBusy(true); setProgress(0);
       const result = await catalogue.preview(file, setProgress);
-      setPreview(result); setMapping(result.defaults); setReview(false);
+      const existing = current.data?.catalogues.find(c => String(c.id) === params.catalogue);
+      setPreview(result); setMapping(existing ? { ...result.defaults, catalogue_id: existing.id, name: existing.name } : result.defaults); setReview(false);
     } catch (e: any) { setError(e?.message || "The CSV couldn't be read."); }
     finally { setBusy(false); setProgress(null); }
   };
@@ -43,7 +45,7 @@ export default function ImportItems() {
       const result = await catalogue.save(preview.upload_id, mapping);
       changed();
       tell("Catalogue saved", result.message);
-      router.replace({ pathname: "/plu", params: { catalogue: String(result.catalogue_id) } });
+      router.replace({ pathname: "/plu", params: { view: "catalogues", catalogue: String(result.catalogue_id) } });
     } catch (e: any) { setError(e?.message || "The catalogue couldn't be saved."); }
     finally { setBusy(false); }
   };
@@ -56,7 +58,7 @@ export default function ImportItems() {
   const options = preview?.headers.map((h) => ({ value: h, label: h })) ?? [];
   const optional = [{ value: "", label: "None" }, ...options];
   return (
-    <Screen back backLabel="Items">
+    <Screen back backLabel="Catalogues">
       <Page>
         <PageTitle sub="Your data is private to your account. Choose your file's headings and the columns you want to search.">Upload your items</PageTitle>
         <View style={{ flexDirection: "row", gap: sp[3] }}>{["1. File", "2. Headings", "3. Review"].map((step, i) => <Text key={step} style={{ flex: 1, fontSize: 13, fontWeight: "700", color: i === (review ? 2 : preview ? 1 : 0) ? t.brandStrong : t.muted, borderBottomWidth: 3, borderBottomColor: i === (review ? 2 : preview ? 1 : 0) ? t.brand : t.line, paddingBottom: sp[3] }}>{step}</Text>)}</View>
@@ -67,12 +69,16 @@ export default function ImportItems() {
           {!review ? <><Card style={{ gap: sp[3] }}>
             <Text style={{ color: t.text, fontSize: 18, fontWeight: "700" }}>{preview.count.toLocaleString()} items found</Text>
             <Text style={{ color: t.muted }}>Preview of the first five rows. All columns are kept on each item's detail page.</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator>
-              <View style={{ flexDirection: "row" }}>{preview.headers.map((heading) => <View key={heading} style={{ width: 160, padding: sp[2], gap: sp[2] }}>
-                <Text style={{ color: t.brand, fontWeight: "700" }}>{heading}</Text>
-                {preview.sample.map((row, index) => <Text key={index} numberOfLines={2} style={{ color: t.text, minHeight: 42 }}>{row[heading] || "—"}</Text>)}
-              </View>)}</View>
-            </ScrollView>
+            {/* The Pay wallet's edge effect (Frost.tsx): a column cut by the edge is frosted until it is slid in. */}
+            <Animated.ScrollView horizontal showsHorizontalScrollIndicator onLayout={(e) => columns.setViewport(e.nativeEvent.layout.width)} onScroll={columns.onScroll} scrollEventThrottle={16}
+              snapToInterval={160} decelerationRate="fast">
+              <View style={{ flexDirection: "row" }}>{preview.headers.map((heading) => <EdgeItem key={heading} x={columns.x} viewport={columns.viewport} radius={radius.sm} shrink={0.94} on="card">
+                <View style={{ width: 160, padding: sp[2], gap: sp[2] }}>
+                  <Text style={{ color: t.brand, fontWeight: "700" }}>{heading}</Text>
+                  {preview.sample.map((row, index) => <Text key={index} numberOfLines={2} style={{ color: t.text, minHeight: 42 }}>{row[heading] || "—"}</Text>)}
+                </View>
+              </EdgeItem>)}</View>
+            </Animated.ScrollView>
           </Card>
           <Card style={{ gap: sp[4] }}>
             <Field label="Save to" help="A new catalogue keeps your other uploads."><Select value={mapping.catalogue_id ? String(mapping.catalogue_id) : ""} label="Save catalogue to" options={[{ value: "", label: "Create a new catalogue" }, ...(current.data?.catalogues ?? []).map((c) => ({ value: String(c.id), label: `Replace ${c.name} (${c.count} items)` }))]} onChange={(value) => patch({ catalogue_id: value ? Number(value) : undefined, name: value ? current.data?.catalogues.find((c) => c.id === Number(value))?.name || mapping.name : preview.defaults.name })} /></Field>

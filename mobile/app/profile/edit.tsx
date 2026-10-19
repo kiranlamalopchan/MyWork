@@ -12,7 +12,8 @@ import { me as api } from "@/api";
 import { armBiometric, biometricUser } from "@/auth/biometric";
 import { useSession } from "@/auth/session";
 import { getToken } from "@/auth/token";
-import { Button, Card, Chip, Field, Input, Page, PageTitle, Screen } from "@/ui";
+import { Button, Card, Field, Input, Page, PageTitle, Screen } from "@/ui";
+import { ChoiceRail } from "@/ui/ChoiceRail";
 import { goBack } from "@/nav/paths";
 import { notify } from "@/ui/confirm";
 import { sp, useTheme } from "@/ui/theme";
@@ -93,9 +94,7 @@ export default function EditProfile() {
         </Card>
         <Card style={{ gap: sp[3] }}>
           <Text style={{ color: t.text, fontWeight: "700", fontSize: 16 }}>Public holidays for</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[2] }}>
-            {STATES.map((s) => <Chip key={s} on={me.holiday_state === s} onPress={() => setState(s)}>{s}</Chip>)}
-          </View>
+          <ChoiceRail label="Public holiday regions" value={me.holiday_state} onChange={setState} options={STATES.map(value => ({ value, label: value }))} />
         </Card>
       </Page>
     </Screen>

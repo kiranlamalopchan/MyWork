@@ -5,7 +5,6 @@
  * on, port 8000, which is where `runserver 0.0.0.0:8000` answers. Never
  * `localhost`: on a phone that is the phone.
  */
-import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
@@ -16,7 +15,7 @@ export function defaultServer(): string {
   const env = (process.env.EXPO_PUBLIC_API_URL || "").trim();
   if (env) return clean(env);
   const host = Constants.expoConfig?.hostUri?.split(":")[0];
-  if (host && Platform.OS !== "web") return `http://${host}:8000`;
+  if (host) return `http://${host}:8000`;
   return "http://localhost:8000";
 }
 
@@ -24,7 +23,7 @@ export function defaultServer(): string {
 export async function loadServer(): Promise<string> {
   if (chosen !== undefined) return serverUrl();
   try {
-    chosen = Platform.OS === "web" ? globalThis.localStorage?.getItem(KEY) ?? null : await SecureStore.getItemAsync(KEY);
+    chosen = await SecureStore.getItemAsync(KEY);
   } catch {
     chosen = null;
   }
@@ -44,10 +43,7 @@ export async function setServer(url: string | null): Promise<void> {
   const value = url ? clean(url) : null;
   chosen = value;
   try {
-    if (Platform.OS === "web") {
-      if (value) globalThis.localStorage?.setItem(KEY, value);
-      else globalThis.localStorage?.removeItem(KEY);
-    } else if (value) {
+    if (value) {
       await SecureStore.setItemAsync(KEY, value);
     } else {
       await SecureStore.deleteItemAsync(KEY);

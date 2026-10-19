@@ -26,10 +26,24 @@ it("keeps a delayed search from the previous catalogue out of the selected resul
   await rerender({ id: 2 });
   await waitFor(() => expect(search).toHaveBeenCalledWith("001", 1, 2));
   await act(async () => { meat(response(2, "Beef mince")); });
-  await waitFor(() => expect(result.current.data?.pages[0].results[0].title).toBe("Beef mince"));
+  await waitFor(() => expect(result.current.data?.results[0].title).toBe("Beef mince"));
   await act(async () => { groceries(response(1, "Apple")); });
-  expect(result.current.data?.pages[0].results[0].title).toBe("Beef mince");
+  expect(result.current.data?.results[0].title).toBe("Beef mince");
   await unmount();
   client.clear();
   search.mockRestore();
+});
+
+ it("requests only the selected page and replaces its results", async () => {
+  const search = jest.spyOn(catalogue, "search").mockImplementation(async (_q, page) => ({ ...response(page!, `Item ${page}`), count: 11, page: page!, pages: 3, next: page === 3 ? null : page! + 1 }));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  const { result, rerender, unmount } = await renderHook(({ page }: { page: number }) => useCatalogueSearch("beef", 5, page), { initialProps: { page: 1 }, wrapper });
+  await waitFor(() => expect(result.current.data?.results[0].title).toBe("Item 1"));
+  expect(search).toHaveBeenCalledTimes(1);
+  await rerender({ page: 2 });
+  await waitFor(() => expect(result.current.data?.results[0].title).toBe("Item 2"));
+  expect(search).toHaveBeenLastCalledWith("beef", 2, 5);
+  expect(result.current.data?.results).toHaveLength(1);
+  await unmount(); client.clear(); search.mockRestore();
 });

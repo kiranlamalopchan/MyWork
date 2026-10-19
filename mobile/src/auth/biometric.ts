@@ -3,7 +3,7 @@
  * password has been given the first time. The token from that sign-in
  * is kept in the keychain under a second key that outlives signing out;
  * the phone's prompt (expo-local-authentication) stands between the
- * screen and that key. Nothing here on the web build.
+ * screen and that key.
  */
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
@@ -16,9 +16,9 @@ const USER_KEY = "mywork.bio.user";
 export type BiometricKind = "face" | "fingerprint" | "iris";
 
 type LocalAuth = typeof import("expo-local-authentication");
-const localAuth = () => (Platform.OS === "web" ? null : nativeOrNull(() => require("expo-local-authentication") as LocalAuth));
+const localAuth = () => nativeOrNull(() => require("expo-local-authentication") as LocalAuth);
 
-/** What the phone can check with — or null when it can't (no hardware, nothing enrolled, the web). */
+/** What the phone can check with — or null when it can't (no hardware, nothing enrolled). */
 export async function biometricKind(): Promise<BiometricKind | null> {
   const LA = localAuth();
   if (!LA) return null;
@@ -43,7 +43,6 @@ export function biometricName(kind: BiometricKind | null): string {
 
 /** Who can sign in this way on this phone, if anyone. */
 export async function biometricUser(): Promise<string | null> {
-  if (Platform.OS === "web") return null;
   try {
     return (await SecureStore.getItemAsync(USER_KEY)) || null;
   } catch {

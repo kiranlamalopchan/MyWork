@@ -7,8 +7,9 @@ import React from "react";
 import { Stack } from "expo-router";
 
 import { useTheme } from "@/ui/theme";
+import { pushOptions } from "@/ui/transitions";
 
 export function TabStack() {
   const t = useTheme();
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }} />;
+  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, ...pushOptions }} />;
 }

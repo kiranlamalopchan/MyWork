@@ -1,113 +1,54 @@
 {% extends "base.html" %}
 {% load ui %}
 {% block title %}{% if show_catalogues %}Catalogues{% else %}Search{% endif %} · KaamKoRecord{% endblock %}
-
 {% block content %}
-
 {% if show_catalogues %}
-{% include "plu/_heading.html" with heading="Your catalogues" subtitle="Choose a catalogue to search, or upload a new one." %}
-{% else %}
-{% include "plu/_heading.html" with heading="Search" subtitle="Find products and codes in your private catalogues." %}
-{% endif %}
-{% if show_catalogues %}
+{% include "plu/_heading.html" with heading="Your catalogues" subtitle="Upload, edit or delete your private catalogues." %}
 <div class="catalogue-grid">
-  {% for saved in catalogues %}<a class="card catalogue-tile" href="{% url 'plu:list' %}?catalogue={{ saved.id }}"><strong>{{ saved.name }}</strong><span>{{ saved.count }} private item{{ saved.count|pluralize }}</span><b>Search catalogue →</b></a>{% empty %}<div class="card card__pad"><h2>Your first catalogue</h2><p>Upload groceries, meat, or any CSV and give it a name.</p></div>{% endfor %}
+  {% for saved in catalogues %}<article class="card catalogue-tile"><div class="catalogue-tile__copy"><strong>{{ saved.name }}</strong><span>{{ saved.count }} private item{{ saved.count|pluralize }}</span></div><details class="catalogue-menu" data-dismiss><summary role="button" aria-label="Actions for {{ saved.name }}" aria-haspopup="menu">{% icon "more" %}</summary><div class="action-menu__panel" role="menu" aria-label="{{ saved.name }} actions"><a class="action-menu__item" role="menuitem" href="{% url 'plu:catalogue_edit' saved.id %}" aria-label="Edit {{ saved.name }}">{% icon "pencil" %}Edit</a><a class="action-menu__item action-menu__item--danger" role="menuitem" href="{% url 'plu:catalogue_delete' saved.id %}" aria-label="Delete {{ saved.name }}">{% icon "trash" %}Delete</a></div></details></article>{% empty %}<div class="card card__pad"><h2>Your first catalogue</h2><p>Upload groceries, meat, or any CSV and give it a name.</p></div>{% endfor %}
 </div>
 {% else %}
+{% include "plu/_heading.html" with heading="Search" subtitle="Find an item by name or code." compact=True %}
 <div class="search-page{% if not q %} is-idle{% endif %}" id="search-page">
-
-{{ placeholder_examples|json_script:"search-examples" }}
-
-{# Sticky under the app bar, so the field stays reachable however far you scroll. #}
 <form class="searchbar" method="get" role="search" id="plu-search-form"
       data-search-url="{% url 'plu:search_api' %}"
-      data-detail-url-template="{% url 'plu:detail' 987654321 %}"
       data-catalogue="{{ catalogue.pk|default:'' }}"
+      data-idle-meta="{{ total_count }} private item{{ total_count|pluralize }}"
       data-total-count="{{ total_count }}">
+  <label class="sr-only" for="plu-search-input">Search your items</label>
+  <div class="searchbar__row">
+    <div class="searchbar__field">
+      {% icon "search" class="searchbar__icon" %}
+      <input class="input searchbar__input" id="plu-search-input" type="search" name="q" value="{{ q|default:'' }}"
+             placeholder="Item name or code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-controls="plu-results">
+      <button type="button" class="searchbar__clear" id="plu-search-clear" aria-label="Clear search" hidden>{% icon "close" %}</button>
+    </div>
+    <button class="searchbar__submit" type="submit" aria-label="Search">{% icon "arrow-right" %}</button>
+  </div>
   {% if catalogues %}
-  <label class="catalogue-picker" for="catalogue-select">Search in
+  <label class="catalogue-picker" for="catalogue-select"><span>Searching in</span>
     <select class="input" name="catalogue" id="catalogue-select">
       {% for saved in catalogues %}<option value="{{ saved.id }}"{% if saved.id == catalogue.pk %} selected{% endif %}>{{ saved.name }} ({{ saved.count }})</option>{% endfor %}
     </select>
   </label>
   <noscript><button class="btn" type="submit">Choose catalogue</button></noscript>
   {% endif %}
-  <div class="searchbar__field">
-    {% icon "search" class="searchbar__icon" %}
-
-    <label class="sr-only" for="plu-search-input">Search your items</label>
-    <input class="input searchbar__input"
-           id="plu-search-input"
-           type="search"
-           name="q"
-           value="{{ q|default:'' }}"
-           placeholder="Search your selected columns"
-           autocomplete="off"
-           autocorrect="off"
-           autocapitalize="off"
-           spellcheck="false"
-           enterkeyhint="search">
-
-    <button type="button" class="searchbar__clear" id="plu-search-clear" aria-label="Clear search" hidden>
-      {% icon "close" width="2.5" %}
-    </button>
+  <div class="searchbar__meta" id="plu-search-meta" role="status">
+    {% if q %}{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }} for &ldquo;{{ q }}&rdquo;{% else %}{{ total_count }} private item{{ total_count|pluralize }}{% endif %}
   </div>
-
-  <div class="searchbar__meta" id="plu-search-meta" aria-live="polite">
-    {% if q %}
-      {{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }} for &ldquo;{{ q }}&rdquo;
-    {% else %}
-      {{ catalogue.name|default:"My items" }} · {{ total_count }} private item{{ total_count|pluralize }}
-    {% endif %}
-  </div>
-
-  {# Submit target for browsers without JS; the live search intercepts it otherwise. #}
-  <button type="submit" class="sr-only">Search</button>
 </form>
-
-<div id="plu-results">
+{% if search_actions %}<div class="search-tools">{% include "plu/_actions.html" %}</div>{% endif %}
+<div id="plu-results" aria-label="Items">
+{% if q %}
   {% if page_obj.object_list %}
-    <ul class="result-list">
-      {% for item in page_obj %}
-        <li>
-          <a class="result" href="{% url 'plu:detail' item.pk %}">
-            {% if item.code %}<span class="plu-badge catalogue-code">{{ item.code }}</span>{% endif %}
-            <span class="result__body">
-              <span class="result__title">{{ item.title }}</span>
-            </span>
-            {% icon "chev" class="result__chev" %}
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
-
+    <div class="search-section"><h2>Results</h2></div>
+    <ul class="result-list search-result-list">{% for item in page_obj %}{% include "plu/_result.html" %}{% endfor %}</ul>
     {% include "_pager.html" with page_obj=page_obj prev="Previous" next="Next" %}
-
   {% else %}
-    <div class="card">
-      <div class="empty">
-        <div class="empty__icon">
-          {% icon "search" width="1.8" %}
-        </div>
-        {% if q %}
-          <div class="empty__title">No matches</div>
-          <div class="empty__sub">Nothing found for &ldquo;{{ q }}&rdquo;. Try fewer words.</div>
-        {% elif total_count %}
-          {# Nothing searched for yet — the list stays out of the way until asked for. #}
-          <div class="empty__title">Search your items</div>
-          <div class="empty__sub">Search the columns you selected when uploading your file.</div>
-        {% else %}
-          <div class="empty__title">Your catalogue is empty</div>
-          <div class="empty__sub">
-            <a href="{% url 'plu:import' %}">Upload a CSV and choose your headings to get started.</a>
-          </div>
-        {% endif %}
-      </div>
-    </div>
+    <div class="card"><div class="empty"><div class="empty__icon">{% icon "search" %}</div><div class="empty__title">No matches</div><div class="empty__sub">Try a shorter name or a code, or choose another catalogue.</div></div></div>
   {% endif %}
+{% endif %}
 </div>
-
 </div>
-
 {% endif %}
 {% endblock %}

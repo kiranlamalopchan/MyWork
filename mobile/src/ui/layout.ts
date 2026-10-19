@@ -9,6 +9,8 @@
 import { Platform, useWindowDimensions, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { APPBAR_H } from "./theme";
+
 /** The widest a column of cards should ever get. */
 export const MAX_COLUMN = 720;
 /** The widest the hub gets when it is two columns (see `desk`). */
@@ -23,9 +25,11 @@ export type Layout = {
   compact: boolean;
   /** A tablet, a foldable, or a phone on its side (600pt and up). */
   wide: boolean;
-  /** An iPad or a desktop window (900pt and up): room for two columns. */
+  /** An iPad (900pt and up): room for two columns. */
   desk: boolean;
   landscape: boolean;
+  /** The app bar's height under the status bar. */
+  bar: number;
   gutter: number;
   /** Side padding that also centres the column on a wide screen. */
   column: ViewStyle;
@@ -42,12 +46,16 @@ export function useLayout(): Layout {
   const compact = width < 360;
   const wide = width >= 600;
   const desk = width >= 900;
-  const gutter = wide ? 28 : Math.max(16, Math.min(22, width * 0.045));
+  // Kept slim so the page gets the width: about 10 on a phone, 24 on a tablet.
+  const gutter = wide ? 24 : Math.max(8, Math.min(12, width * 0.026));
   const side = wide ? Math.max(gutter, (width - MAX_COLUMN) / 2) : gutter;
   const hubSide = desk ? Math.max(gutter, (width - MAX_HUB) / 2) : side;
-  const bottom = Platform.OS === "ios" ? 24 : 40 + insets.bottom;
+  // iOS: pages run the full height of the screen, under the system's
+  // translucent tab bar, so the room to scroll the last thing clear of it is
+  // made here. Android's tab bar sits below the page instead.
+  const bottom = Platform.OS === "ios" ? insets.bottom + 64 + 16 : 40 + insets.bottom;
   return {
-    width, height, compact, wide, desk, landscape: width > height, gutter,
+    width, height, compact, wide, desk, landscape: width > height, bar: APPBAR_H, gutter,
     column: { paddingLeft: side + insets.left, paddingRight: side + insets.right },
     hub: { paddingLeft: hubSide + insets.left, paddingRight: hubSide + insets.right },
     insets, bottom,

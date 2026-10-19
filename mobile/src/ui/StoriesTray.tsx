@@ -5,7 +5,7 @@
  * ringed in the brand colour until you have looked, their name at the foot.
  */
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +14,7 @@ import type { TrayRow } from "@/api";
 import { useSession } from "@/auth/session";
 
 import { Avatar } from "./Avatar";
+import { EdgeItem, useRailScroll } from "./Frost";
 import { useLayout } from "./layout";
 import { radius, sp, useTheme } from "./theme";
 
@@ -32,9 +33,15 @@ export function StoriesTray({ rows, boxed = false }: { rows: TrayRow[]; boxed?: 
   const H = Math.round((W * 16) / 9);
   const side = boxed ? 0 : (layout.column.paddingLeft as number);
   const tile = { width: W, height: H };
+  // The Pay wallet's edge effect (Frost.tsx): a tile cut by the screen's edge
+  // is smaller and frosted until it is slid in, and a swipe lands on a tile.
+  const rail = useRailScroll();
+  const edge = (key: string, child: React.ReactNode) => <EdgeItem key={key} x={rail.x} viewport={rail.viewport} radius={radius.md}>{child}</EdgeItem>;
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.row, { paddingHorizontal: side }]} style={{ marginHorizontal: -side }}>
-      <Pressable onPress={() => router.push("/stories/compose")} style={[styles.tile, tile, { backgroundColor: t.surface }]} testID="story-new">
+    <Animated.ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.row, { paddingHorizontal: side }]} style={{ marginHorizontal: -side }}
+      onLayout={(e) => rail.setViewport(e.nativeEvent.layout.width)} onScroll={rail.onScroll} scrollEventThrottle={16}
+      snapToInterval={W + sp[2]} decelerationRate="fast">
+      {edge("new", <Pressable onPress={() => router.push("/stories/compose")} style={[styles.tile, tile, { backgroundColor: t.surface }]} testID="story-new">
         <View style={[styles.bgNew, { height: H * 0.66 }]}>
           {me?.photo ? (
             <Image source={{ uri: me.photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -46,11 +53,11 @@ export function StoriesTray({ rows, boxed = false }: { rows: TrayRow[]; boxed?: 
           <Ionicons name="add" size={20} color={t.brandInk} />
         </View>
         <Text style={[styles.foot, { color: t.text }]}>Create story</Text>
-      </Pressable>
+      </Pressable>)}
       {rows.map((row) => {
         const ring = row.unseen || row.mine ? t.brand : t.lineStrong;
-        return (
-          <Pressable key={row.username} onPress={() => router.push(`/stories/${row.username}`)} style={[styles.tile, tile, { backgroundColor: t.surface3 }]} accessibilityLabel={`${row.mine ? "Your story" : row.name}, ${row.count} photo${row.count === 1 ? "" : "s"}`}>
+        return edge(row.username,
+          <Pressable onPress={() => router.push(`/stories/${row.username}`)} style={[styles.tile, tile, { backgroundColor: t.surface3 }]} accessibilityLabel={`${row.mine ? "Your story" : row.name}, ${row.count} photo${row.count === 1 ? "" : "s"}`}>
             {row.latest.image ? <Image source={{ uri: row.latest.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : null}
             <View style={[styles.shade, { backgroundColor: "rgba(0,0,0,0.42)" }]} />
             <View style={[styles.ring, { backgroundColor: t.surface, borderColor: ring }]}>
@@ -60,7 +67,7 @@ export function StoriesTray({ rows, boxed = false }: { rows: TrayRow[]; boxed?: 
           </Pressable>
         );
       })}
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 

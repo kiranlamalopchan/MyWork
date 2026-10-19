@@ -1,152 +1,44 @@
 {% extends "base.html" %}
 {% load timeclock_extras ui %}
 {% block title %}Pay · KaamKoRecord{% endblock %}
-
-{% comment %}
-  What each job still owes you, and one way of saying you have been paid.
-
-  One card per workplace and never one total across them: two jobs pay on two
-  different days, and a single figure would be cleared by whichever of them
-  paid first, taking the other's hours with it.
-
-  Each card is the figure, how it breaks down, and one form under it: what
-  the payment covered — a pay run, everything up to now, or work up to a day
-  you name — and the button. There used to be a button on the card and a
-  second page with three more ways of drawing the same line; this is that
-  line, drawn in one place.
-
-  Marking a payment received changes nothing on your timesheet. It draws a
-  line at that moment, and the hours before it stop being counted as owed —
-  which is why the line can be rubbed out again and the shifts behind it are
-  untouched either way.
-{% endcomment %}
-
+{% block main_class %} container--wide{% endblock %}
 {% block content %}
-
-<a class="backlink" href="{% url 'timeclock:more' %}">{% icon "back" %} More</a>
-
-<div class="page-head">
-  <h1 class="page-title">Pay</h1>
-</div>
-
+<div class="page-head"><h1 class="page-title">Pay</h1><p class="page-sub">Your work. Your pay. One workplace at a time.</p></div>
 {% if owing %}
-  {% for row in owing %}
-    <div class="card card__pad owed" id="pay-{{ row.workplace.pk }}">
-      <div class="owed__head">
-        <span class="swatch" style="--wp-css: {{ row.workplace|wp_color }}" aria-hidden="true"></span>
-        <span class="owed__name">{{ row.workplace.name }}</span>
-        <span class="owed__cycle">{{ row.workplace.get_pay_cycle_display|lower }}</span>
-      </div>
-
-      {# ---- The figure: everything this job owes, whichever runs it is in. #}
-      <div class="owed__figure">
-        <span class="owed__hours" data-tally="{{ row.worked|seconds }}" data-tally-format="hm">{{ row.worked|hm|default:"0m" }}</span>
-        {% if row.owed_pay %}<span class="owed__pay">${{ row.owed_pay.gross|floatformat:2 }}</span>{% endif %}
-      </div>
-      <p class="owed__meta">
-        {% if row.worked %}
-          owed over {{ row.shifts }} shift{{ row.shifts|pluralize }}{% if row.since %} since you were paid on {{ row.since|date:"j M" }}{% endif %}
-        {% else %}
-          nothing outstanding{% if row.since %} — paid up to {{ row.since|date:"j M" }}{% endif %}
-        {% endif %}
-      </p>
-
-      {% if row.scheduled %}
-        {% comment %}
-          A job on a cycle owes a list, not a figure: each closed run is its
-          own payment, arriving on its own day. The run still going is shown
-          with them, greyed — nobody is late paying for a fortnight that has
-          not finished — and from its payday it is payable like the rest.
-        {% endcomment %}
-        <ul class="runs">
-          {% for run in row.due %}
-            <li class="runs__row">
-              <span class="runs__when">
-                {{ run.start|date:"j M" }} – {{ run.payday|date:"j M" }}
-                <span class="runs__tag runs__tag--due">due · payday {{ run.payday|date:"D j M" }}</span>
-              </span>
-              <span class="runs__figure">{{ run.hours|floatformat:1 }}h{% if run.pay %} · ${{ run.pay.gross|floatformat:2 }}{% endif %}</span>
-            </li>
-          {% endfor %}
-          <li class="runs__row{% if not row.current.payable %} runs__row--open{% endif %}">
-            <span class="runs__when">
-              This {{ row.workplace.pay_cycle_label }} · {{ row.current.start|date:"j M" }} – {{ row.current.payday|date:"j M" }}
-              <span class="runs__tag">
-                {% if row.current.payable %}payday was {{ row.current.payday|date:"D j M" }}{% else %}paid {{ row.current.payday|date:"D j M" }}{% endif %}
-              </span>
-            </span>
-            <span class="runs__figure">{{ row.current.hours|floatformat:1 }}h{% if row.current.pay %} · ${{ row.current.pay.gross|floatformat:2 }}{% endif %}</span>
-          </li>
-        </ul>
-      {% endif %}
-
-      {% if row.worked %}
-        {% comment %}
-          The one form. "What did it cover" is a list of the answers this job
-          can have — its unpaid runs, everything up to now, or a day you
-          name — and the button draws the line there. A run answer records
-          that run and nothing either side of it; a day sweeps up everything
-          before it, however many runs that spans. app.js (initPayForms)
-          shows the date box only when a day is the answer.
-        {% endcomment %}
-        <form class="settle" method="post" action="{% url 'timeclock:payment_record' row.workplace.pk %}"
-              data-settle="{{ row.workplace.name }}">
-          {% csrf_token %}
-          <div class="field settle__what">
-            <label class="label" for="covers-{{ row.workplace.pk }}">This payment covered</label>
-            <select id="covers-{{ row.workplace.pk }}" name="covers" data-settle-covers>
-              {% for choice in row.covers %}
-                <option value="{{ choice.value }}"{% if forloop.first %} selected{% endif %}>{{ choice.label }}</option>
-              {% endfor %}
-              <option value="date">Work up to a day I choose…</option>
-            </select>
-          </div>
-          <div class="field settle__day" data-settle-day>
-            <label class="label" for="up-to-{{ row.workplace.pk }}">Paid up to and including</label>
-            <input type="date" id="up-to-{{ row.workplace.pk }}" name="up_to"
-                   value="{{ today|date:'Y-m-d' }}"
-                   {% if row.earliest %}min="{{ row.earliest|date:'Y-m-d' }}"{% endif %}
-                   max="{{ today|date:'Y-m-d' }}">
-            <div class="help">Everything worked on or before this day is settled; the count starts again the day after.</div>
-          </div>
-          <button type="submit" class="btn btn--primary btn--block">
-            {% icon "check" %}
-            Payment received
-          </button>
-        </form>
-      {% endif %}
-
-      {% if row.last_payment %}
-        {% comment %}
-          A button that resets a figure to zero has to be undoable, or the
-          first mis-tap costs somebody the record of hours nobody has paid.
-        {% endcomment %}
-        <div class="owed__last">
-          <span>
-            Last paid {{ row.last_payment.covers_through|date:"j M" }} ·
-            {{ row.last_payment.hours|floatformat:"-2" }}h{% if row.last_payment.amount %} · ${{ row.last_payment.amount|floatformat:2 }}{% endif %}
-          </span>
-          <form method="post" action="{% url 'timeclock:payment_undo' row.workplace.pk %}"
-                onsubmit="return confirm('Undo the last payment at {{ row.workplace.name|escapejs }}? Those hours go back to being owed.');">
-            {% csrf_token %}
-            <button type="submit" class="owed__undo">Undo</button>
-          </form>
-        </div>
-      {% endif %}
+<div class="pay-dashboard" data-pay-dashboard>
+  <section class="pay-wallet" aria-label="Workplace pay overview">
+    <div class="pay-wallet__head"><div><span class="pay-wallet__label">UNPAID HOURS</span><strong class="pay-wallet__total">{{ owed_total|hm|default:"0m" }}</strong><span class="pay-wallet__hint">Across {{ owing|length }} workplace{{ owing|length|pluralize }}</span></div><span class="pay-wallet__icon">{% icon "wallet" %}</span></div>
+    <div class="pay-wallet__rail" role="tablist" aria-label="Workplaces" data-pay-rail>
+      {% for row in owing %}
+      {% comment %}
+        A bank card per job, the app's design (mobile/src/screens/Pay.tsx):
+        what kind of pay up top, the chip, the figure where a card number
+        goes, the workplace and the hours where the holder and the expiry go,
+        on a gradient of the job's own hue.
+      {% endcomment %}
+      <button class="pay-workplace" type="button" role="tab" id="pay-tab-{{ row.workplace.pk }}" aria-controls="pay-{{ row.workplace.pk }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" data-pay-workplace="{{ row.workplace.pk }}"{% if row.workplace.is_default %} data-pay-default{% endif %} style="--wp-css: {{ row.workplace|wp_color }}; --wp-hue: {{ row.workplace.color|default:270 }}" aria-label="{{ row.workplace.name }}: {% if row.owed_pay %}${{ row.owed_pay.gross|floatformat:2 }} unpaid{% elif row.worked %}{{ row.worked|hm }} unpaid{% else %}all clear{% endif %}">
+        <span class="pay-workplace__top"><span class="pay-workplace__kicker">{{ row.workplace.get_pay_cycle_display }}{% if row.workplace.pays_on_a_cycle %} pay{% endif %}</span><span class="pay-workplace__mark">{% if row.worked %}UNPAID{% else %}PAID{% endif %}</span></span>
+        <span class="pay-workplace__chiprow" aria-hidden="true">
+          <svg class="pay-chip" viewBox="0 0 44 33"><defs><linearGradient id="chip-{{ row.workplace.pk }}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dc94"/><stop offset=".45" stop-color="#e2b85e"/><stop offset="1" stop-color="#c8963d"/></linearGradient></defs><rect x=".5" y=".5" width="43" height="32" rx="6.5" fill="url(#chip-{{ row.workplace.pk }})" stroke="#9a7128" stroke-width=".9"/><g fill="none" stroke="#9a7128" stroke-width=".9" stroke-linecap="round"><rect x="16" y="4.5" width="12" height="24" rx="6"/><path d="M22 .5V4.5M22 28.5V32.5M.5 11.5H16.4M.5 21.5H16.4M27.6 11.5H43.5M27.6 21.5H43.5M.5 16.5H16M28 16.5H43.5"/></g></svg>
+          <svg class="pay-contactless" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8.5 9a4 4 0 0 1 0 6M12 6.5a8 8 0 0 1 0 11M15.5 4a12 12 0 0 1 0 16"/></svg>
+        </span>
+        <strong class="pay-workplace__amount">{% if row.owed_pay %}${{ row.owed_pay.gross|floatformat:"2g" }}{% else %}{{ row.worked|hm|default:"0m" }}{% endif %}</strong>
+        <span class="pay-workplace__bottom">
+          <span class="pay-workplace__field"><small>WORKPLACE</small><b>{{ row.workplace.name }}</b></span>
+          <span class="pay-workplace__field pay-workplace__field--end"><small>{% if row.worked %}{% if row.owed_pay %}HOURS · BEFORE TAX{% else %}UNPAID{% endif %}{% else %}STATUS{% endif %}</small><b>{% if row.worked %}{{ row.worked|hm }} · {{ row.shifts }} shift{{ row.shifts|pluralize }}{% else %}All clear{% endif %}</b></span>
+        </span>
+      </button>
+      {% endfor %}
     </div>
-  {% endfor %}
-
+    {% if owing|length > 1 %}<div class="pay-wallet__controls">
+      <button type="button" class="pay-wallet__arrow" data-pay-previous aria-label="Previous workplace">{% icon "back" %}</button>
+      <div class="pay-wallet__dots" aria-label="Choose workplace">{% for row in owing %}<button type="button" data-pay-dot="{{ row.workplace.pk }}" aria-label="Show {{ row.workplace.name }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}"><span></span></button>{% endfor %}</div>
+      <button type="button" class="pay-wallet__arrow" data-pay-next aria-label="Next workplace">{% icon "chev" %}</button>
+    </div>{% endif %}
+  </section>
+  {% for row in owing %}{% include "timeclock/_pay_panel.html" %}{% endfor %}
+</div>
 {% else %}
-  <div class="empty">
-    <div class="empty__icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>
-      </svg>
-    </div>
-    <div class="empty__title">No workplaces yet</div>
-    <div class="empty__sub">Add one and the hours you work there start counting here.</div>
-    <a class="btn btn--primary" href="{% url 'timeclock:workplace_create' %}">Add a workplace</a>
-  </div>
+<div class="empty"><div class="empty__icon">{% icon "wallet" %}</div><div class="empty__title">Your pay starts here</div><div class="empty__sub">Add a workplace to keep its hours and payments together.</div><a class="btn btn--primary" href="{% url 'timeclock:workplace_create' %}">Add a workplace</a></div>
 {% endif %}
-
 {% endblock %}

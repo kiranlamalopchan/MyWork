@@ -18,6 +18,8 @@ export type Me = Person & {
   phone: string;
   address: string;
   is_staff: boolean;
+  /** Granted by the server only to authorised festival administrators. */
+  can_manage_festival?: boolean;
   holiday_state: string;
   /** Which KaamKoRecord the phone is talking to — see the line under the profile. */
   server_version?: string;
@@ -223,6 +225,16 @@ export type TimesheetDay = { date: string; label: string; total: Duration; is_ru
 /** A week behind the one being read: shut, and saying what is inside it. */
 export type TimesheetWeek = { start: string; first_label: string; last_label: string; total: Duration; shifts: number; days: TimesheetDay[] };
 export type TimesheetPage = Page<never> & { days: TimesheetDay[]; weeks: TimesheetWeek[]; workplaces: WorkplaceBrief[]; workplace: number | null; summary: Summary };
+/** The chart: a span cut into days, weeks or months, laid over the span before it. */
+export type TrendRange = "week" | "fortnight" | "month" | "months";
+export type TrendFigure = { hours: number; worked: Duration; gross: number | null };
+export type TrendPoint = TrendFigure & { start: string; label: string; long_label: string; upcoming: boolean; current: boolean };
+export type Trend = {
+  range: TrendRange; title: string; compare_title: string; ranges: { value: TrendRange; label: string }[];
+  /** False when no job in view has a rate: the chart counts hours instead of money. */
+  priced: boolean;
+  points: TrendPoint[]; previous: TrendFigure[]; total: TrendFigure; previous_total: TrendFigure;
+};
 export type CalendarCell = { date: string; day: number; in_month: boolean; is_today: boolean; total: Duration | null; track: { css: string; left: number; width: number }[]; lead: string | null };
 export type CalendarPage = {
   year: number; month: number; label: string; weekday_labels: string[]; weeks: CalendarCell[][];

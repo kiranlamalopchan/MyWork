@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import FestivalThemeSettings, HolidayPreference, PublicHoliday
+from .forms import FestivalBannerForm
 
 
 @admin.register(PublicHoliday)
@@ -26,6 +27,7 @@ class HolidayPreferenceAdmin(admin.ModelAdmin):
 
 @admin.register(FestivalThemeSettings)
 class FestivalThemeSettingsAdmin(admin.ModelAdmin):
+    form = FestivalBannerForm
     fields = ('theme', 'banner', 'greeting', 'description', 'updated_at')
     readonly_fields = ('updated_at',)
 

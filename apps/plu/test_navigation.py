@@ -35,6 +35,8 @@ class SearchNavigationTests(TestCase):
             ("/plu/", "Search"), ("/plu/?view=catalogues", "Catalogues"),
             ("/plu/import/", "Catalogues"), ("/plu/photo-search/", "Search"),
             (f"/plu/item/{self.item.pk}/", "Search"),
+            (f"/plu/catalogues/{self.catalogue.pk}/edit/", "Catalogues"),
+            (f"/plu/catalogues/{self.catalogue.pk}/delete/", "Catalogues"),
         ]
         for path, active in pages:
             with self.subTest(path=path):
@@ -49,11 +51,16 @@ class SearchNavigationTests(TestCase):
     def test_actions_are_buttons_outside_destination_tabs_and_preserve_catalogue(self):
         page = self.client.get("/plu/", {"catalogue": self.catalogue.pk})
         actions = page.context["search_actions"]
-        self.assertEqual([action["label"] for action in actions], ["Photo search", "Upload catalogue"])
+        self.assertEqual([action["label"] for action in actions], ["Photo search"])
+        self.assertNotContains(page, 'href="/plu/import/"')
         self.assertEqual(actions[0]["href"], f"/plu/photo-search/?catalogue={self.catalogue.pk}")
         self.assertEqual(page.context["section_links"][0]["href"], f"/plu/?catalogue={self.catalogue.pk}")
         self.assertContains(page, '<h1 class="page-title">Search</h1>', html=True)
         self.assertContains(page, 'aria-label="Catalogue actions"')
+        catalogues = self.client.get("/plu/", {"view": "catalogues"})
+        self.assertContains(catalogues, 'href="/plu/import/"', count=1)
+        self.assertNotContains(catalogues, "Photo search")
+        self.assertNotContains(catalogues, "Search catalogue")
         uploaded = self.client.get("/plu/import/")
         self.assertNotIn("Upload catalogue", [action["label"] for action in uploaded.context["search_actions"]])
 
@@ -61,7 +68,7 @@ class SearchNavigationTests(TestCase):
         self.catalogue.code_column = "SKU"
         self.catalogue.save(update_fields=["code_column"])
         page = self.client.get("/plu/", {"catalogue": self.catalogue.pk})
-        self.assertEqual([action["label"] for action in page.context["search_actions"]], ["Upload catalogue"])
+        self.assertEqual(page.context["search_actions"], [])
 
     def test_search_label_and_primary_links_work_across_the_website(self):
         for path in ["/", "/plu/", "/profile/", "/timesheet/", "/notifications/"]:

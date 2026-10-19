@@ -7,7 +7,7 @@
  * there and converts it, as it does for the site.
  */
 import React, { useMemo, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useEvent } from "expo";
@@ -149,7 +149,7 @@ export default function ComposeStory() {
     try {
       const name = picked.fileName || (isVideo ? "story.mp4" : "story.jpg");
       const type = picked.mimeType || (isVideo ? "video/mp4" : "image/jpeg");
-      const file: FilePart = Platform.OS === "web" ? (await webFile(picked.uri, name, type)) : { uri: picked.uri, name, type };
+      const file: FilePart = { uri: picked.uri, name, type };
       const fields = isVideo
         ? { video: file, caption, visibility, duration: seconds || undefined, trim_start: needsCut ? start : undefined, trim_end: needsCut ? start + span : undefined }
         : { image: file, caption, visibility };
@@ -185,9 +185,7 @@ export default function ComposeStory() {
           <>
             {/* Two ways in: the camera, the library. */}
             <View style={[styles.tiles, layout.compact && { flexDirection: "column" }]}>
-              {Platform.OS !== "web" ? (
-                <Source icon="camera" colour={t.violet} title="Camera" sub="Take one now" onPress={() => pick("camera")} testID="story-camera" />
-              ) : null}
+              <Source icon="camera" colour={t.violet} title="Camera" sub="Take one now" onPress={() => pick("camera")} testID="story-camera" />
               <Source icon="images" colour={t.blue} title="Library" sub="A photo or video you have" onPress={() => pick("library")} testID="story-library" />
             </View>
             <View style={[styles.note, { backgroundColor: t.surface2 }]}>
@@ -201,7 +199,7 @@ export default function ComposeStory() {
             {/* The picture, tall, with the way to swap it in the corner. */}
             <View style={[styles.preview, { width: previewWidth, backgroundColor: "#000" }, !t.dark && styles.previewShadow]}>
               {isVideo ? (
-                <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={Platform.OS !== "web"} />
+                <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls />
               ) : (
                 <Image source={{ uri: picked.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
               )}
@@ -275,12 +273,6 @@ function Notice({ text }: { text: string }) {
       <Text style={{ color: t.danger, fontSize: 14, flex: 1, lineHeight: 20 }}>{text}</Text>
     </View>
   );
-}
-
-/** On the web build a picked file is a blob: URL; FormData wants the File. */
-async function webFile(uri: string, name: string, type: string): Promise<FilePart> {
-  const blob = await (await fetch(uri)).blob();
-  return new File([blob], name, { type }) as unknown as FilePart;
 }
 
 const styles = StyleSheet.create({

@@ -8,7 +8,7 @@ an `Authorization: Token …` header on everything else.
 
 from django.urls import path
 
-from .views import support, catalogue, auth, board, friends, holidays, home, me, moderation, notifications, plu, stories, timeclock, uploads
+from .views import support, catalogue, auth, board, festivals, friends, holidays, home, me, moderation, notifications, plu, stories, timeclock, uploads
 
 app_name = "api"
 
@@ -28,6 +28,7 @@ urlpatterns = [
     path("support/reports/", support.Report.as_view(), name="support_report"),
 
     path("home/", home.Home.as_view(), name="home"),
+    path("admin/festival-banner/", festivals.FestivalSettings.as_view(), name="festival_settings"),
 
     path("notices/", board.Notices.as_view(), name="notices"),
     path("notices/<int:pk>/", board.NoticeDetail.as_view(), name="notice"),
@@ -64,6 +65,7 @@ urlpatterns = [
     path("items/search/", catalogue.Search.as_view(), name="item_search"),
     path("items/preview/", catalogue.Preview.as_view(), name="item_preview"),
     path("items/import/", catalogue.Import.as_view(), name="item_import"),
+    path("catalogues/<int:pk>/", catalogue.Manage.as_view(), name="catalogue_detail"),
     path("items/<int:pk>/", catalogue.Detail.as_view(), name="item_detail"),
 
     path("plu/search/", plu.Search.as_view(), name="plu_search"),
@@ -83,6 +85,7 @@ urlpatterns = [
     path("timesheet/clock-out/", timeclock.ClockOut.as_view(), name="clock_out"),
     path("timesheet/", timeclock.Timesheet.as_view(), name="timesheet"),
     path("timesheet/calendar/", timeclock.Calendar.as_view(), name="calendar"),
+    path("timesheet/trend/", timeclock.Trend.as_view(), name="trend"),
     path("timesheet/shifts/", timeclock.Shifts.as_view(), name="shifts"),
     path("timesheet/shifts/new/", timeclock.NewShift.as_view(), name="shift_new"),
     path("timesheet/shifts/<int:pk>/", timeclock.ShiftDetail.as_view(), name="shift"),

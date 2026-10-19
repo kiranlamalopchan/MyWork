@@ -7,7 +7,7 @@
  * the phone; the server holds nothing between calls.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -60,9 +60,7 @@ export function PhotoSearch({ catalogueId }: { catalogueId?: number }) {
     const name = asset.fileName || "list.jpg", type = asset.mimeType || "image/jpeg";
     setReading(true);
     try {
-      const file: FilePart = Platform.OS === "web"
-        ? (new File([await (await fetch(asset.uri)).blob()], name, { type }) as unknown as FilePart)
-        : { uri: asset.uri, name, type };
+      const file: FilePart = { uri: asset.uri, name, type };
       const read: PhotoRead = await plu.photo(file, catalogueId);
       setRows(read.rows.map((r, i) => ({ ...r, key: i })));
       setSkipped(read.skipped);

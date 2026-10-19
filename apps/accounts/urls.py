@@ -12,6 +12,7 @@ app_name = "accounts"
 urlpatterns = [
     path("", views.profile, name="profile"),
     path("edit/", views.profile_edit, name="edit"),
+    path("settings/", views.profile_settings, name="settings"),
     path("delete/", views.account_delete, name="delete"),
     # The password you already know, and — for an admin — a link for somebody
     # who no longer knows theirs. See apps/accounts/passwords.py.

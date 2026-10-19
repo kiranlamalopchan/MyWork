@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load timeclock_extras ui %}
 {% block title %}Timesheet · KaamKoRecord{% endblock %}
+{% block main_class %} container--wide{% endblock %}
 
 {% block content %}
 
@@ -57,6 +58,9 @@
   with each other about which job is being looked at.
 {% endcomment %}
 <div class="sheet" id="sheet" data-live-skeleton="rows">
+
+{# On a wide screen the figures and the shifts sit side by side (.sheet__figures | .sheet__shifts). #}
+<div class="sheet__figures">
 
 {% comment %}
   ---- Totals --------------------------------------------------------------
@@ -141,17 +145,22 @@
   the shifts — which is what this page is for — off the bottom of the screen.
 {% endcomment %}
 
-{# ---- Shifts: this week in full, the weeks behind it folded ------------- #}
+{% include "timeclock/_trend.html" with workplace=workplace %}
+</div>
+
+<div class="sheet__shifts">
+{# ---- Shifts: this week's days, then the weeks behind it, every one shut --- #}
 {% if days %}
   {% comment %}
-    The week being read is written out a day at a time, each day open. Older
-    days are gathered a week at a time behind one fold that carries the week's
-    dates, how many shifts and how long — enough to decide whether to open it.
-    A week straddling two pages of the list shows up on both, which is what a
-    page of twenty shifts is.
+    The week being read is written out a day at a time; older days are
+    gathered a week at a time behind one fold that carries the week's dates,
+    how many shifts and how long. Every one starts shut — its head already
+    says which day and how long — and one opens at a time (app.js,
+    initAccordion). A week straddling two pages of the list shows up on
+    both, which is what a page of twenty shifts is.
   {% endcomment %}
   {% for day in recent_days %}
-    {% include "timeclock/_day.html" with day=day open=True %}
+    {% include "timeclock/_day.html" with day=day open=False %}
   {% endfor %}
 
   {% for week in older_weeks %}
@@ -188,6 +197,7 @@
     </div>
   </div>
 {% endif %}
+</div>
 
 </div>
 {% endblock %}

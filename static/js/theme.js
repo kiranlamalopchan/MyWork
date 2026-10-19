@@ -15,7 +15,7 @@
   }
   function announce() {
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", isDark() ? "#111318" : "#f3f6f2");
+    if (meta) meta.setAttribute("content", isDark() ? "#000000" : "#f3f6f2");
     window.dispatchEvent(new Event("mywork:theme"));
   }
   window.MyWorkTheme = {

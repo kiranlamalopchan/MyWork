@@ -26,6 +26,7 @@ register = template.Library()
 # `back` rather than `chevron-left` — because the meaning is what a template
 # is choosing when it asks for one.
 ICONS = {
+    "wallet": '<path d="M20 8V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14v11H6a3 3 0 0 1-3-3V6"/><path d="M20 12h-5v5h5"/>',
     "map": '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>',
     "navigation": '<path d="m21 3-6.5 18-3.3-8.2L3 9.5 21 3Z"/>',
     "location": '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/>',
@@ -40,6 +41,7 @@ ICONS = {
     "pencil":     '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     "trash":      '<path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/>',
     "search":     '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>',
+    "copy":       '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
     "close":      '<path d="M6 6l12 12M18 6 6 18"/>',
     "flag":       '<path d="M4 22V4a1 1 0 0 1 1-1h11l1 2h4v11h-9l-1-2H6"/>',
     "clock":      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',

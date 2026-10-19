@@ -9,15 +9,14 @@
  * "Western Australia" is slower than reading a list.
  *
  * Android keeps the system dropdown (@react-native-picker/picker in
- * "dropdown" mode), which is already that platform's modern control, and the
- * web keeps the browser's <select>. A build without the picker module falls
+ * "dropdown" mode), which is already that platform's modern control. A build without the picker module falls
  * back to a row of chips, so the screen still works.
  */
 import React from "react";
 import { ActionSheetIOS, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { Chip } from "./index";
+import { ChoiceRail } from "./ChoiceRail";
 import { rowValue, sheetRows, type Option } from "./choose";
 import { tick } from "./haptics";
 import { nativeOrNull } from "./native";
@@ -65,23 +64,19 @@ export function Select({ value, options, onChange, label, testID }: { value: str
   }
 
   if (!Picker) {
-    return (
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[2] }} testID={testID}>
-        {options.map((o) => <Chip key={o.value} on={o.value === value} onPress={() => pick(o.value)}>{o.label}</Chip>)}
-      </View>
-    );
+    return <View testID={testID}><ChoiceRail value={value} onChange={onChange} options={options} label={label || "Choices"} /></View>;
   }
 
-  // Android's dropdown, and the browser's select, sit in the field themselves.
+  // Android's dropdown sits in the field itself.
   return (
-    <View style={[styles.field, { backgroundColor: fill, paddingHorizontal: Platform.OS === "web" ? 0 : sp[2] }]} testID={testID}>
+    <View style={[styles.field, { backgroundColor: fill, paddingHorizontal: sp[2] }]} testID={testID}>
       <Picker
         selectedValue={value}
         onValueChange={(v: string) => pick(String(v))}
         mode="dropdown"
         dropdownIconColor={t.text2}
         accessibilityLabel={label}
-        style={[styles.picker, { color: t.text }, Platform.OS === "web" ? { backgroundColor: fill, paddingHorizontal: sp[4], fontSize: 16, borderWidth: 0, borderRadius: radius.md } : null]}
+        style={[styles.picker, { color: t.text }]}
       >
         {options.map((o) => <Picker.Item key={o.value} label={o.label} value={o.value} color={t.text} style={{ backgroundColor: t.surface }} />)}
       </Picker>

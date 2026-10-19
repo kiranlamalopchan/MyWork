@@ -18,7 +18,7 @@
     </button>
 </section>
 
-{% if request.user.is_staff and perms.holidays.change_festivalthemesettings %}
+{% if request.user.is_staff and perms.holidays.change_festivalthemesettings and not hide_festival %}
 <section class="card card__pad">
   <h3 class="appearance-setting__title">Home festival banner</h3>
   <p class="help">Choose the festival shown to everyone on Home.</p>

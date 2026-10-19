@@ -97,9 +97,7 @@ export function WorkplaceForm({ choices, workplace, cycles, newTaxScale, onSave,
       const picked = await DocumentPicker.getDocumentAsync({ type: PAYSLIP_TYPES, copyToCacheDirectory: true });
       if (picked.canceled) return;
       const asset = picked.assets[0];
-      const file: FilePart = Platform.OS === "web"
-        ? ((asset as any).file || (new File([await (await fetch(asset.uri)).blob()], asset.name, { type: asset.mimeType || "" }))) as unknown as FilePart
-        : { uri: asset.uri, name: asset.name, type: asset.mimeType || "application/octet-stream" };
+      const file: FilePart = { uri: asset.uri, name: asset.name, type: asset.mimeType || "application/octet-stream" };
       const slip = await timesheet.readPayslip(file);
       const f = slip.fields;
       const got: Record<string, boolean> = {};

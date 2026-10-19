@@ -1,0 +1,69 @@
+[
+  {
+    "surface": "website",
+    "width": 320,
+    "height": 720,
+    "mode": "dark",
+    "searchTop": 239.578125,
+    "searchClearPagingCopyTools": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 390,
+    "height": 844,
+    "mode": "dark",
+    "searchTop": 239.578125,
+    "searchClearPagingCopyTools": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 390,
+    "height": 844,
+    "mode": "light",
+    "searchTop": 239.578125,
+    "searchClearPagingCopyTools": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 844,
+    "height": 390,
+    "mode": "dark",
+    "searchTop": 231.578125,
+    "searchClearPagingCopyTools": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 1280,
+    "height": 900,
+    "mode": "dark",
+    "searchTop": 239.578125,
+    "searchClearPagingCopyTools": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 320,
+    "copySearchClearPhoto": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 390,
+    "copySearchClearPhoto": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 768,
+    "copySearchClearPhoto": "passed",
+    "errors": 0
+  },
+  {
+    "surface": "website-no-js",
+    "search": "passed"
+  }
+]

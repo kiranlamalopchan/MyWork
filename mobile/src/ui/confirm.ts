@@ -1,17 +1,10 @@
-/**
- * "Are you sure?" — the phone's own alert, or the browser's on the web
- * build, where React Native's Alert is a stub that shows nothing.
- */
-import { Alert, Platform } from "react-native";
+/** "Are you sure?" — the phone's own alert. */
+import { Alert } from "react-native";
 
 import { fail, success, warn } from "./haptics";
 
 export function confirm(title: string, message: string | undefined, action: string, onYes: () => void, destructive = true): void {
   if (destructive) warn();
-  if (Platform.OS === "web") {
-    if (globalThis.confirm?.(message ? `${title}\n\n${message}` : title)) onYes();
-    return;
-  }
   Alert.alert(title, message, [
     { text: "Cancel", style: "cancel" },
     { text: action, style: destructive ? "destructive" : "default", onPress: onYes },
@@ -20,8 +13,7 @@ export function confirm(title: string, message: string | undefined, action: stri
 
 export function notify(title: string, message?: string): void {
   fail();
-  if (Platform.OS === "web") globalThis.alert?.(message ? `${title}\n\n${message}` : title);
-  else Alert.alert(title, message);
+  Alert.alert(title, message);
 }
 
 /**
@@ -31,8 +23,7 @@ export function notify(title: string, message?: string): void {
  */
 export function tell(title: string, message?: string): void {
   success();
-  if (Platform.OS === "web") globalThis.alert?.(message ? `${title}\n\n${message}` : title);
-  else Alert.alert(title, message);
+  Alert.alert(title, message);
 }
 
 /**
@@ -42,7 +33,6 @@ export function tell(title: string, message?: string): void {
  * "Cancel" — this is an offer, not a check.
  */
 export function ask(title: string, message: string | undefined, action: string, later = "Not now"): Promise<boolean> {
-  if (Platform.OS === "web") return Promise.resolve(!!globalThis.confirm?.(message ? `${title}\n\n${message}` : title));
   return new Promise((resolve) => {
     Alert.alert(title, message, [
       { text: later, style: "cancel", onPress: () => resolve(false) },

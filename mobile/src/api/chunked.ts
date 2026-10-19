@@ -7,11 +7,7 @@
  * phone can do without loading the whole file — posts each slice to
  * `uploads/`, and then makes the story by naming the assembled upload
  * instead of attaching the file. Small videos still go in one request.
- *
- * Native only: the web build gets its files as Blobs, which the browser
- * can send whole, and it does not talk to the host with the limit.
  */
-import { Platform } from "react-native";
 
 import { api, type FilePart } from "./client";
 
@@ -22,7 +18,6 @@ const PIECE = 6 * 1024 * 1024;
 
 type Legacy = typeof import("expo-file-system/legacy");
 const fs = (): Legacy | null => {
-  if (Platform.OS === "web") return null;
   try {
     return require("expo-file-system/legacy") as Legacy;
   } catch {
@@ -30,7 +25,7 @@ const fs = (): Legacy | null => {
   }
 };
 
-/** How big the file behind `part` is, or null where that can't be asked (the web, a build without the module). */
+/** How big the file behind `part` is, or null where that can't be asked (a build without the module). */
 export async function sizeOf(part: FilePart): Promise<number | null> {
   const FS = fs();
   if (!FS) return null;

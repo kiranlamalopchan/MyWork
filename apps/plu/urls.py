@@ -15,6 +15,8 @@ urlpatterns = [
     path("item/<int:plu_no>/", catalogue_views.item_detail, name="detail"),
 
     path("import/", catalogue_views.import_csv, name="import"),
+    path("catalogues/<int:pk>/edit/", catalogue_views.edit_catalogue, name="catalogue_edit"),
+    path("catalogues/<int:pk>/delete/", catalogue_views.remove_catalogue, name="catalogue_delete"),
     path("photo-search/", views.photo_search, name="photo_search"),
     path("photo-search/pdf/", views.photo_search_pdf, name="photo_search_pdf"),
     path("photo-search/pick/", views.photo_search_pick, name="photo_search_pick"),

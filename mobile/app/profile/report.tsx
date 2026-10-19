@@ -26,7 +26,7 @@ export default function ReportProblem() {
         let screenshot: FilePart | undefined;
         if (photo) {
           const name = photo.fileName || "screenshot.jpg", type = photo.mimeType || "image/jpeg";
-          screenshot = Platform.OS === "web" ? new File([await (await fetch(photo.uri)).blob()], name, { type }) as unknown as FilePart : { uri: photo.uri, name, type };
+          screenshot = { uri: photo.uri, name, type };
         }
         const version = appVersion();
         await api("support/reports/", { method: "POST", form: formWith({ description, screenshot, app_version: version.version, build: version.build, platform: Platform.OS }) });

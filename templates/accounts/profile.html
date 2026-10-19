@@ -2,18 +2,6 @@
 {% load avatars ui %}
 {% block title %}Profile · KaamKoRecord{% endblock %}
 
-{% comment %}
-  Your profile, to look at.
-
-  Three things, in the order you want them: who you are, what KaamKoRecord knows
-  about you, and what you've done in it. Nothing on this page is a form —
-  changing your details is a screen you go to on purpose, behind the small
-  Edit beside your name, so what you read here is what is actually saved.
-
-  The picture is the exception, because a decision about a picture belongs to
-  the picture: tapping your face offers the only two there are.
-{% endcomment %}
-
 {% block content %}
 
 {% comment %}
@@ -31,12 +19,8 @@
 
 
 {# ---- Who you are ------------------------------------------------------ #}
-<div class="card card__pad profile-id">
-  <a class="profile-id__edit" href="{% url 'accounts:edit' %}">
-    {% icon "pencil" %}
-    Edit
-  </a>
-
+<div class="profile-minimal">
+<div class="profile-id">
   <form class="photo-form" method="post" enctype="multipart/form-data"
         action="{% url 'accounts:photo' %}" id="photo-form">
     {% csrf_token %}
@@ -84,64 +68,18 @@
 
   <h1 class="profile-id__name">{{ me.name }}{% include "accounts/_admin_badge.html" with user=request.user %}</h1>
   <p class="profile-id__meta">
-    {{ request.user.username }} · since {{ request.user.date_joined|date:"M Y" }}
+    @{{ request.user.username }}
   </p>
+  <a class="profile-minimal__edit" href="{% url 'accounts:edit' %}">Edit profile {% icon "arrow-right" %}</a>
   <p class="profile-id__note" id="photo-hint" hidden></p>
 </div>
 
-{# ---- What KaamKoRecord knows about you -------------------------------------- #}
-<div class="card facts">
-  <div class="facts__row">
-    <span class="facts__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>
-      </svg>
-    </span>
-    <span class="facts__label">Name</span>
-    <span class="facts__value">{{ me.display_name|default:"—" }}</span>
-  </div>
-
-  <div class="facts__row">
-    <span class="facts__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>
-      </svg>
-    </span>
-    <span class="facts__label">Email</span>
-    <span class="facts__value">{{ request.user.email|default:"—" }}</span>
-  </div>
-
-  <div class="facts__row">
-    <span class="facts__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 3 6.2 2 2 0 0 1 5 4Z"/>
-      </svg>
-    </span>
-    <span class="facts__label">Phone</span>
-    <span class="facts__value">
-      {% if me.phone %}<a href="tel:{{ me.phone|cut:' ' }}">{{ me.phone }}</a>{% else %}—{% endif %}
-    </span>
-  </div>
-
-  <div class="facts__row">
-    <span class="facts__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/>
-      </svg>
-    </span>
-    <span class="facts__label">Address</span>
-    <span class="facts__value">{{ me.address|default:"—" }}</span>
-  </div>
-
-  {% if not me.has_details %}
-    {# Empty dashes explain nothing on their own. #}
-    <a class="facts__prompt" href="{% url 'accounts:edit' %}">
-      Add your contact details
-      {% icon "chev" %}
-    </a>
-  {% endif %}
-</div>
-
+<svg class="profile-minimal__curve" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 0 Q200 108 400 0 L400 20 Q200 100 0 20 Z" fill="currentColor"/>
+  <path d="M0 8 Q200 120 400 8 L400 16 Q200 102 0 16 Z" fill="#db2777" opacity=".45"/>
+</svg>
+<nav class="profile-minimal__menu" aria-label="Profile options">
+<p class="profile-minimal__label">YOUR SPACE</p>
 {% comment %}
   ---- Friends ----------------------------------------------------------
 
@@ -158,9 +96,11 @@
   friends — and app.js (initFolds) remembers which were open, so adding or
   removing somebody lands back on the list it was done in.
 {% endcomment %}
-<details class="panel" id="friends">
+<details class="panel" name="profile-space" id="friends">
   <summary class="panel__head">
+    {% icon "people" class="profile-minimal__icon" %}
     <span class="panel__title">Friends</span>
+    {% if friends_received %}<span class="profile-minimal__badge" aria-label="{{ friends_received|length }} pending friend requests">{{ friends_received|length }}</span>{% endif %}
     <span class="panel__hint">{{ friend_count }} friend{{ friend_count|pluralize }}</span>
     {% icon "chev-down" class="panel__chev" width="2.2" %}
   </summary>
@@ -329,8 +269,9 @@
   it stood on the day you took it. A plain GET, so the browser saves the
   file and the page stays where it is.
 {% endcomment %}
-<details class="panel" id="statement">
+<details class="panel" name="profile-space" id="statement">
   <summary class="panel__head">
+    {% icon "doc" class="profile-minimal__icon" %}
     <span class="panel__title">Statement</span>
     <span class="panel__hint">PDF, any dates</span>
     {% icon "chev-down" class="panel__chev" width="2.2" %}
@@ -385,8 +326,9 @@
   everything else is a count, and counts belong in a grid where they can be
   compared rather than in six rows of equal weight where they can't.
 {% endcomment %}
-<details class="panel">
+<details class="panel" name="profile-space" id="activity">
   <summary class="panel__head">
+    {% icon "clock" class="profile-minimal__icon" %}
     <span class="panel__title">Activity</span>
     <span class="panel__hint">{{ week_hours|floatformat:1 }}h this week</span>
     {% icon "chev-down" class="panel__chev" width="2.2" %}
@@ -429,24 +371,17 @@
   </div>
 </details>
 
-<h2 class="section-label" id="settings">Settings</h2>
-{% include "accounts/_appearance_setting.html" %}
-
-<div class="card card__pad" style="margin-top: var(--sp-4)">
-  <a class="btn btn--block" href="{% url 'accounts:password' %}">Change password</a>
-  {% if request.user.is_staff %}
-    {# Only an admin can let somebody back in: there is no email to send a link with. #}
-    <a class="btn btn--block" href="{% url 'accounts:reset_links' %}" style="margin-top: var(--sp-2)">Password reset links</a>
-  {% endif %}
+<div class="profile-minimal__divider"></div>
+<a class="profile-minimal__row" id="settings" href="{% url 'accounts:settings' %}">
+  {% icon "settings" %}<span>Settings<small>Appearance, privacy &amp; account</small></span>{% icon "chev" %}
+</a>
+</nav>
 </div>
-
 <form method="post" action="{% url 'logout' %}" class="profile-signout">
-  {% csrf_token %}<button type="submit" class="btn btn--danger btn--block">Sign out</button>
+  {% csrf_token %}<button type="submit" class="profile-minimal__logout">{% icon "arrow-right" %}Sign out</button>
 </form>
 
-<p class="muted text-sm" style="text-align: center; margin-top: var(--sp-4)">
-  <a href="{% url 'moderation:blocked' %}">Blocked people</a> · <a href="{% url 'moderation:rules' %}">Rules</a> · <a href="{% url 'privacy' %}">Privacy</a> · <a href="{% url 'accounts:delete' %}" style="color: var(--danger)">Delete account</a>
-</p>
+<p class="profile-minimal__since">Member since {{ request.user.date_joined|date:"M Y" }}</p>
 
 {# Quiet, and last: the answer to "which version are you on?" when something #}
 {# is being worked out over the phone, and nothing anyone reads day to day.  #}

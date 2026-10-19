@@ -1,7 +1,7 @@
 /**
  * Being buzzed: ask the phone, get Expo's token for it, tell the server.
  *
- * Nothing here runs on the web build, and a phone that says no is simply
+ * A phone that says no is simply
  * not registered — the inbox still shows everything. Expo Go on Android
  * has no push at all since SDK 53 and throws the moment expo-notifications
  * is *imported*, so the module is only ever loaded through `notifications()`
@@ -20,10 +20,10 @@ let loaded: NotificationsModule | null | undefined;
 /** Expo Go (the store app running our JS) rather than a build of our own. */
 export const inExpoGo = Constants.appOwnership === "expo" || Constants.executionEnvironment === "storeClient";
 
-/** The notifications module, or `null` where there is no push: the web, Expo Go on Android, a build without it. */
+/** The notifications module, or `null` where there is no push: Expo Go on Android, a build without it. */
 export function notifications(): NotificationsModule | null {
   if (loaded !== undefined) return loaded;
-  if (Platform.OS === "web" || (Platform.OS === "android" && inExpoGo)) return (loaded = null);
+  if (Platform.OS === "android" && inExpoGo) return (loaded = null);
   try {
     loaded = require("expo-notifications") as NotificationsModule;
   } catch {
@@ -66,7 +66,7 @@ export async function pushTurnedOff(): Promise<boolean> {
 
 /**
  * Where the switch sits, for the profile page:
- * - `unsupported` — nothing to switch: the web, Expo Go on Android, a simulator
+ * - `unsupported` — nothing to switch: Expo Go on Android, a simulator
  * - `blocked` — the phone has said no and will not ask again; only Settings can change that
  * - `on` — the phone may buzz and the server knows this phone
  * - `off` — everything else (never asked, or turned off here)
@@ -97,7 +97,7 @@ export async function pushState(): Promise<PushState> {
  * OS only ever prompts once, so by the time sign-in registers the device the
  * answer is already given and nobody is asked twice.
  *
- * Returns whether it may buzz this phone — false on the web, in Expo Go on
+ * Returns whether it may buzz this phone — false in Expo Go on
  * Android, on a simulator, and when the answer was no.
  */
 export async function askForPush(): Promise<boolean> {

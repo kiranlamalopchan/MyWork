@@ -1,0 +1,6 @@
+{
+  "checks": [
+    "web: Pay → Clock → Settings → Timesheets → Pay has no Work reveal/fade; selected tabs update immediately",
+    "native: Pay → Clock → Settings → Timesheets → Pay has no Work reveal/fade; selected tabs update immediately"
+  ]
+}

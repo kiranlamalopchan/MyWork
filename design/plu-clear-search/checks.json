@@ -1,0 +1,38 @@
+[
+  {
+    "surface": "website",
+    "width": 320,
+    "initial": "clear",
+    "typed": "matches shown",
+    "cleared": "clear",
+    "pendingRequestCleared": "stays clear",
+    "directQueryCleared": "clear",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 390,
+    "initial": "clear",
+    "typed": "matches shown",
+    "cleared": "clear",
+    "pendingRequestCleared": "stays clear",
+    "directQueryCleared": "clear",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 320,
+    "initial": "clear",
+    "typed": "matches shown",
+    "cleared": "clear",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 390,
+    "initial": "clear",
+    "typed": "matches shown",
+    "cleared": "clear",
+    "errors": 0
+  }
+]

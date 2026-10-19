@@ -1,0 +1,20 @@
+[
+  {
+    "webSettingsVisible": true
+  },
+  {
+    "webEditNavigation": true
+  },
+  {
+    "nativeSettingsVisible": true
+  },
+  {
+    "nativePanelsOpen": true
+  },
+  {
+    "native320pxFits": true
+  },
+  {
+    "nativeEditNavigation": true
+  }
+]

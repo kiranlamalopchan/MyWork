@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Edit catalogue · KaamKoRecord{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'plu:list' %}?view=catalogues">{% icon "back" %}Catalogues</a>
+{% include "plu/_heading.html" with heading="Edit catalogue" subtitle="Change its name and the columns included in searches." compact=True %}
+<form method="post" class="card card__pad catalogue-mapping">
+  {% csrf_token %}
+  {% if error %}<p class="help help--error" role="alert">{{ error }}</p>{% endif %}
+  <label>Catalogue name<input class="input" name="name" value="{{ values.name }}" maxlength="100" required></label>
+  <fieldset><legend>Columns to search</legend>{% for heading in managed_catalogue.headers %}<label class="catalogue-check"><input type="checkbox" name="search_columns" value="{{ heading }}"{% if heading in values.search_columns %} checked{% endif %}> {{ heading }}</label>{% endfor %}</fieldset>
+  <p class="help">Choose at least one column. All existing item details are kept.</p>
+  <button class="btn btn--primary btn--block" type="submit">Save changes</button>
+  <a class="btn btn--block" href="{% url 'plu:list' %}?view=catalogues">Cancel</a>
+</form>
+<div class="card card__pad catalogue-mapping"><h2>Update catalogue data</h2><p class="help">Upload a replacement CSV to update items or change their display columns.</p><a class="btn" href="{% url 'plu:import' %}?catalogue={{ managed_catalogue.pk }}">Replace CSV</a><a class="btn btn--danger" href="{% url 'plu:catalogue_delete' managed_catalogue.pk %}">Delete catalogue</a></div>
+{% endblock %}

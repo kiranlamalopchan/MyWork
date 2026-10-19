@@ -85,8 +85,8 @@ export default function Viewer() {
   useEffect(() => {
     try { player.replace(story?.kind === "video" && story.video ? { uri: story.video } : null); } catch {}
   }, [story?.id]);
-  // A clip just put in isn't ready at once (on the web a play() before the
-  // load is done is thrown away): start it when the player says it can.
+  // A clip just put in isn't ready at once (a play() before the load is
+  // done can be thrown away): start it when the player says it can.
   useEffect(() => {
     if (story?.kind === "video" && status === "readyToPlay" && !paused) player.play();
   }, [status, story?.id]);

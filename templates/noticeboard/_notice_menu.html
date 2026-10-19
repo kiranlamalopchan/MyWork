@@ -1,0 +1,26 @@
+{% load ui %}
+{% if notice.is_mine or request.user.is_staff and notice.is_pinned or request.user.is_staff and notice.can_be_pinned %}
+<details class="notice-menu" data-dismiss>
+  <summary role="button" aria-label="Notice actions" aria-haspopup="menu">{% icon "more" %}</summary>
+  <div class="action-menu__panel" role="menu" aria-label="Notice actions">
+    {% if notice.is_mine %}
+      <a class="action-menu__item" role="menuitem" title="Edit" href="{% url 'notices:edit' notice.pk %}?next={{ next_url|urlencode }}" data-edit>{% icon "pencil" %}Edit</a>
+      <form method="post" action="{% url 'notices:delete' notice.pk %}" onsubmit="return confirm('Remove this notice? Everyone loses sight of it.');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ delete_next_url|default:next_url }}">
+        <button type="submit" class="action-menu__item action-menu__item--danger" role="menuitem">{% icon "trash" %}Delete</button>
+      </form>
+    {% endif %}
+    {% if request.user.is_staff %}
+      {% if notice.is_pinned or notice.can_be_pinned %}
+        <form method="post" action="{% url 'notices:pin' notice.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <input type="hidden" name="pin" value="{% if notice.is_pinned %}0{% else %}1{% endif %}">
+          <button type="submit" class="action-menu__item" role="menuitem">{% icon "pin" %}{% if notice.is_pinned %}Unpin{% else %}Pin{% endif %}</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</details>
+{% endif %}

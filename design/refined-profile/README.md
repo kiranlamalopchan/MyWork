@@ -1,0 +1,7 @@
+# Refined Profile
+
+The native and web profiles now have a compact identity header, one Edit profile action, a restrained curved accent, three expandable personal tools and a dedicated Settings destination. Settings groups appearance, account/privacy and administration; native settings also retain push, biometric sign-in, offline shifts and reporting where supported. Destructive account actions live in Settings.
+
+Photo actions share one accessible menu on iOS, Android and Expo web. Picker, upload and removal failures are caught; cancellation preserves the saved photo; an in-flight guard blocks duplicate operations. Native minimal disclosures use normal document flow and mount their controls only when open, avoiding clipped content and hidden focus targets. Pending friend requests have a visible count.
+
+Validation: 160 native tests and 60 account tests passed. TypeScript passed. Lint has zero errors and 24 existing warnings. Expo exported iOS, Android and web bundles successfully. Automated Chrome checks exercised the real UI and server: editing/saving, all personal panels, settings/theme/back navigation, photo upload/removal, PDF statement download, account/support destinations and 320 px layouts with long names. No page runtime errors were found. Preview screenshots show the real app with a temporary empty account; native screenshots use Expo's browser renderer. No physical device or signed build was tested, and nothing was deployed.

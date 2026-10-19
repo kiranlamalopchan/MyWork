@@ -36,24 +36,13 @@ from apps.timeclock.models import (
     MAX_MONTH_START_DAY, WORKPLACE_COLORS, LimitPeriod, PaidIn, PayCycle, Payment, Shift, TaxScale,
     TimePreference, Weekday, Workplace, color_css, fortnight_hint as _fortnight_hint, fortnight_started_last_week,
 )
+from apps.timeclock.figures import duration, trend_json
 from apps.timeclock.templatetags.timeclock_extras import decimal_hours, hm, hms, minutes
 
 from .. import serialize
 from ..errors import form_errors
 
 # ---- words and numbers ----------------------------------------------------------
-
-
-def duration(value):
-    """A timedelta as the app draws it: seconds, and the site's words for it."""
-    value = value or timedelta()
-    return {
-        "seconds": int(max(value.total_seconds(), 0)),
-        "hm": hm(value) or "0m",
-        "hms": hms(value),
-        "minutes": minutes(value),
-        "decimal": decimal_hours(value),
-    }
 
 
 def pay(value):
@@ -501,6 +490,17 @@ class Calendar(APIView):
             "selected_shifts": [shift_row(s, getattr(s, "seq", None)) for s in selected_shifts],
             "selected_total": duration(sum((s.worked_duration for s in selected_shifts), timedelta())),
         })
+
+
+# ---- trend ----------------------------------------------------------------------
+# The chart's figures (apps/timeclock/figures.py), shared with the website's own chart.
+
+
+class Trend(APIView):
+    def get(self, request):
+        picked = request.GET.get("workplace")
+        workplace = Workplace.objects.filter(user=request.user, pk=picked).first() if picked and picked.isdigit() else None
+        return Response(trend_json(request.user, request.GET.get("range", "week"), workplace))
 
 
 # ---- shifts ---------------------------------------------------------------------

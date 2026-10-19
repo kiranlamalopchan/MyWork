@@ -350,9 +350,9 @@ class PasswordChangeTests(TestCase):
         self._change()
         self.assertFalse(Token.objects.filter(user=self.user).exists())
 
-    def test_the_page_renders_and_the_profile_points_at_it(self):
+    def test_the_page_renders_and_settings_points_at_it(self):
         self.assertEqual(self.client.get(self.url).status_code, 200)
-        self.assertContains(self.client.get(reverse("accounts:profile")), self.url)
+        self.assertContains(self.client.get(reverse("accounts:settings")), self.url)
 
     def test_it_needs_a_login(self):
         self.client.logout()
@@ -399,10 +399,10 @@ class ResetLinkTests(TestCase):
     def test_only_an_admin_is_told_the_page_is_there(self):
         """A page only admins may use is a page only admins need to see."""
         self.client.force_login(self.person)
-        self.assertNotContains(self.client.get(reverse("accounts:profile")), self.url)
+        self.assertNotContains(self.client.get(reverse("accounts:settings")), self.url)
 
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(reverse("accounts:profile")), self.url)
+        self.assertContains(self.client.get(reverse("accounts:settings")), self.url)
 
     def test_an_admin_is_offered_everybody(self):
         self.client.force_login(self.admin)

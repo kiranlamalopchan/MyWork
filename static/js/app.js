@@ -609,31 +609,19 @@
         window.location.href = location.pathname + "?" + params.toString();
       });
     }
-    // A detail URL built with a sentinel PLU, e.g. "/987654321/". Swapping the
-    // sentinel for a real number keeps URL building in Django's hands.
-    var detailTemplate = form.getAttribute("data-detail-url-template") || "";
-    if (!endpoint || !detailTemplate) return;
+    if (!endpoint) return;
 
-    function detailUrl(pluNo) {
-      return detailTemplate.replace("987654321", String(pluNo));
-    }
-
-    // The page renders no list until something is searched for, so an empty
-    // box always goes back to the prompt. Only a page loaded without a query
-    // already has that markup to reuse; one loaded with ?q= gets it rebuilt.
     var initialQuery = input.value.trim();
-    var idleHtml = initialQuery ? "" : resultsEl.innerHTML;
-    var idleMeta = initialQuery ? "" : (metaEl ? metaEl.innerHTML : "");
+    var idleMeta = form.getAttribute("data-idle-meta") || "";
 
     var timer = null;
     var inFlight = null;
     var lastRendered = initialQuery;
-    // Which page of the results is up. The list shows five at a time and
-    // the rest are a page away, exactly as the page renders without JS.
+    // The API and the server-rendered page share the same pagination.
     var initialPage = parseInt(new URLSearchParams(location.search).get("page"), 10) || 1;
     var lastPage = initialQuery ? initialPage : 1;
 
-    // Centres the box while nothing has been searched for; see .search-page.
+    // Active searches keep their controls pinned while the results scroll.
     var page = document.getElementById("search-page");
     var bar = document.querySelector(".searchbar");
 
@@ -655,15 +643,12 @@
         return;
       }
 
-      var html = '<ul class="result-list">';
+      var html = '<div class="search-section"><h2>Results</h2></div><ul class="result-list search-result-list">';
       for (var i = 0; i < data.results.length; i++) {
         var row = data.results[i];
-        html +=
-          "<li><a class=\"result\" href=\"" + detailUrl(row.id) + "\">" +
-          (row.code ? '<span class="plu-badge catalogue-code">' + highlight(escapeHtml(row.code), query) + '</span>' : '') +
-          '<span class="result__body"><span class="result__title">' +
-          highlight(escapeHtml(row.title), query) +
-          "</span></span>" + ICON_CHEVRON + "</a></li>";
+        html += '<li class="search-result"><span class="search-result__number">' +
+          highlight(escapeHtml(row.code || '—'), query) + '</span><span class="search-result__description">' +
+          highlight(escapeHtml(row.description || row.title), query) + '</span></li>';
       }
       html += "</ul>";
       html += pagerHtml(query, data.page, data.pages);
@@ -709,13 +694,12 @@
       if (window.pageYOffset > top - bars) window.scrollTo({ top: Math.max(top - bars, 0) });
     });
 
-    // Back to the "type something" state the page opens in.
+    // An empty search always leaves the results area clear.
     function showIdle() {
-      resultsEl.innerHTML = idleHtml ||
-        emptyCard("Search your items", "Search the columns you selected when uploading your file.");
+      resultsEl.innerHTML = "";
 
       if (idleMeta) {
-        setMeta(idleMeta);
+        if (metaEl) metaEl.textContent = idleMeta;
       } else {
         var total = parseInt(form.getAttribute("data-total-count"), 10);
         setMeta(isNaN(total) ? "" :
@@ -727,8 +711,6 @@
 
     function run(query, page) {
       page = page || 1;
-      if (query === lastRendered && page === lastPage) return;
-
       if (!query) {
         if (inFlight) { inFlight.abort(); inFlight = null; }
         if (bar) bar.classList.remove("is-busy");
@@ -736,9 +718,9 @@
         syncUrl("", 1);
         return;
       }
+      if (query === lastRendered && page === lastPage) return;
 
-      // Move the box up as soon as there's a query, not when results land, so
-      // the layout settles while the request is still in flight.
+      // Pin the controls as soon as a query is entered.
       setIdle(false);
 
       if (inFlight) inFlight.abort();
@@ -777,8 +759,8 @@
           syncUrl(query, data.page);
         })
         .catch(function (err) {
-          if (bar) bar.classList.remove("is-busy");
           if (err && err.name === "AbortError") return;
+          if (bar) bar.classList.remove("is-busy");
           inFlight = null;
           // Network trouble on a phone is normal — fall back to a real
           // page load rather than leaving a stale list on screen.
@@ -803,6 +785,7 @@
       syncClear();
       var query = input.value.trim();
       clearTimeout(timer);
+      if (!query) { run(""); return; }
       // Short debounce: fast enough to feel live, slow enough not to fire
       // a request per keystroke on a phone connection.
       timer = setTimeout(function () { run(query); }, 220);
@@ -836,113 +819,6 @@
   }
 
   /* ----------------------------------------------------------------------
-     Animated placeholder
-     Types real descriptions from this shop's list through the empty search
-     box, so the hint doubles as a worked example of what you can search for.
-     Pauses whenever the box is in use — a moving placeholder under a live
-     cursor is a distraction, not a hint.
-     ---------------------------------------------------------------------- */
-  function initPlaceholderTyper() {
-    var input = document.getElementById("plu-search-input");
-    var data = document.getElementById("search-examples");
-    if (!input || !data) return;
-
-    // Reduced motion keeps the plain, static hint the markup ships with.
-    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduced.matches) return;
-
-    var examples;
-    try { examples = JSON.parse(data.textContent); } catch (e) { return; }
-    if (!Array.isArray(examples) || !examples.length) return;
-
-    // Descriptions are stored shouting (BEEF BONELESS BLADE); lowercase reads
-    // as a hint rather than a heading.
-    examples = examples.map(function (s) { return String(s).toLowerCase(); });
-
-    var STATIC = input.getAttribute("placeholder") || "";
-    var TYPE_MS = 55, DELETE_MS = 28, HOLD_MS = 1500, GAP_MS = 350;
-
-    var idx = 0, pos = 0, deleting = false, timer = null, paused = false;
-
-    function stop() {
-      clearTimeout(timer);
-      timer = null;
-    }
-
-    function step() {
-      if (paused) return;
-
-      var word = examples[idx];
-      var next;
-
-      if (!deleting) {
-        pos++;
-        input.placeholder = word.slice(0, pos) + "▌";
-        if (pos >= word.length) {
-          deleting = true;
-          input.placeholder = word;   // drop the caret while it rests
-          next = HOLD_MS;
-        } else {
-          next = TYPE_MS;
-        }
-      } else {
-        pos--;
-        input.placeholder = word.slice(0, pos) + "▌";
-        if (pos <= 0) {
-          deleting = false;
-          idx = (idx + 1) % examples.length;
-          next = GAP_MS;
-        } else {
-          next = DELETE_MS;
-        }
-      }
-
-      timer = setTimeout(step, next);
-    }
-
-    function pause() {
-      paused = true;
-      stop();
-      input.placeholder = STATIC;
-    }
-
-    function resume() {
-      if (!paused) return;
-      paused = false;
-      pos = 0;
-      deleting = false;
-      stop();
-      timer = setTimeout(step, GAP_MS);
-    }
-
-    // Typing or focusing hands the box back to the user.
-    input.addEventListener("focus", pause);
-    input.addEventListener("blur", function () {
-      if (!input.value) resume();
-    });
-    input.addEventListener("input", function () {
-      if (input.value) pause();
-    });
-
-    // A page opened with ?q= already has a query in the box; leave it alone.
-    if (input.value) {
-      paused = true;
-    } else {
-      timer = setTimeout(step, GAP_MS);
-    }
-
-    // Honour the setting being flipped mid-session.
-    if (reduced.addEventListener) {
-      listen(reduced, "change", function (e) {
-        if (e.matches) pause();
-      });
-    }
-
-    // The box goes with the page; the typing must not carry on without it.
-    onLeave(stop);
-  }
-
-  /* ----------------------------------------------------------------------
      Copy a PLU number (for typing straight into the scale)
      ---------------------------------------------------------------------- */
   function flash(message) {
@@ -960,30 +836,30 @@
   }
 
   function initCopy() {
-    document.querySelectorAll("[data-copy]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var value = btn.getAttribute("data-copy");
+    listen(document, "click", function (event) {
+      var btn = event.target.closest && event.target.closest("[data-copy]");
+      if (!btn) return;
+      var value = btn.getAttribute("data-copy");
 
-        function ok() { flash("Copied " + value); }
+      function ok() { flash("Copied " + value); }
 
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(value).then(ok, fallback);
-        } else {
-          fallback();
-        }
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).then(ok, fallback);
+      } else {
+        fallback();
+      }
 
-        // http:// on the local network has no async clipboard API
-        function fallback() {
-          var ta = document.createElement("textarea");
-          ta.value = value;
-          ta.setAttribute("readonly", "");
-          ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
-          document.body.appendChild(ta);
-          ta.select();
-          try { document.execCommand("copy"); ok(); } catch (e) { flash("Couldn't copy"); }
-          ta.remove();
-        }
-      });
+      // http:// on the local network has no async clipboard API
+      function fallback() {
+        var ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { if (document.execCommand("copy")) ok(); else flash("Couldn't copy"); } catch (e) { flash("Couldn't copy"); }
+        ta.remove();
+      }
     });
   }
 
@@ -3449,13 +3325,69 @@
      you name, and only then is there a date to ask for. The button asks
      before it draws the line, in the words of the answer chosen.
      ---------------------------------------------------------------------- */
+  function initPayWallet() {
+    var host = document.querySelector("[data-pay-dashboard]");
+    if (!host) return;
+    var rail = host.querySelector("[data-pay-rail]");
+    var cards = Array.from(host.querySelectorAll("[data-pay-workplace]"));
+    var panels = Array.from(host.querySelectorAll("[data-pay-panel]"));
+    var dots = Array.from(host.querySelectorAll("[data-pay-dot]"));
+    var previous = host.querySelector("[data-pay-previous]");
+    var next = host.querySelector("[data-pay-next]");
+    if (!rail || !cards.length) return;
+    var selected = 0, timer = null;
+    var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function select(index, scroll, focus) {
+      selected = Math.max(0, Math.min(index, cards.length - 1));
+      var id = cards[selected].getAttribute("data-pay-workplace");
+      cards.forEach(function (card, i) { card.setAttribute("aria-selected", i === selected ? "true" : "false"); card.tabIndex = i === selected ? 0 : -1; });
+      panels.forEach(function (panel) { panel.hidden = panel.getAttribute("data-pay-panel") !== id; });
+      dots.forEach(function (dot) { dot.setAttribute("aria-pressed", dot.getAttribute("data-pay-dot") === id ? "true" : "false"); });
+      if (previous) previous.disabled = selected === 0;
+      if (next) next.disabled = selected === cards.length - 1;
+      try { sessionStorage.setItem("mywork.pay-workplace", id); } catch (e) {}
+      if (scroll) rail.scrollTo({ left: cards[selected].offsetLeft - cards[0].offsetLeft, behavior: reduced ? "instant" : "smooth" });
+      if (focus) cards[selected].focus({ preventScroll: true });
+    }
+    cards.forEach(function (card, i) {
+      listen(card, "click", function () { select(i, true); });
+      listen(card, "keydown", function (event) {
+        var index = event.key === "ArrowRight" ? selected + 1 : event.key === "ArrowLeft" ? selected - 1 : event.key === "Home" ? 0 : event.key === "End" ? cards.length - 1 : null;
+        if (index === null) return;
+        event.preventDefault(); select(index, true, true);
+      });
+    });
+    dots.forEach(function (dot, i) { listen(dot, "click", function () { select(i, true); }); });
+    if (previous) listen(previous, "click", function () { select(selected - 1, true); });
+    if (next) listen(next, "click", function () { select(selected + 1, true); });
+    listen(rail, "scroll", function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        var nearest = 0, distance = Infinity;
+        cards.forEach(function (card, i) { var gap = Math.abs(card.offsetLeft - cards[0].offsetLeft - rail.scrollLeft); if (gap < distance) { distance = gap; nearest = i; } });
+        select(nearest, false);
+      }, 120);
+    }, { passive: true });
+    onLeave(function () { clearTimeout(timer); });
+    var saved = null;
+    try { saved = sessionStorage.getItem("mywork.pay-workplace"); } catch (e) {}
+    var initial = cards.findIndex(function (card) { return card.getAttribute("data-pay-workplace") === saved; });
+    if (initial < 0) initial = cards.findIndex(function (card) { return card.hasAttribute("data-pay-default"); });
+    select(initial < 0 ? 0 : initial, false);
+    rail.scrollLeft = cards[selected].offsetLeft - cards[0].offsetLeft;
+  }
+
   function initPayForms() {
     document.querySelectorAll("form[data-settle]").forEach(function (form) {
       var covers = form.querySelector("[data-settle-covers]");
       var day = form.querySelector("[data-settle-day]");
       if (!covers || !day) return;
 
-      function sync() { day.hidden = covers.value !== "date"; }
+      function sync() {
+        day.hidden = covers.value !== "date";
+        var summary = form.querySelector(".pay-coverage summary>span");
+        if (summary && covers.options[covers.selectedIndex]) summary.firstChild.textContent = covers.options[covers.selectedIndex].text;
+      }
       covers.addEventListener("change", sync);
       sync();
 
@@ -4199,6 +4131,8 @@
           region.innerHTML = next.innerHTML;
           // Figures that replaced figures, so they arrive already finished.
           initTally(true);
+          // A chart that came with them draws itself for the job just picked.
+          initTrend(region);
           if (remember === "push") history.pushState({ liveFilter: true }, "", href);
           if (remember === "replace") history.replaceState({ liveFilter: true }, "", href);
           noteAddress();
@@ -4489,6 +4423,7 @@
     // Read once, here, because taking it clears it — and both bars want it.
     var from = takeRemembered();
     document.querySelectorAll(".tabbar__inner, .segments").forEach(function (bar) {
+      if (bar.matches('.segments[aria-label="Work"]')) return;
       wireSlider(bar, from);
     });
   }
@@ -5025,7 +4960,9 @@
       // Adopted rather than re-parsed from a string, and its scripts have
       // already "started" as far as the browser is concerned: they do not run.
       document.documentElement.replaceChild(document.adoptNode(doc.body), document.body);
-      document.body.setAttribute("data-arrive", mode === "pop" ? "back" : arrive);
+      var workPath = new URL(entry.url, location.href).pathname.replace(/\/+$/, "");
+      var instantWork = ["/timesheet", "/timesheet/shifts", "/timesheet/pay", "/timesheet/more"].indexOf(workPath) !== -1;
+      document.body.setAttribute("data-arrive", instantWork ? "none" : (mode === "pop" ? "back" : arrive));
       arrive = "forward";
       // The page's height has to be final before a scroll position goes back.
       markBack();
@@ -5169,6 +5106,285 @@
   }
 
   /* ----------------------------------------------------------------------
+     The earnings chart (templates/timeclock/_trend.html) — the app's
+     TrendChart, drawn here: the span's total and how it compares, one soft
+     line for this span over a thinner one for the span before, a dashed line
+     for each day and a bubble on the one being read. The figures come from
+     timeclock:trend, the same JSON the app draws. Pick a day on the chart
+     (tap or drag) or on the row of days under it.
+     ---------------------------------------------------------------------- */
+  function initTrend(root) {
+    var boxes = (root || document).querySelectorAll("[data-trend]");
+    for (var i = 0; i < boxes.length; i++) wireTrend(boxes[i]);
+  }
+
+  var TREND_H = 178, TREND_TOP = 46, TREND_BOTTOM = 10, TREND_SIDE = 12;
+
+  function money(v) {
+    return "$" + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /* A smooth line through the points that never swings past them: a
+     monotone cubic (Fritsch–Carlson), so a quiet day between two busy ones
+     dips to its own value and not below the axis. */
+  function smoothPath(pts) {
+    if (!pts.length) return "";
+    if (pts.length === 1) return "M " + pts[0].x + " " + pts[0].y;
+    var n = pts.length, dx = [], m = [], i;
+    for (i = 0; i < n - 1; i++) {
+      dx.push(pts[i + 1].x - pts[i].x || 1e-6);
+      m.push((pts[i + 1].y - pts[i].y) / dx[i]);
+    }
+    var tan = pts.map(function (_, k) {
+      if (k === 0) return m[0];
+      if (k === n - 1) return m[n - 2];
+      return m[k - 1] * m[k] <= 0 ? 0 : (m[k - 1] + m[k]) / 2;
+    });
+    for (i = 0; i < n - 1; i++) {
+      if (m[i] === 0) { tan[i] = 0; tan[i + 1] = 0; continue; }
+      var a = tan[i] / m[i], b = tan[i + 1] / m[i], s = a * a + b * b;
+      if (s > 9) { var k = 3 / Math.sqrt(s); tan[i] = k * a * m[i]; tan[i + 1] = k * b * m[i]; }
+    }
+    var d = "M " + pts[0].x + " " + pts[0].y;
+    for (i = 0; i < n - 1; i++) {
+      var third = dx[i] / 3;
+      d += " C " + (pts[i].x + third) + " " + (pts[i].y + tan[i] * third) + ", " + (pts[i + 1].x - third) + " " +
+        (pts[i + 1].y - tan[i + 1] * third) + ", " + pts[i + 1].x + " " + pts[i + 1].y;
+    }
+    return d;
+  }
+
+  function wireTrend(box) {
+    if (box.__trend) return;
+    box.__trend = true;
+    var base = box.getAttribute("data-trend"), range = "week";
+    var plot = box.querySelector("[data-trend-plot]");
+    var svg = box.querySelector("[data-trend-svg]");
+    var bubble = box.querySelector("[data-trend-bubble]");
+    var tail = box.querySelector("[data-trend-tail]");
+    var pills = box.querySelector("[data-trend-pills]");
+    var caption = box.querySelector("[data-trend-caption]");
+    var spans = box.querySelectorAll(".trend__span");
+    var gradient = "trend-fill-" + Math.random().toString(36).slice(2, 8);
+    var data = null, selected = 0, asked = 0;
+
+    function value(f) { return data.priced ? (f.gross || 0) : f.hours; }
+    function say(f) { return data.priced ? money(f.gross) : f.worked.hm; }
+
+    function load(next) {
+      range = next;
+      var ticket = ++asked;
+      var url = base + (base.indexOf("?") < 0 ? "?" : "&") + "range=" + range;
+      for (var i = 0; i < spans.length; i++) {
+        var on = spans[i].getAttribute("data-range") === range;
+        spans[i].classList.toggle("is-on", on);
+        spans[i].setAttribute("aria-selected", on ? "true" : "false");
+      }
+      box.classList.add("is-loading");
+      fetch(url, {
+        credentials: "same-origin", headers: { Accept: "application/json" },
+      })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (json) {
+          if (ticket !== asked) return;
+          data = json;
+          var now = data.points.findIndex(function (p) { return p.current; });
+          selected = now < 0 ? 0 : now;
+          box.hidden = false;
+          box.classList.remove("is-loading");
+          draw();
+        })
+        .catch(function () { box.classList.remove("is-loading"); if (!data) box.hidden = true; });
+    }
+
+    function draw() {
+      if (!data) return;
+      var width = plot.clientWidth;
+      if (!width) return;
+      var n = data.points.length, dense = n > 7, gap = dense ? 3 : 6;
+      var pill = (width - TREND_SIDE * 2 - gap * (n - 1)) / n;
+      var xs = data.points.map(function (_, i) { return TREND_SIDE + i * (pill + gap) + pill / 2; });
+      var top = Math.max.apply(null, [1].concat(data.points.map(value), data.previous.map(value))) * 1.12;
+      function y(v) { return TREND_TOP + (TREND_H - TREND_TOP - TREND_BOTTOM) * (1 - v / top); }
+
+      var done = data.points.filter(function (p) { return !p.upcoming; }).length;
+      var now = data.points.slice(0, Math.max(done, 1)).map(function (p, i) { return { x: xs[i], y: y(value(p)) }; });
+      var before = data.previous.map(function (p, i) { return { x: xs[i], y: y(value(p)) }; });
+      var nowLine = smoothPath([{ x: 0, y: now[0].y }].concat(now, done === n ? [{ x: width, y: now[now.length - 1].y }] : []));
+      var beforeLine = smoothPath([{ x: 0, y: before[0].y }].concat(before, [{ x: width, y: before[before.length - 1].y }]));
+      var lastX = done === n ? width : now[now.length - 1].x;
+      var point = data.points[selected], sx = xs[selected];
+      var sy = point.upcoming ? null : y(value(point));
+
+      var grid = xs.map(function (x, i) {
+        return i === selected ? "" : '<line class="trend__grid" x1="' + x + '" x2="' + x + '" y1="' + (TREND_TOP - 14) + '" y2="' + TREND_H + '"/>';
+      }).join("");
+      svg.setAttribute("viewBox", "0 0 " + width + " " + TREND_H);
+      svg.setAttribute("width", width);
+      svg.setAttribute("height", TREND_H);
+      svg.innerHTML =
+        '<defs><linearGradient id="' + gradient + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" style="stop-color:var(--brand);stop-opacity:.26"/>' +
+        '<stop offset=".75" style="stop-color:var(--brand);stop-opacity:.04"/>' +
+        '<stop offset="1" style="stop-color:var(--brand);stop-opacity:0"/></linearGradient></defs>' +
+        grid +
+        '<path d="' + nowLine + " L " + lastX + " " + TREND_H + " L 0 " + TREND_H + ' Z" fill="url(#' + gradient + ')"/>' +
+        '<path class="trend__then" d="' + beforeLine + '"/>' +
+        '<path class="trend__now" d="' + nowLine + '"/>' +
+        '<line class="trend__pick" x1="' + sx + '" x2="' + sx + '" y1="' + (TREND_TOP - 6) + '" y2="' + TREND_H + '"/>' +
+        (sy === null ? "" : '<circle class="trend__ring" cx="' + sx + '" cy="' + sy + '" r="8"/><circle class="trend__point" cx="' + sx + '" cy="' + sy + '" r="5.5"/>');
+
+      bubble.textContent = point.upcoming ? "Still to come" : say(point);
+      var bw = bubble.offsetWidth;
+      bubble.style.left = Math.max(8, Math.min(width - bw - 8, sx - bw / 2)) + "px";
+      tail.style.left = (sx - 5) + "px";
+
+      var then = data.previous[selected];
+      caption.textContent = point.long_label + (data.priced && !point.upcoming ? " · " + point.worked.hm : "") +
+        " · " + data.compare_title.toLowerCase() + " " + say(then);
+
+      box.querySelector("[data-trend-kicker]").textContent = data.priced ? "Earned" : "Worked";
+      box.querySelector("[data-trend-total]").textContent = say(data.total);
+      box.querySelector("[data-trend-now]").textContent = data.title;
+      box.querySelector("[data-trend-then]").textContent = data.compare_title;
+
+      // Like against like: a span still under way is set against the same
+      // stretch of the one before, or every week would start "down 100%".
+      var sum = function (list) {
+        return list.slice(0, Math.max(done, 1)).reduce(function (a, f) { return a + value(f); }, 0);
+      };
+      var a = sum(data.points), b = sum(data.previous), change = box.querySelector("[data-trend-change]");
+      var pct = b ? Math.round(((a - b) / b) * 100) : null;
+      if ((!a && !b) || pct === 0) { change.hidden = true; }
+      else {
+        var up = pct === null || pct > 0;
+        change.hidden = false;
+        change.className = "trend__change " + (up ? "is-up" : "is-down");
+        change.textContent = (up ? "↑ " : "↓ ") + (pct === null ? "New" : Math.abs(pct) + "%");
+      }
+
+      pills.classList.toggle("is-dense", dense);
+      pills.style.gap = gap + "px";
+      pills.innerHTML = data.points.map(function (p, i) {
+        return '<button type="button" class="trend__pill' + (i === selected ? " is-on" : "") + (p.upcoming ? " is-later" : "") +
+          '" data-index="' + i + '" aria-pressed="' + (i === selected) + '" aria-label="' + p.long_label + '">' + p.label + "</button>";
+      }).join("");
+
+      plot.__pick = function (clientX) {
+        var r = plot.getBoundingClientRect();
+        return Math.max(0, Math.min(n - 1, Math.round((clientX - r.left - TREND_SIDE - pill / 2) / (pill + gap))));
+      };
+    }
+
+    function choose(i) {
+      if (i === selected || !data) return;
+      selected = i;
+      draw();
+    }
+
+    for (var s = 0; s < spans.length; s++) {
+      spans[s].addEventListener("click", function () { load(this.getAttribute("data-range")); });
+    }
+    pills.addEventListener("click", function (event) {
+      var b = event.target.closest ? event.target.closest(".trend__pill") : null;
+      if (b) choose(Number(b.getAttribute("data-index")));
+    });
+    var dragging = false;
+    plot.addEventListener("pointerdown", function (event) {
+      if (!plot.__pick) return;
+      dragging = true;
+      choose(plot.__pick(event.clientX));
+    });
+    plot.addEventListener("pointermove", function (event) {
+      if (dragging && plot.__pick) choose(plot.__pick(event.clientX));
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (type) {
+      plot.addEventListener(type, function () { dragging = false; });
+    });
+    if (typeof ResizeObserver === "function") {
+      var watch = new ResizeObserver(function () { draw(); });
+      watch.observe(plot);
+      onLeave(function () { watch.disconnect(); });
+    }
+    load("week");
+  }
+
+  /* ----------------------------------------------------------------------
+     The timesheet's days and weeks (<details class="day|week">) open and
+     shut one at a time: opening one folds the others at its level away. The
+     fold is animated — the content grows to its height and eases down into
+     place, or shrinks away before the <details> actually shuts — and once a
+     day has opened, the page brings it up to just under the bar, so what
+     opened near the foot of the screen is not left out of sight.
+     ---------------------------------------------------------------------- */
+  var FOLD_MS = 280, FOLD_EASE = "cubic-bezier(.2, .8, .2, 1)";
+
+  function initAccordion() {
+    document.addEventListener("click", function (event) {
+      var summary = event.target.closest ? event.target.closest(".sheet details.day > summary, .sheet details.week > summary") : null;
+      if (!summary || event.defaultPrevented) return;
+      event.preventDefault();
+      var box = summary.parentElement;
+      if (box.open && !box.classList.contains("is-closing")) { foldShut(box); return; }
+      var level = box.parentElement;
+      for (var i = 0; i < level.children.length; i++) {
+        var other = level.children[i];
+        if (other !== box && other.matches && other.matches("details.day[open], details.week[open]")) foldShut(other);
+      }
+      foldOpen(box);
+    });
+  }
+
+  function foldBody(box) {
+    return box.querySelector(":scope > :not(summary)");
+  }
+
+  function stillMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function foldOpen(box) {
+    box.classList.remove("is-closing");
+    box.open = true;
+    var body = foldBody(box);
+    if (body && !stillMotion() && body.animate) {
+      var h = body.scrollHeight;
+      body.style.overflow = "hidden";
+      var run = body.animate(
+        [{ height: "0px", opacity: 0, transform: "translateY(-10px)" }, { height: h + "px", opacity: 1, transform: "none" }],
+        { duration: FOLD_MS, easing: FOLD_EASE }
+      );
+      run.onfinish = function () { body.style.overflow = ""; };
+    }
+    setTimeout(function () { bringUp(box); }, stillMotion() ? 0 : FOLD_MS + 20);
+  }
+
+  function foldShut(box) {
+    var body = foldBody(box);
+    if (!body || stillMotion() || !body.animate) { box.open = false; return; }
+    box.classList.add("is-closing");
+    body.style.overflow = "hidden";
+    var run = body.animate(
+      [{ height: body.offsetHeight + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+      { duration: FOLD_MS - 40, easing: FOLD_EASE }
+    );
+    run.onfinish = function () {
+      body.style.overflow = "";
+      if (box.classList.contains("is-closing")) { box.open = false; box.classList.remove("is-closing"); }
+    };
+  }
+
+  /* The opened fold's head comes up to just under the bar (sticky at the
+     top of the page), and no further than the page can scroll. */
+  function bringUp(box) {
+    var bar = document.querySelector(".appbar");
+    var under = (bar ? bar.getBoundingClientRect().bottom : 0) + 12;
+    var top = box.getBoundingClientRect().top;
+    var target = Math.max(0, Math.min(window.scrollY + top - under, document.documentElement.scrollHeight - window.innerHeight));
+    if (Math.abs(target - window.scrollY) > 6) window.scrollTo({ top: target, behavior: stillMotion() ? "auto" : "smooth" });
+  }
+
+  /* ----------------------------------------------------------------------
      Start-up
      Once for the document, then once for every page it shows. Soft
      navigation goes first: its click handler must have cancelled a tap
@@ -5188,6 +5404,7 @@
     initDismissMenus();
     initRipple();
     initNavSkeleton();
+    initAccordion();
   }
 
   function initCatalogueReview() {
@@ -5237,6 +5454,7 @@
     initPeriodFields();
     initPayslipFill();
     initStories();
+    initPayWallet();
     initPayForms();
     initStatementForm();
     initCashFields();
@@ -5245,7 +5463,6 @@
     initBreakRows();
     initStickyBar();
     initLiveSearch();
-    initPlaceholderTyper();
     initCopy();
     initPhotoPicker();
     initAvatarPicker();
@@ -5256,6 +5473,7 @@
     initTabSlider();
     initTabBarFold();
     initLiveErrors();
+    initTrend();
 
     // For anything outside this file with a page to set up — notifications.js
     // has the switch on the inbox and the number on the icon.

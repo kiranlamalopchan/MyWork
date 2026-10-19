@@ -1,0 +1,36 @@
+[
+  {
+    "webPanels": true
+  },
+  {
+    "webEditSettingsThemeAndBack": true
+  },
+  {
+    "web320Fits": true
+  },
+  {
+    "nativePanels": true
+  },
+  {
+    "nativeEditSave": true
+  },
+  {
+    "nativePhotoUpload": true
+  },
+  {
+    "nativePhotoRemoval": true
+  },
+  {
+    "native320Fits": true
+  },
+  {
+    "runtimeErrors": 0
+  },
+  {
+    "webLongNameFits": true,
+    "statementPdfDownloaded": true,
+    "webSettingsDestinations": true,
+    "nativeLongNameFits": true,
+    "nativeSettingsDestinations": true
+  }
+]

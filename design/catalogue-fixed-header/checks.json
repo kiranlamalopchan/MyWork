@@ -1,0 +1,7 @@
+{
+  "renderer": "Expo native-component browser preview with real local API",
+  "checks": [
+    "390px: same mounted header; identical tab/title/body positions; header stays fixed while either tab scrolls; pagination and return switching work",
+    "320px: same mounted header; identical tab/title/body positions; header stays fixed while either tab scrolls; pagination and return switching work"
+  ]
+}

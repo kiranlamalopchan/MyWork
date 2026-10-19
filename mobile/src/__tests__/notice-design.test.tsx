@@ -14,7 +14,7 @@ jest.mock("@/api", () => ({
   useBoard: () => ({ data: { pages: [{ results: mockNotices, count: 4 }] }, refetch: jest.fn(), hasNextPage: true, fetchNextPage: mockFetchNext }),
   useBoardChanged: () => mockChanged,
   useSafetyChanged: () => jest.fn(),
-  board: { edit: jest.fn(), comment: jest.fn(), pin: jest.fn(), unpin: jest.fn() },
+  board: { edit: jest.fn(), remove: jest.fn(), comment: jest.fn(), pin: jest.fn(), unpin: jest.fn() },
 }));
 jest.mock("@/ui/index", () => {
   const { View, Pressable } = require("react-native");
@@ -74,10 +74,12 @@ test("the full native board folds notices and keeps the Post destination", async
   expect(mockPush).toHaveBeenCalledWith("/notices/compose");
 });
 
-test("the visible Edit action saves through the existing native editor", async () => {
+test("Edit is only in the overflow menu and keeps the existing native editor", async () => {
   jest.mocked(board.edit).mockResolvedValue(mockNotices[0]);
   const screen = await render(<NoticeCard notice={{ ...mockNotices[0], mine: true }} full />);
-  await fireEvent.press(screen.getByRole("button", { name: "Edit" }));
+  expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Edit" }));
   await fireEvent.changeText(screen.getByTestId("notice-editor"), "Updated notice");
   await fireEvent.press(screen.getByText("Save"));
   await waitFor(() => expect(board.edit).toHaveBeenCalledWith(1, "Updated notice", "public"));
@@ -92,4 +94,34 @@ test("the redesigned reply input still posts inline and clears after success", a
   await fireEvent.press(screen.getByLabelText("Send comment"));
   await waitFor(() => expect(board.comment).toHaveBeenCalledWith(1, "Thanks for sharing", undefined, "public"));
   expect(screen.getByPlaceholderText("Write a comment…")).toHaveProp("value", "");
+});
+
+
+test("Delete keeps confirmation and Pin changes to Unpin inside the menu", async () => {
+  const { confirm } = require("@/ui/confirm");
+  jest.mocked(board.pin).mockResolvedValue({ ...mockNotices[0], pinned: true });
+  jest.mocked(board.unpin).mockResolvedValue({ ...mockNotices[0], pinned: false });
+  const screen = await render(<NoticeCard notice={{ ...mockNotices[0], mine: true, can_pin: true }} full />);
+  expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Pin" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Delete" }));
+  expect(confirm).toHaveBeenCalledWith("Remove this notice?", "Everyone loses sight of it.", "Remove", expect.any(Function));
+  expect(board.remove).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Pin" }));
+  await waitFor(() => expect(board.pin).toHaveBeenCalledWith(1));
+  await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
+  expect(screen.getByRole("menuitem", { name: "Unpin" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("menuitem", { name: "Unpin" }));
+  await waitFor(() => expect(board.unpin).toHaveBeenCalledWith(1));
+});
+
+test("other users' menu offers reporting without Edit, Delete or Pin permissions", async () => {
+  const screen = await render(<NoticeCard notice={{ ...mockNotices[0], mine: false, can_pin: false }} full />);
+  await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
+  expect(screen.queryByRole("menuitem", { name: /Edit|Delete|Pin/ })).toBeNull();
+  expect(screen.getByRole("menuitem", { name: "Report" })).toBeTruthy();
+  await fireEvent.press(screen.getByRole("button", { name: "Close actions menu" }));
+  expect(screen.queryByRole("menuitem", { name: "Report" })).toBeNull();
 });

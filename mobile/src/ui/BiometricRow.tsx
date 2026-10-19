@@ -2,7 +2,7 @@
  * The switch for signing in with the phone's lock — Face ID, a
  * fingerprint — on the profile page. Turning it on asks the lock once,
  * then keeps this sign-in for it; off drops what was kept. Not shown on
- * a phone without a lock, or on the web.
+ * a phone without a lock.
  */
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
@@ -16,7 +16,7 @@ import { success, tick } from "./haptics";
 import { notify } from "./confirm";
 import { alpha, sp, useTheme } from "./theme";
 
-export function BiometricRow({ username }: { username: string }) {
+export function BiometricRow({ username, minimal = false }: { username: string; minimal?: boolean }) {
   const t = useTheme();
   const [kind, setKind] = useState<BiometricKind | null>(null);
   const [on, setOn] = useState(false);
@@ -29,7 +29,7 @@ export function BiometricRow({ username }: { username: string }) {
       if (!live) return;
       setKind(k);
       setOn(!!k && who === username);
-    })();
+    })().catch(() => { if (live) setKind(null); });
     return () => { live = false; };
   }, [username]);
 
@@ -60,13 +60,13 @@ export function BiometricRow({ username }: { username: string }) {
   };
 
   return (
-    <Card pad={false}>
-      <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: alpha(t.teal, 0.14) }]}>
+    <Card pad={false} style={minimal ? { borderWidth: 0, borderRadius: 0 } : undefined}>
+      <View style={[styles.row, minimal && { paddingHorizontal: 22, paddingVertical: 16, gap: 18 }]}>
+        <View style={[styles.icon, { backgroundColor: alpha(t.teal, 0.14) }, minimal && { width: 20, height: 24, backgroundColor: "transparent" }]}>
           <BiometricIcon kind={kind} size={22} color={t.teal} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ color: t.text, fontWeight: "600", fontSize: 16, letterSpacing: -0.1 }}>Sign in with {name}</Text>
+          <Text style={{ color: t.text, fontWeight: minimal ? "400" : "600", fontSize: minimal ? 15 : 16, letterSpacing: -0.1 }}>Sign in with {name}</Text>
           <Text style={{ color: t.muted, fontSize: 13.5, marginTop: 2, lineHeight: 18 }}>{on ? "On for this phone — no password next time." : "Open the app with the phone's lock instead of a password."}</Text>
         </View>
         <Switch value={on} onValueChange={flip} disabled={busy} trackColor={{ true: t.brand }} accessibilityLabel={`Sign in with ${name}`} testID="biometric-switch" />

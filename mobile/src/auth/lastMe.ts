@@ -2,15 +2,13 @@
  * The last person the server said we were, kept on the phone so that an
  * app opened with no signal still opens as them rather than at the sign-in
  * screen. Only the token decides whether they are signed in; this is only
- * what to draw until the server can be asked again. Nothing on the web.
+ * what to draw until the server can be asked again.
  */
-import { Platform } from "react-native";
-
 import type { Me } from "@/api/types";
 import { nativeOrNull } from "@/ui/native";
 
 type FS = typeof import("expo-file-system");
-const fs = () => (Platform.OS === "web" ? null : nativeOrNull(() => require("expo-file-system") as FS));
+const fs = () => nativeOrNull(() => require("expo-file-system") as FS);
 
 function file() {
   const FS = fs();

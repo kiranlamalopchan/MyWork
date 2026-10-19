@@ -124,5 +124,5 @@ const styles = StyleSheet.create({
   pill: { position: "absolute", bottom: "100%", marginBottom: 6, flexDirection: "row", alignItems: "center", padding: 4, borderRadius: radius.pill, borderWidth: 1, zIndex: 30 },
   face: { width: FACE, height: FACE, alignItems: "center", justifyContent: "center" },
   ring: { position: "absolute", top: 3, left: 3, right: 3, bottom: 3, borderRadius: FACE / 2, borderWidth: 2 },
-  glyph: { fontSize: 32, lineHeight: 40, textAlign: "center", ...(Platform.OS === "web" ? { userSelect: "none" as const } : {}) },
+  glyph: { fontSize: 32, lineHeight: 40, textAlign: "center" },
 });

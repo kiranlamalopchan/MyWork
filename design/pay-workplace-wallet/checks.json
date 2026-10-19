@@ -1,0 +1,7 @@
+{
+  "environment": "Separate isolated preview database and actual web/native components",
+  "checks": [
+    "web: swipe/dots/arrows select one workplace; cancellation is read-only; payment affects only the selected job; undo restores its hours; unknown rate and due/current/last-payment states work; 320/768px fit",
+    "native: swipe/dots/arrows select one workplace; cancellation is read-only; payment affects only the selected job; undo restores its hours; unknown rate and due/current/last-payment states work; 320/768px fit"
+  ]
+}

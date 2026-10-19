@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Delete catalogue · KaamKoRecord{% endblock %}
+{% block content %}
+<a class="backlink" href="{% url 'plu:list' %}?view=catalogues">{% icon "back" %}Catalogues</a>
+<div class="card card__pad catalogue-mapping"><h1 class="page-title">Delete catalogue?</h1><p>This permanently deletes <strong>{{ managed_catalogue.name }}</strong> and its {{ managed_catalogue.items.count }} item{{ managed_catalogue.items.count|pluralize }}.</p><form method="post">{% csrf_token %}<button class="btn btn--danger btn--block" type="submit">Delete catalogue</button></form><a class="btn btn--block" href="{% url 'plu:list' %}?view=catalogues">Cancel</a></div>
+{% endblock %}

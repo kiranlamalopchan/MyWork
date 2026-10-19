@@ -16,8 +16,10 @@ import { unreachable } from "@/api/client";
 
 import { OfflineArt } from "./OfflineArt";
 
+import { ChoiceRail } from "./ChoiceRail";
 import { AppBar } from "./AppBar";
-import { Backdrop } from "./Backdrop";
+import { BarSpaceProvider, BringUpProvider, underRefresh, useBringUpScroll, useUnderBar } from "./depth";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tap, tick } from "./haptics";
 import { KeyboardPad, RevealProvider, useKeyboardScroll, useReveal } from "./keyboard";
 import { useLayout } from "./layout";
@@ -38,12 +40,21 @@ export { usePullRefresh } from "./refresh";
 export function Screen({ children, title, back, backLabel, section, right, tools, style }: {
   children: React.ReactNode; title?: string; back?: boolean; backLabel?: string; section?: string; right?: React.ReactNode; tools?: boolean; style?: ViewStyle;
 }) {
+  // The page takes the whole screen and the bar floats over it (AppBar), so
+  // the page is told how much of the top the bar covers (depth.tsx).
+  const insets = useSafeAreaInsets();
+  const t = useTheme();
+  const layout = useLayout();
   return (
-    <View style={[{ flex: 1 }, style]}>
-      <Backdrop />
-      <AppBar title={title} back={back} backLabel={backLabel} section={section} right={right} tools={tools} />
-      <KeyboardPad>{children}</KeyboardPad>
-    </View>
+    <BarSpaceProvider space={insets.top + layout.bar}>
+      {/* The page's scroll view is the first thing down the screen's first-child
+          chain, with no background layer in front of it: that is where iOS
+          looks for it, to shrink its tab bar on the way down a page. */}
+      <View style={[{ flex: 1, backgroundColor: t.bg }, style]}>
+        <KeyboardPad>{children}</KeyboardPad>
+        <AppBar title={title} back={back} backLabel={backLabel} section={section} right={right} tools={tools} />
+      </View>
+    </BarSpaceProvider>
   );
 }
 
@@ -52,24 +63,35 @@ export function Screen({ children, title, back, backLabel, section, right, tools
  * phone, centred and capped on a tablet), room for the tab bar below. A
  * box on it that takes focus is scrolled clear of the keyboard.
  */
-export function Page({ children, contentContainerStyle, onScroll, ...rest }: ScrollViewProps & { children: React.ReactNode }) {
+export function Page({ children, contentContainerStyle, onScroll, onLayout, onContentSizeChange, refreshControl, ...rest }: ScrollViewProps & { children: React.ReactNode }) {
   const layout = useLayout();
   const ref = useRef<ScrollView>(null);
-  const keyboard = useKeyboardScroll(useCallback((y: number) => ref.current?.scrollTo({ y, animated: true }), []));
+  const scrollTo = useCallback((y: number) => ref.current?.scrollTo({ y, animated: true }), []);
+  const keyboard = useKeyboardScroll(scrollTo);
+  // A section opened on the page is brought up into view (depth.tsx).
+  const bring = useBringUpScroll(scrollTo);
+  // The page runs under the floating bar: its content starts below it (depth.tsx).
+  const under = useUnderBar();
+  const top = (StyleSheet.flatten([styles.page, contentContainerStyle]).paddingTop as number | undefined) ?? 0;
   return (
     <RevealProvider value={keyboard.reveal}>
+      <BringUpProvider value={bring.bringUp}>
       <ScrollView
         ref={ref}
         keyboardShouldPersistTaps="handled"
-        contentInsetAdjustmentBehavior="automatic"
-        scrollEventThrottle={32}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        {...under.scroll}
         {...rest}
-        onScroll={(e) => { keyboard.onScroll(e); onScroll?.(e); }}
-        contentContainerStyle={[styles.page, layout.column, { paddingBottom: layout.bottom + sp[6] }, contentContainerStyle]}
+        refreshControl={underRefresh(refreshControl, under)}
+        onScroll={(e) => { keyboard.onScroll(e); bring.onScroll(e); under.onScroll(e); onScroll?.(e); }}
+        onLayout={(e) => { bring.onLayout(e); onLayout?.(e); }}
+        onContentSizeChange={(w, h) => { bring.onContentSizeChange(w, h); onContentSizeChange?.(w, h); }}
+        contentContainerStyle={[styles.page, layout.column, { paddingBottom: layout.bottom + sp[6] }, contentContainerStyle, { paddingTop: top + under.padTop }]}
       >
         {children}
       </ScrollView>
+      </BringUpProvider>
     </RevealProvider>
   );
 }
@@ -112,7 +134,8 @@ export function Card({ children, style, pad = true, inset, tint, testID, onPress
     </View>
   );
   if (!onPress) return body;
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.985 : 1 }], opacity: pressed ? 0.92 : 1 })}>{body}</Pressable>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}
+    style={(state) => ({ transform: [{ scale: state.pressed ? 0.985 : 1 }], opacity: state.pressed ? 0.92 : 1 })}>{body}</Pressable>;
 }
 
 export function Title({ children, style }: { children: React.ReactNode; style?: TextStyle }) {
@@ -220,10 +243,10 @@ export function Button({
       disabled={disabled || busy}
       testID={testID}
       accessibilityLabel={accessibilityLabel || title}
-      style={({ pressed }) => [
+      style={(state) => [
         styles.button,
         small && styles.buttonSm,
-        { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+        { backgroundColor: bg, opacity: disabled ? 0.5 : state.pressed ? 0.85 : 1, transform: [{ scale: state.pressed ? 0.97 : 1 }] },
         primary && Platform.OS !== "android" && { shadowColor: t.brand, shadowOpacity: t.dark ? 0 : 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
         style,
       ]}
@@ -295,29 +318,10 @@ export function IconButton({ icon, onPress, color, size = 22, label, style }: { 
 }
 
 /** The site's segmented control: a track the chosen segment sits raised in. */
-export function Segments<T extends string>({ value, onChange, options, style }: {
-  value: T; onChange: (v: T) => void; options: { value: T; label: string; icon?: keyof typeof Ionicons.glyphMap }[]; style?: ViewStyle;
+export function Segments<T extends string>({ value, onChange, options, style, label = "Tabs", animated = true }: {
+  value: T; onChange: (v: T) => void; options: { value: T; label: string; icon?: keyof typeof Ionicons.glyphMap }[]; style?: ViewStyle; label?: string; animated?: boolean;
 }) {
-  const t = useTheme();
-  return (
-    <View style={[styles.segments, { backgroundColor: t.dark ? t.surface2 : t.track }, style]}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            onPress={() => { if (!on) tick(); onChange(o.value); }}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            style={[styles.segment, on && { backgroundColor: t.dark ? t.surface3 : t.knob, shadowColor: "#0f1420", shadowOpacity: t.dark ? 0 : 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}
-          >
-            {o.icon ? <Ionicons name={o.icon} size={17} color={on ? t.text : t.muted} /> : null}
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: on ? t.text : t.muted, fontWeight: "700", fontSize: options.length > 3 ? 13 : 15 }}>{o.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
+  return <ChoiceRail value={value} onChange={onChange} options={options} variant="segments" label={label} style={style} animated={animated} />;
 }
 
 /** A small round-cornered label — a state, a count, a workplace. */
@@ -443,7 +447,7 @@ export function Tally({ tally, onPress, right }: { tally: ReactionTally; onPress
 const chipShadow: ViewStyle = Platform.OS === "android" ? { elevation: 1 } : { shadowColor: "#1a2540", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } };
 
 const styles = StyleSheet.create({
-  page: { paddingTop: sp[3], gap: sp[4] },
+  page: { paddingTop: sp[2], gap: sp[4] },
   pageHead: { marginBottom: sp[1], paddingTop: sp[2] },
   pageTitle: { fontSize: 34, fontWeight: "800", letterSpacing: -1, lineHeight: 40 },
   pageSub: { marginTop: sp[1], fontSize: 15, lineHeight: 21 },
@@ -468,8 +472,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 13.5, fontWeight: "600" },
   help: { fontSize: 13, lineHeight: 19 },
   iconBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22 },
-  segments: { flexDirection: "row", padding: 3, borderRadius: radius.sm + 2 },
-  segment: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 40, borderRadius: radius.sm },
   chip: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 40, paddingHorizontal: 16, borderRadius: radius.pill },
   menuRow: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingLeft: sp[4], minHeight: 68 },
   menuBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: sp[3], paddingVertical: sp[3], paddingRight: sp[4], minHeight: 68 },

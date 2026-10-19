@@ -10,7 +10,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import type { CashTally as CashTallyType, Choice, LimitCard, ShiftRow as ShiftRowType, ShiftStatus } from "@/api";
 
-import { Card, Chip } from "./index";
+import { Card } from "./index";
+import { ChoiceRail } from "./ChoiceRail";
 import { tick } from "./haptics";
 import { nativeOrNull } from "./native";
 import { alpha, radius, sp, useTheme } from "./theme";
@@ -18,7 +19,7 @@ import { alpha, radius, sp, useTheme } from "./theme";
 /** The phone's picker, looked up once; `null` in a build made before it was added. */
 let picker: typeof import("@react-native-community/datetimepicker").default | null | undefined;
 function DatePicker() {
-  if (picker === undefined) picker = Platform.OS === "web" ? null : nativeOrNull(() => require("@react-native-community/datetimepicker").default);
+  if (picker === undefined) picker = nativeOrNull(() => require("@react-native-community/datetimepicker").default);
   return picker;
 }
 
@@ -210,8 +211,8 @@ const words = (d: Date) => d.toLocaleString(undefined, { weekday: "short", day: 
 
 /**
  * A date and a time: the phone's own pickers where it has them, a typed
- * box on the web build. Empty is allowed where the site allows it (a
- * clock-out that is still running).
+ * box only in a build made before the picker was added. Empty is allowed where the site
+ * allows it (a clock-out that is still running).
  */
 export function DateTimeField({ value, onChange, placeholder, testID, invalid }: { value: string; onChange: (v: string) => void; placeholder?: string; testID?: string; invalid?: boolean }) {
   const t = useTheme();
@@ -281,11 +282,7 @@ export function DateTimeField({ value, onChange, placeholder, testID, invalid }:
 
 /** One answer from a few — the site's <select>, as chips a thumb can hit. */
 export function Choices<T extends string | number>({ value, onChange, options, style }: { value: T | ""; onChange: (v: T) => void; options: Choice<T>[]; style?: ViewStyle }) {
-  return (
-    <View style={[{ flexDirection: "row", flexWrap: "wrap", gap: sp[2] }, style]}>
-      {options.map((o) => <Chip key={String(o.value)} on={o.value === value} onPress={() => onChange(o.value)}>{o.label}</Chip>)}
-    </View>
-  );
+  return <ChoiceRail value={value} onChange={onChange} options={options} label="Choices" style={style} />;
 }
 
 /** The site's switch: a track the knob slides along. */

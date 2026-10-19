@@ -7,7 +7,7 @@ import "react-native-gesture-handler";
 import React, { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AppState, Platform } from "react-native";
+import { AppState } from "react-native";
 import { Stack, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
@@ -20,29 +20,28 @@ import { useNotificationNavigation } from "@/push/useNotificationNavigation";
 import { nativeOrNull } from "@/ui/native";
 import { notifications } from "@/push/register";
 import { loadThemeMode, saveThemeMode, ThemeContext, type ThemeMode, useTheme } from "@/ui/theme";
+import { pushOptions, riseOptions } from "@/ui/transitions";
 
 /** What shows if a screen throws: the error in words and a way back, never a blank page. */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
   return <Crashed error={error} retry={retry} />;
 }
 
-const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: Platform.OS !== "web" } } });
+const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } });
 
 // TanStack's "window focus" is a browser idea; on a phone it is the app
 // coming back to the front, which is when the board and the inbox should
 // be asked again.
-if (Platform.OS !== "web") {
-  focusManager.setEventListener((setFocused) => {
-    const sub = AppState.addEventListener("change", (state) => setFocused(state === "active"));
-    return () => sub.remove();
-  });
-}
+focusManager.setEventListener((setFocused) => {
+  const sub = AppState.addEventListener("change", (state) => setFocused(state === "active"));
+  return () => sub.remove();
+});
 
 // The still stays up until ui/Splash has painted over it; a build without the
 // module simply never had one to hold.
 nativeOrNull(() => require("expo-splash-screen"))?.preventAutoHideAsync?.()?.catch?.(() => {});
 
-// Where the phone can be buzzed at all (not the web, not Expo Go on Android).
+// Where the phone can be buzzed at all (not Expo Go on Android).
 notifications()?.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
 });
@@ -65,7 +64,7 @@ function Guard() {
   // out, then everything else. Every screen draws its own app bar
   // (ui/AppBar), so the stack draws none.
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, ...pushOptions }}>
       <Stack.Protected guard={tour}>
         {/* Faded, not pushed: the splash is dissolving into this. */}
         <Stack.Screen name="(onboarding)" options={{ animation: "fade" }} />
@@ -77,16 +76,18 @@ function Guard() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="board" />
         <Stack.Screen name="notifications" />
-        <Stack.Screen name="notices/compose" options={{ presentation: "modal" }} />
+        <Stack.Screen name="notices/compose" options={riseOptions} />
         <Stack.Screen name="notices/[id]/index" />
-        <Stack.Screen name="notices/[id]/reactions" options={{ presentation: "modal" }} />
+        <Stack.Screen name="notices/[id]/reactions" options={riseOptions} />
         <Stack.Screen name="people/[username]" />
         <Stack.Screen name="stories/[username]" options={{ presentation: "fullScreenModal", animation: "fade" }} />
-        <Stack.Screen name="stories/compose" options={{ presentation: "modal" }} />
+        <Stack.Screen name="stories/compose" options={riseOptions} />
         <Stack.Screen name="profile/index" />
         <Stack.Screen name="profile/offline" />
         <Stack.Screen name="profile/report" />
         <Stack.Screen name="profile/edit" />
+        <Stack.Screen name="profile/settings" />
+        <Stack.Screen name="profile/festival" />
         <Stack.Screen name="profile/delete" />
         <Stack.Screen name="profile/blocked" />
         <Stack.Screen name="plu/[plu_no]" />
@@ -98,10 +99,10 @@ function Guard() {
         <Stack.Screen name="workplaces/new" />
         <Stack.Screen name="workplaces/[id]/edit" />
         <Stack.Screen name="workplaces/[id]/remove" />
-        <Stack.Screen name="pay" />
-        <Stack.Screen name="clock" />
-        <Stack.Screen name="timesheet" />
-        <Stack.Screen name="more" />
+        <Stack.Screen name="pay" options={{ animation: "none" }} />
+        <Stack.Screen name="clock" options={{ animation: "none" }} />
+        <Stack.Screen name="timesheet" options={{ animation: "none" }} />
+        <Stack.Screen name="more" options={{ animation: "none" }} />
         <Stack.Screen name="items/import" />
       </Stack.Protected>
     </Stack>

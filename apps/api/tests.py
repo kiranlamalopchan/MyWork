@@ -782,6 +782,91 @@ class TimesheetTests(ApiTestCase):
         self.assertEqual(len(data["days"]), 1)
         self.assertEqual(data["workplace"], self.cafe.pk)
 
+    def test_trend_lays_this_week_over_last_week(self):
+        from datetime import timedelta
+
+        from apps.timeclock.models import TimePreference, week_start
+
+        today = timezone.localdate()
+        # The first day of the week as this person has it set (Sunday unless changed).
+        first = week_start(today, TimePreference.for_user(self.kiran).week_starts_on)
+        self._shift((today - first).days, hours=8)            # this week's first day
+        self._shift((today - first).days + 7, hours=4)        # the same day last week
+        self._shift((today - first).days + 7, hours=2, workplace=self.cafe)
+        data = self.api("get", "trend").json()
+        self.assertEqual(data["range"], "week")
+        self.assertEqual(len(data["points"]), 7)
+        self.assertEqual(len(data["previous"]), 7)
+        self.assertEqual(data["points"][0]["start"], first.isoformat())
+        self.assertEqual(data["points"][0]["label"], first.strftime("%a"))
+        self.assertEqual(data["points"][0]["hours"], 8)
+        self.assertEqual(data["previous"][0]["hours"], 6)
+        self.assertTrue(data["priced"])
+        self.assertEqual(data["total"]["hours"], 8)
+        self.assertGreater(data["points"][0]["gross"], 0)
+        self.assertEqual(data["total"]["gross"], data["points"][0]["gross"])
+        self.assertTrue(any(p["current"] for p in data["points"]))
+        self.assertEqual([p["upcoming"] for p in data["points"]], [first + timedelta(days=i) > today for i in range(7)])
+        # One job only: the cafe's two hours last week, nothing this week.
+        data = self.api("get", "trend", {"workplace": self.cafe.pk}).json()
+        self.assertEqual(data["previous"][0]["hours"], 2)
+        self.assertEqual(data["total"]["hours"], 0)
+
+    def test_trend_by_fortnight_month_and_six_months(self):
+        from datetime import timedelta
+
+        from apps.timeclock.models import TimePreference, fortnight_start, month_start, next_month_start
+
+        pref = TimePreference.for_user(self.kiran)
+        today = timezone.localdate()
+        self._shift(0)
+        data = self.api("get", "trend").json()
+        self.assertEqual([r["label"] for r in data["ranges"]], ["Weekly", "Fortnightly", "Monthly", "6 months"])
+
+        fortnight = self.api("get", "trend", {"range": "fortnight"}).json()
+        self.assertEqual(len(fortnight["points"]), 14)
+        self.assertEqual(fortnight["points"][0]["start"], fortnight_start(today, pref.fortnight_anchor).isoformat())
+        self.assertEqual(fortnight["title"], "This fortnight")
+        self.assertEqual(fortnight["total"]["hours"], 8)
+
+        month = self.api("get", "trend", {"range": "month"}).json()
+        start, end = month_start(today, pref.month_starts_on), next_month_start(today, pref.month_starts_on)
+        self.assertEqual(month["points"][0]["start"], start.isoformat())
+        self.assertEqual(len(month["points"]), -(-(end - start).days // 7))
+        self.assertEqual(len(month["previous"]), len(month["points"]))
+        self.assertEqual(month["total"]["hours"], 8)
+        # Last month's shifts all land somewhere in the comparison, however long it was.
+        self._shift((today - start).days + 1)
+        month = self.api("get", "trend", {"range": "month"}).json()
+        self.assertEqual(month["previous_total"]["hours"], 8)
+
+        months = self.api("get", "trend", {"range": "months"}).json()
+        self.assertEqual(len(months["points"]), 6)
+        self.assertEqual(months["points"][-1]["label"], today.strftime("%b"))
+        self.assertGreaterEqual(months["points"][-1]["hours"], 8)
+        # Something it does not know is read as the week.
+        self.assertEqual(self.api("get", "trend", {"range": "decade"}).json()["range"], "week")
+        self.assertEqual(self.api("get", "trend", {"range": "decade"}).json()["points"][0]["start"], (today - timedelta(days=(today.weekday() - int(pref.week_starts_on)) % 7)).isoformat())
+
+    def test_trend_without_a_rate_counts_hours_only(self):
+        from apps.timeclock.models import Workplace
+
+        Workplace.objects.filter(user=self.kiran).update(hourly_rate=None)
+        self._shift(0)
+        data = self.api("get", "trend").json()
+        self.assertFalse(data["priced"])
+        self.assertIsNone(data["total"]["gross"])
+        self.assertTrue(all(p["gross"] is None for p in data["points"]))
+
+    def test_trend_is_only_your_own(self):
+        from apps.timeclock.models import Workplace
+
+        theirs = Workplace.objects.create(user=self.sam, name="Elsewhere", hourly_rate=30)
+        self._shift(0)
+        data = self.api("get", "trend", {"workplace": theirs.pk}).json()
+        # Someone else's job is not a filter you can use; it falls back to all of yours.
+        self.assertEqual(data["total"]["hours"], 8)
+
     def test_calendar_grid(self):
         from django.utils import timezone
 

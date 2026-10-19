@@ -1,0 +1,47 @@
+[
+  {
+    "surface": "website",
+    "width": 320,
+    "menu": "hidden until opened",
+    "escapeAndOutside": "passed",
+    "edit": "opens editor",
+    "delete": "opens confirmation; cancelled",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 390,
+    "menu": "hidden until opened",
+    "escapeAndOutside": "passed",
+    "edit": "opens editor",
+    "delete": "opens confirmation; cancelled",
+    "errors": 0
+  },
+  {
+    "surface": "website",
+    "width": 1280,
+    "menu": "hidden until opened",
+    "escapeAndOutside": "passed",
+    "edit": "opens editor",
+    "delete": "opens confirmation; cancelled",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 320,
+    "menu": "hidden until opened",
+    "escapeAndOutside": "passed",
+    "edit": "opens editor",
+    "delete": "opens confirmation; cancelled",
+    "errors": 0
+  },
+  {
+    "surface": "native-web-preview",
+    "width": 390,
+    "menu": "hidden until opened",
+    "escapeAndOutside": "passed",
+    "edit": "opens editor",
+    "delete": "opens confirmation; cancelled",
+    "errors": 0
+  }
+]

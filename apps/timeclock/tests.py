@@ -906,14 +906,17 @@ class NavigationTests(TestCase):
                 else:
                     self.assertNotIn('class="segments segments--places', html)
 
-    def test_home_uses_navigation_and_profile_owns_appearance_and_sign_out(self):
+    def test_home_uses_navigation_and_settings_owns_appearance_and_profile_sign_out(self):
         home = self.client.get(reverse("home"))
         for duplicate in ["home-actions", "Ready for work?", "Find an item", "My timesheets", 'id="theme-toggle"']:
             self.assertNotContains(home, duplicate)
+        # Appearance lives in Settings, one tap from the profile.
         profile = self.client.get(reverse("accounts:profile"))
-        self.assertContains(profile, 'id="theme-toggle"', count=1)
+        self.assertNotContains(profile, 'id="theme-toggle"')
         self.assertContains(profile, 'action="' + reverse("logout") + '"', count=1)
         self.assertContains(profile, 'id="settings"')
+        settings = self.client.get(reverse("accounts:settings"))
+        self.assertContains(settings, 'id="theme-toggle"', count=1)
 
     def test_the_timesheet_is_only_shifts(self):
         resp = self.client.get(reverse("timeclock:timesheet"))
@@ -921,7 +924,7 @@ class NavigationTests(TestCase):
         # Its figures are still real, server-rendered numbers.
         self.assertContains(resp, "data-tally=")
 
-    def test_this_weeks_days_are_open_and_older_ones_fold_up_by_week(self):
+    def test_every_day_starts_shut_and_older_ones_fold_up_by_week(self):
         # One more day inside the week, and one well behind it.
         def shift_on(days_ago, hours=4):
             at = (timezone.localtime() - timedelta(days=days_ago)).replace(
@@ -937,12 +940,16 @@ class NavigationTests(TestCase):
 
         html = self.client.get(reverse("timeclock:timesheet")).content.decode()
 
-        # Every day inside the week is written out; the old one is not.
-        self.assertEqual(html.count('<details class="day" open>'), 2)
-        # The old day is still there, shut, inside a week that is also shut.
+        # Every day starts shut — its head already says which day and how
+        # long — and they open one at a time (app.js, initAccordion): the
+        # two of this week and the old one inside its week.
+        self.assertNotIn('<details class="day" open>', html)
+        self.assertEqual(html.count('<details class="day">'), 3)
+        # The old day sits inside a week that is also shut.
         self.assertIn('<details class="week">', html)
-        self.assertIn('<details class="day">', html)
         self.assertNotIn('<details class="week" open>', html)
+        # The earnings chart comes with the page, for app.js to draw.
+        self.assertIn('data-trend="/timesheet/trend/"', html)
         # The fold says what is inside it without being opened.
         self.assertIn('class="week__count"', html)
         self.assertIn('class="week__total"', html)
@@ -1902,8 +1909,8 @@ class PaidUpToADateOnACycleTests(TestCase):
         # But not "everything up to now": a job with runs has to name one.
         self.assertNotIn('<option value="now"', html)
         # And the runs are read out on the card, the open one with them.
-        self.assertIn('class="runs"', html)
-        self.assertIn("This fortnight", html)
+        self.assertIn("Due now", html)
+        self.assertIn("Current pay period", html)
 
     def test_a_run_answer_from_the_form_records_that_run(self):
         run = self._state()["due"][0]
@@ -2986,3 +2993,40 @@ Net pay 4420.00
         self.assertContains(response, reverse("timeclock:workplace_payslip"))
         # The file input has no name: it never travels with the form itself.
         self.assertNotRegex(response.content.decode(), r'<input type="file"[^>]*\bname=')
+
+
+class TrendChartTests(TestCase):
+    """The website's earnings chart reads the same figures the app's does."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("kiran", password="x")
+        self.other = User.objects.create_user("sam", password="x")
+        self.workplace = Workplace.objects.create(user=self.user, name="Butcher Shop", hourly_rate=Decimal("28.50"))
+        self.client.login(username="kiran", password="x")
+        at = timezone.localtime().replace(hour=9, minute=0, second=0, microsecond=0)
+        Shift.objects.create(user=self.user, workplace=self.workplace, clock_in=at,
+                             clock_out=at + timedelta(hours=8), status=Shift.Status.COMPLETED)
+
+    def test_the_chart_figures_come_as_json_for_each_span(self):
+        for span, points in (("week", 7), ("fortnight", 14), ("months", 6)):
+            data = self.client.get(reverse("timeclock:trend"), {"range": span}).json()
+            self.assertEqual(data["range"], span)
+            self.assertEqual(len(data["points"]), points)
+            self.assertEqual(data["total"]["hours"], 8)
+            self.assertTrue(data["priced"])
+        self.assertEqual([r["label"] for r in data["ranges"]], ["Weekly", "Fortnightly", "Monthly", "6 months"])
+
+    def test_someone_elses_workplace_is_not_a_filter(self):
+        theirs = Workplace.objects.create(user=self.other, name="Elsewhere", hourly_rate=Decimal("30"))
+        data = self.client.get(reverse("timeclock:trend"), {"workplace": theirs.pk}).json()
+        self.assertEqual(data["total"]["hours"], 8)
+
+    def test_signed_out_there_is_nothing_to_read(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("timeclock:trend")).status_code, 302)
+
+    def test_the_pay_page_draws_bank_cards_and_leaves_the_chart_to_the_timesheet(self):
+        html = self.client.get(reverse("timeclock:payments")).content.decode()
+        self.assertIn('class="pay-chip"', html)
+        self.assertIn("--wp-hue:", html)
+        self.assertNotIn("data-trend=", html)

@@ -1,3 +1,4 @@
+import { WorkPage } from "@/ui/WorkPage";
 /**
  * Work settings preserves past-shift entry, pay and workplace management.
  * Rates, hours restrictions and pay cycles remain in Workplaces.
@@ -10,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useMore } from "@/api";
 import { useSession } from "@/auth/session";
-import { Card, ErrorBanner, MenuRow, Page, PageTitle, Screen, SectionLabel, useLayout, usePullRefresh } from "@/ui";
+import { Card, ErrorBanner, MenuRow, PageTitle, Screen, SectionLabel, useLayout, usePullRefresh } from "@/ui";
 import { sp, useTheme } from "@/ui/theme";
 
 type Way = {
@@ -56,7 +57,7 @@ export default function More() {
 
   return (
     <Screen section="Work">
-      <Page refreshControl={refresh}>
+      <WorkPage refreshControl={refresh}>
         <WorkNavigation active="settings" />
         <PageTitle sub={`Rates, hours restrictions and workplaces for ${me?.username ?? "you"}`}>Work settings</PageTitle>
         {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
@@ -74,7 +75,7 @@ export default function More() {
             ))}
           </Card>
         )}
-      </Page>
+      </WorkPage>
     </Screen>
   );
 }

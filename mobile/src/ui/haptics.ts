@@ -1,18 +1,16 @@
 /**
  * The phone answering your thumb: a tick when something is chosen, a
  * firmer knock when something is done, a double buzz when it went wrong.
- * Android and iOS both; nothing on the web, and nothing in a build made
+ * Android and iOS both; nothing in a build made
  * before the module was added (loaded lazily, like the other natives).
  * Every call is fire-and-forget: haptics never hold up the tap.
  */
-import { Platform } from "react-native";
-
 import { nativeOrNull } from "./native";
 
 type Haptics = typeof import("expo-haptics");
 let loaded: Haptics | null | undefined;
 function haptics(): Haptics | null {
-  if (loaded === undefined) loaded = Platform.OS === "web" ? null : nativeOrNull<Haptics>(() => require("expo-haptics"));
+  if (loaded === undefined) loaded = nativeOrNull<Haptics>(() => require("expo-haptics"));
   return loaded ?? null;
 }
 

@@ -1,3 +1,4 @@
+import { WorkPage } from "@/ui/WorkPage";
 /**
  * The Work clock: current time on an analog face, shift duration below it,
  * with the original shift controls, workplace choice and hours restrictions.
@@ -10,7 +11,8 @@ import { AnalogClock } from "@/ui/AnalogClock";
 import { Ionicons } from "@expo/vector-icons";
 
 import { timesheet, useClock, useTimesheetChanged, type ClockState } from "@/api";
-import { Button, Chip, Empty, ErrorBanner, Page, Screen, useLayout, usePullRefresh } from "@/ui";
+import { Button, Empty, ErrorBanner, Screen, useLayout, usePullRefresh } from "@/ui";
+import { ChoiceRail } from "@/ui/ChoiceRail";
 import { SkeletonClock } from "@/ui/Skeleton";
 import { confirm, notify } from "@/ui/confirm";
 import { success, tap } from "@/ui/haptics";
@@ -64,8 +66,8 @@ export default function Clock() {
     }
   };
 
-  if (q.isLoading && !shown) return <Screen section="Work"><Page><WorkNavigation active="clock" /><SkeletonClock /></Page></Screen>;
-  if (!shown) return <Screen section="Work"><Page><WorkNavigation active="clock" />{q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}</Page></Screen>;
+  if (q.isLoading && !shown) return <Screen section="Work"><WorkPage><WorkNavigation active="clock" /><SkeletonClock /></WorkPage></Screen>;
+  if (!shown) return <Screen section="Work"><WorkPage><WorkNavigation active="clock" />{q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}</WorkPage></Screen>;
 
   const shift = shown.shift;
   const status = shift?.status ?? "IDLE";
@@ -91,7 +93,7 @@ export default function Clock() {
 
   return (
     <Screen section="Work">
-      <Page refreshControl={refresh}>
+      <WorkPage refreshControl={refresh}>
         <WorkNavigation active="clock" />
         {shown.workplaces.length === 0 ? (
           <Empty
@@ -126,11 +128,7 @@ export default function Clock() {
                 {shown.workplaces.length > 1 ? (
                   <View style={{ gap: sp[2] }}>
                     <Text style={[styles.sectionLabel, { color: t.muted }]}>Where are you working?</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[2] }}>
-                      {shown.workplaces.map((w) => (
-                        <Chip key={w.id} on={w.id === selected} onPress={() => setPicked(w.id)}>{w.name}{w.is_default ? "  ·  Default" : ""}</Chip>
-                      ))}
-                    </View>
+                    <ChoiceRail label="Clock workplace" bleed={layout.column.paddingLeft as number} value={selected ?? ""} onChange={setPicked} options={shown.workplaces.map(w => ({ value: w.id, label: `${w.name}${w.is_default ? " · Default" : ""}` }))} />
                   </View>
                 ) : (
                   <Where name={where} />
@@ -155,7 +153,7 @@ export default function Clock() {
             <Button title="Workplaces & hours restrictions" kind="plain" icon="settings-outline" onPress={() => router.push("/workplaces")} />
           </>
         )}
-      </Page>
+      </WorkPage>
     </Screen>
   );
 }

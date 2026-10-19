@@ -12,7 +12,6 @@ from apps.notifications.models import Notification
 from apps.stories.views import tray_for
 from mywork.daily import daily
 from mywork.seasons import home_festival_banner
-from django.templatetags.static import static
 
 from .. import serialize
 
@@ -30,9 +29,7 @@ class Home(APIView):
         notices = list(visible[:HUB_LIMIT])
         total = visible.count()
 
-        banner = home_festival_banner()
-        if banner:
-            banner = {**banner, 'image_url': request.build_absolute_uri(banner.get('uploaded_art') or static(banner['art']))}
+        banner = serialize.festival(request, home_festival_banner())
         state, card = card_for_user(user, guess=guess_state(request))
         return Response({
             "festival": banner,

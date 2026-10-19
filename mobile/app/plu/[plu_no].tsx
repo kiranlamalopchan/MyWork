@@ -1,5 +1,5 @@
 /** One PLU (templates/plu/plu_detail.html): the code, large, and a button to copy it. */
-import React, { useState } from "react";
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { useSession } from "@/auth/session";
 import { goBack } from "@/nav/paths";
 import { Button, Card, ErrorBanner, Page, Screen } from "@/ui";
 import { SkeletonPlu } from "@/ui/Skeleton";
-import { native } from "@/ui/native";
+import { useCopyCode } from "@/ui/useCopyCode";
 import { sp, useTheme } from "@/ui/theme";
 
 export default function PluItem() {
@@ -17,13 +17,7 @@ export default function PluItem() {
   const { me } = useSession();
   const { plu_no } = useLocalSearchParams<{ plu_no: string }>();
   const q = useQuery({ queryKey: ["catalogue", me?.username, "item", plu_no], queryFn: () => catalogue.one(Number(plu_no)) });
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    const Clipboard = native<typeof import("expo-clipboard")>(() => require("expo-clipboard"));
-    await Clipboard.setStringAsync(q.data?.code || "");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
+  const { copy, copied, error } = useCopyCode();
 
   return (
     <Screen back backLabel="Items">
@@ -39,7 +33,8 @@ export default function PluItem() {
             </Card>
             <Card style={{ gap: sp[3] }}>{Object.entries(q.data.fields).map(([heading, value]) => <View key={heading}><Text style={{ color: t.muted, fontWeight: "700" }}>{heading}</Text><Text selectable style={{ color: t.text, fontSize: 16 }}>{value || "—"}</Text></View>)}</Card>
             <View style={{ gap: sp[3] }}>
-              {q.data.code ? <Button title={copied ? "Copied" : "Copy code"} icon={copied ? "checkmark" : "copy-outline"} onPress={copy} /> : null}
+              {q.data.code ? <Button title={copied ? "Copied" : "Copy code"} icon={copied ? "checkmark" : "copy-outline"} onPress={() => void copy(q.data.code)} /> : null}
+              {error ? <Text accessibilityLiveRegion="polite" style={{ color: t.danger }}>Couldn’t copy. Try again.</Text> : null}
               <Button title="Back to search" icon="chevron-back" kind="plain" onPress={goBack} />
             </View>
           </>

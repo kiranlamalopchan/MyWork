@@ -5,7 +5,7 @@
  * password box: the lock is asked only when that is pressed.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { biometricKind, biometricName, biometricUser, unlockWithBiometric, type BiometricKind } from "@/auth/biometric";
@@ -117,7 +117,7 @@ export default function Login() {
       <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>
         Forgotten your password? Ask whoever looks after KaamKoRecord for a reset link.
       </Text>
-      {Platform.OS !== "web" && kind && !locked ? (
+      {kind && !locked ? (
         <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>After you sign in, you can use {biometricName(kind)} next time.</Text>
       ) : null}
     </AuthFrame>
