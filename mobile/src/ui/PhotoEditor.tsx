@@ -1,6 +1,7 @@
 /** A local crop and quarter-turn editor. The original photo is never changed. */
 import React, { useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Image } from "expo-image";
 import type { ImagePickerAsset } from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { Button, Card } from "./index";
@@ -38,7 +39,8 @@ export function PhotoEditor({ asset, onDone, onCancel }: { asset: ImagePickerAss
     <Text style={{ color: t.muted }}>Rotate upright, then trim away headers or background text. Only the area inside the outline will be read.</Text>
     <View onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ alignItems: "center" }}>
       <View style={{ width: shownWidth, height: shownHeight }}>
-        <Image source={{ uri: photo.uri }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
+        {/* expo-image decodes the camera photo at the size it is shown, not at its full 12 megapixels. */}
+        <Image source={{ uri: photo.uri }} style={{ width: "100%", height: "100%" }} contentFit="contain" />
         <View pointerEvents="none" style={{ position: "absolute", left: edges.left * shownWidth, top: edges.top * shownHeight, right: edges.right * shownWidth, bottom: edges.bottom * shownHeight, borderWidth: 3, borderColor: t.brand }} />
       </View>
     </View>

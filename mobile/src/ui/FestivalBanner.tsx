@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useState } from "react";
-import { AccessibilityInfo, AppState, Image, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, AppState, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Image } from "expo-image";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { Festival } from "@/api/types";
 import { Card } from "./index";
@@ -22,7 +23,7 @@ export function FestivalBanner({ festival }: { festival: Festival }) {
   const animate = !reduced && active;
   return <Card pad={false} style={{ overflow: "hidden", borderRadius: compact ? 18 : 24 }}>
     <View testID="festival-artwork" style={{ minHeight: compact ? 104 : 260, overflow: "hidden", backgroundColor: "#17362f", justifyContent: "center" }}>
-      <Image source={{ uri: festival.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+      <Image source={{ uri: festival.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors />
       <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
         <Svg width="100%" height="100%">
           <Defs>
