@@ -3,7 +3,7 @@
     "name": "KaamKoRecord",
     "slug": "mywork",
     "platforms": ["ios", "android"],
-    "version": "1.3.0",
+    "version": "1.4.0",
     "scheme": "mywork",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
