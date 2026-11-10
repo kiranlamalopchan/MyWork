@@ -49,6 +49,7 @@ urlpatterns = [
     path("report/", moderation.ReportThing.as_view(), name="report"),
 
     path("friends/", friends.Friends.as_view(), name="friends"),
+    path("friends/page/", friends.FriendsPage.as_view(), name="friends_page"),
     path("friends/request/<str:username>/", friends.FriendRequestSend.as_view(), name="friend_request_send"),
     path("friends/accept/<int:pk>/", friends.FriendRequestAccept.as_view(), name="friend_request_accept"),
     path("friends/decline/<int:pk>/", friends.FriendRequestDecline.as_view(), name="friend_request_decline"),

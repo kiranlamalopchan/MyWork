@@ -404,6 +404,60 @@ class FriendsApiTests(ApiTestCase):
         self.assertFalse(Friendship.are_friends(self.kiran, self.sam))
 
 
+class FriendsPagingTests(ApiTestCase):
+    """A screenful at a time, and the next one as you scroll."""
+
+    def setUp(self):
+        super().setUp()
+        from apps.accounts.models import Friendship
+
+        # sam (from setUp) plus f01..f11 are friends; o01..o07 are not.
+        Friendship.befriend(self.kiran, self.sam)
+        for n in range(1, 12):
+            Friendship.befriend(self.kiran, User.objects.create_user(f"f{n:02}", password="pw12345678"))
+        for n in range(1, 8):
+            User.objects.create_user(f"o{n:02}", password="pw12345678")
+
+    def names(self, people):
+        return [p["username"] for p in people]
+
+    def test_with_a_limit_both_lists_come_a_screenful_at_a_time_with_totals(self):
+        data = self.api("get", "friends", {"limit": 5}).json()
+        self.assertEqual(self.names(data["friends"]), ["f01", "f02", "f03", "f04", "f05"])
+        self.assertEqual(data["friends_total"], 12)
+        self.assertEqual(self.names(data["others"]), ["o01", "o02", "o03", "o04", "o05"])
+        self.assertEqual(data["others_total"], 7)
+
+    def test_without_a_limit_older_apps_get_the_reply_they_know(self):
+        data = self.api("get", "friends").json()
+        self.assertEqual(len(data["friends"]), 12)
+        self.assertNotIn("friends_total", data)
+        self.assertEqual(len(data["others"]), 5)
+
+    def test_pages_carry_on_where_the_last_stopped_until_the_end(self):
+        seen, offset = [], 5
+        while offset is not None:
+            page = self.api("get", "friends_page", {"list": "friends", "offset": offset, "limit": 5}).json()
+            self.assertEqual(page["total"], 12)
+            seen += self.names(page["people"])
+            offset = page["next"]
+        self.assertEqual(seen, ["f06", "f07", "f08", "f09", "f10", "f11", "sam"])
+
+        page = self.api("get", "friends_page", {"list": "others", "offset": 5, "limit": 5}).json()
+        self.assertEqual(self.names(page["people"]), ["o06", "o07"])
+        self.assertIsNone(page["next"])
+
+    def test_a_page_keeps_the_search_and_the_size_cap(self):
+        page = self.api("get", "friends_page", {"list": "friends", "q": "f1", "offset": 0, "limit": 500}).json()
+        self.assertEqual(self.names(page["people"]), ["f10", "f11"])
+        self.assertEqual(self.api("get", "friends", {"limit": 500}).json()["friends_total"], 12)
+        self.assertLessEqual(len(self.api("get", "friends", {"limit": 500}).json()["friends"]), 50)
+
+    def test_a_bad_list_or_offset_is_refused_politely(self):
+        self.assertEqual(self.api("get", "friends_page", {"list": "everyone"}).status_code, 400)
+        self.assertEqual(self.api("get", "friends_page", {"list": "friends", "offset": "x"}).status_code, 400)
+
+
 @override_settings(MEDIA_ROOT="/tmp/mywork-test-media-api")
 class StoryTests(ApiTestCase):
     def test_a_photo_story_goes_up_and_shows_in_the_tray(self):

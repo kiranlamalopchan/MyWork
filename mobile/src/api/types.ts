@@ -106,6 +106,8 @@ export type Friends = {
   others: Person[];
   /** How many there are in all, for the count and the "showing 5 of 40" line. */
   others_total: number;
+  /** Sent when a screenful was asked for (?limit=); the rest comes from friends/page/. */
+  friends_total?: number;
 };
 
 export type TrayRow = Person & {
@@ -352,3 +354,6 @@ export type PayslipCheck = {
   read: { label: string; value: string; how: string }[];
   notes: string[];
 };
+
+/** The next screenful of one Friends list; `next` is the offset after it, or null at the end. */
+export type PeoplePage = { people: Person[]; total: number; next: number | null };

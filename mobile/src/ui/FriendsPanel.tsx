@@ -4,11 +4,12 @@
  *
  * Only the requests waiting on you are always open, being the one thing
  * here that asks for an answer; the other lists fold behind their counts
- * (SubFold), so a long list of everyone is not the price of opening it —
- * and "Everyone else" is only ever the first few, the search for the rest.
+ * (SubFold), so a long list of everyone is not the price of opening it.
+ * Both long lists come a screenful at a time; scrolling near the bottom of
+ * the open one brings the next screenful (useMorePeople).
  */
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -34,7 +35,8 @@ export function FriendsPage() {
     const id = setTimeout(() => setQ(typed.trim()), 250);
     return () => clearTimeout(id);
   }, [typed]);
-  const query = useFriends(q);
+  const size = useScreenful();
+  const query = useFriends(q, size);
   const refresh = usePullRefresh(query.refetch);
   const changed = useFriendsChanged();
   const data = query.data;
@@ -43,6 +45,15 @@ export function FriendsPage() {
   const [list, setList] = useState<"sent" | "friends" | "others" | null>("friends");
   const shown = { sent: list === "sent", friends: list === "friends", others: list === "others" };
   const flip = (k: NonNullable<typeof list>) => setList((v) => (v === k ? null : k));
+  const stamp = query.dataUpdatedAt;
+  const friendRows = useMorePeople("friends", q, data?.friends, data?.friends_total ?? data?.friends.length, size, stamp);
+  const otherRows = useMorePeople("others", q, data?.others, data?.others_total, size, stamp);
+  // Near the bottom of the page, the open list brings its next screenful.
+  const onScroll = ({ nativeEvent: e }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (e.contentOffset.y + e.layoutMeasurement.height < e.contentSize.height - e.layoutMeasurement.height * 0.6) return;
+    if (list === "friends") friendRows.loadMore();
+    else if (list === "others") otherRows.loadMore();
+  };
 
   const guard = async (key: string, run: () => Promise<unknown>) => {
     setBusy(key);
@@ -68,7 +79,7 @@ export function FriendsPage() {
 
   return (
     <Screen back backLabel={tr("Profile")} section={tr("Friends")}>
-    <Page refreshControl={refresh}>
+    <Page refreshControl={refresh} onScroll={onScroll}>
     <PageTitle sub={tr("Manage your friends and requests.")}>{tr("Friends")}</PageTitle>
     <Card style={{ gap: sp[4] }} testID="friends-page">
       <Text style={{ color: t.text2, fontSize: 14, lineHeight: 21 }}>
@@ -108,11 +119,11 @@ export function FriendsPage() {
       ) : null}
 
       {data ? (
-        <SubFold title="Your friends" count={data.friends.length} open={shown.friends} onToggle={() => flip("friends")} testID="friends-list">
-          {data.friends.length ? (
+        <SubFold title="Your friends" count={friendRows.total} open={shown.friends} onToggle={() => flip("friends")} testID="friends-list">
+          {friendRows.people.length ? (
             <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
-              {data.friends.map((p, i) => (
-                <Row key={p.username} person={p} last={i === data.friends.length - 1}
+              {friendRows.people.map((p, i) => (
+                <Row key={p.username} person={p} last={i === friendRows.people.length - 1}
                   onPress={() => router.push(`/people/${p.username}`)}
                   right={(
                     <Pressable onPress={() => remove(p)} disabled={!!busy} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`}>
@@ -123,30 +134,26 @@ export function FriendsPage() {
               ))}
             </View>
           ) : (
-            <Empty icon="people-outline" title="No friends yet" sub="Add people from Everyone else — once you're friends, Friends only posts reach them." card={false} />
+            <Empty icon="people-outline" title={q ? `No friends match "${q}"` : "No friends yet"} sub={q ? undefined : "Add people from Everyone else — once you're friends, Friends only posts reach them."} card={false} />
           )}
+          <MoreFooter rows={friendRows} testID="friends-more" />
         </SubFold>
       ) : null}
 
       <SubFold title="Everyone else" count={q ? undefined : data?.others_total} open={shown.others} onToggle={() => flip("others")} testID="friends-others">
         <Input placeholder="Search by username" value={typed} onChangeText={setTyped} autoCapitalize="none" testID="friends-search" />
-        {data && data.others.length ? (
+        {otherRows.people.length ? (
           <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
-            {data.others.map((p, i) => (
-              <Row key={p.username} person={p} last={i === data.others.length - 1}
+            {otherRows.people.map((p, i) => (
+              <Row key={p.username} person={p} last={i === otherRows.people.length - 1}
                 onPress={() => router.push(`/people/${p.username}`)}
                 right={<Button title="Add" size="sm" icon="person-add-outline" busy={busy === `request-${p.username}`} onPress={() => request(p)} />}
               />
             ))}
           </View>
         ) : null}
-        {/* The list is only the first few: say so, and how to reach the rest. */}
-        {data && data.others.length && data.others_total > data.others.length ? (
-          <Text style={{ color: t.muted, fontSize: 12.5 }} testID="friends-others-more">
-            Showing {data.others.length} of {data.others_total}. Search by username to find someone.
-          </Text>
-        ) : null}
-        {data && !data.others.length ? (
+        <MoreFooter rows={otherRows} testID="friends-others-more" />
+        {data && !otherRows.people.length ? (
           <Empty icon="search-outline" title={q ? `No one matches "${q}"` : "That's everyone"} card={false} />
         ) : null}
       </SubFold>
@@ -154,6 +161,98 @@ export function FriendsPage() {
     </Page>
     </Screen>
   );
+}
+
+/** Rows to a screenful on this phone, so the first load fills the screen and no more. */
+function useScreenful() {
+  const { height } = useWindowDimensions();
+  return Math.max(8, Math.min(30, Math.ceil(height / 60)));
+}
+
+type MoreRows = {
+  people: Person[]; total?: number; loading: boolean; error: unknown;
+  hasMore: boolean; loadMore: () => void; retry: () => void;
+};
+
+/**
+ * One Friends list as you scroll it: the first screenful from the page's own
+ * query, then each next screenful from friends/page/. When the first page is
+ * fetched again (pull to refresh, someone added or removed) the rows already
+ * scrolled to are fetched again too, so the list doesn't jump back to the top;
+ * a new search starts from its first screenful.
+ */
+function useMorePeople(which: "friends" | "others", q: string, first: Person[] | undefined, total: number | undefined, size: number, stamp: number): MoreRows {
+  const [extra, setExtra] = useState<Person[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const extraCount = useRef(0);
+  extraCount.current = extra.length;
+  const lastQ = useRef(q);
+  const run = useRef(0);
+
+  const fetchRows = useCallback((offset: number, limit: number, replace: boolean) => {
+    const id = ++run.current;
+    setLoading(true);
+    setError(null);
+    api.page(which, offset, limit, q || undefined)
+      .then((page) => {
+        if (id !== run.current) return;
+        setExtra((rows) => {
+          const next = replace ? page.people : [...rows, ...page.people];
+          const seen = new Set<string>();
+          return next.filter((p) => !seen.has(p.username) && !!seen.add(p.username));
+        });
+      })
+      .catch((e) => { if (id === run.current) setError(e); })
+      .finally(() => { if (id === run.current) setLoading(false); });
+  }, [which, q]);
+
+  useEffect(() => {
+    const searched = lastQ.current !== q;
+    lastQ.current = q;
+    const keep = searched ? 0 : extraCount.current;
+    if (!first || !keep) {
+      run.current++;
+      setExtra([]); setLoading(false); setError(null);
+      return;
+    }
+    fetchRows(first.length, Math.min(keep, 50), true);
+    // A fresh first page (its stamp) or a new search; the rest follows from them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stamp, q]);
+
+  const people = first ? [...first, ...extra.filter((p) => !first.some((f) => f.username === p.username))] : [];
+  const hasMore = !!first && total !== undefined && people.length < total;
+  const loadMore = () => {
+    if (!first || loading || error || !hasMore) return;
+    fetchRows(people.length, size, false);
+  };
+  const retry = () => {
+    if (!first || loading) return;
+    fetchRows(people.length, size, false);
+  };
+  return { people, total, loading, error, hasMore, loadMore, retry };
+}
+
+/** Under a list: a spinner while the next screenful comes, or a way to try again. */
+function MoreFooter({ rows, testID }: { rows: MoreRows; testID?: string }) {
+  const t = useTheme(), tr = useT();
+  if (rows.error) {
+    return (
+      <View style={styles.more} testID={testID}>
+        <Text style={{ color: t.muted, fontSize: 12.5 }}>{errorMessage(rows.error)}</Text>
+        <Button title={tr("Try again")} kind="plain" size="sm" onPress={rows.retry} testID={testID ? `${testID}-retry` : undefined} />
+      </View>
+    );
+  }
+  if (rows.loading) {
+    return (
+      <View style={styles.more} testID={testID} accessibilityLabel={tr("Loading more")}>
+        <ActivityIndicator color={t.muted} />
+      </View>
+    );
+  }
+  return null;
 }
 
 /**
@@ -213,4 +312,5 @@ const styles = StyleSheet.create({
   foldHead: { flexDirection: "row", alignItems: "center", gap: sp[2], minHeight: 36 },
   count: { minWidth: 22, height: 20, paddingHorizontal: 7, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingHorizontal: sp[3], paddingVertical: sp[3] },
+  more: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: sp[2], minHeight: 44 },
 });

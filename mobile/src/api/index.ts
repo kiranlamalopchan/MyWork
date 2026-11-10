@@ -10,7 +10,7 @@ import { CHUNK_AT, sizeOf, uploadInPieces } from "./chunked";
 import type {
   Activity, CalendarPage, ClockState, Trend, TrendRange, Cycles, Going, MorePage, NewShift, PayPage, PayslipRead, ShiftDetail, ShiftInput,
   TimesheetPage, Workplace, WorkplaceBrief, WorkplaceInput, WorkplacesPage,
-  Friends as FriendsPage, PhotoRead, PluImportable, PluImported,
+  Friends as FriendsPage, PeoplePage, PhotoRead, PluImportable, PluImported,
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
   Reactors, Story, StoryPerson, TrayRow, Visibility,
   BlockedPerson, ReportKind, ReportReason,
@@ -170,15 +170,17 @@ export function usePostNotice() {
 // ---- friends ---------------------------------------------------------------------
 
 export const friends = {
-  list: (q?: string) => api<FriendsPage>("friends/", { query: { q } }),
+  list: (q?: string, limit?: number) => api<FriendsPage>("friends/", { query: { q, limit } }),
+  page: (list: "friends" | "others", offset: number, limit: number, q?: string) =>
+    api<PeoplePage>("friends/page/", { query: { list, offset, limit, q } }),
   request: (username: string) => api<{ status: "sent" | "friends" }>(`friends/request/${encodeURIComponent(username)}/`, { method: "POST" }),
   accept: (id: number) => api<{ status: "friends" }>(`friends/accept/${id}/`, { method: "POST" }),
   decline: (id: number) => api(`friends/decline/${id}/`, { method: "POST" }),
   remove: (username: string) => api(`friends/remove/${encodeURIComponent(username)}/`, { method: "POST" }),
 };
 
-export function useFriends(q?: string) {
-  return useQuery({ queryKey: ["friends", q || ""], queryFn: () => friends.list(q) });
+export function useFriends(q?: string, limit?: number) {
+  return useQuery({ queryKey: ["friends", q || "", limit ?? 0], queryFn: () => friends.list(q, limit) });
 }
 
 export function useFriendsChanged() {

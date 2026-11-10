@@ -11,9 +11,22 @@ from rest_framework.views import APIView
 
 from apps.accounts import notify
 from apps.accounts.models import FriendRequest, Friendship
-from apps.accounts.views import _friends_context
+from apps.accounts.views import _friends_context, friend_piles
 
 from .. import serialize
+
+
+# One page of a Friends list at most: a phone screen's worth asked for at a
+# time, never every account in one reply.
+PAGE_MAX = 50
+
+
+def _page_size(request):
+    """The phone's own screenful (?limit=), kept within reason; None if not asked."""
+    try:
+        return max(1, min(int(request.GET["limit"]), PAGE_MAX))
+    except (KeyError, ValueError):
+        return None
 
 
 class Friends(APIView):
@@ -21,10 +34,25 @@ class Friends(APIView):
     Everything the Friends screen shows: your friends, your pending requests
     both ways, and the first few of everyone else you could ask — one call;
     the rest of everyone else is a search away rather than sent in full.
+
+    With ?limit= (the app since 1.4.1) both lists come one screenful at a
+    time, with their totals; friends/page/ brings the rest as you scroll.
+    Without it, the reply is the one older app builds already understand.
     """
 
     def get(self, request):
         me = request.user
+        limit = _page_size(request)
+        if limit is not None:
+            received, sent, friends, strangers, _ = friend_piles(me, request.GET.get("q"))
+            return Response({
+                "friends": [serialize.person(request, p, me) for p in friends[:limit]],
+                "friends_total": friends.count(),
+                "received": [{"id": r.pk, "person": serialize.person(request, r.from_user, me)} for r in received],
+                "sent": [{"id": r.pk, "person": serialize.person(request, r.to_user, me)} for r in sent],
+                "others": [serialize.person(request, p, me) for p in strangers[:limit]],
+                "others_total": strangers.count(),
+            })
         # The site's own lists, so the two cannot drift: "others" is only
         # the first few, with `others_total` saying how many there are and
         # ?q= reaching the rest.
@@ -42,6 +70,31 @@ class Friends(APIView):
             "others": [serialize.person(request, p, me) for p in lists["friends_others"]],
             "others_total": lists["friends_others_total"],
         })
+
+
+class FriendsPage(APIView):
+    """
+    The next screenful of one list — `friends` or `others` (everyone else) —
+    from ?offset=, in the same username order and with the same search as
+    the first page, so scrolling down carries on where it stopped.
+    """
+
+    def get(self, request):
+        which = request.GET.get("list")
+        if which not in ("friends", "others"):
+            return Response({"detail": "Choose friends or others."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            offset = max(0, int(request.GET.get("offset", 0)))
+        except ValueError:
+            return Response({"detail": "Please refresh the list and try again."}, status=status.HTTP_400_BAD_REQUEST)
+        limit = _page_size(request) or 20
+        me = request.user
+        _, _, friends, strangers, _ = friend_piles(me, request.GET.get("q"))
+        rows = friends if which == "friends" else strangers
+        total = rows.count()
+        people = [serialize.person(request, p, me) for p in rows[offset:offset + limit]]
+        end = offset + len(people)
+        return Response({"people": people, "total": total, "next": end if end < total else None})
 
 
 class FriendRequestSend(APIView):

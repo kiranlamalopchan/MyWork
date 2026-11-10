@@ -174,12 +174,11 @@ SEARCH_MIN_USERS = 12
 OTHERS_SHOWN = 5
 
 
-def _friends_context(user, query=""):
+def friend_piles(user, query=""):
     """
-    Everything the profile page's Friends section shows: your friends, your
-    pending requests both ways, and everyone else — one call, because on a
-    workplace-sized user list there is no need to split "find people" from
-    "manage your list" the way a public network would.
+    The Friends lists as querysets, not yet read: requests both ways (read,
+    being few), then your friends and everyone else you could ask, both in
+    username order so the app can page through them with an offset.
     """
     friend_ids = Friendship.ids_for(user)
     received = list(
@@ -201,11 +200,23 @@ def _friends_context(user, query=""):
     if query:
         people = people.filter(username__icontains=query)
     people = people.select_related("profile").order_by("username")
+    friends = people.filter(pk__in=friend_ids)
+    strangers = people.exclude(pk__in=friend_ids | pending_to | pending_from)
+    return received, sent, friends, strangers, query
+
+
+def _friends_context(user, query=""):
+    """
+    Everything the profile page's Friends section shows: your friends, your
+    pending requests both ways, and everyone else — one call, because on a
+    workplace-sized user list there is no need to split "find people" from
+    "manage your list" the way a public network would.
+    """
+    received, sent, friends, strangers, query = friend_piles(user, query)
 
     # Two queries, each for only the rows it will show — not every account
     # read into memory to be sorted into piles.
-    friend_list = list(people.filter(pk__in=friend_ids))
-    strangers = people.exclude(pk__in=friend_ids | pending_to | pending_from)
+    friend_list = list(friends)
     others_total = strangers.count()
     others = list(strangers[:OTHERS_SHOWN])
 
