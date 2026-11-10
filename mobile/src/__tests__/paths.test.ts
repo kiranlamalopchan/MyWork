@@ -14,8 +14,11 @@ describe("the site's paths map to screens", () => {
     expect(targetFor("/holidays/")).toEqual({ screen: "/holidays" });
     expect(targetFor("/")).toEqual({ screen: "/(tabs)" });
   });
-  it("sends a friend request notification to the profile, where friends live", () => {
-    expect(targetFor("/profile/friends/")).toEqual({ screen: "/profile" });
+  it("opens profile destinations directly, including old section links", () => {
+    for (const section of ["friends", "statement", "activity"]) {
+      expect(targetFor(`/profile/${section}/`)).toEqual({ screen: `/profile/${section}` });
+      expect(targetFor(`/profile/#${section}`)).toEqual({ screen: `/profile/${section}` });
+    }
   });
   it("knows the timesheet's pages", () => {
     expect(targetFor("/timesheet/")).toEqual({ screen: "/clock" });
@@ -29,7 +32,7 @@ describe("the site's paths map to screens", () => {
   it("keeps every PLU and timesheet path in the app, which draws them all", () => {
     expect(targetFor("/plu/photo-search/")).toEqual({ screen: "/plu" });
     expect(targetFor("/plu/import/")).toEqual({ screen: "/items/import" });
-    expect(targetFor("/timesheet/statement/")).toEqual({ screen: "/clock" });
+    expect(targetFor("/timesheet/statement/")).toEqual({ screen: "/profile/statement" });
     expect(targetFor("/timesheet/preferences/")).toEqual({ screen: "/clock" });
   });
   it("recognises the go-link actually sent in push notifications", () => {

@@ -42,6 +42,36 @@ PHOTO_QUALITY = 86
 # avatar without pushing the buttons off a narrow phone.
 MAX_DISPLAY_NAME = 40
 
+
+class SocialIdentity(models.Model):
+    """A provider's stable subject belongs to exactly one local account."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='social_identities')
+    provider = models.CharField(max_length=10, choices=[('google', 'Google'), ('apple', 'Apple')])
+    subject = models.CharField(max_length=255)
+    # Apple refresh tokens are needed to revoke consent when deleting an account.
+    encrypted_refresh_token = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['provider', 'subject'], name='unique_social_subject'),
+            models.UniqueConstraint(fields=['user', 'provider'], name='unique_user_social_provider'),
+        ]
+
+
+class SocialLoginAttempt(models.Model):
+    """Short-lived, single-use browser login and PKCE-protected app handoff."""
+    state_hash = models.CharField(max_length=64, unique=True)
+    provider = models.CharField(max_length=10)
+    purpose = models.CharField(max_length=10, default='login')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE)
+    challenge = models.CharField(max_length=43)
+    nonce = models.CharField(max_length=64)
+    provider_verifier = models.CharField(max_length=128)
+    expires_at = models.DateTimeField(db_index=True)
+    claimed = models.BooleanField(default=False)
+    handoff_hash = models.CharField(max_length=64, unique=True, null=True)
+    failure = models.CharField(max_length=24, blank=True)
+
 # Room for an international number written however the owner writes it,
 # spaces, brackets and country code included.
 MAX_PHONE = 32

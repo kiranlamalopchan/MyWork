@@ -104,6 +104,9 @@ see [Notifications](#notifications).
 
 ## The native app and its API
 
+New roster, reminders, messaging, payslip checks, pay-period summaries, widgets
+and Nepali settings are described in [Work features and phone testing](docs/work-features.md).
+
 `mobile/` is the Android/iOS app (Expo — see `mobile/README.md`). It talks
 to `apps/api`, a Django REST Framework layer at `/api/v1/` that wraps the
 same models, forms and notify calls the pages use: a token from

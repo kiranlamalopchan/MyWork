@@ -6,6 +6,7 @@ import { welcome } from "@/auth/welcome";
 import { Button, Field, Input } from "@/ui";
 
 import { AuthFrame } from "@/ui/AuthFrame";
+import { SocialSignIn } from "@/ui/SocialSignIn";
 
 export default function Register() {
   const { register } = useSession();
@@ -15,8 +16,10 @@ export default function Register() {
   const [again, setAgain] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [socialBusy, setSocialBusy] = useState(false);
 
   const go = async () => {
+    if (busy || socialBusy) return;
     setErrors({});
     if (password !== again) return setErrors({ again: "The two passwords don't match." });
     setBusy(true);
@@ -54,7 +57,8 @@ export default function Register() {
       <Field label="Confirm password" error={errors.again}>
         <Input secureTextEntry value={again} onChangeText={setAgain} textContentType="newPassword" onSubmitEditing={go} testID="password2" />
       </Field>
-      <Button title="Create account" onPress={go} busy={busy} disabled={!username || !password || !again} />
+      <Button title="Create account" onPress={go} busy={busy} disabled={socialBusy || !username || !password || !again} />
+      <SocialSignIn disabled={busy} onBusyChange={setSocialBusy} />
     </AuthFrame>
   );
 }

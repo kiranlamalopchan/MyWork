@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from apps.accounts import notify
 from apps.accounts.models import FriendRequest, Friendship
+from apps.accounts.views import _friends_context
 
 from .. import serialize
 
@@ -18,50 +19,28 @@ from .. import serialize
 class Friends(APIView):
     """
     Everything the Friends screen shows: your friends, your pending requests
-    both ways, and everyone else you could ask — one call, since a
-    workplace's user list is small enough that a screen doesn't need to
-    split "find people" from "manage your list" into calls of their own.
+    both ways, and the first few of everyone else you could ask — one call;
+    the rest of everyone else is a search away rather than sent in full.
     """
 
     def get(self, request):
         me = request.user
-        friend_ids = Friendship.ids_for(me)
-        received = list(
-            FriendRequest.objects.filter(to_user=me).select_related(
-                "from_user", "from_user__profile"
-            )
-        )
-        sent = list(
-            FriendRequest.objects.filter(from_user=me).select_related(
-                "to_user", "to_user__profile"
-            )
-        )
-        pending_to = {r.to_user_id for r in sent}
-        pending_from = {r.from_user_id for r in received}
-
-        from apps.moderation.models import Block
-        people = get_user_model().objects.filter(is_active=True).exclude(pk=me.pk).exclude(pk__in=Block.ids_for(me))
-        query = (request.GET.get("q") or "").strip()
-        if query:
-            people = people.filter(username__icontains=query)
-        people = list(people.select_related("profile").order_by("username"))
-
+        # The site's own lists, so the two cannot drift: "others" is only
+        # the first few, with `others_total` saying how many there are and
+        # ?q= reaching the rest.
+        lists = _friends_context(me, request.GET.get("q"))
         return Response({
-            "friends": [
-                serialize.person(request, p, me) for p in people if p.pk in friend_ids
-            ],
+            "friends": [serialize.person(request, p, me) for p in lists["friend_list"]],
             "received": [
                 {"id": r.pk, "person": serialize.person(request, r.from_user, me)}
-                for r in received
+                for r in lists["friends_received"]
             ],
             "sent": [
                 {"id": r.pk, "person": serialize.person(request, r.to_user, me)}
-                for r in sent
+                for r in lists["friends_sent"]
             ],
-            "others": [
-                serialize.person(request, p, me) for p in people
-                if p.pk not in friend_ids and p.pk not in pending_to and p.pk not in pending_from
-            ],
+            "others": [serialize.person(request, p, me) for p in lists["friends_others"]],
+            "others_total": lists["friends_others_total"],
         })
 
 

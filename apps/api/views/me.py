@@ -11,12 +11,14 @@ from rest_framework.views import APIView
 from apps.accounts.forms import PhotoForm, ProfileForm
 from apps.accounts.models import Profile
 from apps.accounts.passwords import revoke_app_tokens
+from apps.accounts.social import valid_reauth, revoke_apple
 from apps.accounts.views import delete_account
 from apps.holidays.models import HolidayPreference, State
 from apps.notifications.models import Device
 
 from .. import serialize
 from ..errors import form_errors
+from ..observability import report_exception
 
 
 class Me(APIView):
@@ -46,8 +48,14 @@ class Me(APIView):
         app's "Delete account" does (see apps/accounts/views.delete_account
         for what goes).
         """
-        if not request.user.check_password(str(request.data.get("password", ""))):
+        if not (request.user.check_password(str(request.data.get("password", "")))
+                or valid_reauth(request.user, request.data.get('social_reauth', ''))):
             return Response({"detail": "That password isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            revoke_apple(request.user)
+        except Exception as exc:
+            report_exception(exc, request)
+            return Response({'detail': "We couldn't finish deleting your account. Please try again."}, status=503)
         delete_account(request.user)
         request._request.user = AnonymousUser()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -88,11 +96,17 @@ class Photo(APIView):
         form = PhotoForm(request.data, request.FILES)
         if not form.is_valid():
             return Response(form_errors(form), status=status.HTTP_400_BAD_REQUEST)
-        Profile.of(request.user).set_photo(form.cleaned_data["photo"])
+        # set_photo only writes the file; the row has to be saved to point
+        # at it, or the picture is gone again on the next load.
+        profile = Profile.of(request.user)
+        profile.set_photo(form.cleaned_data["photo"])
+        profile.save(update_fields=["photo"])
         return Response(serialize.me(request, request.user))
 
     def delete(self, request):
-        Profile.of(request.user).clear_photo()
+        profile = Profile.of(request.user)
+        profile.clear_photo()
+        profile.save(update_fields=["photo"])
         return Response(serialize.me(request, request.user))
 
 

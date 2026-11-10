@@ -170,6 +170,10 @@ class Command(BaseCommand):
              "", "", timedelta(days=1, hours=4)),
             (actor(2), Kind.FRIEND_ACCEPTED, "{who} accepted your friend request",
              "", "", timedelta(days=1, hours=8)),
+            (actor(0), Kind.ROSTER, "{who} needs a shift covered",
+             "Saturday morning at work.", "", timedelta(hours=3)),
+            (actor(1), Kind.MESSAGE, "{who} sent you a message",
+             "Can you cover Saturday?", "", timedelta(minutes=12)),
         ]
 
         for n, (who, kind, title, body, emoji, ago) in enumerate(rows):

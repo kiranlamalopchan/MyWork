@@ -7,7 +7,7 @@ let mockUnread = 0;
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/api", () => ({ useUnread: () => ({ data: { unread: mockUnread } }) }));
 jest.mock("@/push/register", () => ({ setBadge: jest.fn() }));
-jest.mock("expo-router/unstable-native-tabs", () => {
+jest.mock("expo-router/native-tabs", () => {
   const React = require("react");
   const { View, Text } = require("react-native");
   const NativeTabs: any = ({ children }: any) => React.createElement(View, { testID: "native-tabs" }, children);

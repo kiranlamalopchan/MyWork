@@ -10,9 +10,10 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { inbox, useInbox, useInboxChanged, type Notification } from "@/api";
+import { inbox, useChatUnread, useInbox, useInboxChanged, type Notification } from "@/api";
+import { useT } from "@/i18n";
 import { navigateTo } from "@/nav/paths";
-import { Avatar, Button, Card, Empty, ErrorBanner, PageTitle, Screen, usePullRefresh } from "@/ui";
+import { Avatar, Button, Card, Empty, ErrorBanner, MenuRow, PageTitle, Screen, usePullRefresh } from "@/ui";
 import { underRefresh, WithDepth } from "@/ui/depth";
 import { SkeletonNotifications } from "@/ui/Skeleton";
 import { useLayout } from "@/ui/layout";
@@ -21,12 +22,15 @@ import { alpha, sp, useTheme } from "@/ui/theme";
 const ICONS: Record<Notification["kind"], keyof typeof Ionicons.glyphMap> = {
   notice: "chatbubble-outline", comment: "chatbubbles-outline", reply: "return-down-forward-outline", reaction: "happy-outline", timesheet: "time-outline",
   story: "camera-outline", friend_request: "person-add-outline", friend_accepted: "people-outline",
+  roster: "calendar-outline", message: "mail-outline",
 };
 
 export default function Inbox() {
   const t = useTheme();
   const layout = useLayout();
   const router = useRouter();
+  const tr = useT();
+  const unreadChat = useChatUnread().data?.unread ?? 0;
   const q = useInbox();
   const refresh = usePullRefresh(q.refetch);
   const changed = useInboxChanged();
@@ -74,13 +78,19 @@ export default function Inbox() {
         onEndReachedThreshold={0.6}
         ListHeaderComponent={
           <>
-            <PageTitle>Notifications</PageTitle>
+            <PageTitle>{tr("Notifications")}</PageTitle>
+            <Card pad={false} style={{ marginBottom: sp[3] }}>
+              <MenuRow icon="mail-outline" title={tr("Messages")} last
+                sub={unreadChat ? tr("{n} unread", { n: unreadChat }) : tr("Between you and your friends")}
+                value={unreadChat ? String(unreadChat) : undefined}
+                onPress={() => router.push("/messages" as never)} testID="open-messages" />
+            </Card>
             {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
           </>
         }
         ListFooterComponent={rows.length && !q.hasNextPage ? (
           <Text style={[styles.kept, { color: t.muted }]}>Notifications are cleared after 30 days.</Text>
-        ) : null}
+        ) : undefined}
         ListEmptyComponent={q.isLoading ? <SkeletonNotifications /> : (
           <View style={{ marginTop: sp[3] }}>
             <Empty

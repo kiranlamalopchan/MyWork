@@ -76,6 +76,8 @@ def me(request, user):
         "phone": profile.phone,
         "address": profile.address,
         "is_staff": user.is_staff,
+        "has_password": user.has_usable_password(),
+        "social_providers": list(user.social_identities.values_list('provider', flat=True)),
         "can_manage_festival": can_manage_festival(user),
         "holiday_state": HolidayPreference.state_for(user, guess=guess_state(request)),
         "since": user.date_joined.strftime("%b %Y"),

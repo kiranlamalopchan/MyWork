@@ -1,12 +1,11 @@
 /**
  * Friends (templates/accounts/profile.html's #friends section): who your
- * "Friends only" posts and comments reach, right on the profile rather than
- * behind a screen of its own — search, requests and your list, all part of
- * the one page that already answers everything else about you.
+ * "Friends only" posts and comments reach, on a page opened from Profile.
  *
  * Only the requests waiting on you are always open, being the one thing
  * here that asks for an answer; the other lists fold behind their counts
- * (SubFold), so a long list of everyone is not the price of opening it.
+ * (SubFold), so a long list of everyone is not the price of opening it —
+ * and "Everyone else" is only ever the first few, the search for the rest.
  */
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -17,16 +16,17 @@ import { friends as api, useFriends, useFriendsChanged, type FriendRequest, type
 import { AdminBadge } from "./AdminBadge";
 import { Avatar } from "./Avatar";
 import { useComeUp } from "./depth";
-import { Disclosure, Fold, FoldChevron } from "./Disclosure";
-import { Button, Empty, ErrorBanner, Input } from "./index";
+import { Fold, FoldChevron } from "./Disclosure";
+import { Button, Card, Empty, ErrorBanner, Input, Page, PageTitle, Screen, usePullRefresh } from "./index";
 import { SkeletonFriends } from "./Skeleton";
-import type { PanelProps } from "./ProfilePanels";
+import { errorMessage } from "@/api/errors";
+import { useT } from "@/i18n";
 import { confirm, notify } from "./confirm";
 import { success, tick } from "./haptics";
 import { radius, sp, useTheme } from "./theme";
 
-export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
-  const t = useTheme();
+export function FriendsPage() {
+  const t = useTheme(), tr = useT();
   const router = useRouter();
   const [typed, setTyped] = useState("");
   const [q, setQ] = useState("");
@@ -35,11 +35,12 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
     return () => clearTimeout(id);
   }, [typed]);
   const query = useFriends(q);
+  const refresh = usePullRefresh(query.refetch);
   const changed = useFriendsChanged();
   const data = query.data;
   const [busy, setBusy] = useState<string | null>(null);
   // One list open at a time, like the timesheet's days: opening one folds the last away.
-  const [list, setList] = useState<"sent" | "friends" | "others" | null>(null);
+  const [list, setList] = useState<"sent" | "friends" | "others" | null>("friends");
   const shown = { sent: list === "sent", friends: list === "friends", others: list === "others" };
   const flip = (k: NonNullable<typeof list>) => setList((v) => (v === k ? null : k));
 
@@ -50,7 +51,7 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
       success();
       changed();
     } catch (e: any) {
-      notify("That didn't work", e?.message || "");
+      notify(tr("That didn't work"), errorMessage(e));
     } finally {
       setBusy(null);
     }
@@ -65,15 +66,11 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
       () => { void guard(`remove-${p.username}`, () => api.remove(p.username)); });
   };
 
-  const waiting = data?.received.length || 0;
-  const hint = !data
-    ? "Who your Friends only posts reach"
-    : waiting
-      ? `${waiting} request${waiting === 1 ? "" : "s"} waiting on you`
-      : `${data.friends.length} friend${data.friends.length === 1 ? "" : "s"}`;
-
   return (
-    <Disclosure badge={waiting} minimal={minimal} icon="people-outline" title="Friends" hint={hint} open={open} onToggle={onToggle} last={last} testID="friends-panel">
+    <Screen back backLabel={tr("Profile")} section={tr("Friends")}>
+    <Page refreshControl={refresh}>
+    <PageTitle sub={tr("Manage your friends and requests.")}>{tr("Friends")}</PageTitle>
+    <Card style={{ gap: sp[4] }} testID="friends-page">
       <Text style={{ color: t.text2, fontSize: 14, lineHeight: 21 }}>
         Posts and comments marked "Friends only" are shown to the people here.
       </Text>
@@ -131,7 +128,7 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
         </SubFold>
       ) : null}
 
-      <SubFold title="Everyone else" count={q ? undefined : data?.others.length} open={shown.others} onToggle={() => flip("others")} testID="friends-others">
+      <SubFold title="Everyone else" count={q ? undefined : data?.others_total} open={shown.others} onToggle={() => flip("others")} testID="friends-others">
         <Input placeholder="Search by username" value={typed} onChangeText={setTyped} autoCapitalize="none" testID="friends-search" />
         {data && data.others.length ? (
           <View style={[styles.list, { backgroundColor: t.dark ? t.surface3 : t.surface2 }]}>
@@ -142,11 +139,20 @@ export function FriendsPanel({ open, onToggle, last, minimal }: PanelProps) {
               />
             ))}
           </View>
-        ) : data ? (
+        ) : null}
+        {/* The list is only the first few: say so, and how to reach the rest. */}
+        {data && data.others.length && data.others_total > data.others.length ? (
+          <Text style={{ color: t.muted, fontSize: 12.5 }} testID="friends-others-more">
+            Showing {data.others.length} of {data.others_total}. Search by username to find someone.
+          </Text>
+        ) : null}
+        {data && !data.others.length ? (
           <Empty icon="search-outline" title={q ? `No one matches "${q}"` : "That's everyone"} card={false} />
         ) : null}
       </SubFold>
-    </Disclosure>
+    </Card>
+    </Page>
+    </Screen>
   );
 }
 

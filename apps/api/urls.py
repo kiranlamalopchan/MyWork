@@ -8,11 +8,14 @@ an `Authorization: Token …` header on everything else.
 
 from django.urls import path
 
-from .views import support, catalogue, auth, board, festivals, friends, holidays, home, me, moderation, notifications, plu, stories, timeclock, uploads
+from .views import social_auth, support, catalogue, auth, board, chat, festivals, friends, holidays, home, me, moderation, notifications, plu, roster, stories, timeclock, uploads
 
 app_name = "api"
 
 urlpatterns = [
+    path("auth/social/<str:provider>/start/", social_auth.SocialStart.as_view(), name="social_start"),
+    path("auth/social/<str:provider>/callback/", social_auth.callback, name="social_callback"),
+    path("auth/social/exchange/", social_auth.SocialExchange.as_view(), name="social_exchange"),
     path("auth/login/", auth.Login.as_view(), name="login"),
     path("auth/register/", auth.Register.as_view(), name="register"),
     path("auth/password-reset/", auth.PasswordReset.as_view(), name="password_reset"),
@@ -50,6 +53,15 @@ urlpatterns = [
     path("friends/accept/<int:pk>/", friends.FriendRequestAccept.as_view(), name="friend_request_accept"),
     path("friends/decline/<int:pk>/", friends.FriendRequestDecline.as_view(), name="friend_request_decline"),
     path("friends/remove/<str:username>/", friends.FriendRemove.as_view(), name="friend_remove"),
+
+    path("messages/", chat.Threads.as_view(), name="messages"),
+    path("messages/unread/", chat.Unread.as_view(), name="messages_unread"),
+    path("messages/<str:username>/", chat.Thread.as_view(), name="message_thread"),
+
+    path("roster/", roster.Roster.as_view(), name="roster"),
+    path("roster/<int:pk>/", roster.RosterShift.as_view(), name="roster_shift"),
+    path("roster/<int:pk>/offer/", roster.RosterOffer.as_view(), name="roster_offer"),
+    path("roster/<int:pk>/take/", roster.RosterTake.as_view(), name="roster_take"),
 
     path("uploads/", uploads.Upload.as_view(), name="uploads"),
     path("stories/", stories.Tray.as_view(), name="stories"),
@@ -92,6 +104,7 @@ urlpatterns = [
     path("timesheet/shifts/<int:pk>/", timeclock.ShiftDetail.as_view(), name="shift"),
     path("timesheet/workplaces/", timeclock.Workplaces.as_view(), name="workplaces"),
     path("timesheet/workplaces/payslip/", timeclock.Payslip.as_view(), name="payslip"),
+    path("timesheet/payslip/check/", timeclock.PayslipCheck.as_view(), name="payslip_check"),
     path("timesheet/workplaces/<int:pk>/", timeclock.WorkplaceDetail.as_view(), name="workplace"),
     path("timesheet/workplaces/<int:pk>/removal/", timeclock.WorkplaceRemoval.as_view(), name="workplace_removal"),
     path("timesheet/workplaces/<int:pk>/default/", timeclock.WorkplaceDefault.as_view(), name="workplace_default"),

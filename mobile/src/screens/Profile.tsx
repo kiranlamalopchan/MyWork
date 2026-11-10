@@ -1,28 +1,28 @@
-import React, { useState } from "react";
+import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { useSession } from "@/auth/session";
-import { Card, Page, Screen } from "@/ui";
+import { Card, ErrorBanner, Page, Screen } from "@/ui";
 import { confirm, notify } from "@/ui/confirm";
-import { ActivityPanel, StatementPanel } from "@/ui/ProfilePanels";
-import { FriendsPanel } from "@/ui/FriendsPanel";
 import { ProfilePhoto } from "@/ui/ProfilePhoto";
 import { ProfileRow } from "@/ui/ProfileRow";
-import { Version } from "@/ui/Version";
 import { useTheme } from "@/ui/theme";
+import { useT } from "@/i18n";
+import { errorMessage } from "@/api/errors";
+import { ProfileGroup } from "@/ui/ProfileGroup";
+import { Version } from "@/ui/Version";
 import { useActivity } from "@/api";
 
 export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
-  const t = useTheme();
+  const t = useTheme(), tr = useT();
   const router = useRouter();
   const { me, setMe, signOut } = useSession();
-  const figures = useActivity().data;
-  const [open, setOpen] = useState<"friends" | "statement" | "activity" | null>(null);
-  const fold = (key: NonNullable<typeof open>) => ({ minimal: true, open: open === key, onToggle: () => setOpen(v => v === key ? null : key) });
-  const leave = () => confirm("Sign out?", undefined, "Sign out", () => {
-    void Promise.resolve().then(signOut).catch(error => notify("Couldn't sign out", error?.message || "Please try again."));
+  const activity = useActivity();
+  const figures = activity.data;
+  const leave = () => confirm(tr("Sign out?"), undefined, tr("Sign out"), () => {
+    void Promise.resolve().then(signOut).catch(error => notify(tr("Couldn't sign out"), errorMessage(error)));
   });
   if (!me) return null;
   return <Screen back={!tabMode} backLabel="Home" section="Profile">
@@ -52,21 +52,22 @@ export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
           <View style={[styles.stats, { backgroundColor: t.surface, borderColor: t.line }, float(t.dark, 2)]} testID="profile-stats">
             <Stat icon="chatbox-ellipses-outline" value={figures?.notice_count} word="Post" onPress={() => router.push(`/people/${me.username}`)} />
             <View style={[styles.rule, { backgroundColor: t.line }]} />
-            <Stat icon="people-outline" value={figures?.friend_count} word="Friend" onPress={() => setOpen("friends")} />
+            <Stat icon="people-outline" value={figures?.friend_count} word="Friend" onPress={() => router.push("/profile/friends")} />
             <View style={[styles.rule, { backgroundColor: t.line }]} />
             <Stat icon="calendar-outline" value={figures?.shift_count} word="Shift" onPress={() => router.push("/work/timesheet")} />
           </View>
         </View>
-        <View style={styles.menu}>
-          <Text style={[styles.label, { color: t.muted }]}>YOUR SPACE</Text>
-          <FriendsPanel {...fold("friends")} />
-          <StatementPanel {...fold("statement")} />
-          <ActivityPanel {...fold("activity")} last />
-          <View style={[styles.divider, { backgroundColor: t.line }]} />
-          <ProfileRow icon="settings-outline" title="Settings" description="Appearance, privacy & account" onPress={() => router.push("/profile/settings")} testID="profile-settings" />
-        </View>
       </Card>
-      <ProfileRow icon="log-out-outline" title="Sign out" centred onPress={leave} testID="sign-out" />
+      {activity.error ? <ErrorBanner error={activity.error} onRetry={() => { void activity.refetch(); }} /> : null}
+      <ProfileGroup title={tr("Your space")}>
+        <ProfileRow icon="people-outline" title={tr("Friends")} description={tr("People, requests and connections")} onPress={() => router.push("/profile/friends")} testID="profile-friends" />
+        <ProfileRow icon="document-text-outline" title={tr("Statement")} description={tr("Download your hours and pay")} onPress={() => router.push("/profile/statement")} testID="profile-statement" />
+        <ProfileRow icon="pulse-outline" title={tr("Activity")} description={tr("Your work and community activity")} onPress={() => router.push("/profile/activity")} testID="profile-activity" />
+      </ProfileGroup>
+      <ProfileGroup title={tr("Preferences")}>
+        <ProfileRow icon="settings-outline" title={tr("Settings")} description={tr("Appearance, privacy & account")} onPress={() => router.push("/profile/settings")} testID="profile-settings" />
+      </ProfileGroup>
+      <ProfileRow icon="log-out-outline" title={tr("Sign out")} centred onPress={leave} testID="sign-out" />
       <Text style={[styles.since, { color: t.muted }]}>Member since {me.since}</Text>
       <Version />
     </Page>
@@ -107,8 +108,5 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: "600", letterSpacing: -.55, textAlign: "center", marginTop: 10, alignSelf: "stretch" },
   handle: { fontSize: 14, lineHeight: 20, textAlign: "center", alignSelf: "stretch" },
   edit: { position: "absolute", top: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18 },
-  menu: { paddingTop: 18, paddingBottom: 8 },
-  label: { fontSize: 10, fontWeight: "600", letterSpacing: 1.4, paddingHorizontal: 22, paddingBottom: 6 },
-  divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 22, marginTop: 8, marginBottom: 4 },
   since: { fontSize: 12, textAlign: "center", marginTop: -8 },
 });

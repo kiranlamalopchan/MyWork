@@ -9,9 +9,12 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { me as api } from "@/api";
 import { useSession } from "@/auth/session";
-import { Button, Card, Field, Input, Page, PageTitle, Screen } from "@/ui";
+import { Button, Card, ErrorBanner, Field, Input, Page, PageTitle, Screen } from "@/ui";
 import { fail, warn } from "@/ui/haptics";
 import { sp, useTheme } from "@/ui/theme";
+import { authenticateWithProvider, type SocialProvider } from "@/auth/social";
+import { errorMessage } from "@/api/errors";
+import { useT } from "@/i18n";
 
 const GOES = [
   "Your profile — name, contact details and photo",
@@ -23,22 +26,31 @@ const GOES = [
 
 export default function DeleteAccount() {
   const t = useTheme();
-  const { signOut } = useSession();
+  const { me, signOut } = useSession();
+  const tr = useT();
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
-  const go = async () => {
-    setError("");
+  const go = async (provider?: SocialProvider) => {
+    if (busy) return;
+    setError(null);
     setBusy(true);
     try {
       warn();
-      await api.deleteAccount(password);
+      let reauth: string | undefined;
+      if (provider) {
+        const result = await authenticateWithProvider(provider, "reauth");
+        if (!result) { setBusy(false); return; }
+        if (!("reauth_token" in result)) throw new Error("Unexpected authentication result");
+        reauth = result.reauth_token;
+      }
+      await api.deleteAccount(password, reauth);
       // The server has already forgotten us; this forgets the phone's side.
       await signOut();
     } catch (e: any) {
       fail();
-      setError(e?.message || "That couldn't be done.");
+      setError(e);
       setBusy(false);
     }
   };
@@ -60,10 +72,14 @@ export default function DeleteAccount() {
           </Text>
         </Card>
         <Card style={{ gap: sp[4] }}>
-          <Field label="Your password, to be sure" error={error}>
+          {me?.has_password !== false ? <Field label="Your password, to be sure" error={error ? errorMessage(error) : undefined}>
             <Input secureTextEntry value={password} onChangeText={setPassword} textContentType="password" autoComplete="current-password" testID="delete-password" />
-          </Field>
-          <Button title="Delete my account" icon="trash-outline" kind="danger" onPress={go} busy={busy} disabled={!password} testID="delete-confirm" />
+          </Field> : null}
+          {me?.has_password !== false ? <Button title="Delete my account" icon="trash-outline" kind="danger" onPress={() => { void go(); }} busy={busy} disabled={!password} testID="delete-confirm" /> : null}
+          {me?.social_providers?.map(provider => <Button key={provider}
+            title={tr(provider === "google" ? "Verify with Google and delete" : "Verify with Apple and delete")}
+            icon="trash-outline" kind="danger" onPress={() => { void go(provider); }} busy={busy} disabled={busy} testID={`delete-${provider}`} />)}
+          {error && me?.has_password === false ? <ErrorBanner error={error} /> : null}
         </Card>
       </Page>
     </Screen>

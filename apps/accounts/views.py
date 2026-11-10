@@ -167,6 +167,12 @@ def photo_remove(request):
 # name is worth typing for rather than scanning for.
 SEARCH_MIN_USERS = 12
 
+# How many of "Everyone else" are listed before a name is asked for. The
+# list is everybody you are not yet friends with, which on a growing site is
+# nearly everybody: a handful to start from, the search box for the rest,
+# and neither the server nor the phone carries a face per account.
+OTHERS_SHOWN = 5
+
 
 def _friends_context(user, query=""):
     """
@@ -194,21 +200,28 @@ def _friends_context(user, query=""):
     query = (query or "").strip()
     if query:
         people = people.filter(username__icontains=query)
-    people = list(people.select_related("profile").order_by("username"))
+    people = people.select_related("profile").order_by("username")
 
-    friend_list = [p for p in people if p.pk in friend_ids]
-    others = [
-        p for p in people
-        if p.pk not in friend_ids and p.pk not in pending_to and p.pk not in pending_from
-    ]
+    # Two queries, each for only the rows it will show — not every account
+    # read into memory to be sorted into piles.
+    friend_list = list(people.filter(pk__in=friend_ids))
+    strangers = people.exclude(pk__in=friend_ids | pending_to | pending_from)
+    others_total = strangers.count()
+    others = list(strangers[:OTHERS_SHOWN])
 
     return {
         "friends_received": received,
         "friends_sent": sent,
         "friend_list": friend_list,
         "friends_others": others,
+        "friends_others_total": others_total,
         "friends_query": query,
-        "friends_show_search": len(people) > SEARCH_MIN_USERS or bool(query),
+        # A list cut short must always come with the way to reach the rest.
+        "friends_show_search": (
+            bool(query)
+            or others_total > len(others)
+            or len(friend_list) + others_total > SEARCH_MIN_USERS
+        ),
     }
 
 

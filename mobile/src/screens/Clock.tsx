@@ -10,7 +10,9 @@ import { useRouter } from "expo-router";
 import { AnalogClock } from "@/ui/AnalogClock";
 import { Ionicons } from "@expo/vector-icons";
 
-import { timesheet, useClock, useTimesheetChanged, type ClockState } from "@/api";
+import { timesheet, useClock, useRoster, useTimesheetChanged, type ClockState } from "@/api";
+import { useT } from "@/i18n";
+import { errorMessage } from "@/api/errors";
 import { Button, Empty, ErrorBanner, Screen, useLayout, usePullRefresh } from "@/ui";
 import { ChoiceRail } from "@/ui/ChoiceRail";
 import { SkeletonClock } from "@/ui/Skeleton";
@@ -21,9 +23,11 @@ import { CashTallyCard, LimitBar, StatusPill } from "@/ui/timesheet";
 
 
 export default function Clock() {
-  const t = useTheme();
+  const t = useTheme(), tr = useT();
   const router = useRouter();
   const layout = useLayout();
+  // The next thing on the roster, under the dial.
+  const upcoming = useRoster().data?.mine[0];
   // The dial: as big as the column allows, never more than a hand's span.
   const DIAL = Math.round(Math.min(300, Math.max(220, layout.width - 2 * layout.gutter - 60)));
   const changed = useTimesheetChanged();
@@ -60,7 +64,7 @@ export default function Clock() {
       changed();
       if (next.finished) router.push(`/shifts/${next.finished}`);
     } catch (e: any) {
-      notify("The clock didn't move", e?.message || "Try again.");
+      notify(tr("The clock didn't move"), errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -72,20 +76,20 @@ export default function Clock() {
   const shift = shown.shift;
   const status = shift?.status ?? "IDLE";
   const now = Date.now() - skew;
-  let elapsed = 0, label = "Current time", sub = "", timeText = "";
+  let elapsed = 0, label = tr("Current time"), sub = "", timeText = "";
   if (shift && status === "ON_BREAK" && shift.running_break) {
     elapsed = Math.max(0, (now - Date.parse(shift.running_break.start)) / 1000);
-    label = "On break"; timeText = hms(elapsed); sub = `since ${shift.running_break.start_at}`;
+    label = tr("On break"); timeText = hms(elapsed); sub = tr("since {time}", { time: shift.running_break.start_at });
   } else if (shift) {
     const total = Math.max(0, (now - Date.parse(shift.clock_in)) / 1000);
     elapsed = Math.max(0, total - shift.banked_break_seconds);
-    label = "Worked"; timeText = hms(elapsed);
-    sub = `in since ${shift.in_at}${shift.total_break.seconds ? ` · ${shift.total_break.minutes} break` : ""}`;
+    label = tr("Worked"); timeText = hms(elapsed);
+    sub = tr("in since {time}", { time: shift.in_at }) + (shift.total_break.seconds ? ` · ${tr("{minutes} break", { minutes: shift.total_break.minutes })}` : "");
   } else {
     const d = new Date(now);
     timeText = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M$/i, "");
     const ampm = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).replace(/^[\d:]+\s?/, "");
-    sub = `${ampm ? `${ampm} · ` : ""}ready when you are`;
+    sub = `${ampm ? `${ampm} · ` : ""}${tr("ready when you are")}`;
   }
   const progress = shift ? Math.min(elapsed / (shown.target_hours * 3600), 1) : 0;
   const ring = status === "ON_BREAK" ? t.warn : status === "WORKING" ? t.brand : t.lineStrong;
@@ -98,20 +102,20 @@ export default function Clock() {
         {shown.workplaces.length === 0 ? (
           <Empty
             icon="home-outline"
-            title="Add a workplace first"
-            sub="You need somewhere to clock in at before the timer can start."
-            action={<Button title="Add workplace" icon="add" onPress={() => router.push("/workplaces/new")} />}
+            title={tr("Add a workplace first")}
+            sub={tr("You need somewhere to clock in at before the timer can start.")}
+            action={<Button title={tr("Add workplace")} icon="add" onPress={() => router.push("/workplaces/new")} />}
           />
         ) : (
           <>
             <View style={styles.head}>
-              <StatusPill status={status} label={shift ? shift.status_label : "Not started"} />
+              <StatusPill status={status} label={shift ? shift.status_label : tr("Not started")} />
               <Text style={{ color: t.muted, fontSize: 13 }}>{shown.today}</Text>
             </View>
             {shown.long_shift ? (
               <View style={[styles.alert, { backgroundColor: alpha(t.warn, 0.16), borderColor: alpha(t.warn, 0.45) }]}>
                 <Ionicons name="alert-circle-outline" size={18} color={t.warn} />
-                <Text style={{ color: t.warn, flex: 1, fontSize: 14, lineHeight: 20 }}>This shift has been running over {shown.target_hours} hours. If you forgot to clock out, edit the time after you do.</Text>
+                <Text style={{ color: t.warn, flex: 1, fontSize: 14, lineHeight: 20 }}>{tr("This shift has been running over {hours} hours. If you forgot to clock out, edit the time after you do.", { hours: shown.target_hours })}</Text>
               </View>
             ) : null}
 
@@ -127,30 +131,42 @@ export default function Clock() {
               <>
                 {shown.workplaces.length > 1 ? (
                   <View style={{ gap: sp[2] }}>
-                    <Text style={[styles.sectionLabel, { color: t.muted }]}>Where are you working?</Text>
-                    <ChoiceRail label="Clock workplace" bleed={layout.column.paddingLeft as number} value={selected ?? ""} onChange={setPicked} options={shown.workplaces.map(w => ({ value: w.id, label: `${w.name}${w.is_default ? " · Default" : ""}` }))} />
+                    <Text style={[styles.sectionLabel, { color: t.muted }]}>{tr("Where are you working?")}</Text>
+                    <ChoiceRail label="Clock workplace" bleed={layout.column.paddingLeft as number} value={selected ?? ""} onChange={setPicked} options={shown.workplaces.map(w => ({ value: w.id, label: `${w.name}${w.is_default ? ` · ${tr("Default")}` : ""}` }))} />
                   </View>
                 ) : (
                   <Where name={where} />
                 )}
-                <BigButton title="Clock in" icon="time-outline" kind="go" busy={busy} onPress={() => selected && act(() => timesheet.clockIn(selected))} testID="clock-in" />
+                <BigButton title={tr("Clock in")} icon="time-outline" kind="go" busy={busy} onPress={() => selected && act(() => timesheet.clockIn(selected))} testID="clock-in" />
               </>
             ) : status === "ON_BREAK" ? (
               <>
                 <Where name={where} />
-                <BigButton title="End break" icon="play" kind="go" busy={busy} onPress={() => act(timesheet.endBreak)} testID="end-break" />
+                <BigButton title={tr("End break")} icon="play" kind="go" busy={busy} onPress={() => act(timesheet.endBreak)} testID="end-break" />
               </>
             ) : (
               <>
                 <Where name={where} />
                 <View style={{ flexDirection: layout.compact ? "column" : "row", gap: sp[3] }}>
-                  <BigButton title="Break" icon="pause" kind="soft" busy={busy} onPress={() => act(timesheet.startBreak)} testID="start-break" style={layout.compact ? undefined : { flex: 1 }} />
-                  <BigButton title="Clock out" icon="stop" kind="stop" busy={busy} onPress={() => confirm("Clock out?", undefined, "Clock out", () => act(timesheet.clockOut), false)} testID="clock-out" style={layout.compact ? undefined : { flex: 1 }} />
+                  <BigButton title={tr("Break")} icon="pause" kind="soft" busy={busy} onPress={() => act(timesheet.startBreak)} testID="start-break" style={layout.compact ? undefined : { flex: 1 }} />
+                  <BigButton title={tr("Clock out")} icon="stop" kind="stop" busy={busy} onPress={() => confirm(tr("Clock out?"), undefined, tr("Clock out"), () => act(timesheet.clockOut), false)} testID="clock-out" style={layout.compact ? undefined : { flex: 1 }} />
                 </View>
               </>
             )}
             {shown.limit ? <LimitBar limit={shown.limit} /> : shown.tally ? <CashTallyCard tally={shown.tally} /> : null}
-            <Button title="Workplaces & hours restrictions" kind="plain" icon="settings-outline" onPress={() => router.push("/workplaces")} />
+            <Pressable onPress={() => router.push("/roster" as never)} accessibilityRole="button" testID="clock-roster"
+              accessibilityLabel={upcoming ? tr("Next shift: {day}, {time} at {place}", { day: upcoming.day, time: upcoming.time, place: upcoming.place }) : tr("Roster")}
+              style={({ pressed }) => [styles.next, { backgroundColor: t.surface, borderColor: t.line, opacity: pressed ? 0.8 : 1 }]}>
+              <Ionicons name="calendar-outline" size={20} color={t.brand} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.4 }}>{upcoming ? tr("NEXT SHIFT") : tr("ROSTER")}</Text>
+                <Text style={{ color: t.text, fontSize: 15, fontWeight: "600" }} numberOfLines={1}>
+                  {upcoming ? `${upcoming.day} · ${upcoming.time} · ${upcoming.place}` : tr("Add the shifts you have coming up")}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={t.muted} />
+            </Pressable>
+            <Button title={tr("Workplaces & hours restrictions")} kind="plain" icon="settings-outline" onPress={() => router.push("/workplaces")} />
           </>
         )}
       </WorkPage>
@@ -194,6 +210,7 @@ function BigButton({ title, icon, kind, onPress, busy, testID, style }: { title:
 
 const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: sp[3] },
+  next: { flexDirection: "row", alignItems: "center", gap: sp[3], paddingHorizontal: sp[4], minHeight: 60, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   alert: { flexDirection: "row", alignItems: "center", gap: sp[2], padding: sp[3], borderRadius: radius.md, borderWidth: 1 },
   dial: { alignItems: "center", justifyContent: "center", alignSelf: "center", marginVertical: sp[2] },
   disc: { position: "absolute", borderWidth: 1 },

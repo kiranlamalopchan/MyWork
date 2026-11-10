@@ -14,6 +14,7 @@ import type {
   Home, HolidayCard, Me, Notice, Notification, Page, PersonPage, PluItem, ReactionTally,
   Reactors, Story, StoryPerson, TrayRow, Visibility,
   BlockedPerson, ReportKind, ReportReason,
+  ChatMessage, ChatThread, ChatThreads, PayslipCheck, PlannedInput, RosterPage,
 } from "./types";
 
 export * from "./types";
@@ -22,6 +23,10 @@ export { ApiError } from "./client";
 // ---- auth --------------------------------------------------------------------
 
 export const auth = {
+  socialStart: (provider: "google" | "apple", challenge: string, purpose: "login" | "link" | "reauth" = "login") =>
+    api<{ url: string; return_url: string }>(`auth/social/${provider}/start/`, { method: "POST", body: { challenge, purpose }, anonymous: purpose === "login" }),
+  socialExchange: (code: string, verifier: string) =>
+    api<{ token: string; me: Me } | { reauth_token: string }>("auth/social/exchange/", { method: "POST", body: { code, verifier }, anonymous: true }),
   login: (username: string, password: string) =>
     api<{ token: string; me: Me }>("auth/login/", { method: "POST", body: { username, password }, anonymous: true }),
   register: (username: string, password: string, email = "") =>
@@ -55,7 +60,7 @@ export const me = {
       body: { old_password: current, new_password: next, new_password_again: again },
     }),
   /** The account and everything in it, behind the password. */
-  deleteAccount: (password: string) => api("me/", { method: "DELETE", body: { password } }),
+  deleteAccount: (password: string, socialReauth?: string) => api("me/", { method: "DELETE", body: { password, social_reauth: socialReauth } }),
 };
 
 export function useMe() {
@@ -349,6 +354,8 @@ export const timesheet = {
   removal: (id: number) => api<{ workplace: WorkplaceBrief; going: Going; clocked_in: boolean }>(`timesheet/workplaces/${id}/removal/`),
   removeWorkplace: (id: number) => api<{ removed: Going }>(`timesheet/workplaces/${id}/`, { method: "DELETE" }),
   makeDefault: (id: number) => api<Workplace>(`timesheet/workplaces/${id}/default/`, { method: "POST" }),
+  /** A payslip against the hours logged for its dates. Nothing is saved. */
+  checkPayslip: (payslip: FilePart, workplace?: number | "") => api<PayslipCheck>("timesheet/payslip/check/", { method: "POST", form: formWith({ payslip, workplace }) }),
   readPayslip: (payslip: FilePart) => api<PayslipRead>("timesheet/workplaces/payslip/", { method: "POST", form: formWith({ payslip }) }),
   savePreferences: (input: Omit<Cycles, "week_label" | "fortnight_hint">) => api<Cycles>("timesheet/preferences/", { method: "PUT", body: input }),
   pay: () => api<PayPage>("timesheet/pay/"),
@@ -411,4 +418,61 @@ export function useTimesheetChanged() {
       client.invalidateQueries({ queryKey: [key] });
     }
   };
+}
+
+// ---- the roster ---------------------------------------------------------------
+
+export const roster = {
+  page: () => api<RosterPage>("roster/"),
+  add: (input: PlannedInput) => api<RosterPage>("roster/", { method: "POST", body: input }),
+  edit: (id: number, input: Partial<PlannedInput>) => api<RosterPage>(`roster/${id}/`, { method: "PATCH", body: input }),
+  remove: (id: number) => api<RosterPage>(`roster/${id}/`, { method: "DELETE" }),
+  /** Put your shift up for a friend to take, or take it back. */
+  offer: (id: number) => api<RosterPage>(`roster/${id}/offer/`, { method: "POST" }),
+  withdraw: (id: number) => api<RosterPage>(`roster/${id}/offer/`, { method: "DELETE" }),
+  take: (id: number) => api<RosterPage>(`roster/${id}/take/`, { method: "POST" }),
+};
+
+export function useRoster() {
+  return useQuery({ queryKey: ["roster"], queryFn: roster.page, staleTime: 15_000 });
+}
+
+/** After the roster changes: put the answer straight into the cache, so the list and the alarms follow at once. */
+export function useRosterChanged() {
+  const client = useQueryClient();
+  return (page?: RosterPage) => {
+    if (page) client.setQueryData(["roster"], page);
+    else client.invalidateQueries({ queryKey: ["roster"] });
+  };
+}
+
+// ---- messages -----------------------------------------------------------------
+
+export const chat = {
+  threads: () => api<ChatThreads>("messages/"),
+  unread: () => api<{ unread: number }>("messages/unread/"),
+  thread: (username: string, before?: number) => api<ChatThread>(`messages/${encodeURIComponent(username)}/`, { query: { before } }),
+  send: (username: string, body: string) => api<ChatMessage>(`messages/${encodeURIComponent(username)}/`, { method: "POST", body: { body } }),
+};
+
+export function useChatThreads() {
+  return useQuery({ queryKey: ["chat"], queryFn: chat.threads, staleTime: 10_000, refetchInterval: 30_000 });
+}
+
+export function useChatUnread() {
+  return useQuery({ queryKey: ["chat-unread"], queryFn: chat.unread, staleTime: 20_000, refetchInterval: 60_000 });
+}
+
+/** The open conversation asks again every few seconds: there is no socket, and a reply should not wait for a pull. */
+export function useChatThread(username: string, focused = true) {
+  return useQuery({ queryKey: ["chat", username], queryFn: () => chat.thread(username), enabled: focused, refetchInterval: focused ? 5_000 : false });
+}
+
+/** After a message is sent or read: the list of conversations and the unread count (not the open thread, which asks for itself). */
+export function useChatChanged() {
+  const client = useQueryClient();
+  return useCallback(() => {
+    client.invalidateQueries({ queryKey: ["chat"], exact: true });
+    client.invalidateQueries({ queryKey: ["chat-unread"] });
+  }, [client]);
 }

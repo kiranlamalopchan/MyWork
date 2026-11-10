@@ -13,6 +13,7 @@ import { useMore } from "@/api";
 import { useSession } from "@/auth/session";
 import { Card, ErrorBanner, MenuRow, PageTitle, Screen, SectionLabel, useLayout, usePullRefresh } from "@/ui";
 import { sp, useTheme } from "@/ui/theme";
+import { useT } from "@/i18n";
 
 type Way = {
   key: string;
@@ -26,7 +27,7 @@ type Way = {
 };
 
 export default function More() {
-  const t = useTheme();
+  const t = useTheme(), tr = useT();
   const router = useRouter();
   const { wide } = useLayout();
   const { me } = useSession();
@@ -39,18 +40,26 @@ export default function More() {
   const owed = d?.unpaid_total.seconds ? d.unpaid_total.hm : undefined;
   const ways: Way[] = [
     {
-      key: "shift", icon: "time", title: "Add a past shift", tint: t.violet,
-      sub: "For a day you forgot to clock in", to: "/shifts/new", testID: "more-add-shift",
+      key: "roster", icon: "calendar", title: tr("Roster"), tint: t.teal,
+      sub: tr("Shifts to come, reminders, and cover from friends"), to: "/roster", testID: "more-roster",
     },
     {
-      key: "pay", icon: "cash", title: "Pay", tint: t.orange, value: owed,
-      sub: d ? (owed ? "Owed across your jobs" : "Nothing outstanding") : "What you are owed",
+      key: "payslip", icon: "document-text", title: tr("Check a payslip"), tint: t.pink,
+      sub: tr("Were you paid for every hour you logged?"), to: "/payslip-check", testID: "more-payslip-check",
+    },
+    {
+      key: "shift", icon: "time", title: tr("Add a past shift"), tint: t.violet,
+      sub: tr("For a day you forgot to clock in"), to: "/shifts/new", testID: "more-add-shift",
+    },
+    {
+      key: "pay", icon: "cash", title: tr("Pay"), tint: t.orange, value: owed,
+      sub: d ? (owed ? tr("Owed across your jobs") : tr("Nothing outstanding")) : tr("What you are owed"),
       to: "/pay", testID: "more-pay",
     },
     {
-      key: "places", icon: "business", title: "Workplaces", tint: t.blue,
+      key: "places", icon: "business", title: tr("Workplaces"), tint: t.blue,
       value: d?.workplace_count ? String(d.workplace_count) : undefined,
-      sub: d && !d.workplace_count ? "Add the places you work" : "Rates, caps and cycles",
+      sub: d && !d.workplace_count ? tr("Add the places you work") : tr("Rates, caps and cycles"),
       to: "/workplaces", testID: "more-workplaces",
     },
   ];
@@ -59,9 +68,9 @@ export default function More() {
     <Screen section="Work">
       <WorkPage refreshControl={refresh}>
         <WorkNavigation active="settings" />
-        <PageTitle sub={`Rates, hours restrictions and workplaces for ${me?.username ?? "you"}`}>Work settings</PageTitle>
+        <PageTitle sub={tr("Rates, hours restrictions and workplaces for {name}", { name: me?.username ?? tr("you") })}>{tr("Work settings")}</PageTitle>
         {q.error ? <ErrorBanner error={q.error} onRetry={q.refetch} /> : null}
-        <SectionLabel>Manage your work</SectionLabel>
+        <SectionLabel>{tr("Manage your work")}</SectionLabel>
         {wide ? (
           <View style={styles.grid}>
             {ways.map((w) => (

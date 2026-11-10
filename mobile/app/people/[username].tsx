@@ -6,7 +6,7 @@
  */
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { safety, usePerson, useSafetyChanged } from "@/api";
@@ -19,6 +19,7 @@ import { sp, useTheme } from "@/ui/theme";
 
 export default function PersonScreen() {
   const t = useTheme();
+  const router = useRouter();
   const { username } = useLocalSearchParams<{ username: string }>();
   const q = usePerson(username);
   const changed = useSafetyChanged();
@@ -67,6 +68,7 @@ export default function PersonScreen() {
                 </Card>
               ) : (
                 <View style={styles.safetyRow}>
+                  {q.data.can_message ? <Button title="Message" size="sm" icon="mail-outline" onPress={() => router.push(`/messages/${encodeURIComponent(q.data!.person.username)}` as never)} testID="person-message" /> : null}
                   <Button title="Report" size="sm" kind="plain" icon="flag-outline" onPress={() => setReporting({ kind: "user", id: q.data!.id, username: q.data!.person.username })} testID="person-report" />
                   <Button title="Block" size="sm" kind="danger" icon="ban-outline" onPress={block} busy={busy} testID="person-block" />
                 </View>

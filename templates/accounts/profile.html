@@ -232,7 +232,7 @@
     <details class="subfold" data-remember="friends-others"{% if friends_query %} open{% endif %}>
     <summary class="subfold__head">
       <span class="section-label">Everyone else</span>
-      {% if not friends_query %}<span class="subfold__count">{{ friends_others|length }}</span>{% endif %}
+      {% if not friends_query %}<span class="subfold__count">{{ friends_others_total }}</span>{% endif %}
       {% icon "chev-down" class="subfold__chev" width="2.2" %}
     </summary>
     <div class="subfold__body">
@@ -267,6 +267,9 @@
           </li>
         {% endfor %}
       </ul>
+      {% if friends_others_total > friends_others|length %}
+        <p class="friend-row__sub" style="margin-top: var(--sp-2)">Showing {{ friends_others|length }} of {{ friends_others_total }}. Search by username to find someone.</p>
+      {% endif %}
     {% else %}
       <div class="empty">
         <div class="empty__icon">{% icon "search" width="1.8" %}</div>

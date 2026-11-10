@@ -12,11 +12,13 @@ import { forgetPushToken, registerForPush } from "@/push/register";
 
 import { armBiometric, biometricUser, disarmBiometric } from "./biometric";
 import { getToken, onTokenChange, setToken } from "./token";
+import { authenticateWithProvider, type SocialProvider } from "./social";
 
 type Session = {
   ready: boolean;
   me: Me | null;
   signIn: (username: string, password: string) => Promise<void>;
+  signInWithSocial: (provider: SocialProvider, purpose?: "login" | "link") => Promise<Me | null>;
   /** With a token the phone's lock has just released (see auth/biometric). */
   signInWithToken: (token: string) => Promise<void>;
   register: (username: string, password: string, email?: string) => Promise<void>;
@@ -88,11 +90,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   // once the keychain has been read, so a start doesn't wipe it first.
   useEffect(() => { if (ready) saveLastMe(me); }, [ready, me]);
 
+  const updateMe = useCallback((next: Me) => {
+    setMe(next);
+    client.setQueryData(["me"], next);
+    // Home and the other social screens keep copies of each person's face.
+    // A saved photo (including removal) must refresh those copies as well.
+    for (const key of ["home", "board", "notice", "person", "friends", "stories", "inbox", "chat"]) {
+      void client.invalidateQueries({ queryKey: [key] });
+    }
+  }, [client]);
+
   const value = useMemo<Session>(
     () => ({
       ready,
       me,
       signIn: async (username, password) => signedIn(await auth.login(username, password)),
+      signInWithSocial: async (provider, purpose = "login") => {
+        const result = await authenticateWithProvider(provider, purpose);
+        if (!result) return null;
+        if (!("token" in result)) throw new ApiError(400, "Please restart sign-in and try again.");
+        await signedIn(result);
+        return result.me;
+      },
       signInWithToken: async (token) => {
         client.clear();
         await setToken(token);
@@ -126,10 +145,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setMe(null);
         client.clear();
       },
-      refresh: async () => setMe(await meApi.get()),
-      setMe,
+      refresh: async () => updateMe(await meApi.get()),
+      setMe: updateMe,
     }),
-    [ready, me, signedIn, client]
+    [ready, me, signedIn, client, updateMe]
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

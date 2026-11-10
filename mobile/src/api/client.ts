@@ -20,6 +20,7 @@ export class ApiError extends Error {
    * its words from this rather than from the message.
    */
   offline: boolean;
+  request?: { method: string; path: string; id: string };
   constructor(status: number, detail: string, fields: Record<string, string[]> = {}, offline = false) {
     super(detail);
     this.status = status;
@@ -130,7 +131,13 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
   for (const [key, value] of Object.entries(options.query || {})) {
     if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
   }
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const request = { method: options.method || "GET", path: url.pathname, id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}` };
+  const refused = (status: number, detail: string, fields: Record<string, string[]> = {}, offline = false) => {
+    const error = new ApiError(status, detail, fields, offline);
+    error.request = request;
+    return error;
+  };
+  const headers: Record<string, string> = { Accept: "application/json", "X-Request-ID": request.id };
   const tz = timezone();
   if (tz) headers["X-Timezone"] = tz;
   let requestToken: string | null = null;
@@ -138,7 +145,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
     requestToken = await getToken();
     // Signed out: nothing to ask with. A screen that renders for a frame
     // before the sign-in guard has run shouldn't cost a request.
-    if (!requestToken) throw new ApiError(401, "Sign in first.");
+    if (!requestToken) throw refused(401, "Sign in first.");
     headers.Authorization = `Token ${requestToken}`;
   }
   let body: BodyInit | undefined;
@@ -157,7 +164,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
     // The sentence is kept for anywhere that still shows one — the sign-in
     // screen, where a wrong server address is the likely cause. Ordinary
     // screens show ErrorBanner's drawing instead and never print it.
-    throw new ApiError(
+    throw refused(
       0,
       `Couldn't reach ${serverUrl()}${why ? ` (${why.toLowerCase()})` : ""}. Check the connection — or the server address on the sign-in screen.`,
       {},
@@ -179,7 +186,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
   // screen can use, whatever its status says.
   const type = response.contentType;
   if (!parsed && !/json/i.test(type) && (response.ok || response.status === 404)) {
-    throw new ApiError(response.status, `${serverUrl()} doesn't have the KaamKoRecord app API. Update the site there, or change the server address on the sign-in screen.`);
+    throw refused(response.status, `${serverUrl()} doesn't have the KaamKoRecord app API. Update the site there, or change the server address on the sign-in screen.`);
   }
   if (!response.ok) {
     if (response.status === 401 && requestToken) await signOutEverywhere(requestToken);
@@ -188,7 +195,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
       (response.status >= 500
         ? `The server hit an error (HTTP ${response.status}).`
         : `That couldn't be done (HTTP ${response.status}).`);
-    throw new ApiError(response.status, String(detail), (data && data.fields) || {});
+    throw refused(response.status, String(detail), (data && data.fields) || {});
   }
   return data as T;
 }

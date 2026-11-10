@@ -1,12 +1,13 @@
 /** "Are you sure?" — the phone's own alert. */
-import { Alert } from "react-native";
+import { ActionSheetIOS, Alert, Platform } from "react-native";
 
 import { fail, success, warn } from "./haptics";
+import { tr } from "@/i18n";
 
 export function confirm(title: string, message: string | undefined, action: string, onYes: () => void, destructive = true): void {
   if (destructive) warn();
   Alert.alert(title, message, [
-    { text: "Cancel", style: "cancel" },
+    { text: tr("Cancel"), style: "cancel" },
     { text: action, style: destructive ? "destructive" : "default", onPress: onYes },
   ]);
 }
@@ -39,4 +40,25 @@ export function ask(title: string, message: string | undefined, action: string, 
       { text: action, onPress: () => resolve(true) },
     ], { cancelable: true, onDismiss: () => resolve(false) });
   });
+}
+
+export type Choice = { label: string; destructive?: boolean; onPress: () => void };
+
+/**
+ * A short list of things to do, as the phone's own sheet: the action sheet
+ * that slides up on an iPhone, the system dialog on Android (which holds
+ * three buttons, so three choices at most). The phone closes its own sheet
+ * before the choice runs, so a choice may open the camera or the library.
+ */
+export function choose(title: string, choices: Choice[]): void {
+  if (Platform.OS === "ios") {
+    const destructive = choices.findIndex(c => c.destructive);
+    ActionSheetIOS.showActionSheetWithOptions({
+      options: [...choices.map(c => c.label), tr("Cancel")],
+      cancelButtonIndex: choices.length,
+      destructiveButtonIndex: destructive < 0 ? undefined : destructive,
+    }, index => choices[index]?.onPress());
+    return;
+  }
+  Alert.alert(title, undefined, choices.map(c => ({ text: c.label, style: c.destructive ? "destructive" as const : "default" as const, onPress: c.onPress })), { cancelable: true });
 }

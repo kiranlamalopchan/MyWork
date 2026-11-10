@@ -20,7 +20,7 @@ from apps.timeclock.notify import run_all
 
 
 class Command(BaseCommand):
-    help = "Raise timesheet reminders: forgotten clock-outs and hours caps."
+    help = "Raise timesheet reminders: forgotten clock-outs, hours caps and completed pay-period summaries."
 
     def add_arguments(self, parser):
         parser.add_argument(

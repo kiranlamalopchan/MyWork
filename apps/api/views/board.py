@@ -168,6 +168,11 @@ class CommentReactors(APIView):
         return Response(serialize.reactors(request, comment, request.user))
 
 
+def _can_message(me, them):
+    from apps.chat.models import Message
+    return Message.can_talk(me, them)
+
+
 class Person(APIView):
     """Somebody's page: who they are on the board and what they have posted."""
 
@@ -186,6 +191,8 @@ class Person(APIView):
             "id": user.pk,
             "person": serialize.person(request, user, request.user),
             "blocked": blocked,
+            # Friends, and no block either way: the Message button's condition.
+            "can_message": _can_message(request.user, user),
             "since": user.date_joined.strftime("%-d %b %Y"),
             "notice_count": user.notice_count,
             "comment_count": user.comment_count,

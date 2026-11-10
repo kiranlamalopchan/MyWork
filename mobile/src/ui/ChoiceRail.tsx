@@ -18,7 +18,7 @@ export function ChoiceRail<T extends string | number>({ value, onChange, options
   value: T | ""; onChange: (value: T) => void; options: RailOption<T>[]; label?: string; variant?: "chips" | "segments"; style?: ViewStyle; animated?: boolean; bleed?: number;
 }) {
   const t = useTheme(), reduced = useReducedMotion();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const sizes = useRef(new Map<T, { x: number; width: number }>());
   const viewport = useRef(0), offset = useRef(0);
   const segmented = variant === "segments";

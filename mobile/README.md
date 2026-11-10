@@ -59,7 +59,7 @@ The shared screens use the website's calm grey (or charcoal) ground
 fields, pill buttons, colour-coded icon tiles, a deep-green hero for the
 next holiday and the week's pay, the app bar with the logo and
 page-specific actions (`src/ui/AppBar.tsx`), a saved appearance setting in
-Profile (`src/ui/AppearanceSetting.tsx`), and the tokens in `src/ui/theme.ts`. It fits the screen it
+Profile → Settings → Appearance (`src/ui/AppearanceSetting.tsx`), and the tokens in `src/ui/theme.ts`. It fits the screen it
 is on: `useLayout()` (`src/ui/layout.ts`) gives every screen its gutter,
 safe-area insets and screen class — tighter on a narrow Android phone
 (tiles become rows, the dial shrinks, the clock buttons stack), a centred
@@ -92,7 +92,7 @@ show/hide eye) — the lock is asked only when that is pressed. A token the serv
 has forgotten drops the lock and asks for the password once more.
 Returning to a signed-in session after locking the phone or switching apps
 does not require another app unlock.
-The app's Dark mode switch is in Profile and is saved independently of the
+The app's Dark mode switch is in Profile → Settings → Appearance and is saved independently of the
 website's appearance setting. Dark mode uses a pure black page background, charcoal cards and light text. Light-mode cards remain soft green. Workplace Pay cards retain their own colours.
 Installed release builds include their own screen styles; mobile style changes
 require a new mobile build to be installed, even after the website is updated.
@@ -133,6 +133,9 @@ the typed calls and react-query hooks, `src/auth` the token and session,
 site's own colours) and the shared pieces.
 
 ## Publishing
+
+Google and Apple sign-in setup is documented in [social-sign-in.md](../docs/social-sign-in.md).
+Provider credentials belong on Django. Test these flows in an installed build.
 
 `eas build --profile production --platform all` creates store-signed builds.
 Production uses the live API and increments the remote build numbers.

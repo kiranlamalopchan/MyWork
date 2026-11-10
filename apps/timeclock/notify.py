@@ -19,6 +19,7 @@ same words it prints. A reminder that disagreed with the screen it is telling
 you to go and look at would be worse than no reminder.
 """
 
+import zoneinfo
 from datetime import timedelta
 
 from django.urls import reverse
@@ -27,8 +28,14 @@ from django.utils import timezone
 from apps.notifications.models import Kind
 from apps.notifications.notify import notify
 
-from .models import Shift, Workplace
+from .models import PayCycle, Shift, Workplace, pay_total
 from .views import _limit_for, hm_words
+
+# Not before this hour of the person's own morning: a summary of the pay
+# period is something to read over breakfast, not to be woken by at midnight
+# on the stroke of payday.
+PAYDAY_HOUR = 8
+PAYDAY_ONCE = timedelta(days=3)
 
 # How long a shift has to have been running before being still clocked in
 # looks like a forgotten clock-out rather than a long day. Well past a normal
@@ -133,7 +140,88 @@ def limit_reminders(today=None):
     return made
 
 
-def run_all(now=None):
-    """Both reminders, which is what the scheduled task runs."""
+def _their_now(user, now):
+    """`now` on the clock of whoever is being told, where the app knows it."""
+    name = getattr(getattr(user, "time_pref", None), "timezone_name", "") or ""
+    try:
+        return now.astimezone(zoneinfo.ZoneInfo(name)) if name else timezone.localtime(now)
+    except Exception:
+        return timezone.localtime(now)
+
+
+def payday_summaries(now=None):
+    """
+    After a period closes, what it came to: hours, what should land, and how it
+    compares with the period before.
+
+    Only jobs that pay on a cycle have a payday to speak of, and only a
+    period with hours in it is worth a line. Once per job per period — the
+    key is the period's end — so however many sweeps pass over payday, it is
+    said once. The figures are `pay_total`'s, the same ones the Pay page
+    shows, so the line and the page it opens agree to the cent.
+    """
     now = now or timezone.now()
-    return open_shift_reminders(now) + limit_reminders(timezone.localdate())
+    made = []
+
+    workplaces = (
+        Workplace.objects.exclude(pay_cycle=PayCycle.IRREGULAR)
+        .select_related("user", "user__profile", "user__time_pref")
+        .prefetch_related("payments")
+    )
+
+    for workplace in workplaces:
+        if not workplace.pays_on_a_cycle:
+            continue
+        theirs = _their_now(workplace.user, now)
+        if theirs.hour < PAYDAY_HOUR:
+            continue
+        # The dates are the person's own: activate their zone for the sums.
+        with timezone.override(theirs.tzinfo):
+            today = theirs.date()
+            # Wait until the following morning: sending at 8am on the last
+            # day would omit everybody working later that same day.
+            start, end = workplace.pay_window(today - timedelta(days=1))
+            if end != today:
+                continue
+            shifts = [s for s in workplace.shifts_between(start, end) if not s.is_open]
+            worked = sum((s.worked_duration for s in shifts), timedelta())
+            if not worked:
+                continue
+            before = sum(
+                (s.worked_duration for s in workplace.shifts_between(*workplace.pay_window(start - timedelta(days=1))) if not s.is_open),
+                timedelta(),
+            )
+            total = pay_total(shifts)
+
+        parts = [f"{hm_words(worked)} this {workplace.pay_cycle_label}"]
+        if total is not None:
+            parts.append(f"about ${total.net:,.2f} to come" if total.tax else f"${total.gross:,.2f} to come")
+        if before:
+            gap = worked - before
+            if abs(gap) >= timedelta(minutes=15):
+                parts.append(f"{hm_words(abs(gap))} {'more' if gap > timedelta() else 'less'} than last {workplace.pay_cycle_label}")
+            else:
+                parts.append(f"the same as last {workplace.pay_cycle_label}")
+
+        notification = notify(
+            workplace.user,
+            Kind.TIMESHEET,
+            f"Payday at {workplace.name}",
+            body=" · ".join(parts) + ".",
+            url=reverse("timeclock:payments"),
+            dedupe_key=f"timesheet:payday:{workplace.pk}:{end}",
+            # One line, said once: the sweep passes over payday dozens of
+            # times, and a window longer than the day keeps every pass after
+            # the first to a quiet rewrite, read or not.
+            renotify_after=PAYDAY_ONCE,
+        )
+        if notification is not None:
+            made.append(notification)
+
+    return made
+
+
+def run_all(now=None):
+    """Every reminder, which is what the scheduled task runs."""
+    now = now or timezone.now()
+    return open_shift_reminders(now) + limit_reminders(timezone.localdate(now)) + payday_summaries(now)

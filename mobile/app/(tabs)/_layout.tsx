@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
-import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/native-tabs";
 
 import { useUnread } from "@/api";
 import { setBadge } from "@/push/register";
 import { useTheme } from "@/ui/theme";
+import { useT } from "@/i18n";
 
 const TABS = [
   { name: "(home)", title: "Home", sf: { default: "house", selected: "house.fill" }, md: "home" },
@@ -15,7 +16,7 @@ const TABS = [
 ] as const;
 
 export default function TabsLayout() {
-  const t = useTheme();
+  const t = useTheme(), tr = useT();
   // The number on the app's icon follows the inbox wherever you are.
   const unread = useUnread().data?.unread ?? 0;
   useEffect(() => { setBadge(unread); }, [unread]);
@@ -35,7 +36,7 @@ export default function TabsLayout() {
     >
       {TABS.map((tab) => (
         <NativeTabs.Trigger key={tab.name} name={tab.name}>
-          <NativeTabs.Trigger.Label>{tab.title}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label>{tr(tab.title)}</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={tab.sf} md={tab.md} />
           {tab.name === "alerts" && unread > 0 ? <NativeTabs.Trigger.Badge>{badge}</NativeTabs.Trigger.Badge> : null}
         </NativeTabs.Trigger>

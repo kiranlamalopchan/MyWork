@@ -2,7 +2,10 @@
   "expo": {
     "name": "KaamKoRecord",
     "slug": "mywork",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "version": "1.4.0",
     "scheme": "mywork",
     "orientation": "default",
@@ -68,9 +71,6 @@
       [
         "expo-build-properties",
         {
-          "ios": {
-            "enableSceneSupport": true
-          },
           "android": {
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
@@ -89,7 +89,33 @@
             "backgroundColor": "#121c2d"
           }
         }
-      ]
+      ],
+      [
+        "expo-widgets",
+        {
+          "enableAndroid": true,
+          "widgets": [
+            {
+              "name": "WorkClock",
+              "displayName": "Work clock",
+              "description": "Your running shift and next rostered shift. Open the clock to clock in, take a break or clock out.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ],
+                "initialLayout": "./src/widgets/WorkWidget.ios.tsx"
+              },
+              "android": {
+                "targetCellWidth": 4,
+                "targetCellHeight": 2,
+                "initialLayout": "./src/widgets/WorkWidget.android.tsx"
+              }
+            }
+          ]
+        }
+      ],
+      "./plugins/with-work-widget"
     ],
     "experiments": {
       "typedRoutes": true

@@ -16,14 +16,16 @@ const mockNotifications = {
   addNotificationResponseReceivedListener: jest.fn(),
 };
 const mockBadge = jest.fn(async (_count: number) => {});
+const mockNotify = jest.fn();
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
 jest.mock("@/api/client", () => ({ api: jest.fn() }));
 jest.mock("@/push/register", () => ({ notifications: () => mockNotifications, setBadge: (n: number) => mockBadge(n) }));
+jest.mock("@/ui/confirm", () => ({ notify: (...args: unknown[]) => mockNotify(...args) }));
 
 function response(id = "push-1", url: unknown = "/notifications/123/go/"): NotificationResponse {
-  return { actionIdentifier: "tap", notification: { date: 1, request: { identifier: id, trigger: null, content: { title: "Notice", subtitle: null, body: null, sound: null, categoryIdentifier: null, data: { url } } } } };
+  return { actionIdentifier: "tap", notification: { date: 1, request: { identifier: id, trigger: null, content: { title: "Notice", subtitle: null, body: null, sound: null, categoryIdentifier: null, threadIdentifier: null, data: { url } } } } };
 }
 
 let listener: (response: NotificationResponse) => void;
@@ -114,5 +116,46 @@ test("a delayed older tap cannot replace the destination of a newer tap", async 
   await act(async () => { first({ url: "/stories/sam/", unread: 0 }); });
   expect(router.push).toHaveBeenCalledTimes(1);
   expect(openBrowserAsync).not.toHaveBeenCalled();
+  await hook.unmount();
+});
+
+test.each([["clock-out", "clock-out"], ["start-break", "break/start"], ["end-break", "break/end"]])("the lock-screen %s action updates the clock once", async (action, path) => {
+  jest.mocked(api).mockResolvedValueOnce({ shift: { id: 42 } }).mockResolvedValueOnce({});
+  const hook = await setup();
+  const tap = response("clock-status", "/timesheet/");
+  tap.actionIdentifier = action;
+  tap.notification.request.content.data = { ...tap.notification.request.content.data, shiftId: 42 };
+  await act(async () => { listener(tap); });
+  await waitFor(() => expect(router.push).toHaveBeenCalledWith("/clock"));
+  await act(async () => { listener(tap); });
+  expect(api).toHaveBeenCalledTimes(2);
+  expect(api).toHaveBeenCalledWith(`timesheet/${path}/`, expect.objectContaining({ method: "POST" }));
+  await hook.unmount();
+});
+
+test("a failed lock-screen action gives safe guidance and opens the clock for retry", async () => {
+  const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+  jest.mocked(api).mockRejectedValueOnce(new TypeError("NativeClock.swift:99"));
+  const hook = await setup();
+  const tap = response("clock-status", "/timesheet/");
+  tap.actionIdentifier = "clock-out";
+  tap.notification.request.content.data = { ...tap.notification.request.content.data, shiftId: 42 };
+  await act(async () => { listener(tap); });
+  await waitFor(() => expect(mockNotify).toHaveBeenCalledWith("The clock didn't move", "Something went wrong. Please try again."));
+  expect(router.push).toHaveBeenCalledWith("/clock");
+  await hook.unmount();
+  warn.mockRestore();
+});
+
+test("an old lock-screen button cannot clock out a different shift", async () => {
+  jest.mocked(api).mockResolvedValueOnce({ shift: { id: 99 } });
+  const hook = await setup();
+  const tap = response("clock-status", "/timesheet/");
+  tap.actionIdentifier = "clock-out";
+  tap.notification.request.content.data = { ...tap.notification.request.content.data, shiftId: 42 };
+  await act(async () => { listener(tap); });
+  await waitFor(() => expect(router.push).toHaveBeenCalledWith("/clock"));
+  expect(api).toHaveBeenCalledTimes(1);
+  expect(api).toHaveBeenCalledWith("timesheet/clock/", { query: { workplace: undefined } });
   await hook.unmount();
 });

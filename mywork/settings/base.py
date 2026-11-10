@@ -44,6 +44,10 @@ LOCAL_APPS = [
     # Blocking people and reporting posts — what a shared wall owes the
     # people on it, and what the app stores require of one.
     'apps.moderation',
+    # The roster: shifts you are due to work, and handing one to a friend.
+    'apps.roster',
+    # Messages between friends, one to one.
+    'apps.chat',
     # Australian public holidays — the card on the hub, and the API the
     # mobile app reads it from.
     'apps.holidays',
@@ -64,6 +68,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 
 MIDDLEWARE = [
+    'apps.api.observability.RequestIDMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

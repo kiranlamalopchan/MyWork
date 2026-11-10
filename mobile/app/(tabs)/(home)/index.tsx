@@ -2,9 +2,9 @@
  * Home brings together stories, notices, daily extras and holidays.
  * Item search and work tools are reached through the native tab bar.
  */
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useHome, type HolidayCard } from "@/api";
@@ -27,6 +27,8 @@ export default function Home() {
   const router = useRouter();
   const { me } = useSession();
   const { data, isLoading, error, refetch } = useHome();
+  // A friend may have changed their photo while this tab was in the background.
+  useFocusEffect(useCallback(() => { void refetch(); }, [refetch]));
   const refresh = usePullRefresh(refetch);
   const layout = useLayout();
   const desk = layout.desk;

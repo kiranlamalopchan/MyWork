@@ -6,11 +6,15 @@ import Board from "../../app/board";
 import { NoticeCard } from "@/ui/NoticeCard";
 
 const mockPush = jest.fn(), mockChanged = jest.fn(), mockFetchNext = jest.fn();
-jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
+const mockHomeRefetch = jest.fn();
+let mockFocused = true;
+jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }),
+  useFocusEffect: (callback: any) => require("react").useEffect(() => mockFocused ? callback() : undefined, [callback, mockFocused]),
+}));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/auth/session", () => ({ useSession: () => ({ me: { username: "alice" } }) }));
 jest.mock("@/api", () => ({
-  useHome: () => ({ data: { notices: mockNotices, notice_total: 4, stories: [], holiday: { holiday: null } }, refetch: jest.fn() }),
+  useHome: () => ({ data: { notices: mockNotices, notice_total: 4, stories: [], holiday: { holiday: null } }, refetch: mockHomeRefetch }),
   useBoard: () => ({ data: { pages: [{ results: mockNotices, count: 4 }] }, refetch: jest.fn(), hasNextPage: true, fetchNextPage: mockFetchNext }),
   useBoardChanged: () => mockChanged,
   useSafetyChanged: () => jest.fn(),
@@ -49,7 +53,18 @@ const mockNotices: Notice[] = Array.from({ length: 4 }, (_, index) => ({
   author: { username: "alice", name: "Alice", initial: "A", hue: 40, photo: null, is_live: false, is_me: true, is_admin: false },
   comments: [], comment_total: 0, older_comments: 0, my_emoji: "", total_reactions: 0, reactions: [], who_reacted: "",
 }));
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => { jest.clearAllMocks(); mockFocused = true; });
+
+test("returning to Home refreshes people and their uploaded profile photos", async () => {
+  const screen = await render(<Home />);
+  expect(mockHomeRefetch).toHaveBeenCalledTimes(1);
+  mockFocused = false;
+  await screen.rerender(<Home />);
+  expect(mockHomeRefetch).toHaveBeenCalledTimes(1);
+  mockFocused = true;
+  await screen.rerender(<Home />);
+  expect(mockHomeRefetch).toHaveBeenCalledTimes(2);
+});
 
 test("Home shows two read-only previews, unfolds the rest and opens a conversation natively", async () => {
   const screen = await render(<Home />);
@@ -80,7 +95,8 @@ test("Edit is only in the overflow menu and keeps the existing native editor", a
   expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
   await fireEvent.press(screen.getByRole("menuitem", { name: "Edit" }));
-  await fireEvent.changeText(screen.getByTestId("notice-editor"), "Updated notice");
+  // The menu leaves first, then the action runs.
+  await fireEvent.changeText(await screen.findByTestId("notice-editor"), "Updated notice");
   await fireEvent.press(screen.getByText("Save"));
   await waitFor(() => expect(board.edit).toHaveBeenCalledWith(1, "Updated notice", "public"));
   expect(mockChanged).toHaveBeenCalledWith(1);
@@ -106,7 +122,7 @@ test("Delete keeps confirmation and Pin changes to Unpin inside the menu", async
   expect(screen.queryByRole("button", { name: "Pin" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
   await fireEvent.press(screen.getByRole("menuitem", { name: "Delete" }));
-  expect(confirm).toHaveBeenCalledWith("Remove this notice?", "Everyone loses sight of it.", "Remove", expect.any(Function));
+  await waitFor(() => expect(confirm).toHaveBeenCalledWith("Remove this notice?", "Everyone loses sight of it.", "Remove", expect.any(Function)));
   expect(board.remove).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Notice actions" }));
   await fireEvent.press(screen.getByRole("menuitem", { name: "Pin" }));

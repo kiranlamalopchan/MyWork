@@ -105,7 +105,7 @@ test("catalogue uploads remain available from the Catalogues tab", async () => {
   expect(screen.queryByRole("menuitem", { name: "Edit My private catalogue" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Actions for My private catalogue" }));
   await fireEvent.press(screen.getByRole("menuitem", { name: "Edit My private catalogue" }));
-  expect(mockPush).toHaveBeenCalledWith("/items/catalogue/5");
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/items/catalogue/5"));
 });
 
 test("deleting a catalogue asks first and refreshes management after confirmation", async () => {
@@ -113,7 +113,7 @@ test("deleting a catalogue asks first and refreshes management after confirmatio
   const screen = await render(<Search />);
   await fireEvent.press(screen.getByRole("button", { name: "Actions for My private catalogue" }));
   await fireEvent.press(screen.getByRole("menuitem", { name: "Delete My private catalogue" }));
-  expect(mockConfirm).toHaveBeenCalledWith("Delete My private catalogue?", expect.stringContaining("1 item"), "Delete", expect.any(Function));
+  await waitFor(() => expect(mockConfirm).toHaveBeenCalledWith("Delete My private catalogue?", expect.stringContaining("1 item"), "Delete", expect.any(Function)));
   expect(mockRemove).not.toHaveBeenCalled();
   await act(async () => { await mockConfirm.mock.calls[0][3](); });
   expect(mockRemove).toHaveBeenCalledWith(5);

@@ -19,6 +19,9 @@ import { Splash } from "@/ui/Splash";
 import { useNotificationNavigation } from "@/push/useNotificationNavigation";
 import { nativeOrNull } from "@/ui/native";
 import { notifications } from "@/push/register";
+import { loadLang, useT } from "@/i18n";
+import { registerClockActions } from "@/roster/reminders";
+import { RosterAlarms } from "@/roster/RosterAlarms";
 import { loadThemeMode, saveThemeMode, ThemeContext, type ThemeMode, useTheme } from "@/ui/theme";
 import { pushOptions, riseOptions } from "@/ui/transitions";
 
@@ -27,7 +30,11 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
   return <Crashed error={error} retry={retry} />;
 }
 
-const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } });
+const client = new QueryClient({ defaultOptions: { queries: {
+  retry: (failures, error) => failures < 2 && [0, 502, 503, 504].includes((error as { status?: number }).status ?? -1),
+  retryDelay: (attempt) => attempt === 0 ? 400 : 1200,
+  refetchOnWindowFocus: true,
+} } });
 
 // TanStack's "window focus" is a browser idea; on a phone it is the app
 // coming back to the front, which is when the board and the inbox should
@@ -43,7 +50,11 @@ nativeOrNull(() => require("expo-splash-screen"))?.preventAutoHideAsync?.()?.cat
 
 // Where the phone can be buzzed at all (not Expo Go on Android).
 notifications()?.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
+  handleNotification: async (notification) => notification.request.content.data?.status
+    // The running shift is a standing line for the lock screen. With the app
+    // open it is already on the clock in front of you: no banner, no sound.
+    ? { shouldShowBanner: false, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }
+    : { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true },
 });
 
 function Guard() {
@@ -87,6 +98,13 @@ function Guard() {
         <Stack.Screen name="profile/report" />
         <Stack.Screen name="profile/edit" />
         <Stack.Screen name="profile/settings" />
+        <Stack.Screen name="profile/appearance" />
+        <Stack.Screen name="profile/notifications" />
+        <Stack.Screen name="profile/privacy" />
+        <Stack.Screen name="profile/help" />
+        <Stack.Screen name="profile/friends" />
+        <Stack.Screen name="profile/statement" />
+        <Stack.Screen name="profile/activity" />
         <Stack.Screen name="profile/festival" />
         <Stack.Screen name="profile/delete" />
         <Stack.Screen name="profile/blocked" />
@@ -104,7 +122,14 @@ function Guard() {
         <Stack.Screen name="timesheet" options={{ animation: "none" }} />
         <Stack.Screen name="more" options={{ animation: "none" }} />
         <Stack.Screen name="items/import" />
+        <Stack.Screen name="roster/index" />
+        <Stack.Screen name="roster/new" />
+        <Stack.Screen name="roster/[id]" />
+        <Stack.Screen name="payslip-check" />
+        <Stack.Screen name="messages/index" />
+        <Stack.Screen name="messages/[username]" />
       </Stack.Protected>
+      <Stack.Screen name="auth-complete" options={{ animation: "none" }} />
     </Stack>
   );
 }
@@ -125,11 +150,17 @@ function Shell() {
   const { ready } = useSession();
   const { checked } = useOnboarding();
   const [wayIn, setWayIn] = useState(true);
+  // Drawn again when the language changes, so every screen under here is too.
+  useT();
+  // The saved language, then the buttons a clock notification wears — in
+  // that order, because the buttons are worded in it.
+  useEffect(() => { loadLang().finally(() => { void registerClockActions(); }); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
       {/* The splash is navy whichever way the phone is set. */}
       <StatusBar style={wayIn || t.dark ? "light" : "dark"} />
       <OfflineSync />
+      <RosterAlarms />
       <Guard />
       {wayIn ? <Splash ready={ready && checked} onDone={() => setWayIn(false)} /> : null}
     </GestureHandlerRootView>

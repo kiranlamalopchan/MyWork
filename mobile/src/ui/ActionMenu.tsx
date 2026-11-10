@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, useWindowDimensions, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { radius, sp, useTheme } from "./theme";
 
@@ -8,7 +8,7 @@ type Action = { label: string; accessibilityLabel?: string; icon: keyof typeof I
 /** An anchored overflow menu that stays inside the phone's viewport. */
 export function ActionMenu({ label, actions, disabled, trigger: customTrigger, triggerStyle }: { label: string; actions: Action[]; disabled?: boolean; trigger?: React.ReactNode; triggerStyle?: StyleProp<ViewStyle> }) {
   const t = useTheme(), { width, height } = useWindowDimensions();
-  const trigger = useRef<View>(null);
+  const trigger = useRef<React.ComponentRef<typeof View>>(null);
   const [open, setOpen] = useState(false);
   const menuWidth = Math.min(200, width - 32), menuHeight = actions.length * 48 + 10;
   const [position, setPosition] = useState({ left: 16, top: 64 });
@@ -18,6 +18,23 @@ export function ActionMenu({ label, actions, disabled, trigger: customTrigger, t
   };
   useEffect(() => setOpen(false), [width, height]);
   const close = () => setOpen(false);
+  // A chosen action waits for the menu to be gone. iOS cannot put up a
+  // second sheet — the photo library, an alert — while this one is still
+  // leaving: it drops the new one without a word, and whoever asked for it
+  // waits for ever. `onDismiss` says when the menu has left; the timer is
+  // for the platforms and builds that never say.
+  const pending = useRef<(() => void) | null>(null), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flush = () => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    const action = pending.current; pending.current = null;
+    action?.();
+  };
+  const choose = (action: () => void) => {
+    pending.current = action;
+    close();
+    timer.current = setTimeout(flush, Platform.OS === "ios" ? 600 : 60);
+  };
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const show = () => {
     setOpen(true);
     trigger.current?.measureInWindow((x, y, w, h) => setPosition({
@@ -30,18 +47,18 @@ export function ActionMenu({ label, actions, disabled, trigger: customTrigger, t
       onPress={show} style={({ pressed }) => [styles.trigger, triggerStyle, { opacity: disabled ? .5 : 1, backgroundColor: pressed || open ? t.surface2 : "transparent" }]}>
       {customTrigger || <Ionicons name="ellipsis-horizontal" size={22} color={t.text2} />}
     </Pressable>
-    {open ? <Modal transparent visible animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={close}>
+    <Modal transparent visible={open} animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={close} onDismiss={flush}>
       <View style={StyleSheet.absoluteFill} accessibilityViewIsModal onAccessibilityEscape={close}>
       <Pressable accessibilityRole="button" accessibilityLabel="Close actions menu" onPress={close} style={StyleSheet.absoluteFill} />
       <View accessibilityRole="menu" accessibilityLabel={label} style={[styles.menu, visiblePosition, { width: menuWidth, backgroundColor: t.surface, borderColor: t.lineStrong }]}>
         {actions.map((action, index) => <Pressable key={action.label} accessibilityRole="menuitem" accessibilityLabel={action.accessibilityLabel || action.label}
-          onPress={() => { close(); action.onPress(); }} style={({ pressed }) => [styles.item, pressed && { backgroundColor: t.surface2 }]}>
+          onPress={() => choose(action.onPress)} style={({ pressed }) => [styles.item, pressed && { backgroundColor: t.surface2 }]}>
           <Ionicons name={action.icon} size={18} color={action.destructive ? t.danger : t.text2} />
           <Text style={{ color: action.destructive ? t.danger : t.text, fontSize: 15, fontWeight: "600" }}>{action.label}</Text>
         </Pressable>)}
       </View>
       </View>
-    </Modal> : null}
+    </Modal>
   </>;
 }
 

@@ -1,36 +1,21 @@
-import { versionLine } from "@/ui/Version";
+import React from "react";
+import { render } from "@testing-library/react-native";
+import Constants from "expo-constants";
+import { appVersion, Version } from "@/ui/Version";
 
-/**
- * The line under the profile. Three numbers are available and at most two
- * are worth printing: saying the same version twice teaches nobody
- * anything, and a mismatch is the whole reason the server's is there.
- */
-describe("the version line", () => {
-  it("reads as one app when the server agrees", () => {
-    expect(versionLine("1.1.0", "8", "1.1.0")).toBe("KaamKoRecord 1.1.0 (8)");
-  });
+jest.mock("expo-constants", () => ({ __esModule: true, default: { appOwnership: "standalone", executionEnvironment: "standalone", expoConfig: { version: "1.4.0" } } }));
+jest.mock("expo-application", () => ({ nativeApplicationVersion: "1.3.0", nativeBuildVersion: "9" }));
 
-  it("says both when the server has not caught up", () => {
-    expect(versionLine("1.2.0", "9", "1.1.0")).toBe("KaamKoRecord 1.2.0 (9) · server 1.1.0");
-  });
-
-  it("says both when the server is ahead of the app", () => {
-    expect(versionLine("1.1.0", "8", "1.2.0")).toBe("KaamKoRecord 1.1.0 (8) · server 1.2.0");
-  });
-
-  it("manages without a build number", () => {
-    expect(versionLine("1.1.0", "", undefined)).toBe("KaamKoRecord 1.1.0");
-  });
-
-  it("manages without the server, which is every screen before it answers", () => {
-    expect(versionLine("1.1.0", "8", undefined)).toBe("KaamKoRecord 1.1.0 (8)");
-  });
-
-  it("still says something when only the server is known", () => {
-    expect(versionLine("", "", "1.1.0")).toBe("KaamKoRecord · server 1.1.0");
-  });
-
-  it("says nothing at all rather than something empty", () => {
-    expect(versionLine("", "", undefined)).toBe("");
-  });
+test("the profile version line labels the app version number", async () => {
+  const view = await render(React.createElement(Version));
+  expect(view.getByTestId("app-version").props.children).toBe("Version 1.3.0");
+});
+test("an installed app reports its binary version and build for problem reports", () => {
+  expect(appVersion()).toEqual({ version: "1.3.0", build: "9" });
+});
+test("Expo Go reports the project version instead of the Expo Go version", () => {
+  const original = Constants.appOwnership;
+  Object.defineProperty(Constants, "appOwnership", { configurable: true, value: "expo" });
+  try { expect(appVersion()).toEqual({ version: "1.4.0", build: "" }); }
+  finally { Object.defineProperty(Constants, "appOwnership", { configurable: true, value: original }); }
 });

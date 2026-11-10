@@ -171,8 +171,11 @@ class MeTests(ApiTestCase):
         resp = self.api("post", "me_photo", {"photo": picture()}, fmt="multipart")
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertTrue(resp.json()["photo"].startswith("http://testserver/media/"))
+        # Kept, not just echoed back: it is still there on the next load.
+        self.assertEqual(self.api("get", "me").json()["photo"], resp.json()["photo"])
         gone = self.api("delete", "me_photo")
         self.assertIsNone(gone.json()["photo"])
+        self.assertIsNone(self.api("get", "me").json()["photo"])
 
     def test_the_holiday_state_is_yours_to_set(self):
         resp = self.api("put", "me_holiday_state", {"state": "vic"})
@@ -191,6 +194,25 @@ class MeTests(ApiTestCase):
 
 
 class HomeTests(ApiTestCase):
+    @override_settings(MEDIA_ROOT="/tmp/mywork-test-media-api")
+    def test_uploaded_profile_photo_appears_in_every_home_face_and_removal_updates_them(self):
+        from apps.accounts.models import Friendship
+        Friendship.befriend(self.kiran, self.sam)
+        Notice.objects.create(author=self.sam, body="A notice with my profile photo")
+        Story.objects.create(author=self.sam, image=picture())
+        token = self.client.post(reverse("api:login"), {"username": "sam", "password": "pw12345678"}).json()["token"]
+
+        def home_photos():
+            data = self.api("get", "home").json()
+            return [data["notices"][0]["author"]["photo"], data["friends"]["people"][0]["photo"], data["stories"][0]["photo"]]
+
+        for _ in range(2):
+            uploaded = self.api("post", "me_photo", {"photo": picture()}, fmt="multipart", token=token)
+            self.assertEqual(uploaded.status_code, 200)
+            self.assertEqual(home_photos(), [uploaded.json()["photo"]] * 3)
+        self.assertEqual(self.api("delete", "me_photo", token=token).status_code, 200)
+        self.assertEqual(home_photos(), [None] * 3)
+
     def test_the_hub_carries_everything_the_first_tab_draws(self):
         from apps.noticeboard.notify import notice_posted
         notice_posted(Notice.objects.create(author=self.sam, body="Hello board"))
@@ -1034,6 +1056,20 @@ class ModerationApiTests(ApiTestCase):
         self.assertEqual(self.api("post", "friend_request_send", args=["kiran"], token=sam).status_code, 400)
         others = self.api("get", "friends", token=sam).json()["others"]
         self.assertNotIn("kiran", [p["username"] for p in others])
+
+    def test_everyone_else_is_the_first_few_and_a_search_for_the_rest(self):
+        from apps.accounts.views import OTHERS_SHOWN
+        for n in range(OTHERS_SHOWN + 3):
+            User.objects.create_user(f"worker{n:02d}", password="pw12345678")
+        page = self.api("get", "friends").json()
+        self.assertEqual(len(page["others"]), OTHERS_SHOWN)
+        self.assertGreater(page["others_total"], OTHERS_SHOWN)
+        # Somebody past the cut is still one search away.
+        last = f"worker{OTHERS_SHOWN + 2:02d}"
+        self.assertNotIn(last, [p["username"] for p in page["others"]])
+        found = self.api("get", "friends", {"q": last}).json()
+        self.assertEqual([p["username"] for p in found["others"]], [last])
+        self.assertEqual(found["others_total"], 1)
 
     def test_you_cannot_block_yourself(self):
         self.assertEqual(self.api("post", "person_block", args=["kiran"]).status_code, 400)

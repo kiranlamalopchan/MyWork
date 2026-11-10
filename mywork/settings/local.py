@@ -17,6 +17,8 @@ load_env_file(BASE_DIR / ".env")
 
 from .mail import mail_settings
 globals().update(mail_settings())
+from .social import social_settings
+globals().update(social_settings())
 
 # Not a secret. It signs sessions on one developer machine, and production.py
 # refuses to start without a real one, so there is no path by which this value

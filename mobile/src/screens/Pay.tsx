@@ -62,7 +62,7 @@ export default function Pay() {
  * by it.
  */
 function WorkplaceCards({ rows, selectedId, onSelect }: { rows: PayRow[]; selectedId: number; onSelect: (id: number) => void }) {
-  const t = useTheme(), scroll = useRef<ScrollView>(null), reduced = useReducedMotion(), layout = useLayout();
+  const t = useTheme(), scroll = useRef<React.ComponentRef<typeof ScrollView>>(null), reduced = useReducedMotion(), layout = useLayout();
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null), dragging = useRef(false);
   const x = useRef(new Animated.Value(0)).current;
   const [full, setFull] = useState(layout.width);

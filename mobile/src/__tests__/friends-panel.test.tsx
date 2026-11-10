@@ -1,7 +1,7 @@
 import React from "react";
 import { Alert } from "react-native";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
-import { FriendsPanel } from "@/ui/FriendsPanel";
+import { FriendsPage } from "@/ui/FriendsPanel";
 import { friends } from "@/api";
 
 const mockChanged = jest.fn();
@@ -10,9 +10,13 @@ jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/api", () => ({
   friends: { remove: jest.fn() },
   useFriendsChanged: () => mockChanged,
-  useFriends: () => ({ data: { received: [], sent: [], friends: [{ username: "sam", name: "Sam" }], others: [] } }),
+  useFriends: () => ({ data: { received: [], sent: [], friends: [{ username: "sam", name: "Sam" }], others: [], others_total: 0 } }),
 }));
 jest.mock("@/ui/Avatar", () => ({ Avatar: () => null }));
+jest.mock("@/ui", () => ({ ...jest.requireActual("@/ui"),
+  Screen: ({ children }: any) => children, Page: ({ children }: any) => children,
+  PageTitle: () => null, usePullRefresh: () => undefined,
+}));
 jest.mock("@/ui/AdminBadge", () => ({ AdminBadge: () => null }));
 jest.mock("@/ui/depth", () => ({ useComeUp: () => null }));
 jest.mock("@/ui/haptics", () => ({ warn: jest.fn(), success: jest.fn(), fail: jest.fn(), tick: jest.fn() }));
@@ -32,8 +36,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 async function openConfirmation() {
-  const screen = await render(<FriendsPanel open onToggle={() => {}} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Your friends, 1" }));
+  const screen = await render(<FriendsPage />);
   await fireEvent.press(screen.getByRole("button", { name: "Remove Sam" }));
   return screen;
 }
@@ -67,11 +70,12 @@ test("confirming removes only the chosen friend and disables removal while savin
 });
 
 test("a failed unfriend shows an error and allows retry", async () => {
+  jest.spyOn(console, "warn").mockImplementation(() => {});
   jest.mocked(friends.remove).mockRejectedValueOnce(new Error("Connection lost."));
   const screen = await openConfirmation();
   const unfriend = jest.mocked(Alert.alert).mock.calls[0][2]!.find(button => button.text === "Unfriend")!;
   await act(() => unfriend.onPress!());
-  await waitFor(() => expect(Alert.alert).toHaveBeenLastCalledWith("That didn't work", "Connection lost."));
+  await waitFor(() => expect(Alert.alert).toHaveBeenLastCalledWith("That didn't work", "Something went wrong. Please try again."));
   expect(mockChanged).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Remove Sam" })).not.toBeDisabled();
 });

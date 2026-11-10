@@ -19,6 +19,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from ..models import ShiftReceipt
 from datetime import date, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 
 from django.core.exceptions import ValidationError
@@ -746,6 +747,122 @@ class Payslip(APIView):
         if not slip.fields():
             return Response({"detail": "Nothing on that payslip could be made out — no rate, tax or pay period. Type them in instead."}, status=400)
         return Response(slip.as_json(timezone.localdate()))
+
+
+class PayslipCheck(APIView):
+    """
+    A payslip held up against the hours you logged for the same days.
+
+    POST payslip=<file>, workplace=<id> (optional: the employer's name on the
+    slip picks the job when it matches one of yours). Nothing is saved — it
+    is a second opinion on one pay, read and thrown away.
+
+    The comparison is hours first, because hours are what you recorded and
+    what a payslip prints; money second, where the job has a rate, since a
+    wrong rate shows up there and nowhere else. A quarter of an hour either
+    way is rounding, not a shortfall, and is called a match.
+    """
+
+    TOLERANCE_HOURS = Decimal("0.25")
+    TOLERANCE_PAY = Decimal("1.00")
+
+    def post(self, request):
+        uploaded = request.FILES.get("payslip")
+        if uploaded is None:
+            return Response({"detail": "Choose a payslip — a PDF, or a photo or screenshot of one."}, status=400)
+        try:
+            text = payslip_reader.read_text(uploaded)
+        except payslip_reader.Unreadable as why:
+            return Response({"detail": str(why)}, status=400)
+        slip = payslip_reader.parse(text)
+
+        places = list(Workplace.objects.filter(user=request.user))
+        chosen = str(request.data.get("workplace") or "")
+        workplace = next((w for w in places if str(w.pk) == chosen), None)
+        if chosen and workplace is None:
+            return Response({"detail": "Choose one of your workplaces.", "needs": "workplace"}, status=400)
+        if workplace is None and slip.employer:
+            name = slip.employer.casefold()
+            matches = [w for w in places if w.name.casefold() in name or name in w.name.casefold()]
+            workplace = matches[0] if len(matches) == 1 else None
+        if workplace is None and len(places) == 1:
+            workplace = places[0]
+        if workplace is None:
+            return Response({"detail": "Choose which job this payslip is from.", "needs": "workplace"}, status=400)
+
+        if not (slip.period_start and slip.period_end):
+            return Response({"detail": "The pay period on that payslip couldn't be made out, so there are no dates to check your hours against."}, status=400)
+        if slip.hours is None and not (slip.gross and workplace.hourly_rate):
+            return Response({"detail": "Neither the hours nor the gross pay could be read off that payslip."}, status=400)
+
+        shifts = [s for s in workplace.shifts_between(slip.period_start, slip.period_end + timedelta(days=1)) if not s.is_open]
+        worked = sum((s.worked_duration for s in shifts), timedelta())
+        logged_hours = Decimal(str(round(worked.total_seconds() / 3600, 2)))
+        logged_gross = Decimal(str(workplace.gross_for(float(logged_hours)))) if workplace.hourly_rate is not None else None
+
+        # Hours as printed; or, on a slip that prints only money, what the
+        # gross comes to at this job's rate.
+        paid_hours, worked_out = slip.hours, False
+        if paid_hours is None:
+            paid_hours = (slip.gross / workplace.hourly_rate).quantize(Decimal("0.01"))
+            worked_out = True
+
+        gap_hours = paid_hours - logged_hours
+        gap_gross = (slip.gross - logged_gross) if slip.gross is not None and logged_gross is not None else None
+
+        if gap_hours < -self.TOLERANCE_HOURS:
+            verdict = "short"
+            headline = f"You were paid for {_hours(paid_hours)}, and logged {_hours(logged_hours)}."
+        elif gap_hours > self.TOLERANCE_HOURS:
+            verdict = "over"
+            headline = f"You were paid for {_hours(paid_hours)} — more than the {_hours(logged_hours)} you logged."
+        elif gap_gross is not None and gap_gross < -self.TOLERANCE_PAY:
+            verdict = "short"
+            headline = f"The hours match, but the gross is ${abs(gap_gross):,.2f} less than your rate comes to."
+        else:
+            verdict = "match"
+            headline = f"It matches: {_hours(paid_hours)} paid, {_hours(logged_hours)} logged."
+
+        lines = []
+        if not shifts:
+            lines.append("No finished shifts are logged at this job between those dates.")
+        if verdict == "short" and gap_hours < -self.TOLERANCE_HOURS:
+            lines.append(f"That is {_hours(abs(gap_hours))} unpaid" + (f", about ${abs(gap_hours) * workplace.hourly_rate:,.2f} before tax." if workplace.hourly_rate is not None else "."))
+            lines.append("Check the shifts below against the days on the payslip, then ask your employer about the difference.")
+        if verdict == "over":
+            lines.append("A shift may be missing from your timesheet, or the pay includes leave, a public holiday or back pay.")
+        if worked_out:
+            lines.append(f"The payslip prints no hours, so they were worked out from the gross at ${workplace.hourly_rate:,.2f} an hour.")
+        if gap_gross is not None and abs(gap_gross) > self.TOLERANCE_PAY and abs(gap_hours) <= self.TOLERANCE_HOURS and verdict != "short":
+            lines.append(f"The gross is ${abs(gap_gross):,.2f} {'more' if gap_gross > 0 else 'less'} than your rate comes to — penalty rates or an allowance would explain more.")
+
+        money = lambda value: None if value is None else float(value)
+        return Response({
+            "verdict": verdict,
+            "headline": headline,
+            "lines": lines,
+            "workplace": workplace_brief(workplace),
+            "period": {
+                "start": slip.period_start.isoformat(),
+                "end": slip.period_end.isoformat(),
+                "label": f"{slip.period_start:%-d %b} – {slip.period_end:%-d %b %Y}",
+            },
+            "slip": {"hours": money(paid_hours), "gross": money(slip.gross), "tax": money(slip.tax), "net": money(slip.net), "hours_worked_out": worked_out},
+            "logged": {"hours": money(logged_hours), "hm": site.hm_words(worked), "gross": money(logged_gross), "shifts": len(shifts)},
+            "difference": {"hours": money(gap_hours), "gross": money(gap_gross)},
+            "shifts": [
+                {"id": s.pk, "day": day_label(local_date(s.clock_in)), "hm": site.hm_words(s.worked_duration)}
+                for s in shifts
+            ],
+            "read": [{"label": label, "value": value, "how": how} for label, value, how in slip.read],
+            "notes": slip.notes,
+        })
+
+
+def _hours(value):
+    """ "37.5 hours", "1 hour" — a payslip's own way of saying it."""
+    number = f"{value:.2f}".rstrip("0").rstrip(".")
+    return f"{number} hour{'' if number == '1' else 's'}"
 
 
 class Preferences(APIView):

@@ -59,6 +59,10 @@ class Kind(models.TextChoices):
     STORY = "story", "Story"
     FRIEND_REQUEST = "friend_request", "Friend request"
     FRIEND_ACCEPTED = "friend_accepted", "Friend accepted"
+    # A shift somebody needs covered, or one of yours that was picked up.
+    ROSTER = "roster", "Roster"
+    # A friend wrote to you.
+    MESSAGE = "message", "Message"
 
 
 # The shape each kind wears in the inbox. A reaction has none: the face
@@ -72,6 +76,8 @@ KIND_ICONS = {
     Kind.STORY: "camera",
     Kind.FRIEND_REQUEST: "person",
     Kind.FRIEND_ACCEPTED: "person",
+    Kind.ROSTER: "clock",
+    Kind.MESSAGE: "chat",
 }
 
 

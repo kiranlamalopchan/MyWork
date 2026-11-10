@@ -36,7 +36,7 @@ test('saved theme overrides the system and survives another page load', () => {
 });
 test('system appearance updates browser chrome until the user makes a choice', () => {
   const page = load();
-  assert.equal(page.color(), '#eaeaf0');
+  assert.equal(page.color(), palette.light.bg);
   page.system.matches = true;
   page.system.change();
   assert.equal(page.theme.isDark(), true);

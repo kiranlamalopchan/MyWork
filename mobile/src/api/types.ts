@@ -18,6 +18,8 @@ export type Me = Person & {
   phone: string;
   address: string;
   is_staff: boolean;
+  has_password?: boolean;
+  social_providers?: ("google" | "apple")[];
   /** Granted by the server only to authorised festival administrators. */
   can_manage_festival?: boolean;
   holiday_state: string;
@@ -84,6 +86,8 @@ export type PersonPage = {
   person: Person;
   /** Whether you have blocked them — their notices are then hidden. */
   blocked: boolean;
+  /** Friends, with no block either way — whether the Message button belongs here. */
+  can_message?: boolean;
   since: string;
   notice_count: number;
   comment_count: number;
@@ -98,7 +102,10 @@ export type Friends = {
   friends: Person[];
   received: FriendRequest[];
   sent: FriendRequest[];
+  /** Only the first few of everyone else; the search reaches the rest. */
   others: Person[];
+  /** How many there are in all, for the count and the "showing 5 of 40" line. */
+  others_total: number;
 };
 
 export type TrayRow = Person & {
@@ -136,7 +143,7 @@ export type StoryPerson = {
 
 export type Notification = {
   id: number;
-  kind: "notice" | "comment" | "reply" | "reaction" | "timesheet" | "story" | "friend_request" | "friend_accepted";
+  kind: "notice" | "comment" | "reply" | "reaction" | "timesheet" | "story" | "friend_request" | "friend_accepted" | "roster" | "message";
   icon: string;
   title: string;
   body: string;
@@ -296,3 +303,52 @@ export type Going = { shifts: number; breaks: number; payments: number; worked: 
 export type ReportKind = "notice" | "comment" | "story" | "user";
 export type ReportReason = { value: string; label: string };
 export type BlockedPerson = { person: Person; since: string };
+
+// ---- the roster ---------------------------------------------------------------
+
+/** A shift you are due to work, or one a friend needs covered. */
+export type Planned = {
+  id: number;
+  /** ISO instants, for the phone's own alarms. */
+  starts: string;
+  ends: string;
+  /** "Sat 14 Nov", "9:00 am – 5:00 pm", "8h" — as the server words them. */
+  day: string;
+  date: string;
+  time: string;
+  length: string;
+  place: string;
+  workplace: WorkplaceBrief | null;
+  note: string;
+  /** Up for a friend to take. */
+  offered: boolean;
+  mine: boolean;
+  /** Whose it is, on a friend's offer. */
+  owner: Person | null;
+  /** Who it came from, on one you took. */
+  given_by: Person | null;
+};
+export type RosterPage = { mine: Planned[]; offers: Planned[]; workplaces: WorkplaceBrief[]; detail?: string };
+export type PlannedInput = { workplace: number | ""; starts: string; ends: string; note: string };
+
+// ---- messages -----------------------------------------------------------------
+
+export type ChatMessage = { id: number; body: string; mine: boolean; at: string; day: string; time: string; read: boolean };
+export type ChatThreads = { threads: { person: Person; last: ChatMessage; unread: number }[]; unread: number };
+export type ChatThread = { person: Person; can_send: boolean; max_length: number; messages: ChatMessage[]; more: boolean };
+
+// ---- a payslip, checked ---------------------------------------------------------
+
+export type PayslipCheck = {
+  verdict: "match" | "short" | "over";
+  headline: string;
+  lines: string[];
+  workplace: WorkplaceBrief;
+  period: { start: string; end: string; label: string };
+  slip: { hours: number | null; gross: number | null; tax: number | null; net: number | null; hours_worked_out: boolean };
+  logged: { hours: number; hm: string; gross: number | null; shifts: number };
+  difference: { hours: number; gross: number | null };
+  shifts: { id: number; day: string; hm: string }[];
+  read: { label: string; value: string; how: string }[];
+  notes: string[];
+};

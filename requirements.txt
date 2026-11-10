@@ -12,3 +12,6 @@ holidays>=0.104,<1
 pillow-heif>=0.16
 # The JSON API the native app (mobile/) talks to.
 djangorestframework>=3.16
+# Verify Google/Apple ID tokens against their published signing keys.
+PyJWT[crypto]>=2.10,<3
+requests>=2.32,<3

@@ -124,7 +124,7 @@ export function useBringUpScroll(scrollTo: (y: number) => void) {
 /** On a section that opens: a ref for its outermost view. Each time it opens, the page brings it up. */
 export function useComeUp(open: boolean) {
   const bringUp = useContext(BringUp);
-  const ref = useRef<View>(null);
+  const ref = useRef<React.ComponentRef<typeof View>>(null);
   const opened = useRef(open);
   useEffect(() => {
     const was = opened.current;

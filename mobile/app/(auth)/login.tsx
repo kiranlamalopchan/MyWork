@@ -18,6 +18,8 @@ import { BiometricIcon } from "@/ui/BiometricIcon";
 import { fail, success, tap, tick } from "@/ui/haptics";
 import { useReveal } from "@/ui/keyboard";
 import { radius, sp, useTheme } from "@/ui/theme";
+import { SocialSignIn } from "@/ui/SocialSignIn";
+import { errorMessage } from "@/api/errors";
 
 export default function Login() {
   const t = useTheme();
@@ -27,12 +29,13 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [socialBusy, setSocialBusy] = useState(false);
   // The lock: what kind the phone has, and who it opens for here.
   const [kind, setKind] = useState<BiometricKind | null>(null);
   const [locked, setLocked] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
   const reveal = useReveal();
-  const boxRef = useRef<View>(null);
+  const boxRef = useRef<React.ComponentRef<typeof View>>(null);
 
   useEffect(() => {
     let live = true;
@@ -46,6 +49,7 @@ export default function Login() {
   }, []);
 
   const unlock = async () => {
+    if (busy || socialBusy) return;
     setError("");
     setBusy(true);
     try {
@@ -57,13 +61,14 @@ export default function Login() {
       fail();
       // Nothing kept any more (or nothing to open it with): the password it is.
       if (!(await biometricUser())) setLocked(null);
-      setError(e?.message || "That didn't work.");
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
   };
 
   const go = async () => {
+    if (busy || socialBusy) return;
     setError("");
     setBusy(true);
     const who = username.trim();
@@ -74,7 +79,7 @@ export default function Login() {
       // already going.
       welcome(who);
     } catch (e: any) {
-      setError(e?.message || "That didn't work.");
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -108,7 +113,7 @@ export default function Login() {
             style={[styles.boxInput, { color: t.text }]}
           />
           {locked && kind ? (
-            <Pressable onPress={() => { tap("medium"); unlock(); }} disabled={busy} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Sign in with ${biometricName(kind)}`} testID="biometric-signin" style={({ pressed }) => [styles.round, { backgroundColor: t.brandSoft, opacity: pressed || busy ? 0.7 : 1 }]}>
+            <Pressable onPress={() => { tap("medium"); unlock(); }} disabled={busy || socialBusy} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Sign in with ${biometricName(kind)}`} testID="biometric-signin" style={({ pressed }) => [styles.round, { backgroundColor: t.brandSoft, opacity: pressed || busy ? 0.7 : 1 }]}>
               <BiometricIcon kind={kind} size={22} color={t.brand} />
             </Pressable>
           ) : null}
@@ -117,7 +122,8 @@ export default function Login() {
       <Pressable accessibilityRole="link" accessibilityLabel="Forgot password?" onPress={() => router.push("/(auth)/forgot-password")} style={{ alignSelf: "flex-end", minHeight: 44, justifyContent: "center" }}>
         <Text style={{ color: t.brand, fontSize: 14, fontWeight: "600" }}>Forgot password?</Text>
       </Pressable>
-      <Button title="Sign in" onPress={go} busy={busy} disabled={!username || !password} />
+      <Button title="Sign in" onPress={go} busy={busy} disabled={socialBusy || !username || !password} />
+      <SocialSignIn disabled={busy} onBusyChange={setSocialBusy} />
       {kind && !locked ? (
         <Text style={{ color: t.muted, fontSize: 13, textAlign: "center" }}>After you sign in, you can use {biometricName(kind)} next time.</Text>
       ) : null}

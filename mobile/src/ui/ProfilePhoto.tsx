@@ -1,12 +1,11 @@
 import React, { useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { me as api, type Me } from "@/api";
 import type { FilePart } from "@/api/client";
-import { ActionMenu } from "./ActionMenu";
 import { Avatar } from "./Avatar";
-import { confirm, notify } from "./confirm";
+import { choose, confirm, notify } from "./confirm";
 import { useTheme } from "./theme";
 
 export function ProfilePhoto({ me, onChange, size = 80, ring }: { me: Me; onChange: (me: Me) => void; size?: number; ring?: string }) {
@@ -22,8 +21,10 @@ export function ProfilePhoto({ me, onChange, size = 80, ring }: { me: Me; onChan
     catch (error: any) { notify("Couldn't update your photo", error?.message || "Please try again."); }
     finally { inFlight.current = false; setBusy(false); }
   };
-  const pick = () => run(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: .9 });
+  const pick = (from: "camera" | "library") => run(async () => {
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: .9 };
+    if (from === "camera" && !(await ImagePicker.requestCameraPermissionsAsync()).granted) throw new Error("The camera isn't allowed. Choose from the library instead, or allow it in Settings.");
+    const result = from === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled) return;
     const asset = result.assets?.[0];
     if (!asset?.uri) throw new Error("No photo was selected. Please choose another image.");
@@ -34,25 +35,28 @@ export function ProfilePhoto({ me, onChange, size = 80, ring }: { me: Me; onChan
   const remove = () => confirm("Remove your photo?", "Your initial goes back in its place.", "Remove", () => {
     void run(async () => onChange(await api.clearPhoto()));
   });
+  // The phone's own sheet: camera, library, and — with a photo up — taking it down.
+  const open = () => choose("Profile photo", [
+    { label: "Take Photo", onPress: () => { void pick("camera"); } },
+    { label: "Choose from Library", onPress: () => { void pick("library"); } },
+    ...(me.photo ? [{ label: "Remove Photo", destructive: true, onPress: remove }] : []),
+  ]);
   return <View style={[styles.wrap, box, ring ? { backgroundColor: ring } : null]}>
-    <ActionMenu label={busy ? "Updating your photo" : "Profile photo actions"} disabled={busy}
-      trigger={<View>
+    <Pressable accessibilityRole="button" accessibilityLabel={busy ? "Updating your photo" : "Profile photo actions"} accessibilityState={{ disabled: busy }} disabled={busy}
+      onPress={open} style={({ pressed }) => [styles.trigger, box, { opacity: busy ? .5 : pressed ? .7 : 1 }]}>
+      <View>
         <Avatar person={me} size={size} live={false} />
         <View style={[styles.badge, { backgroundColor: t.surface, borderColor: t.line }]}>
           <Ionicons name="camera-outline" size={14} color={t.text2} />
         </View>
-      </View>}
-      triggerStyle={[styles.trigger, box]}
-      actions={[
-        { label: me.photo ? "Change photo" : "Add photo", icon: "image-outline", onPress: () => { void pick(); } },
-        ...(me.photo ? [{ label: "Remove photo", icon: "trash-outline" as const, destructive: true, onPress: remove }] : []),
-      ]} />
+      </View>
+    </Pressable>
     {busy ? <View pointerEvents="none" style={[styles.loading, { backgroundColor: t.surface, borderRadius: box.borderRadius }]}><ActivityIndicator color={t.brand} accessibilityLabel="Updating your photo" /></View> : null}
   </View>;
 }
 const styles = StyleSheet.create({
   wrap: { width: 88, height: 88, alignItems: "center", justifyContent: "center" },
-  trigger: { width: 88, height: 88, borderRadius: 44 },
+  trigger: { width: 88, height: 88, borderRadius: 44, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", right: -2, bottom: -1, width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   loading: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, borderRadius: 44, opacity: .9, alignItems: "center", justifyContent: "center" },
 });

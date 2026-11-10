@@ -35,7 +35,7 @@ export default function Plu() {
   const [typed, setTyped] = usePrivateState(`items-query:${catalogueId || "default"}`, "");
   const [pagination, setPagination] = useState<{ q: string; catalogueId?: number; page: number }>({ q: "", page: 1 });
   const [q, setQ] = useState("");
-  const box = useRef<TextInput>(null);
+  const box = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [focused, setFocused] = useState(false);
   const list = useRef<FlatList<CatalogueItem>>(null);
   const keyboard = useKeyboardScroll(useCallback((y: number) => list.current?.scrollToOffset({ offset: y, animated: true }), []));
@@ -157,13 +157,13 @@ export default function Plu() {
         contentContainerStyle={[layout.column, styles.list, { paddingTop: under.padTop, paddingBottom: layout.bottom + sp[6] }]}
         ListHeaderComponent={<>{workspaceHeader}{catalogues ? catalogueContent : header}</>}
         renderItem={({ item, index }) => <Result item={item} first={index === 0} last={index === shownRows.length - 1} />}
-        ListEmptyComponent={catalogues || idle ? null : waiting ? <SkeletonRows count={4} />
+        ListEmptyComponent={catalogues || idle ? undefined : waiting ? <SkeletonRows count={4} />
           : <Empty icon="search-outline" title="No matches" sub={`Nothing found for “${q}”. Try fewer words, or a code.`} />}
         ListFooterComponent={!catalogues && !idle && !waiting && search.data && search.data.pages > 1 ? <View style={styles.pager} accessibilityLabel="Search pagination">
           <Button title="Previous" kind="plain" size="sm" style={styles.pageButton} disabled={search.data.page <= 1 || search.isFetching} onPress={() => goToPage(search.data!.page - 1)} />
           <Text accessibilityLiveRegion="polite" style={{ color: t.muted, fontSize: 12 }}>Page {search.data.page} of {search.data.pages}</Text>
           <Button title="Next" kind="plain" size="sm" style={styles.pageButton} disabled={!search.data.next || search.isFetching} onPress={() => goToPage(search.data!.next!)} />
-        </View> : null}
+        </View> : undefined}
         onScroll={(e) => { keyboard.onScroll(e); under.onScroll(e); }} scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         removeClippedSubviews={false}

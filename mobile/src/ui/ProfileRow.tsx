@@ -14,7 +14,7 @@ export function ProfileRow({ icon, title, description, onPress, testID, danger =
     style={({ pressed }) => [styles.row, centred && styles.centred, pressed && { backgroundColor: alpha(t.brand, .07) }]}>
     <Ionicons name={icon} size={20} color={colour} />
     <View style={!centred && { flex: 1, minWidth: 0 }}>
-      <Text style={[styles.title, { color: danger ? t.danger : t.text2 }]}>{title}</Text>
+      <Text style={[styles.title, { color: danger ? t.danger : t.text }]}>{title}</Text>
       {description ? <Text style={[styles.description, { color: t.muted }]}>{description}</Text> : null}
     </View>
     {!centred ? <Ionicons name="chevron-forward" size={16} color={t.muted} /> : null}
@@ -24,5 +24,5 @@ const styles = StyleSheet.create({
   row: { minHeight: 60, paddingHorizontal: 22, paddingVertical: 16, gap: 18, flexDirection: "row", alignItems: "center" },
   centred: { justifyContent: "center", gap: 10 },
   title: { fontSize: 15, lineHeight: 21 },
-  description: { fontSize: 12, lineHeight: 17, marginTop: 3 },
+  description: { fontSize: 13, lineHeight: 19, marginTop: 3 },
 });

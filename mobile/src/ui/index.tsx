@@ -5,7 +5,7 @@
  * panels with soft shadows, filled fields, pill buttons — so a screen only
  * has to say what it holds.
  */
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   ActivityIndicator, Platform, Pressable, ScrollView, ScrollViewProps, StyleProp, StyleSheet, Text, TextInput, TextInputProps, TextStyle, View, ViewStyle,
 } from "react-native";
@@ -13,6 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import type { Emoji, ReactionTally } from "@/api";
 import { unreachable } from "@/api/client";
+import { describeError, errorMessage } from "@/api/errors";
+import { useT } from "@/i18n";
 
 import { OfflineArt } from "./OfflineArt";
 
@@ -65,14 +67,14 @@ export function Screen({ children, title, back, backLabel, section, right, tools
  */
 export function Page({ children, contentContainerStyle, onScroll, onLayout, onContentSizeChange, refreshControl, ...rest }: ScrollViewProps & { children: React.ReactNode }) {
   const layout = useLayout();
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollTo = useCallback((y: number) => ref.current?.scrollTo({ y, animated: true }), []);
   const keyboard = useKeyboardScroll(scrollTo);
   // A section opened on the page is brought up into view (depth.tsx).
   const bring = useBringUpScroll(scrollTo);
   // The page runs under the floating bar: its content starts below it (depth.tsx).
   const under = useUnderBar();
-  const top = (StyleSheet.flatten([styles.page, contentContainerStyle]).paddingTop as number | undefined) ?? 0;
+  const top = (StyleSheet.flatten([styles.page, contentContainerStyle])?.paddingTop as number | undefined) ?? 0;
   return (
     <RevealProvider value={keyboard.reveal}>
       <BringUpProvider value={bring.bringUp}>
@@ -184,20 +186,21 @@ export function Empty({ icon, title, sub, action, card = true }: { icon: keyof t
  */
 function NoConnection({ offline, onRetry }: { offline: boolean; onRetry?: () => void }) {
   const t = useTheme();
+  const tr = useT();
   return (
     <View style={styles.empty} testID="no-connection">
       <View style={styles.offlineArt}><OfflineArt /></View>
       <Text style={[styles.emptyTitle, { color: t.text }]}>
-        {offline ? "You're offline" : "Can't reach KaamKoRecord"}
+        {tr(offline ? "You're offline" : "Can't reach KaamKoRecord")}
       </Text>
       <Text style={[styles.emptySub, { color: t.muted }]}>
-        {offline
+        {tr(offline
           ? "Turn Wi-Fi or mobile data back on and this picks up where it left off."
-          : "Check your connection, or try again in a moment."}
+          : "Check your connection, or try again in a moment.")}
       </Text>
       {onRetry ? (
         <View style={{ marginTop: sp[4] }}>
-          <Button title="Try again" kind="plain" size="sm" icon="refresh-outline" onPress={onRetry} testID="retry" />
+          <Button title={tr("Try again")} kind="plain" size="sm" icon="refresh-outline" onPress={onRetry} testID="retry" />
         </View>
       ) : null}
     </View>
@@ -206,18 +209,20 @@ function NoConnection({ offline, onRetry }: { offline: boolean; onRetry?: () => 
 
 export function ErrorBanner({ error, message, onRetry }: { error?: unknown; message?: string; onRetry?: () => void }) {
   const t = useTheme();
+  const tr = useT();
+  useEffect(() => { if (error) errorMessage(error); }, [error]);
 
   // Status 0 is the client's own "nothing answered" (api/client.ts). Every
   // other error is something the server said, and worth saying back.
   if (unreachable(error)) return <NoConnection offline={error.offline} onRetry={onRetry} />;
 
-  const text = message || (error as Error | undefined)?.message || "Something went wrong.";
+  const text = message || describeError(error).message;
   return (
-    <View style={[styles.alert, { backgroundColor: t.dangerSoft, borderColor: alpha(t.danger, 0.25) }]}>
+    <View accessibilityRole="alert" style={[styles.alert, { backgroundColor: t.dangerSoft, borderColor: alpha(t.danger, 0.25) }]}>
       <Text style={{ color: t.danger, flex: 1, fontSize: 14.5, lineHeight: 20 }}>{text}</Text>
       {onRetry ? (
-        <Pressable onPress={onRetry} hitSlop={8}>
-          <Text style={{ color: t.danger, fontWeight: "700" }}>Try again</Text>
+        <Pressable onPress={onRetry} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr("Try again")}>
+          <Text style={{ color: t.danger, fontWeight: "700" }}>{tr("Try again")}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -264,7 +269,7 @@ export function Button({
 export function Input(props: TextInputProps & { invalid?: boolean }) {
   const t = useTheme();
   const reveal = useReveal();
-  const ref = useRef<TextInput>(null);
+  const ref = useRef<React.ComponentRef<typeof TextInput>>(null);
   const { invalid, onFocus, ...rest } = props;
   return (
     <TextInput

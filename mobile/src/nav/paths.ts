@@ -25,6 +25,10 @@ export function targetFor(path: string): Target {
     const notice = q.get("notice");
     return notice ? { screen: `/notices/${notice}` } : { screen: "/board" };
   }
+  // Things with a screen here and no page of their own on the site: the
+  // link is a site page that exists, with a word saying what was meant.
+  if (p === "/timesheet" && q.get("go") === "roster") return { screen: "/roster" };
+  if (p === "/profile" && q.get("chat")) return { screen: `/messages/${encodeURIComponent(q.get("chat") as string)}` };
   if (p === "/timesheet") return { screen: "/clock" };
   if (p === "/timesheet/shifts") return { screen: "/timesheet" };
   if (p === "/timesheet/calendar") return { screen: "/timesheet?view=calendar" };
@@ -36,6 +40,7 @@ export function targetFor(path: string): Target {
   if ((m = p.match(/^\/timesheet\/workplaces\/(\d+)\/edit$/))) return { screen: `/workplaces/${m[1]}/edit` };
   if (p === "/timesheet/pay") return { screen: "/pay" };
   if (p === "/timesheet/more") return { screen: "/more" };
+  if (p === "/timesheet/statement") return { screen: "/profile/statement" };
   if ((m = p.match(/^\/notices\/people\/([^/]+)$/))) return { screen: `/people/${m[1]}` };
   if ((m = p.match(/^\/notices\/(\d+)/))) return { screen: `/notices/${m[1]}` };
   if ((m = p.match(/^\/stories\/([^/]+)$/))) return { screen: `/stories/${m[1]}` };
@@ -47,9 +52,9 @@ export function targetFor(path: string): Target {
   if (p.startsWith("/plu/")) return { screen: "/plu" };
   if (p.startsWith("/timesheet/")) return { screen: "/clock" };
   if (p === "/holidays") return { screen: "/holidays" };
+  if (p === "/profile" && ["#friends", "#statement", "#activity"].includes(url.hash)) return { screen: `/profile/${url.hash.slice(1)}` };
   if (p === "/profile") return { screen: "/profile" };
-  // Friends lives on the profile screen itself now, not a screen of its own.
-  if (p === "/profile/friends") return { screen: "/profile" };
+  if (["/profile/friends", "/profile/statement", "/profile/activity"].includes(p)) return { screen: p };
   return { screen: "/notifications" };
 }
 
