@@ -69,6 +69,7 @@ class SocialAuthTests(TestCase):
         user = User.objects.get(email='new@example.test')
         self.assertFalse(user.has_usable_password())
         self.assertEqual(response.json()['me']['name'], 'New Person')
+        self.assertEqual(user.username, 'newperson')
         self.assertEqual(response.json()['me']['social_providers'], ['google'])
         self.assertFalse(response.json()['me']['has_password'])
         self.assertEqual(Token.objects.get(user=user).key, response.json()['token'])
@@ -160,6 +161,34 @@ class SocialAuthTests(TestCase):
         SocialIdentity.objects.create(user=self.user, provider='google', subject='provider-person')
         state, _ = self.start()
         self.assertEqual(self.exchange(self.finish(state)).status_code, 400)
+
+    def test_a_new_username_comes_from_the_name_else_the_email_and_is_numbered_if_taken(self):
+        from apps.accounts.social import username_for
+        User.objects.create_user('kiranlama')
+        User.objects.create_user('KiranLama_2')
+        self.assertEqual(username_for('Kiran Lama', 'k@example.test'), 'kiranlama_3')
+        self.assertEqual(username_for('José Núñez', 'j@example.test'), 'josenunez')
+        # No usable name (Apple sends none after the first time, or a name in another script).
+        self.assertEqual(username_for('', 'sita.rai@example.test'), 'sita.rai')
+        self.assertEqual(username_for('किरण', 'x7k2q9@privaterelay.appleid.com'), 'x7k2q9')
+        self.assertEqual(username_for('', ''), 'user')
+        self.assertEqual(username_for('Al', ''), 'aluser')
+        self.assertNotRegex(username_for('Somebody With A Very Long Name Indeed', ''), r'^.{25,}$')
+
+    def test_random_usernames_from_before_are_renamed_once(self):
+        from importlib import import_module
+        from django.apps import apps as live_apps
+        from apps.accounts.models import Profile
+        rename = import_module('apps.accounts.migrations.0008_plain_social_usernames').rename
+        old = User.objects.create_user('user_' + 'a1' * 10, email='sita.rai@example.test')
+        named = User.objects.create_user('user_' + 'b2' * 10, email='x@example.test')
+        Profile.objects.filter(user=named).update(display_name='Kiran Lama')
+        User.objects.create_user('kiranlama')
+        chosen = User.objects.create_user('user_custom', email='c@example.test')
+        rename(live_apps, None)
+        self.assertEqual(User.objects.get(pk=old.pk).username, 'sita.rai')
+        self.assertEqual(User.objects.get(pk=named.pk).username, 'kiranlama_2')
+        self.assertEqual(User.objects.get(pk=chosen.pk).username, 'user_custom')
 
     def test_apple_form_post_accepts_state_without_session_cookies(self):
         state, params = self.start(provider='apple')

@@ -24,13 +24,14 @@
   {% comment %}
     The cover: a flat band in a soft violet with two flat hills across it —
     no gradient, no picture to upload — and your face sitting half over its
-    lower edge. Edit profile waits in its corner.
+    lower edge. Edit profile waits in one top corner, Member since in the other.
   {% endcomment %}
   <div class="profile-cover">
     <svg class="profile-cover__art" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
       <path class="profile-cover__hill profile-cover__hill--back" d="M0 70 C70 30 130 30 200 62 S330 96 400 48 V120 H0 Z"/>
       <path class="profile-cover__hill profile-cover__hill--front" d="M0 96 C80 64 150 70 220 92 S340 112 400 84 V120 H0 Z"/>
     </svg>
+    <span class="profile-cover__since">Member since {{ request.user.date_joined|date:"M Y" }}</span>
     <a class="profile-cover__edit" href="{% url 'accounts:edit' %}">{% icon "pencil" %} Edit profile</a>
   </div>
 
@@ -403,8 +404,6 @@
 <form method="post" action="{% url 'logout' %}" class="profile-signout">
   {% csrf_token %}<button type="submit" class="profile-minimal__logout">{% icon "arrow-right" %}Sign out</button>
 </form>
-
-<p class="profile-minimal__since">Member since {{ request.user.date_joined|date:"M Y" }}</p>
 
 {# Quiet, and last: the answer to "which version are you on?" when something #}
 {# is being worked out over the phone, and nothing anyone reads day to day.  #}

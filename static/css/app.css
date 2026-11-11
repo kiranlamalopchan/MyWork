@@ -7752,6 +7752,22 @@ body::before {
 .profile-cover__art { position: absolute; inset: 0; width: 100%; height: 100%; }
 .profile-cover__hill--back  { fill: var(--surface-3); }
 .profile-cover__hill--front { fill: var(--line-strong); }
+.profile-cover__since {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--float-2);
+}
 .profile-cover__edit {
   position: absolute;
   top: 12px;
@@ -7865,7 +7881,6 @@ body::before {
 .profile-minimal__logout { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 60px; width: 100%; padding: 16px 22px; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: 15px; cursor: pointer; }
 .profile-minimal__logout svg { width: 20px; height: 20px; }
 .profile-minimal__logout:hover { color: var(--text); }
-.profile-minimal__since { text-align: center; color: var(--muted); font-size: 12px; margin: -8px 0 0; }
 .profile-settings { display: grid; gap: 24px; }
 .profile-settings__group { border-radius: 20px; background: var(--surface); overflow: hidden; }
 .profile-settings__label { padding: 0 8px 8px; }

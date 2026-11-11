@@ -1,8 +1,10 @@
 """Google/Apple authorization codes are exchanged and verified only here."""
 import base64
 import hashlib
+import re
 import secrets
 import time
+import unicodedata
 from functools import lru_cache
 
 import jwt
@@ -133,6 +135,34 @@ def cipher():
     return Fernet(base64.urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode()).digest()))
 
 
+def username_for(name, email):
+    """
+    A plain username for a new Google/Apple account, from the person's name
+    ("Kiran Lama" → kiranlama), else the start of their email address, with
+    an underscore and number added only when it is
+    taken (kiranlama_2). Never the provider's
+    ID: a username is shown to friends and typed into search.
+    """
+    User = get_user_model()
+
+    def plain(text):
+        text = unicodedata.normalize('NFKD', text or '').encode('ascii', 'ignore').decode().lower()
+        return re.sub(r'[^a-z0-9._]', '', text).strip('._')[:24]
+
+    base = plain(name) or plain((email or '').split('@')[0]) or 'user'
+    if len(base) < 3:
+        base = f'{base}user'
+    taken = set(User.objects.filter(username__iregex=rf'^{re.escape(base)}(_[0-9]+)?$')
+                .values_list('username', flat=True))
+    taken = {t.lower() for t in taken}
+    if base not in taken:
+        return base
+    n = 2
+    while f'{base}_{n}' in taken:
+        n += 1
+    return f'{base}_{n}'
+
+
 @transaction.atomic
 def resolve_identity(attempt, claims, refresh_token=''):
     User = get_user_model()
@@ -158,8 +188,9 @@ def resolve_identity(attempt, claims, refresh_token=''):
             raise SocialFailure()
         if User.objects.filter(email__iexact=email).exists():
             raise SocialFailure('email_exists')
-        user = User.objects.create_user(username='user_' + secrets.token_hex(10), email=email, password=None)
         name = claims.get('name', '')
+        user = User.objects.create_user(
+            username=username_for(name if isinstance(name, str) else '', email), email=email, password=None)
         if isinstance(name, str) and name.strip():
             Profile.objects.filter(user=user).update(display_name=name.strip()[:40])
         identity = SocialIdentity.objects.create(user=user, provider=attempt.provider, subject=claims['sub'])

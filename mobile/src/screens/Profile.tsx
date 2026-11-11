@@ -30,13 +30,17 @@ export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
       <Card pad={false} style={[styles.surface, { borderColor: t.line, borderWidth: StyleSheet.hairlineWidth }, float(t.dark, 1)]}>
         {/* The cover: a neutral panel with two flat hills — no gradient —
             floating inside the card (inset, rounded all round), with Edit
-            profile in its corner and your face half over its lower edge. */}
+            profile in one top corner, Member since in the other, and your
+            face half over its lower edge. */}
         <View style={[styles.cover, { backgroundColor: t.surface2 }]}>
           <View style={StyleSheet.absoluteFill} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Svg width="100%" height="100%" viewBox="0 0 400 120" preserveAspectRatio="none">
               <Path d="M0 70 C70 30 130 30 200 62 S330 96 400 48 V120 H0 Z" fill={t.surface3} />
               <Path d="M0 96 C80 64 150 70 220 92 S340 112 400 84 V120 H0 Z" fill={t.lineStrong} />
             </Svg>
+          </View>
+          <View style={[styles.sinceTag, { backgroundColor: t.surface }, float(t.dark, 2)]} testID="profile-since">
+            <Text style={{ color: t.muted, fontSize: 12, fontWeight: "600" }}>Member since {me.since}</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Edit profile" onPress={() => router.push("/profile/edit")} testID="profile-edit"
             style={({ pressed }) => [styles.edit, { backgroundColor: pressed ? t.surface2 : t.surface }, float(t.dark, 2)]}>
@@ -68,7 +72,6 @@ export default function Profile({ tabMode = false }: { tabMode?: boolean }) {
         <ProfileRow icon="settings-outline" title={tr("Settings")} description={tr("Appearance, privacy & account")} onPress={() => router.push("/profile/settings")} testID="profile-settings" />
       </ProfileGroup>
       <ProfileRow icon="log-out-outline" title={tr("Sign out")} centred onPress={leave} testID="sign-out" />
-      <Text style={[styles.since, { color: t.muted }]}>Member since {me.since}</Text>
       <Version />
     </Page>
   </Screen>;
@@ -108,5 +111,5 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: "600", letterSpacing: -.55, textAlign: "center", marginTop: 10, alignSelf: "stretch" },
   handle: { fontSize: 14, lineHeight: 20, textAlign: "center", alignSelf: "stretch" },
   edit: { position: "absolute", top: 12, right: 12, flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18 },
-  since: { fontSize: 12, textAlign: "center", marginTop: -8 },
+  sinceTag: { position: "absolute", top: 12, left: 12, minHeight: 36, justifyContent: "center", paddingHorizontal: 12, borderRadius: 18 },
 });
