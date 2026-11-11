@@ -9,6 +9,7 @@ import { navigateTo } from "@/nav/paths";
 import { ACTION_CLOCK_OUT, ACTION_END_BREAK, ACTION_START_BREAK } from "@/roster/reminders";
 import { notify } from "@/ui/confirm";
 import { notifications, setBadge } from "./register";
+import { LiveShift } from "../../modules/live-shift";
 
 // A button on the lock-screen shift: what it does to the clock.
 const CLOCK_ACTIONS: Record<string, () => Promise<unknown>> = {
@@ -26,6 +27,20 @@ export function useNotificationNavigation(ready: boolean, username?: string) {
     let active = true;
     let latest: string | null = null;
     const handled = new Set<string>();
+    // A notification may belong to a shift or account that has since ended.
+    // Never let its button change a different running shift.
+    const press = async (move: () => Promise<unknown>, expected: unknown) => {
+      try {
+        if (typeof expected === "number") {
+          const current = await timesheet.clock();
+          if (active && current.shift?.id === expected) await move();
+        }
+      } catch (error: any) {
+        notify(tr("The clock didn't move"), errorMessage(error));
+      }
+      for (const key of ["clock", "timesheet", "calendar", "trend", "pay", "more", "home"]) client.invalidateQueries({ queryKey: [key] });
+      if (active) await navigateTo("/timesheet/");
+    };
     const follow = async (response: NotificationResponse | null) => {
       if (!active || !response) return;
       const request = response.notification.request;
@@ -35,19 +50,7 @@ export function useNotificationNavigation(ready: boolean, username?: string) {
         const once = `${request.identifier}:${response.actionIdentifier}:${response.notification.date}`;
         if (handled.has(once)) return;
         handled.add(once);
-        try {
-          // A notification may belong to a shift or account that has since
-          // ended. Never let its button change a different running shift.
-          const expected = request.content.data?.shiftId;
-          if (typeof expected === "number") {
-            const current = await timesheet.clock();
-            if (active && current.shift?.id === expected) await move();
-          }
-        } catch (error: any) {
-          notify(tr("The clock didn't move"), errorMessage(error));
-        }
-        for (const key of ["clock", "timesheet", "calendar", "trend", "pay", "more", "home"]) client.invalidateQueries({ queryKey: [key] });
-        if (active) await navigateTo("/timesheet/");
+        await press(move, request.content.data?.shiftId);
         await Notifications.clearLastNotificationResponseAsync().catch(() => {});
         return;
       }
@@ -68,6 +71,18 @@ export function useNotificationNavigation(ready: boolean, username?: string) {
       // A live tap may have arrived while the cold-start response was being read.
       if (latest === null) return follow(response);
     }).catch(() => {});
-    return () => { active = false; sub.remove(); };
+    // Android's live running-shift notification: its buttons open the app
+    // carrying the press, which is taken once — at start, or as it arrives.
+    const takeLive = () => {
+      try {
+        const pressed = LiveShift?.takePendingAction();
+        const move = pressed && CLOCK_ACTIONS[pressed.action];
+        if (move) press(move, pressed.shiftId).catch(() => {});
+      } catch { /* the plain tap still opened the clock */ }
+    };
+    let live: { remove(): void } | undefined;
+    try { live = LiveShift?.addListener("onAction", takeLive); } catch { /* cold-start take still runs */ }
+    takeLive();
+    return () => { active = false; sub.remove(); live?.remove(); };
   }, [ready, username, client]);
 }

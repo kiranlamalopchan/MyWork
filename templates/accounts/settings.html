@@ -25,7 +25,7 @@
     </div>
   </section>
   {% endif %}
-  <div class="profile-settings__legal"><a href="{% url 'moderation:rules' %}">Community rules</a><a href="{% url 'privacy' %}">Privacy</a></div>
+  <div class="profile-settings__legal"><a href="{% url 'moderation:rules' %}">Community rules</a><a href="{% url 'terms' %}">Terms</a><a href="{% url 'privacy' %}">Privacy</a></div>
   <a class="profile-settings__delete" href="{% url 'accounts:delete' %}">Delete account</a>
   <p class="muted" style="text-align:center;font-size:12px">KaamKoRecord {{ app_version }}</p>
 </div>

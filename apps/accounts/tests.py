@@ -331,6 +331,14 @@ class AccountDeletionTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Deleting your account")
 
+    def test_the_terms_page_is_public_and_linked_where_people_sign_up(self):
+        self.client.logout()
+        resp = self.client.get(reverse("terms"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Terms of Service")
+        self.assertContains(resp, reverse("moderation:rules"))
+        self.assertContains(self.client.get(reverse("register")), reverse("terms"))
+
     def test_the_wrong_password_deletes_nothing(self):
         resp = self.client.post(reverse("accounts:delete"), {"password": "wrong"})
         self.assertEqual(resp.status_code, 200)

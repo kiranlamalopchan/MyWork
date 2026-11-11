@@ -37,6 +37,7 @@
         <h2 class="site-footer__heading" id="footer-help">Help &amp; legal</h2>
         <ul class="site-footer__list">
           <li><a href="{% url 'privacy' %}">Privacy policy</a></li>
+          <li><a href="{% url 'terms' %}">Terms of service</a></li>
           <li><a href="{% url 'moderation:rules' %}">Community rules</a></li>
           {% if request.user.is_authenticated %}
             <li><a href="{% url 'holidays:calendar' %}">Public holidays</a></li>

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% comment %}
+  The terms of service. Public — reachable signed out — because Google Play
+  and the App Store ask for it by address. Laid out like the privacy policy
+  (dated, numbered, a summary first) and in the same plain words. When the
+  rules for using KaamKoRecord change, the effective date (TERMS_EFFECTIVE in
+  mywork/views.py) moves with them.
+{% endcomment %}
+{% block title %}Terms of Service · KaamKoRecord{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Terms of Service</h1>
+  <p class="page-sub">Effective {{ effective|date:"j F Y" }} · applies to the KaamKoRecord website and the KaamKoRecord app for iPhone and Android.</p>
+</div>
+
+<article class="card card__pad legal">
+  <section class="legal__summary" aria-labelledby="summary">
+    <h2 id="summary" class="section-label">In short</h2>
+    <ul>
+      <li>KaamKoRecord is free to use. By using it you agree to these terms, the <a href="{% url 'moderation:rules' %}">community rules</a> and the <a href="{% url 'privacy' %}">privacy policy</a>.</li>
+      <li>Your hours, pay figures and payslip checks are a guide you work out yourself. They are not financial, tax or legal advice, and your employer's records and payslips are what count.</li>
+      <li>What you post stays yours. You are responsible for it, and it must follow the community rules.</li>
+      <li>There is no tolerance for abusive or objectionable content or behaviour. You can report posts and block people, and reported content is reviewed and removed.</li>
+      <li>You can stop using KaamKoRecord and delete your account at any time.</li>
+    </ul>
+  </section>
+
+  <nav class="legal__toc" aria-label="Contents">
+    <ol>
+      <li><a href="#agreement">Agreeing to these terms</a></li>
+      <li><a href="#who">Who can use KaamKoRecord</a></li>
+      <li><a href="#account">Your account</a></li>
+      <li><a href="#records">Your work records and pay figures</a></li>
+      <li><a href="#content">What you post</a></li>
+      <li><a href="#conduct">Community rules, reports and blocking</a></li>
+      <li><a href="#shifts">Rosters, shift swaps and messages</a></li>
+      <li><a href="#service">The service</a></li>
+      <li><a href="#ending">Ending your use</a></li>
+      <li><a href="#liability">Responsibility and liability</a></li>
+      <li><a href="#stores">App stores</a></li>
+      <li><a href="#law">Law that applies</a></li>
+      <li><a href="#changes">Changes to these terms</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </nav>
+
+  <section id="agreement">
+    <h2>1. Agreeing to these terms</h2>
+    <p>These terms are an agreement between you and the developer who operates KaamKoRecord. By creating an account or using the website or the app, you agree to them, to the <a href="{% url 'moderation:rules' %}">community rules</a> and to the <a href="{% url 'privacy' %}">privacy policy</a>, which explains what information is kept and why. If you do not agree, please do not use KaamKoRecord.</p>
+  </section>
+
+  <section id="who">
+    <h2>2. Who can use KaamKoRecord</h2>
+    <p>KaamKoRecord is made for people who work. You must be at least 13 years old to use it, and if you are under 18 you should have a parent's or guardian's permission. You may not use KaamKoRecord if you have been removed from it before for breaking these terms or the community rules.</p>
+  </section>
+
+  <section id="account">
+    <h2>3. Your account</h2>
+    <p>Give accurate details when you create your account and keep them up to date. Keep your password private, and do not let anyone else use your account. If you sign in with Google or Apple, that provider's own terms also apply to how you sign in. Tell us straight away if you think someone else has got into your account. You are responsible for what happens under your account.</p>
+  </section>
+
+  <section id="records">
+    <h2>4. Your work records and pay figures</h2>
+    <p>KaamKoRecord helps you keep your own record of the hours you work, your breaks, your rosters and your pay. Every figure it shows — hours, estimated pay, tax, totals and payslip checks — is worked out from what you enter and the settings you choose.</p>
+    <ul>
+      <li>These figures are a guide only. They are not financial, tax, employment or legal advice.</li>
+      <li>Your employer's records, your payslips and the law that covers your work are what decide what you are owed.</li>
+      <li>If something looks wrong, raise it with your employer, your union or the Fair Work Ombudsman (or the equivalent body where you work).</li>
+    </ul>
+    <p>Check your entries are right. KaamKoRecord cannot know about hours you did not record or rates you did not enter.</p>
+  </section>
+
+  <section id="content">
+    <h2>5. What you post</h2>
+    <p>Notices, stories, comments, messages, photos and anything else you share stay yours. So that KaamKoRecord can store and show them to the people you choose, you give it permission to host, copy, resize and display them for that purpose only, for as long as they are on KaamKoRecord. This permission ends when you delete the content or your account, except for copies other people have already received in messages.</p>
+    <p>Only post what you have the right to share, and do not post anyone else's private information without their permission. You are responsible for what you post.</p>
+  </section>
+
+  <section id="conduct">
+    <h2>6. Community rules, reports and blocking</h2>
+    <p>KaamKoRecord has no tolerance for objectionable content or abusive users. You must follow the <a href="{% url 'moderation:rules' %}">community rules</a>. Among other things, you must not:</p>
+    <ul>
+      <li>harass, bully, threaten or impersonate anyone;</li>
+      <li>post hateful, sexual, violent or illegal content, or spam;</li>
+      <li>scrape, overload, break into or interfere with KaamKoRecord, or use it to break the law.</li>
+    </ul>
+    <p>You can report any post or person and block anyone from the app or the site. Words that break the rules are filtered. Reports are reviewed, and content that breaks these terms is removed — usually within 24 hours. People who break the rules may have their posts removed and their account suspended or deleted, without notice where the breach is serious.</p>
+  </section>
+
+  <section id="shifts">
+    <h2>7. Rosters, shift swaps and messages</h2>
+    <p>Offering a shift to a friend, taking one from them, or messaging other members is an arrangement between you and them. KaamKoRecord only passes the offer or message along; it is not your employer and is not part of any arrangement you make. Check with your employer before swapping or covering a shift — whether a swap is allowed is up to them. Reminders and alarms on your phone depend on your phone's settings, so do not rely on them alone to be on time.</p>
+  </section>
+
+  <section id="service">
+    <h2>8. The service</h2>
+    <p>KaamKoRecord is provided free of charge. It is looked after carefully, but it may sometimes be unavailable, slow or changed — for example during updates — and features may be added or removed. Keep your own copy of anything important, such as by downloading your statement from your profile.</p>
+  </section>
+
+  <section id="ending">
+    <h2>9. Ending your use</h2>
+    <p>You can stop using KaamKoRecord at any time and delete your account, and everything in it, from your profile in the app or on the site. Your account may be suspended or closed if you break these terms or the community rules, if the law requires it, or if KaamKoRecord stops running. Where it is fair and possible, you will be told first so you can download your records.</p>
+  </section>
+
+  <section id="liability">
+    <h2>10. Responsibility and liability</h2>
+    <p>Nothing in these terms takes away rights you have under the Australian Consumer Law or other laws that cannot be excluded. Subject to those rights:</p>
+    <ul>
+      <li>KaamKoRecord is provided "as is", without any promise that it will be error-free or always available, or that its figures will match what you are paid;</li>
+      <li>the developer is not responsible for losses that come from relying on its figures, reminders or messages, from arrangements you make with other members, or from things other members post;</li>
+      <li>where liability cannot be excluded but can be limited, it is limited to supplying the service again.</li>
+    </ul>
+  </section>
+
+  <section id="stores">
+    <h2>11. App stores</h2>
+    <p>If you got the app from the Apple App Store or Google Play, that store's own terms also apply to your download. Apple and Google are not responsible for KaamKoRecord or for supporting it. If you use the iPhone app, Apple's standard licensed application end user licence agreement applies alongside these terms, and these terms prevail where the two differ, to the extent that is allowed.</p>
+  </section>
+
+  <section id="law">
+    <h2>12. Law that applies</h2>
+    <p>These terms are governed by the laws in force in Australia. If a part of these terms cannot be enforced, the rest still applies.</p>
+  </section>
+
+  <section id="changes">
+    <h2>13. Changes to these terms</h2>
+    <p>If these terms change, the new version will be published at this address with an updated effective date. Changes that materially affect you will be announced on the notice board before they take effect. Continuing to use KaamKoRecord after that means you accept the new terms.</p>
+  </section>
+
+  <section id="contact">
+    <h2>14. Contact</h2>
+    {% if contact_email %}
+      <p>Questions about these terms: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+    {% else %}
+      <p>Questions about these terms can be sent through the contact details on the app-store listing.</p>
+    {% endif %}
+  </section>
+</article>
+{% endblock %}

@@ -33,6 +33,9 @@ export const ne: Record<string, string> = {
   // ---- the clock -------------------------------------------------------------
   "Current time": "अहिलेको समय",
   "On break": "ब्रेकमा",
+  "On shift": "सिफ्टमा",
+  "Running shift": "चलिरहेको सिफ्ट",
+  "In since {time}.": "{time} देखि भित्र।",
   "Worked": "काम गरेको",
   "Not started": "सुरु भएको छैन",
   "Clock in": "क्लक इन",

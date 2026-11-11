@@ -57,7 +57,7 @@ def section(request):
     namespace = match.namespace if match else ""
     page = match.url_name if match else ""
     selected = {"plu": "items", "timeclock": "work", "notifications": "alerts", "accounts": "profile"}.get(namespace, "home")
-    if page == "privacy" or namespace == "moderation" and page in {"blocked", "rules"}:
+    if page in {"privacy", "terms"} or namespace == "moderation" and page in {"blocked", "rules"}:
         selected = "profile"
     context = {
         "timesheet_pages": TIMESHEET_PAGES, "more_pages": MORE_PAGES,

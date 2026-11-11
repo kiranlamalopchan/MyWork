@@ -82,6 +82,7 @@ def register(request):
 
 # The date the policy last changed. Bump it when privacy.html changes in substance.
 PRIVACY_EFFECTIVE = date(2026, 10, 19)
+TERMS_EFFECTIVE = date(2026, 11, 11)
 
 
 def privacy(request):
@@ -91,3 +92,12 @@ def privacy(request):
     at one that never moves: /privacy/.
     """
     return render(request, "privacy.html", {"contact_email": settings.CONTACT_EMAIL, "effective": PRIVACY_EFFECTIVE})
+
+
+def terms(request):
+    """
+    The rules for using KaamKoRecord — public, beside the privacy policy, at
+    an address that never moves (/terms/), because Google Play and the App
+    Store link to it.
+    """
+    return render(request, "terms.html", {"contact_email": settings.CONTACT_EMAIL, "effective": TERMS_EFFECTIVE})

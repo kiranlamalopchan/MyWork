@@ -17,6 +17,7 @@ import * as SecureStore from "expo-secure-store";
 import type { ClockState, Planned } from "@/api";
 import { getLang, tr } from "@/i18n";
 import { notifications } from "@/push/register";
+import { LiveShift } from "../../modules/live-shift";
 
 /** Minutes of warning before a shift; 0 is off. */
 export const LEADS = [0, 15, 30, 60, 120] as const;
@@ -195,6 +196,11 @@ async function updateClock(state: ClockState | null | undefined, shifts: Planned
 
     if (!(await lockScreenOn())) return;
     const onBreak = shift.status === "ON_BREAK";
+    if (LiveShift && showLiveShift(shift, where, onBreak)) {
+      // The live one replaces the plain line an older version may have left up.
+      try { await Notifications.dismissNotificationAsync(STATUS_ID); } catch { /* it was not up */ }
+      return;
+    }
     // Put up once per state. The clock is asked about every few seconds
     // while the app is open, and the same line posted again each time would
     // light the screen each time.
@@ -222,7 +228,36 @@ async function updateClock(state: ClockState | null | undefined, shifts: Planned
   }
 }
 
+/**
+ * Android: the running shift as a Live Update — a ticking timer, green at
+ * work and amber on a break, with the same buttons. False when the module
+ * is missing or may not post, so the plain notification is used instead.
+ */
+function showLiveShift(shift: NonNullable<ClockState["shift"]>, where: string, onBreak: boolean): boolean {
+  try {
+    const started = onBreak && shift.running_break
+      ? Date.parse(shift.running_break.start)
+      : Date.parse(shift.clock_in) + shift.banked_break_seconds * 1000;
+    return !!LiveShift?.show({
+      title: onBreak ? tr("On break at {place}", { place: where }) : tr("Clocked in at {place}", { place: where }),
+      text: onBreak && shift.running_break
+        ? tr("Break since {time}.", { time: shift.running_break.start_at })
+        : tr("In since {time}.", { time: shift.in_at }),
+      mode: onBreak ? "break" : "work",
+      ...(Number.isFinite(started) ? { since: started } : {}),
+      shiftId: shift.id,
+      channelName: tr("Running shift"),
+      actions: onBreak
+        ? [{ id: ACTION_END_BREAK, label: tr("End break") }, { id: ACTION_CLOCK_OUT, label: tr("Clock out") }]
+        : [{ id: ACTION_START_BREAK, label: tr("Start break") }, { id: ACTION_CLOCK_OUT, label: tr("Clock out") }],
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function clearShiftStatus(): Promise<void> {
+  try { LiveShift?.hide(); } catch { /* it was not up */ }
   const Notifications = notifications();
   if (!Notifications) return;
   try { await Notifications.dismissNotificationAsync(STATUS_ID); } catch { /* it was not up */ }

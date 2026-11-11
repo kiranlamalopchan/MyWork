@@ -26,7 +26,7 @@ class ProfileSettingsTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('accounts:settings'))
         self.assertContains(response, 'id="theme-toggle"')
-        for url in ['accounts:password', 'accounts:delete', 'moderation:blocked', 'moderation:rules', 'privacy']:
+        for url in ['accounts:password', 'accounts:delete', 'moderation:blocked', 'moderation:rules', 'privacy', 'terms']:
             self.assertContains(response, reverse(url))
         self.assertNotContains(response, 'Festival banner')
         self.assertNotContains(response, 'Password reset links')
